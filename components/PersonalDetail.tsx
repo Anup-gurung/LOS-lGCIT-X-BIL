@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { fetchMaritalStatus, fetchBanks, fetchNationality, fetchIdentificationType, fetchCountry, fetchDzongkhag, fetchGewogsByDzongkhag } from "@/services/api"
+import { fetchMaritalStatus, fetchBanks, fetchNationality, fetchIdentificationType, fetchCountry, fetchDzongkhag, fetchGewogsByDzongkhag, fetchOccupations, fetchLegalConstitution } from "@/services/api"
 
 interface PersonalDetailsFormProps {
   onNext: (data: any) => void
@@ -27,6 +27,8 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
   const [dzongkhagOptions, setDzongkhagOptions] = useState<any[]>([])
   const [permGewogOptions, setPermGewogOptions] = useState<any[]>([])
   const [currGewogOptions, setCurrGewogOptions] = useState<any[]>([])
+  const [occupationOptions, setOccupationOptions] = useState<any[]>([])
+  const [organizationOptions, setOrganizationOptions] = useState<any[]>([])
 
   useEffect(() => {
     // Fetch marital status options from API
@@ -134,6 +136,40 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
     }
 
     loadDzongkhag()
+
+    // Fetch occupation from API
+    const loadOccupation = async () => {
+      try {
+        const options = await fetchOccupations()
+        setOccupationOptions(options)
+      } catch (error) {
+        console.error('Failed to load occupations:', error)
+        setOccupationOptions([
+          { id: 'engineer', name: 'Engineer' },
+          { id: 'teacher', name: 'Teacher' },
+          { id: 'doctor', name: 'Doctor' },
+          { id: 'other', name: 'Other' }
+        ])
+      }
+    }
+
+    loadOccupation()
+
+    // Fetch legal constitution (organizations) from API
+    const loadOrganizations = async () => {
+      try {
+        const options = await fetchLegalConstitution()
+        setOrganizationOptions(options)
+      } catch (error) {
+        console.error('Failed to load organizations:', error)
+        setOrganizationOptions([
+          { id: 'org1', name: 'Organization 1' },
+          { id: 'org2', name: 'Organization 2' }
+        ])
+      }
+    }
+
+    loadOrganizations()
   }, [])
 
   // Load permanent gewogs when permanent dzongkhag changes
@@ -478,7 +514,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               <SelectContent>
                 {banksOptions.length > 0 ? (
                   banksOptions.map((option, index) => {
-                    console.log('Bank option:', option)
+                    // console.log('Bank option:', option)
                     const key = option.bank_pk_code || option.id || option.code || option.bank_code || `bank-${index}`
                     const value = String(option.bank_pk_code || option.id || option.code || option.bank_code || index)
                     const label = option.bank_name || option.name || option.label || option.bankName || option.bank || 'Unknown'
@@ -1006,10 +1042,21 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="engineer">Engineer</SelectItem>
-                  <SelectItem value="teacher">Teacher</SelectItem>
-                  <SelectItem value="doctor">Doctor</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  {occupationOptions.length > 0 ? (
+                    occupationOptions.map((option, index) => {
+                      const key = option.occ_pk_code || option.occupation_pk_code || option.id || `occupation-${index}`
+                      const value = String(option.occ_pk_code || option.occupation_pk_code || option.id || index)
+                      const label = option.occ_name || option.occupation || option.name || 'Unknown'
+                      
+                      return (
+                        <SelectItem key={key} value={value}>
+                          {label}
+                        </SelectItem>
+                      )
+                    })
+                  ) : (
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -1026,8 +1073,21 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="org1">Organization 1</SelectItem>
-                  <SelectItem value="org2">Organization 2</SelectItem>
+                  {organizationOptions.length > 0 ? (
+                    organizationOptions.map((option, index) => {
+                      const key = option.lgal_constitution_pk_code || option.legal_const_pk_code || option.id || `org-${index}`
+                      const value = String(option.lgal_constitution_pk_code || option.legal_const_pk_code || option.id || index)
+                      const label = option.lgal_constitution || option.legal_const_name || option.name || 'Unknown'
+                      
+                      return (
+                        <SelectItem key={key} value={value}>
+                          {label}
+                        </SelectItem>
+                      )
+                    })
+                  ) : (
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>

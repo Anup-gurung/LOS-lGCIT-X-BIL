@@ -2,12 +2,13 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { fetchMaritalStatus, fetchNationality, fetchIdentificationType, fetchCountry, fetchDzongkhag, fetchGewogsByDzongkhag, fetchOccupations } from "@/services/api"
 
 interface CoBorrowerDetailsFormProps {
   onNext: (data: any) => void
@@ -18,6 +19,73 @@ interface CoBorrowerDetailsFormProps {
 export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDetailsFormProps) {
   const [data, setData] = useState(formData.coBorrowerDetails || {})
   const [coBorrowers, setCoBorrowers] = useState<any[]>(formData.coBorrowers || [{}])
+  const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([])
+  const [nationalityOptions, setNationalityOptions] = useState<any[]>([])
+  const [identificationTypeOptions, setIdentificationTypeOptions] = useState<any[]>([])
+  const [countryOptions, setCountryOptions] = useState<any[]>([])
+  const [dzongkhagOptions, setDzongkhagOptions] = useState<any[]>([])
+  const [permGewogOptions, setPermGewogOptions] = useState<any[]>([])
+  const [currGewogOptions, setCurrGewogOptions] = useState<any[]>([])
+  const [occupationOptions, setOccupationOptions] = useState<any[]>([])
+
+  useEffect(() => {
+    // Load all initial API data
+    const loadAllData = async () => {
+      try {
+        const [maritalStatus, nationality, identificationType, country, dzongkhag, occupations] = await Promise.all([
+          fetchMaritalStatus().catch(() => []),
+          fetchNationality().catch(() => []),
+          fetchIdentificationType().catch(() => []),
+          fetchCountry().catch(() => []),
+          fetchDzongkhag().catch(() => []),
+          fetchOccupations().catch(() => [])
+        ])
+
+        setMaritalStatusOptions(maritalStatus)
+        setNationalityOptions(nationality)
+        setIdentificationTypeOptions(identificationType)
+        setCountryOptions(country)
+        setDzongkhagOptions(dzongkhag)
+        setOccupationOptions(occupations)
+      } catch (error) {
+        console.error('Failed to load dropdown data:', error)
+      }
+    }
+
+    loadAllData()
+  }, [])
+
+  // Load permanent gewogs when permanent dzongkhag changes
+  useEffect(() => {
+    const loadPermGewogs = async () => {
+      if (data.permDzongkhag) {
+        try {
+          const options = await fetchGewogsByDzongkhag(data.permDzongkhag)
+          setPermGewogOptions(options)
+        } catch (error) {
+          console.error('Failed to load permanent gewogs:', error)
+          setPermGewogOptions([])
+        }
+      }
+    }
+    loadPermGewogs()
+  }, [data.permDzongkhag])
+
+  // Load current gewogs when current dzongkhag changes
+  useEffect(() => {
+    const loadCurrGewogs = async () => {
+      if (data.currDzongkhag) {
+        try {
+          const options = await fetchGewogsByDzongkhag(data.currDzongkhag)
+          setCurrGewogOptions(options)
+        } catch (error) {
+          console.error('Failed to load current gewogs:', error)
+          setCurrGewogOptions([])
+        }
+      }
+    }
+    loadCurrGewogs()
+  }, [data.currDzongkhag])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -85,9 +153,20 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="bhutanese">Bhutanese</SelectItem>
-                <SelectItem value="indian">Indian</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                {nationalityOptions.length > 0 ? (
+                  nationalityOptions.map((option, index) => {
+                    const key = option.nationality_pk_code || option.id || `nationality-${index}`
+                    const value = String(option.nationality_pk_code || option.id || index)
+                    const label = option.nationality || option.name || 'Unknown'
+                    return (
+                      <SelectItem key={key} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  })
+                ) : (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -104,9 +183,20 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cid">Citizenship ID</SelectItem>
-                <SelectItem value="passport">Passport</SelectItem>
-                <SelectItem value="work_permit">Work Permit</SelectItem>
+                {identificationTypeOptions.length > 0 ? (
+                  identificationTypeOptions.map((option, index) => {
+                    const key = option.identity_type_pk_code || option.id || `id-${index}`
+                    const value = String(option.identity_type_pk_code || option.id || index)
+                    const label = option.identity_type || option.name || 'Unknown'
+                    return (
+                      <SelectItem key={key} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  })
+                ) : (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -189,10 +279,20 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="single">Single</SelectItem>
-                <SelectItem value="married">Married</SelectItem>
-                <SelectItem value="divorced">Divorced</SelectItem>
-                <SelectItem value="widowed">Widowed</SelectItem>
+                {maritalStatusOptions.length > 0 ? (
+                  maritalStatusOptions.map((option, index) => {
+                    const key = option.marital_status_pk_code || option.id || `marital-${index}`
+                    const value = String(option.marital_status_pk_code || option.id || index)
+                    const label = option.marital_status || option.name || 'Unknown'
+                    return (
+                      <SelectItem key={key} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  })
+                ) : (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -291,8 +391,20 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="bhutan">Bhutan</SelectItem>
-                <SelectItem value="india">India</SelectItem>
+                {countryOptions.length > 0 ? (
+                  countryOptions.map((option, index) => {
+                    const key = option.country_pk_code || option.id || `perm-country-${index}`
+                    const value = String(option.country_pk_code || option.id || index)
+                    const label = option.country || option.name || 'Unknown'
+                    return (
+                      <SelectItem key={key} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  })
+                ) : (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -306,9 +418,20 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="thimphu">Thimphu</SelectItem>
-                <SelectItem value="paro">Paro</SelectItem>
-                <SelectItem value="punakha">Punakha</SelectItem>
+                {dzongkhagOptions.length > 0 ? (
+                  dzongkhagOptions.map((option, index) => {
+                    const key = option.dzongkhag_pk_code || option.id || `perm-dzo-${index}`
+                    const value = String(option.dzongkhag_pk_code || option.id || index)
+                    const label = option.dzongkhag || option.name || 'Unknown'
+                    return (
+                      <SelectItem key={key} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  })
+                ) : (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -322,8 +445,20 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="gewog1">Gewog 1</SelectItem>
-                <SelectItem value="gewog2">Gewog 2</SelectItem>
+                {permGewogOptions.length > 0 ? (
+                  permGewogOptions.map((option, index) => {
+                    const key = option.gewog_pk_code || option.id || `perm-gewog-${index}`
+                    const value = String(option.gewog_pk_code || option.id || index)
+                    const label = option.gewog || option.name || 'Unknown'
+                    return (
+                      <SelectItem key={key} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  })
+                ) : (
+                  <SelectItem value="loading" disabled>{data.permDzongkhag ? 'Loading...' : 'Select Dzongkhag first'}</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -356,8 +491,20 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="bhutan">Bhutan</SelectItem>
-                <SelectItem value="india">India</SelectItem>
+                {countryOptions.length > 0 ? (
+                  countryOptions.map((option, index) => {
+                    const key = option.country_pk_code || option.id || `curr-country-${index}`
+                    const value = String(option.country_pk_code || option.id || index)
+                    const label = option.country || option.name || 'Unknown'
+                    return (
+                      <SelectItem key={key} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  })
+                ) : (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -371,8 +518,20 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="thimphu">Thimphu</SelectItem>
-                <SelectItem value="paro">Paro</SelectItem>
+                {dzongkhagOptions.length > 0 ? (
+                  dzongkhagOptions.map((option, index) => {
+                    const key = option.dzongkhag_pk_code || option.id || `curr-dzo-${index}`
+                    const value = String(option.dzongkhag_pk_code || option.id || index)
+                    const label = option.dzongkhag || option.name || 'Unknown'
+                    return (
+                      <SelectItem key={key} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  })
+                ) : (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -386,8 +545,20 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="gewog1">Gewog 1</SelectItem>
-                <SelectItem value="gewog2">Gewog 2</SelectItem>
+                {currGewogOptions.length > 0 ? (
+                  currGewogOptions.map((option, index) => {
+                    const key = option.gewog_pk_code || option.id || `curr-gewog-${index}`
+                    const value = String(option.gewog_pk_code || option.id || index)
+                    const label = option.gewog || option.name || 'Unknown'
+                    return (
+                      <SelectItem key={key} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  })
+                ) : (
+                  <SelectItem value="loading" disabled>{data.currDzongkhag ? 'Loading...' : 'Select Dzongkhag first'}</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -573,10 +744,20 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="engineer">Engineer</SelectItem>
-                  <SelectItem value="teacher">Teacher</SelectItem>
-                  <SelectItem value="doctor">Doctor</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  {occupationOptions.length > 0 ? (
+                    occupationOptions.map((option, index) => {
+                      const key = option.occ_pk_code || option.id || `occupation-${index}`
+                      const value = String(option.occ_pk_code || option.id || index)
+                      const label = option.occ_name || option.name || 'Unknown'
+                      return (
+                        <SelectItem key={key} value={value}>
+                          {label}
+                        </SelectItem>
+                      )
+                    })
+                  ) : (
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>

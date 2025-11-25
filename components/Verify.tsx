@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import OtpVerify from "@/components/pop-up/otp";
+import { Header } from "./header";
 
 export default function ExistingUserVerification() {
   const [idType, setIdType] = useState("");
@@ -11,19 +12,11 @@ export default function ExistingUserVerification() {
   const [showOtpModal, setShowOtpModal] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10">
+    <div className="min-h-screen bg-gray-50 pt-24">
+      <Header />
 
-      {/* Top Logo Section */}
-      <div className="mt-1 mb-10 flex items-center gap-3">
-        <img
-          src="/banner.png" // replace with your actual path
-          alt="Bhutan Insurance Limited"
-          className="h-16"
-        />
-      </div>
-
-      {/* Main Card Section */}
-      <div className="bg-white shadow-lg rounded-2xl p-10 w-[90%] max-w-6xl">
+      <div className="container mx-auto px-4 py-16">
+        <div className="bg-white shadow-lg rounded-2xl p-10 w-full max-w-6xl mx-auto">
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
 
@@ -129,6 +122,7 @@ export default function ExistingUserVerification() {
             </div>
 
           </div>
+        </div>
         </div>
       </div>
 

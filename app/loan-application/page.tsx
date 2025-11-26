@@ -174,23 +174,23 @@ export default function LoanApplicationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-24">
       <Header />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-6 py-10">
         {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between max-w-6xl mx-auto gap-2">
+        <div className="mb-12">
+          <div className="flex items-center justify-between max-w-6xl mx-auto gap-3">
             {steps.map((step, index) => (
               <div key={step} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
                   <div
-                    className={`w-full h-12 flex items-center justify-center rounded-lg font-medium text-sm transition-colors ${
+                    className={`w-full h-14 flex items-center justify-center rounded-xl font-semibold text-sm transition-all duration-300 shadow-sm ${
                       index === currentStep
-                        ? "bg-[#FF9800] text-white"
+                        ? "bg-[#FF9800] text-white shadow-md scale-105"
                         : index < currentStep
                           ? "bg-gray-300 text-gray-700"
-                          : "bg-gray-200 text-gray-500"
+                          : "bg-white text-gray-500 border border-gray-200"
                     }`}
                   >
                     {step}
@@ -236,17 +236,17 @@ export default function LoanApplicationPage() {
             />
           </div>
         ) : (
-          <div className="grid lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-10 max-w-7xl mx-auto">
             {/* Left Side - Form Fields */}
-            <Card className="shadow-lg border-gray-200">
-            <CardContent className="p-8 space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="loan-sector" className="text-gray-700 font-medium">
+            <Card className="shadow-xl border-0 bg-white rounded-2xl overflow-hidden">
+            <CardContent className="p-10 space-y-8">
+              <div className="space-y-6">
+                <div className="space-y-2.5">
+                  <Label htmlFor="loan-sector" className="text-gray-800 font-semibold text-base">
                     Loan Sector <span className="text-red-500">*</span>
                   </Label>
                   <Select value={selectedSector} onValueChange={setSelectedSector}>
-                    <SelectTrigger id="loan-sector" className="mt-1.5">
+                    <SelectTrigger id="loan-sector" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent>
@@ -263,12 +263,12 @@ export default function LoanApplicationPage() {
                   </Select>
                 </div>
 
-                <div>
-                  <Label htmlFor="vehicle-type" className="text-gray-700 font-medium">
+                <div className="space-y-2.5">
+                  <Label htmlFor="vehicle-type" className="text-gray-800 font-semibold text-base">
                     Loan Type: <span className="text-red-500">*</span>
                   </Label>
                   <Select value={selectedLoanType} onValueChange={setSelectedLoanType}>
-                    <SelectTrigger id="vehicle-type" className="mt-1.5">
+                    <SelectTrigger id="vehicle-type" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent>
@@ -285,12 +285,12 @@ export default function LoanApplicationPage() {
                   </Select>
                 </div>
 
-                <div>
-                  <Label htmlFor="loan-subsector" className="text-gray-700 font-medium">
+                <div className="space-y-2.5">
+                  <Label htmlFor="loan-subsector" className="text-gray-800 font-semibold text-base">
                     Loan Sub-Sector <span className="text-red-500">*</span>
                   </Label>
                   <Select value={selectedSubSector} onValueChange={setSelectedSubSector}>
-                    <SelectTrigger id="loan-subsector" className="mt-1.5">
+                    <SelectTrigger id="loan-subsector" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent>
@@ -309,12 +309,12 @@ export default function LoanApplicationPage() {
                   </Select>
                 </div>
 
-                <div>
-                  <Label htmlFor="sub-sector-category" className="text-gray-700 font-medium">
+                <div className="space-y-2.5">
+                  <Label htmlFor="sub-sector-category" className="text-gray-800 font-semibold text-base">
                     Loan Sub-Sector Category <span className="text-red-500">*</span>
                   </Label>
                   <Select value={selectedSubSectorCategory} onValueChange={setSelectedSubSectorCategory}>
-                    <SelectTrigger id="sub-sector-category" className="mt-1.5">
+                    <SelectTrigger id="sub-sector-category" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent>
@@ -335,35 +335,35 @@ export default function LoanApplicationPage() {
               </div>
 
               {/* Loan Info Box */}
-              <div className="bg-blue-50 p-6 rounded-lg space-y-4 border border-blue-100">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Transport Loan</h3>
-                  <p className="text-sm italic text-gray-600">"Fuel Your Fleet, Accelerate Your Success."</p>
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-8 rounded-2xl space-y-5 border border-blue-200 shadow-sm mt-8">
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-gray-900">Transport Loan</h3>
+                  <p className="text-sm italic text-gray-700 font-medium">"Fuel Your Fleet, Accelerate Your Success."</p>
                 </div>
 
-                <div>
-                  <h4 className="font-bold text-gray-900 mb-2">Transport Commercial Loan</h4>
-                  <p className="text-sm text-gray-600 leading-relaxed">
+                <div className="space-y-2">
+                  <h4 className="font-bold text-gray-900 text-base">Transport Commercial Loan</h4>
+                  <p className="text-sm text-gray-700 leading-relaxed">
                     Drive your commercial transport business forward with financing solutions for vehicle purchase, and
                     operational upgrades.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 pt-4">
-                  <div className="bg-[#FF9800] text-white p-5 rounded-lg shadow-md">
-                    <div className="flex items-center gap-2 mb-2">
+                <div className="grid grid-cols-2 gap-5 pt-4">
+                  <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                    <div className="flex items-center gap-2.5 mb-3">
                       <Calendar className="h-5 w-5" />
-                      <span className="text-sm font-medium">Loan Tenure</span>
+                      <span className="text-sm font-semibold">Loan Tenure</span>
                     </div>
-                    <p className="text-3xl font-bold">5 Years</p>
+                    <p className="text-4xl font-bold">5 Years</p>
                   </div>
 
-                  <div className="bg-[#FF9800] text-white p-5 rounded-lg shadow-md">
-                    <div className="flex items-center gap-2 mb-2">
+                  <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                    <div className="flex items-center gap-2.5 mb-3">
                       <Percent className="h-5 w-5" />
-                      <span className="text-sm font-medium">Interest Rate</span>
+                      <span className="text-sm font-semibold">Interest Rate</span>
                     </div>
-                    <p className="text-3xl font-bold">12.45%</p>
+                    <p className="text-4xl font-bold">12.45%</p>
                   </div>
                 </div>
               </div>
@@ -371,36 +371,41 @@ export default function LoanApplicationPage() {
           </Card>
 
           {/* Right Side - EMI Calculator */}
-          <Card className="shadow-lg border-gray-200">
-            <CardContent className="p-8 space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="total-loan" className="text-gray-700 font-medium">
+          <Card className="shadow-xl border-0 bg-white rounded-2xl overflow-hidden">
+            <CardContent className="p-10 space-y-8">
+              <div className="space-y-6">
+                <div className="space-y-2.5">
+                  <Label htmlFor="total-loan" className="text-gray-800 font-semibold text-base">
                     Total Loan Required (Nu.) <span className="text-red-500">*</span>
                   </Label>
                   <Input 
                     id="total-loan" 
                     type="number" 
                     placeholder="Enter Total Loan Amount" 
-                    className="mt-1.5" 
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" 
                     value={totalLoanInput}
                     onChange={(e) => setTotalLoanInput(e.target.value)}
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="purpose" className="text-gray-700 font-medium">
+                <div className="space-y-2.5">
+                  <Label htmlFor="purpose" className="text-gray-800 font-semibold text-base">
                     Purpose <span className="text-red-500">*</span>
                   </Label>
-                  <Textarea id="purpose" placeholder="Write your purpose" rows={3} className="mt-1.5" />
+                  <Textarea 
+                    id="purpose" 
+                    placeholder="Write your purpose" 
+                    rows={4} 
+                    className="border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] resize-none" 
+                  />
                 </div>
               </div>
 
               {/* EMI Display */}
-              <div className="border-t pt-6">
-                <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] p-10 rounded-xl text-center shadow-lg">
-                  <p className="text-lg text-white/90 mb-3 font-medium">Your Monthly EMI</p>
-                  <p className="text-6xl font-bold text-white">Nu. {calculateEMI()}</p>
+              <div className="border-t border-gray-200 pt-8 mt-8">
+                <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] p-12 rounded-2xl text-center shadow-2xl transform hover:scale-105 transition-transform duration-300">
+                  <p className="text-lg text-white/95 mb-4 font-semibold tracking-wide">Your Monthly EMI</p>
+                  <p className="text-7xl font-bold text-white drop-shadow-lg">Nu. {calculateEMI()}</p>
                 </div>
               </div>
             </CardContent>
@@ -410,19 +415,19 @@ export default function LoanApplicationPage() {
 
         {/* Navigation Buttons */}
         {currentStep !== 1 && currentStep !== 2 && currentStep !== 3 && currentStep !== 4 && (
-        <div className="flex justify-center gap-4 mt-8">
+        <div className="flex justify-center gap-6 mt-12 mb-6">
           <Button
             variant="secondary"
             size="lg"
             onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
             disabled={currentStep === 0}
-            className="bg-gray-500 hover:bg-gray-600 text-white px-8"
+            className="bg-gray-500 hover:bg-gray-600 text-white px-10 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Back
           </Button>
           <Button
             size="lg"
-            className="bg-[#003DA5] hover:bg-[#002D7A] text-white px-8 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-[#003DA5] hover:bg-[#002D7A] text-white px-10 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => setShowDocumentPopup(true)}
             disabled={!isFormValid()}
           >

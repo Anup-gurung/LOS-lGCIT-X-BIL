@@ -413,7 +413,11 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             <Label htmlFor="co-permDzongkhag">
               Dzongkhag <span className="text-destructive">*</span>
             </Label>
-            <Select value={data.permDzongkhag} onValueChange={(value) => setData({ ...data, permDzongkhag: value })}>
+            <Select 
+              value={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? '' : data.permDzongkhag} 
+              onValueChange={(value) => setData({ ...data, permDzongkhag: value })}
+              disabled={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -440,7 +444,11 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             <Label htmlFor="co-permGewog">
               Gewog <span className="text-destructive">*</span>
             </Label>
-            <Select value={data.permGewog} onValueChange={(value) => setData({ ...data, permGewog: value })}>
+            <Select 
+              value={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? '' : data.permGewog} 
+              onValueChange={(value) => setData({ ...data, permGewog: value })}
+              disabled={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -470,11 +478,27 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             <Input
               id="co-permVillage"
               placeholder="Enter Village/Street"
-              value={data.permVillage || ""}
+              value={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? '' : data.permVillage || ""}
               onChange={(e) => setData({ ...data, permVillage: e.target.value })}
+              disabled={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
             />
           </div>
         </div>
+
+        {data.permCountry && !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
+          <div className="space-y-2 mt-4">
+            <Label htmlFor="co-permAddressProof">
+              Upload Address Proof Document <span className="text-destructive">*</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" className="w-28 bg-transparent">
+                Choose File
+              </Button>
+              <span className="text-sm text-muted-foreground">No file chosen</span>
+            </div>
+            <p className="text-xs text-muted-foreground">Please upload a valid address proof document for non-Bhutan residence</p>
+          </div>
+        )}
       </div>
 
       {/* Current Address */}
@@ -513,7 +537,11 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             <Label htmlFor="co-currDzongkhag">
               Dzongkhag <span className="text-destructive">*</span>
             </Label>
-            <Select value={data.currDzongkhag} onValueChange={(value) => setData({ ...data, currDzongkhag: value })}>
+            <Select 
+              value={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? '' : data.currDzongkhag} 
+              onValueChange={(value) => setData({ ...data, currDzongkhag: value })}
+              disabled={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -540,7 +568,11 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             <Label htmlFor="co-currGewog">
               Gewog <span className="text-destructive">*</span>
             </Label>
-            <Select value={data.currGewog} onValueChange={(value) => setData({ ...data, currGewog: value })}>
+            <Select 
+              value={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? '' : data.currGewog} 
+              onValueChange={(value) => setData({ ...data, currGewog: value })}
+              disabled={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -570,8 +602,9 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             <Input
               id="co-currVillage"
               placeholder="Enter Village/Street"
-              value={data.currVillage || ""}
+              value={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? '' : data.currVillage || ""}
               onChange={(e) => setData({ ...data, currVillage: e.target.value })}
+              disabled={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
             />
           </div>
         </div>
@@ -584,11 +617,27 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             <Input
               id="co-currFlat"
               placeholder="Enter Flat No"
-              value={data.currFlat || ""}
+              value={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? '' : data.currFlat || ""}
               onChange={(e) => setData({ ...data, currFlat: e.target.value })}
+              disabled={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
             />
           </div>
         </div>
+
+        {data.currCountry && !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
+          <div className="space-y-2 mt-4">
+            <Label htmlFor="co-currAddressProof">
+              Upload Address Proof Document <span className="text-destructive">*</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" className="w-28 bg-transparent">
+                Choose File
+              </Button>
+              <span className="text-sm text-muted-foreground">No file chosen</span>
+            </div>
+            <p className="text-xs text-muted-foreground">Please upload a valid address proof document for non-Bhutan residence</p>
+          </div>
+        )}
       </div>
 
       {/* PEP Declaration */}
@@ -614,14 +663,19 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             <Input
               id="co-pepSubCategory"
               placeholder="Enter Sub Category"
-              value={data.pepSubCategory || ""}
+              value={data.pepPerson === 'yes' ? data.pepSubCategory || "" : ''}
               onChange={(e) => setData({ ...data, pepSubCategory: e.target.value })}
+              disabled={data.pepPerson !== 'yes'}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="co-pepRelated">Is he/she related to any PEP?*</Label>
-            <Select value={data.pepRelated} onValueChange={(value) => setData({ ...data, pepRelated: value })}>
+            <Select 
+              value={data.pepPerson === 'yes' ? data.pepRelated : ''} 
+              onValueChange={(value) => setData({ ...data, pepRelated: value })}
+              disabled={data.pepPerson !== 'yes'}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -637,8 +691,9 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           <div className="space-y-2">
             <Label htmlFor="co-pepRelationship">Relationship*</Label>
             <Select
-              value={data.pepRelationship}
+              value={data.pepPerson === 'yes' && data.pepRelated === 'yes' ? data.pepRelationship : ''}
               onValueChange={(value) => setData({ ...data, pepRelationship: value })}
+              disabled={data.pepPerson !== 'yes' || data.pepRelated !== 'yes'}
             >
               <SelectTrigger>
                 <SelectValue placeholder="[Select]" />
@@ -659,8 +714,9 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             <Input
               id="co-pepIdentification"
               placeholder="Enter Identification No"
-              value={data.pepIdentification || ""}
+              value={data.pepPerson === 'yes' && data.pepRelated === 'yes' ? data.pepIdentification || "" : ''}
               onChange={(e) => setData({ ...data, pepIdentification: e.target.value })}
+              disabled={data.pepPerson !== 'yes' || data.pepRelated !== 'yes'}
             />
           </div>
 
@@ -669,8 +725,9 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             <Input
               id="co-pepCategory"
               placeholder="Enter Category"
-              value={data.pepCategory || ""}
+              value={data.pepPerson === 'yes' && data.pepRelated === 'yes' ? data.pepCategory || "" : ''}
               onChange={(e) => setData({ ...data, pepCategory: e.target.value })}
+              disabled={data.pepPerson !== 'yes' || data.pepRelated !== 'yes'}
             />
           </div>
 
@@ -679,8 +736,9 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             <Input
               id="co-pepSubCat2"
               placeholder="Enter Sub Category"
-              value={data.pepSubCat2 || ""}
+              value={data.pepPerson === 'yes' && data.pepRelated === 'yes' ? data.pepSubCat2 || "" : ''}
               onChange={(e) => setData({ ...data, pepSubCat2: e.target.value })}
+              disabled={data.pepPerson !== 'yes' || data.pepRelated !== 'yes'}
             />
           </div>
         </div>
@@ -690,10 +748,16 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             Upload Identification Proof <span className="text-destructive">*</span>
           </Label>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" className="w-28 bg-transparent">
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm" 
+              className="w-28 bg-transparent"
+              disabled={data.pepPerson !== 'yes' || data.pepRelated !== 'yes'}
+            >
               Choose File
             </Button>
-            <span className="text-sm text-muted-foreground">No file chosen</span>
+            <span className="text-sm text-muted-foreground">{data.pepPerson === 'yes' && data.pepRelated === 'yes' ? 'No file chosen' : 'No file chosen'}</span>
           </div>
         </div>
       </div>

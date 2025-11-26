@@ -598,7 +598,11 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Label htmlFor="permDzongkhag">
               Dzongkhag <span className="text-destructive">*</span>
             </Label>
-            <Select value={data.permDzongkhag} onValueChange={(value) => setData({ ...data, permDzongkhag: value })}>
+            <Select 
+              value={data.permCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? data.permDzongkhag : ''} 
+              onValueChange={(value) => setData({ ...data, permDzongkhag: value })}
+              disabled={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -626,7 +630,11 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Label htmlFor="permGewog">
               Gewog <span className="text-destructive">*</span>
             </Label>
-            <Select value={data.permGewog} onValueChange={(value) => setData({ ...data, permGewog: value })}>
+            <Select 
+              value={data.permCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? data.permGewog : ''} 
+              onValueChange={(value) => setData({ ...data, permGewog: value })}
+              disabled={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -657,8 +665,9 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Input
               id="permVillage"
               placeholder="Enter Village/Street"
-              value={data.permVillage || ""}
+              value={data.permCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? data.permVillage || "" : ''}
               onChange={(e) => setData({ ...data, permVillage: e.target.value })}
+              disabled={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
             />
           </div>
         </div>
@@ -671,8 +680,9 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Input
               id="permThram"
               placeholder="Enter Thram No"
-              value={data.permThram || ""}
+              value={data.permCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? data.permThram || "" : ''}
               onChange={(e) => setData({ ...data, permThram: e.target.value })}
+              disabled={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
             />
           </div>
 
@@ -683,11 +693,30 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Input
               id="permHouse"
               placeholder="Enter House No"
-              value={data.permHouse || ""}
+              value={data.permCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? data.permHouse || "" : ''}
               onChange={(e) => setData({ ...data, permHouse: e.target.value })}
+              disabled={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
             />
           </div>
         </div>
+
+        {/* Document Upload for Non-Bhutan Countries */}
+        {data.permCountry && !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
+          <div className="space-y-2 border-t pt-4">
+            <Label htmlFor="permAddressProof">
+              Upload Address Proof Document <span className="text-destructive">*</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" className="w-28 bg-transparent">
+                Choose File
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {data.permAddressProofFile ? data.permAddressProofFile.name : 'No file chosen'}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500">Please upload a valid address proof document for non-Bhutan residence</p>
+          </div>
+        )}
       </div>
 
       {/* Current/Residential Address */}
@@ -727,7 +756,11 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Label htmlFor="currDzongkhag">
               Dzongkhag <span className="text-destructive">*</span>
             </Label>
-            <Select value={data.currDzongkhag} onValueChange={(value) => setData({ ...data, currDzongkhag: value })}>
+            <Select 
+              value={data.currCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? data.currDzongkhag : ''} 
+              onValueChange={(value) => setData({ ...data, currDzongkhag: value })}
+              disabled={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -755,7 +788,11 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Label htmlFor="currGewog">
               Gewog <span className="text-destructive">*</span>
             </Label>
-            <Select value={data.currGewog} onValueChange={(value) => setData({ ...data, currGewog: value })}>
+            <Select 
+              value={data.currCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? data.currGewog : ''} 
+              onValueChange={(value) => setData({ ...data, currGewog: value })}
+              disabled={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -786,8 +823,9 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Input
               id="currVillage"
               placeholder="Enter Village/Street"
-              value={data.currVillage || ""}
+              value={data.currCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? data.currVillage || "" : ''}
               onChange={(e) => setData({ ...data, currVillage: e.target.value })}
+              disabled={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
             />
           </div>
         </div>
@@ -800,8 +838,9 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Input
               id="currFlat"
               placeholder="Enter Flat No"
-              value={data.currFlat || ""}
+              value={data.currCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? data.currFlat || "" : ''}
               onChange={(e) => setData({ ...data, currFlat: e.target.value })}
+              disabled={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
             />
           </div>
 
@@ -830,6 +869,24 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             />
           </div>
         </div>
+
+        {/* Document Upload for Non-Bhutan Countries */}
+        {data.currCountry && !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
+          <div className="space-y-2 border-t pt-4">
+            <Label htmlFor="currAddressProof">
+              Upload Address Proof Document <span className="text-destructive">*</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" className="w-28 bg-transparent">
+                Choose File
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {data.currAddressProofFile ? data.currAddressProofFile.name : 'No file chosen'}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500">Please upload a valid address proof document for non-Bhutan residence</p>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="currAlternateContact">Alternate Contact No</Label>
@@ -866,14 +923,19 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Input
               id="pepSubCategory"
               placeholder="Enter Full Name"
-              value={data.pepSubCategory || ""}
+              value={data.pepPerson === 'yes' ? data.pepSubCategory || "" : ''}
               onChange={(e) => setData({ ...data, pepSubCategory: e.target.value })}
+              disabled={data.pepPerson !== 'yes'}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="pepRelated">Is he/she related to any PEP?*</Label>
-            <Select value={data.pepRelated} onValueChange={(value) => setData({ ...data, pepRelated: value })}>
+            <Select 
+              value={data.pepPerson === 'yes' ? data.pepRelated : ''} 
+              onValueChange={(value) => setData({ ...data, pepRelated: value })}
+              disabled={data.pepPerson !== 'yes'}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -889,8 +951,9 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           <div className="space-y-2">
             <Label htmlFor="pepRelationship">Relationship*</Label>
             <Select
-              value={data.pepRelationship}
+              value={data.pepPerson === 'yes' ? data.pepRelationship : ''}
               onValueChange={(value) => setData({ ...data, pepRelationship: value })}
+              disabled={data.pepPerson !== 'yes'}
             >
               <SelectTrigger>
                 <SelectValue placeholder="[Select]" />
@@ -911,8 +974,9 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Input
               id="pepIdentification"
               placeholder="Enter Identification No"
-              value={data.pepIdentification || ""}
+              value={data.pepPerson === 'yes' ? data.pepIdentification || "" : ''}
               onChange={(e) => setData({ ...data, pepIdentification: e.target.value })}
+              disabled={data.pepPerson !== 'yes'}
             />
           </div>
 
@@ -921,8 +985,9 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Input
               id="pepCategory"
               placeholder="Enter Full Name"
-              value={data.pepCategory || ""}
+              value={data.pepPerson === 'yes' ? data.pepCategory || "" : ''}
               onChange={(e) => setData({ ...data, pepCategory: e.target.value })}
+              disabled={data.pepPerson !== 'yes'}
             />
           </div>
 
@@ -931,8 +996,9 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Input
               id="pepSubCat2"
               placeholder="Enter Full Name"
-              value={data.pepSubCat2 || ""}
+              value={data.pepPerson === 'yes' ? data.pepSubCat2 || "" : ''}
               onChange={(e) => setData({ ...data, pepSubCat2: e.target.value })}
+              disabled={data.pepPerson !== 'yes'}
             />
           </div>
         </div>
@@ -948,6 +1014,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               className="hidden"
               accept=".pdf,.jpg,.jpeg,.png"
               onChange={(e) => handleFileChange('identificationProof', e.target.files?.[0] || null)}
+              disabled={data.pepPerson !== 'yes'}
             />
             <Button
               type="button"
@@ -955,11 +1022,12 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               size="sm"
               className="w-28 bg-transparent"
               onClick={() => document.getElementById('uploadId')?.click()}
+              disabled={data.pepPerson !== 'yes'}
             >
               Choose File
             </Button>
             <span className="text-sm text-muted-foreground">
-              {data.identificationProof || 'No file chosen'}
+              {data.pepPerson === 'yes' ? (data.identificationProof || 'No file chosen') : 'No file chosen'}
             </span>
           </div>
         </div>

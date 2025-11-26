@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import OtpVerify from "@/components/pop-up/otp";
 import { Header } from "./header";
+import { fetchIdentificationType } from "@/services/api";
 
 export default function ExistingUserVerification() {
   const [idType, setIdType] = useState("");
@@ -10,6 +11,26 @@ export default function ExistingUserVerification() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [showOtpModal, setShowOtpModal] = useState(false);
+  const [identificationTypeOptions, setIdentificationTypeOptions] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadIdentificationType = async () => {
+      try {
+        const options = await fetchIdentificationType();
+        setIdentificationTypeOptions(options);
+      } catch (error) {
+        console.error('Failed to load identification types:', error);
+        // Fallback options if API fails
+        setIdentificationTypeOptions([
+          { identity_type_pk_code: 'cid', identity_type: 'CID' },
+          { identity_type_pk_code: 'workpermit', identity_type: 'Work Permit' },
+          { identity_type_pk_code: 'passport', identity_type: 'Passport' }
+        ]);
+      }
+    };
+
+    loadIdentificationType();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24">
@@ -63,9 +84,16 @@ export default function ExistingUserVerification() {
                   onChange={(e) => setIdType(e.target.value)}
                 >
                   <option value="">Select</option>
-                  <option value="cid">CID</option>
-                  <option value="workpermit">Work Permit</option>
-                  <option value="passport">Passport</option>
+                  {identificationTypeOptions.map((option, index) => {
+                    const key = option.identity_type_pk_code || option.identification_type_pk_code || option.id || `id-${index}`;
+                    const value = String(option.identity_type_pk_code || option.identification_type_pk_code || option.id || index);
+                    const label = option.identity_type || option.identification_type || option.name || 'Unknown';
+                    return (
+                      <option key={key} value={value}>
+                        {label}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

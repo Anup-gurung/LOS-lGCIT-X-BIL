@@ -10,6 +10,7 @@ export default function ExistingUserVerification() {
   const [idNumber, setIdNumber] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [contactPreference, setContactPreference] = useState<"email" | "phone" | "">("");
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [identificationTypeOptions, setIdentificationTypeOptions] = useState<any[]>([]);
 
@@ -111,38 +112,99 @@ export default function ExistingUserVerification() {
                 />
               </div>
 
-              {/* Email */}
-              <div>
-                <label className="text-sm text-gray-700 font-medium">
-                  Email Address <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  placeholder="Enter your registered email address"
-                  className="w-full mt-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+              {/* Contact Preference Checklist */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-gray-700 font-medium mb-3">
+                  Choose one option to provide your contact information:
+                </p>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={contactPreference === "email"}
+                      onChange={() => {
+                        setContactPreference(contactPreference === "email" ? "" : "email");
+                        setPhone("");
+                      }}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-600"
+                    />
+                    <span className="text-sm text-gray-700">I want to provide my Email</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={contactPreference === "phone"}
+                      onChange={() => {
+                        setContactPreference(contactPreference === "phone" ? "" : "phone");
+                        setEmail("");
+                      }}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-600"
+                    />
+                    <span className="text-sm text-gray-700">I want to provide my Phone Number</span>
+                  </label>
+                </div>
               </div>
 
+              {/* Email */}
+              {contactPreference === "email" && (
+                <div>
+                  <label className="text-sm text-gray-700 font-medium">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="Enter your registered email address"
+                    className="w-full mt-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  {email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (
+                    <p className="text-xs text-red-500 mt-1">Please enter a valid email address</p>
+                  )}
+                </div>
+              )}
+
               {/* Phone */}
-              <div>
-                <label className="text-sm text-gray-700 font-medium">
-                  Phone Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter your registered phone"
-                  className="w-full mt-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
+              {contactPreference === "phone" && (
+                <div>
+                  <label className="text-sm text-gray-700 font-medium">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter your registered phone"
+                    className="w-full mt-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                  {phone && !/^[0-9]{8,15}$/.test(phone) && (
+                    <p className="text-xs text-red-500 mt-1">Please enter a valid phone number (8-15 digits)</p>
+                  )}
+                </div>
+              )}
             </div>
             {/* Button */}
             <div className="mt-8 flex justify-center">
               <button 
-                onClick={() => setShowOtpModal(true)}
+                onClick={() => {
+                  if (!idType || !idNumber) {
+                    alert('Please fill in Identification Type and Number');
+                    return;
+                  }
+                  if (!contactPreference) {
+                    alert('Please select a contact method (Email or Phone)');
+                    return;
+                  }
+                  if (contactPreference === "email" && (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+                    alert('Please provide a valid email address');
+                    return;
+                  }
+                  if (contactPreference === "phone" && (!phone || !/^[0-9]{8,15}$/.test(phone))) {
+                    alert('Please provide a valid phone number');
+                    return;
+                  }
+                  setShowOtpModal(true);
+                }}
                 className="bg-blue-700 hover:bg-blue-800 transition text-white px-8 py-3 rounded-lg font-medium"
               >
                 Proceed

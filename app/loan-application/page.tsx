@@ -271,14 +271,17 @@ export default function LoanApplicationPage() {
                   <Label htmlFor="vehicle-type" className="text-gray-800 font-semibold text-base">
                     Loan Type: <span className="text-red-500">*</span>
                   </Label>
-                  <Select value={selectedLoanType} onValueChange={setSelectedLoanType}>
+                  <Select value={selectedLoanType} onValueChange={(value) => {
+                    console.log('Loan Type selected:', value)
+                    setSelectedLoanType(value)
+                  }}>
                     <SelectTrigger id="vehicle-type" className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                       <SelectValue placeholder="[Select]" className="truncate" />
                     </SelectTrigger>
                     <SelectContent>
                       {loanTypeOptions.length > 0 ? (
                         loanTypeOptions.map((option, index) => (
-                          <SelectItem key={`loantype-${index}`} value={`${option.loan_type_code_1}-${index}`}>
+                          <SelectItem key={`loantype-${index}`} value={`${option.pk_id}-${index}`}>
                             {option.loan_type}
                           </SelectItem>
                         ))
@@ -435,7 +438,7 @@ export default function LoanApplicationPage() {
               </div>
 
               {/* EMI Display */}
-              {selectedLoanType && !selectedLoanType.includes('005') && (
+              {selectedLoanType && selectedLoanType.split('-')[0] === '1' && (
               <div className="border-t border-gray-200 pt-8 mt-8">
                 <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] p-12 rounded-2xl text-center shadow-2xl transform hover:scale-105 transition-transform duration-300">
                   <p className="text-lg text-white/95 mb-4 font-semibold tracking-wide">Your Monthly EMI</p>

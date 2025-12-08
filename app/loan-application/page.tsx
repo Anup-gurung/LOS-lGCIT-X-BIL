@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Header } from "@/components/header"
 import { Card, CardContent } from "@/components/ui/card"
@@ -27,6 +27,14 @@ const steps = [
   "Repayment Source",
   "Confirmation",
 ]
+
+const Loading = () => {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-gray-500 text-lg">Loading...</p>
+    </div>
+  )
+}
 
 export default function LoanApplicationPage() {
   const searchParams = useSearchParams()
@@ -214,7 +222,8 @@ export default function LoanApplicationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-24">
+   <Suspense fallback={<Loading />}> 
+     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-24">
       <Header />
 
       <div className="container mx-auto px-6 py-10">
@@ -503,5 +512,6 @@ export default function LoanApplicationPage() {
         onProceed={() => setCurrentStep(1)}
       />
     </div>
+   </Suspense>
   )
 }

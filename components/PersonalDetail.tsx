@@ -355,7 +355,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-10">
+    <form onSubmit={handleSubmit} className="space-y-10 pt-8 pb-12">
       {/* Application Personal Information */}
       <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
         <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">Application Personal Information</h2>

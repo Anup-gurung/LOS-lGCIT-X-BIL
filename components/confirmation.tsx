@@ -2,6 +2,8 @@
 
 import type React from "react"
 
+import { useRouter } from "next/navigation"
+
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 
@@ -12,6 +14,7 @@ interface ConfirmationProps {
 }
 
 export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
+  const router = useRouter()
   const personalData = formData.personalDetails || {}
   const coBorrowerData = formData.coBorrowerDetails || {}
   const securityData = formData.securityDetails || {}
@@ -20,6 +23,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onNext({ confirmation: true })
+    router.push('/billing')
   }
 
   return (

@@ -18,6 +18,7 @@ import { SecurityDetailsForm } from "@/components/SecurityDetail"
 import { RepaymentSourceForm } from "@/components/RepaymentSource"
 import { Confirmation } from "@/components/confirmation"
 import { fetchLoanData } from "@/services/api"
+import { loanInfoContent } from "@/components/text"
 
 const steps = [
   "Loan Details",
@@ -221,6 +222,10 @@ function LoanApplicationContent() {
     )
   }
 
+  const selectedSectorId = selectedSector || ''
+  // Prefer sector-specific copy; fall back to default when no sector match is found
+  const loanInfo = loanInfoContent[selectedSectorId] || loanInfoContent.default
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-24">
       <Header />
@@ -399,15 +404,14 @@ function LoanApplicationContent() {
               {/* Loan Info Box */}
               <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-8 rounded-2xl space-y-5 border border-blue-200 shadow-sm mt-8">
                 <div className="space-y-2">
-                  <h3 className="text-2xl font-bold text-gray-900">Transport Loan</h3>
-                  <p className="text-sm italic text-gray-700 font-medium">"Fuel Your Fleet, Accelerate Your Success."</p>
+                  <h3 className="text-2xl font-bold text-gray-900">{loanInfo.title}</h3>
+                  <p className="text-sm italic text-gray-700 font-medium">{loanInfo.tagline}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="font-bold text-gray-900 text-base">Transport Commercial Loan</h4>
+                  <h4 className="font-bold text-gray-900 text-base">{loanInfo.highlightTitle}</h4>
                   <p className="text-sm text-gray-700 leading-relaxed">
-                    Drive your commercial transport business forward with financing solutions for vehicle purchase, and
-                    operational upgrades.
+                    {loanInfo.description}
                   </p>
                 </div>
 

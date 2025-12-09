@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { fetchMaritalStatus, fetchNationality, fetchIdentificationType, fetchCountry, fetchDzongkhag, fetchGewogsByDzongkhag, fetchOccupations, fetchPepSubCategoryByCategory } from "@/services/api"
+import { fetchMaritalStatus, fetchNationality, fetchIdentificationType, fetchCountry, fetchDzongkhag, fetchGewogsByDzongkhag, fetchOccupations, fetchPepCategory, fetchPepSubCategoryByCategory } from "@/services/api"
 
 interface CoBorrowerDetailsFormProps {
   onNext: (data: any) => void
@@ -28,18 +28,38 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
   const [currGewogOptions, setCurrGewogOptions] = useState<any[]>([])
   const [occupationOptions, setOccupationOptions] = useState<any[]>([])
   const [pepSubCategoryOptions, setPepSubCategoryOptions] = useState<any[]>([])
+  const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([])
+  const [relatedPepSubCategoryOptions, setRelatedPepSubCategoryOptions] = useState<any[]>([])
 
   useEffect(() => {
     // Load all initial API data
     const loadAllData = async () => {
       try {
-        const [maritalStatus, nationality, identificationType, country, dzongkhag, occupations] = await Promise.all([
+        const [maritalStatus, nationality, identificationType, country, dzongkhag, occupations, pepCategories] = await Promise.all([
           fetchMaritalStatus().catch(() => []),
           fetchNationality().catch(() => []),
           fetchIdentificationType().catch(() => []),
           fetchCountry().catch(() => []),
           fetchDzongkhag().catch(() => []),
-          fetchOccupations().catch(() => [])
+          fetchOccupations().catch(() => []),
+          (async () => {
+            try {
+              const options = await fetchPepCategory()
+              if (!options || options.length === 0) {
+                throw new Error('Empty PEP categories list')
+              }
+              return options
+            } catch (error) {
+              console.error('Failed to load PEP categories:', error)
+              return [
+                { pep_category_pk_code: '14001', pep_category: 'Foreign PEP' },
+                { pep_category_pk_code: '14002', pep_category: 'Domestic PEP' },
+                { pep_category_pk_code: '14003', pep_category: 'International Organization PEP' },
+                { pep_category_pk_code: '14004', pep_category: 'Family Member of PEP' },
+                { pep_category_pk_code: '14005', pep_category: 'Close Associate of PEP' }
+              ]
+            }
+          })()
         ])
 
         setMaritalStatusOptions(maritalStatus)
@@ -48,6 +68,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
         setCountryOptions(country)
         setDzongkhagOptions(dzongkhag)
         setOccupationOptions(occupations)
+        setPepCategoryOptions(pepCategories)
       } catch (error) {
         console.error('Failed to load dropdown data:', error)
       }
@@ -95,6 +116,9 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
         try {
           // Using 14003 as the PEP category code
           const options = await fetchPepSubCategoryByCategory('14003')
+          if (!options || options.length === 0) {
+            throw new Error('Empty PEP sub-category list')
+          }
           setPepSubCategoryOptions(options)
         } catch (error) {
           console.error('Failed to load PEP sub-categories:', error)
@@ -112,6 +136,33 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
     }
     loadPepSubCategories()
   }, [data.pepPerson])
+
+  // Load PEP sub-categories for related PEP flow when a category is selected
+  useEffect(() => {
+    const loadRelatedSubCategories = async () => {
+      if (data.pepPerson === 'no' && data.pepRelated === 'yes' && data.pepCategory) {
+        try {
+          const options = await fetchPepSubCategoryByCategory(String(data.pepCategory))
+          if (!options || options.length === 0) {
+            throw new Error('Empty related PEP sub-category list')
+          }
+          setRelatedPepSubCategoryOptions(options)
+        } catch (error) {
+          console.error('Failed to load related PEP sub-categories:', error)
+          setRelatedPepSubCategoryOptions([
+            { id: 'related-foreign-pep', name: 'Foreign PEP' },
+            { id: 'related-domestic-pep', name: 'Domestic PEP' },
+            { id: 'related-international-org', name: 'International Organization PEP' },
+            { id: 'related-family-member', name: 'Family Member of PEP' },
+            { id: 'related-close-associate', name: 'Close Associate of PEP' }
+          ])
+        }
+      } else {
+        setRelatedPepSubCategoryOptions([])
+      }
+    }
+    loadRelatedSubCategories()
+  }, [data.pepPerson, data.pepRelated, data.pepCategory])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -851,26 +902,64 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
           <div className="space-y-2.5">
             <Label htmlFor="co-pepCategory" className="text-gray-800 font-semibold text-base">PEP Category*</Label>
-            <Input
-              id="co-pepCategory"
-              placeholder="Enter Category"
-              className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepCategory || "" : ''}
-              onChange={(e) => setData({ ...data, pepCategory: e.target.value })}
-              disabled={data.pepPerson !== 'no' || data.pepRelated !== 'yes'}
-            />
+            <div className="w-full h-12" style={{ minHeight: '48px' }}>
+              <Select
+                value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepCategory : ''}
+                onValueChange={(value) => setData({ ...data, pepCategory: value })}
+                disabled={data.pepPerson !== 'no' || data.pepRelated !== 'yes'}
+              >
+                <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pepCategoryOptions.length > 0 ? (
+                    pepCategoryOptions.map((option, index) => {
+                      const key = option.pep_category_pk_code || option.id || option.code || `pep-cat-${index}`
+                      const value = String(option.pep_category_pk_code || option.id || option.code || index)
+                      const label = option.pep_category || option.name || option.label || 'Unknown'
+                      return (
+                        <SelectItem key={key} value={value}>
+                          {label}
+                        </SelectItem>
+                      )
+                    })
+                  ) : (
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2.5">
             <Label htmlFor="co-pepSubCat2" className="text-gray-800 font-semibold text-base">PEP Sub Category*</Label>
-            <Input
-              id="co-pepSubCat2"
-              placeholder="Enter Sub Category"
-              className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepSubCat2 || "" : ''}
-              onChange={(e) => setData({ ...data, pepSubCat2: e.target.value })}
-              disabled={data.pepPerson !== 'no' || data.pepRelated !== 'yes'}
-            />
+            <div className="w-full h-12" style={{ minHeight: '48px' }}>
+              <Select
+                value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepSubCat2 : ''}
+                onValueChange={(value) => setData({ ...data, pepSubCat2: value })}
+                disabled={data.pepPerson !== 'no' || data.pepRelated !== 'yes'}
+              >
+                <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent>
+                  {relatedPepSubCategoryOptions.length > 0 ? (
+                    relatedPepSubCategoryOptions.map((option, index) => {
+                      const key = option.pep_sub_category_pk_code || option.id || option.code || `pep-rel-sub-${index}`
+                      const value = String(option.pep_sub_category_pk_code || option.id || option.code || index)
+                      const label = option.pep_sub_category || option.name || option.label || 'Unknown'
+                      return (
+                        <SelectItem key={key} value={value}>
+                          {label}
+                        </SelectItem>
+                      )
+                    })
+                  ) : (
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 

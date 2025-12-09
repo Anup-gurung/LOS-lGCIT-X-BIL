@@ -112,7 +112,7 @@ export default function ExistingUserVerification() {
                 />
               </div>
 
-              {/* Contact Preference Checklist */}
+              {/* Contact Preference (Radio) */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-gray-700 font-medium mb-3">
                   Choose one option to provide your contact information:
@@ -120,25 +120,29 @@ export default function ExistingUserVerification() {
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
-                      type="checkbox"
+                      type="radio"
+                      name="contactPreference"
+                      value="email"
                       checked={contactPreference === "email"}
                       onChange={() => {
-                        setContactPreference(contactPreference === "email" ? "" : "email");
+                        setContactPreference("email");
                         setPhone("");
                       }}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-600"
+                      className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-600"
                     />
                     <span className="text-sm text-gray-700">I want to provide my Email</span>
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
-                      type="checkbox"
+                      type="radio"
+                      name="contactPreference"
+                      value="phone"
                       checked={contactPreference === "phone"}
                       onChange={() => {
-                        setContactPreference(contactPreference === "phone" ? "" : "phone");
+                        setContactPreference("phone");
                         setEmail("");
                       }}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-600"
+                      className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-600"
                     />
                     <span className="text-sm text-gray-700">I want to provide my Phone Number</span>
                   </label>

@@ -125,6 +125,13 @@ export async function fetchLegalConstitution() {
 }
 
 /**
+ * Fetch PEP categories list
+ */
+export async function fetchPepCategory() {
+  return fetchCDMSData('/pep-category', 'pep-category')
+}
+
+/**
  * Fetch PEP sub-categories by PEP category code
  * Note: Not cached due to dynamic parameter
  */

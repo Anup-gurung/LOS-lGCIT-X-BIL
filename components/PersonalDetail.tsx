@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { fetchMaritalStatus, fetchBanks, fetchNationality, fetchIdentificationType, fetchCountry, fetchDzongkhag, fetchGewogsByDzongkhag, fetchOccupations, fetchLegalConstitution, fetchPepSubCategoryByCategory } from "@/services/api"
+import { fetchMaritalStatus, fetchBanks, fetchNationality, fetchIdentificationType, fetchCountry, fetchDzongkhag, fetchGewogsByDzongkhag, fetchOccupations, fetchLegalConstitution, fetchPepCategory, fetchPepSubCategoryByCategory } from "@/services/api"
 
 interface PersonalDetailsFormProps {
   onNext: (data: any) => void
@@ -33,6 +33,8 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
   const [occupationOptions, setOccupationOptions] = useState<any[]>([])
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([])
   const [pepSubCategoryOptions, setPepSubCategoryOptions] = useState<any[]>([])
+  const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([])
+  const [relatedPepSubCategoryOptions, setRelatedPepSubCategoryOptions] = useState<any[]>([])
 
   // Calculate date constraints
   const today = new Date().toISOString().split('T')[0]
@@ -180,6 +182,28 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
     }
 
     loadOrganizations()
+
+    // Fetch PEP categories from API
+    const loadPepCategories = async () => {
+      try {
+        const options = await fetchPepCategory()
+        if (!options || options.length === 0) {
+          throw new Error('Empty PEP categories list')
+        }
+        setPepCategoryOptions(options)
+      } catch (error) {
+        console.error('Failed to load PEP categories:', error)
+        setPepCategoryOptions([
+          { pep_category_pk_code: '14001', pep_category: 'Foreign PEP' },
+          { pep_category_pk_code: '14002', pep_category: 'Domestic PEP' },
+          { pep_category_pk_code: '14003', pep_category: 'International Organization PEP' },
+          { pep_category_pk_code: '14004', pep_category: 'Family Member of PEP' },
+          { pep_category_pk_code: '14005', pep_category: 'Close Associate of PEP' }
+        ])
+      }
+    }
+
+    loadPepCategories()
   }, [])
 
   // Load permanent gewogs when permanent dzongkhag changes
@@ -221,6 +245,9 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         try {
           // Using 14003 as the PEP category code
           const options = await fetchPepSubCategoryByCategory('14003')
+          if (!options || options.length === 0) {
+            throw new Error('Empty PEP sub-category list')
+          }
           setPepSubCategoryOptions(options)
         } catch (error) {
           console.error('Failed to load PEP sub-categories:', error)
@@ -238,6 +265,33 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
     }
     loadPepSubCategories()
   }, [data.pepPerson])
+
+  // Load PEP sub-categories for related PEP flow when a category is selected
+  useEffect(() => {
+    const loadRelatedSubCategories = async () => {
+      if (data.pepPerson === 'no' && data.pepRelated === 'yes' && data.pepCategory) {
+        try {
+          const options = await fetchPepSubCategoryByCategory(String(data.pepCategory))
+          if (!options || options.length === 0) {
+            throw new Error('Empty related PEP sub-category list')
+          }
+          setRelatedPepSubCategoryOptions(options)
+        } catch (error) {
+          console.error('Failed to load related PEP sub-categories:', error)
+          setRelatedPepSubCategoryOptions([
+            { id: 'related-foreign-pep', name: 'Foreign PEP' },
+            { id: 'related-domestic-pep', name: 'Domestic PEP' },
+            { id: 'related-international-org', name: 'International Organization PEP' },
+            { id: 'related-family-member', name: 'Family Member of PEP' },
+            { id: 'related-close-associate', name: 'Close Associate of PEP' }
+          ])
+        }
+      } else {
+        setRelatedPepSubCategoryOptions([])
+      }
+    }
+    loadRelatedSubCategories()
+  }, [data.pepPerson, data.pepRelated, data.pepCategory])
 
   const handleFileChange = (fieldName: string, file: File | null) => {
     if (file) {
@@ -1241,26 +1295,60 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
           <div className="space-y-2.5">
             <Label htmlFor="pepCategory" className="text-gray-800 font-semibold text-base">PEP Category*</Label>
-            <Input
-              id="pepCategory"
-              placeholder="Enter Full Name"
-              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepCategory || "" : ''}
-              onChange={(e) => setData({ ...data, pepCategory: e.target.value })}
+            <Select
+              value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepCategory : ''}
+              onValueChange={(value) => setData({ ...data, pepCategory: value })}
               disabled={data.pepPerson !== 'no' || data.pepRelated !== 'yes'}
-            />
+            >
+              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                <SelectValue placeholder="[Select]" />
+              </SelectTrigger>
+              <SelectContent sideOffset={4}>
+                {pepCategoryOptions.length > 0 ? (
+                  pepCategoryOptions.map((option, index) => {
+                    const key = option.pep_category_pk_code || option.id || option.code || `pep-cat-${index}`
+                    const value = String(option.pep_category_pk_code || option.id || option.code || index)
+                    const label = option.pep_category || option.name || option.label || 'Unknown'
+                    return (
+                      <SelectItem key={key} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  })
+                ) : (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2.5">
             <Label htmlFor="pepSubCat2" className="text-gray-800 font-semibold text-base">PEP Sub Category*</Label>
-            <Input
-              id="pepSubCat2"
-              placeholder="Enter Full Name"
-              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepSubCat2 || "" : ''}
-              onChange={(e) => setData({ ...data, pepSubCat2: e.target.value })}
+            <Select
+              value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepSubCat2 : ''}
+              onValueChange={(value) => setData({ ...data, pepSubCat2: value })}
               disabled={data.pepPerson !== 'no' || data.pepRelated !== 'yes'}
-            />
+            >
+              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                <SelectValue placeholder="[Select]" />
+              </SelectTrigger>
+              <SelectContent sideOffset={4}>
+                {relatedPepSubCategoryOptions.length > 0 ? (
+                  relatedPepSubCategoryOptions.map((option, index) => {
+                    const key = option.pep_sub_category_pk_code || option.id || option.code || `pep-rel-sub-${index}`
+                    const value = String(option.pep_sub_category_pk_code || option.id || option.code || index)
+                    const label = option.pep_sub_category || option.name || option.label || 'Unknown'
+                    return (
+                      <SelectItem key={key} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  })
+                ) : (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

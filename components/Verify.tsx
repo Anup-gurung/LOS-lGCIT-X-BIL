@@ -115,7 +115,7 @@ export default function ExistingUserVerification() {
               {/* Contact Preference (Radio) */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-gray-700 font-medium mb-3">
-                  Choose one option to provide your contact information:
+                How would you like to receive your verification OTP?
                 </p>
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -130,7 +130,7 @@ export default function ExistingUserVerification() {
                       }}
                       className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-600"
                     />
-                    <span className="text-sm text-gray-700">I want to provide my Email</span>
+                    <span className="text-sm text-gray-700">Receive via Email</span>
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
@@ -144,7 +144,8 @@ export default function ExistingUserVerification() {
                       }}
                       className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-600"
                     />
-                    <span className="text-sm text-gray-700">I want to provide my Phone Number</span>
+                    <span className="text-sm text-gray-700">Receive via SMS
+</span>
                   </label>
                 </div>
               </div>

@@ -192,7 +192,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="co-salutation" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-salutation" className="text-gray-800 font-semibold text-sm">
               Salutation <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
@@ -211,7 +211,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-name" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-name" className="text-gray-800 font-semibold text-sm">
               Co-Borrower Name <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -225,7 +225,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-nationality" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-nationality" className="text-gray-800 font-semibold text-sm">
               Nationality <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
@@ -254,7 +254,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-identificationType" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-identificationType" className="text-gray-800 font-semibold text-sm">
               Identification Type <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
@@ -288,7 +288,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="co-identificationNo" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-identificationNo" className="text-gray-800 font-semibold text-sm">
               Identification No. <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -302,7 +302,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-identificationIssueDate" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-identificationIssueDate" className="text-gray-800 font-semibold text-sm">
               Issue Date <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -316,7 +316,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-identificationExpiryDate" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-identificationExpiryDate" className="text-gray-800 font-semibold text-sm">
               Expiry Date <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -330,7 +330,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-dateOfBirth" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-dateOfBirth" className="text-gray-800 font-semibold text-sm">
               Date of Birth <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -346,7 +346,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="co-tpn" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-tpn" className="text-gray-800 font-semibold text-sm">
               TPN No <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -360,7 +360,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-maritalStatus" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-maritalStatus" className="text-gray-800 font-semibold text-sm">
               Marital Status <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
@@ -389,7 +389,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-gender" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-gender" className="text-gray-800 font-semibold text-sm">
               Gender <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
@@ -407,7 +407,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-relationship" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-relationship" className="text-gray-800 font-semibold text-sm">
               Relationship to Borrower <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
@@ -434,7 +434,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="co-email" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-email" className="text-gray-800 font-semibold text-sm">
               Email Address <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -449,7 +449,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-contact" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-contact" className="text-gray-800 font-semibold text-sm">
               Contact Number <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -463,7 +463,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-alternateContact" className="text-gray-800 font-semibold text-base">Alternate Contact No</Label>
+            <Label htmlFor="co-alternateContact" className="text-gray-800 font-semibold text-sm">Alternate Contact Number</Label>
             <Input
               id="co-alternateContact"
               placeholder="Enter Contact No"
@@ -481,7 +481,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="co-permCountry" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-permCountry" className="text-gray-800 font-semibold text-sm">
               Country <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
@@ -510,7 +510,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-permDzongkhag" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-permDzongkhag" className="text-gray-800 font-semibold text-sm">
               {data.permCountry && countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Dzongkhag' : 'State'} <span className="text-destructive">*</span>
             </Label>
             {data.permCountry && !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -553,7 +553,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-permGewog" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-permGewog" className="text-gray-800 font-semibold text-sm">
               {data.permCountry && countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Gewog' : 'Province'} <span className="text-destructive">*</span>
             </Label>
             {data.permCountry && !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -596,7 +596,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-permVillage" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-permVillage" className="text-gray-800 font-semibold text-sm">
               {data.permCountry && countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Village/Street' : 'Street'} <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -612,7 +612,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
         {data.permCountry && !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
           <div className="space-y-2.5 mt-4">
-            <Label htmlFor="co-permAddressProof" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-permAddressProof" className="text-gray-800 font-semibold text-sm">
               Upload Address Proof Document <span className="text-destructive">*</span>
             </Label>
             <div className="flex items-center gap-2">
@@ -632,7 +632,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="co-currCountry" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-currCountry" className="text-gray-800 font-semibold text-sm">
               Country of Resident <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
@@ -661,7 +661,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-currDzongkhag" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-currDzongkhag" className="text-gray-800 font-semibold text-sm">
               {data.currCountry && countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Dzongkhag' : 'State'} <span className="text-destructive">*</span>
             </Label>
             {data.currCountry && !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -704,7 +704,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-currGewog" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-currGewog" className="text-gray-800 font-semibold text-sm">
               {data.currCountry && countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Gewog' : 'Province'} <span className="text-destructive">*</span>
             </Label>
             {data.currCountry && !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -747,7 +747,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-currVillage" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-currVillage" className="text-gray-800 font-semibold text-sm">
               {data.currCountry && countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Village/Street' : 'Street'} <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -763,7 +763,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="co-currFlat" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-currFlat" className="text-gray-800 font-semibold text-sm">
               House/Building/Flat No <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -779,7 +779,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
         {data.currCountry && !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
           <div className="space-y-2.5 mt-4">
-            <Label htmlFor="co-currAddressProof" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-currAddressProof" className="text-gray-800 font-semibold text-sm">
               Upload Address Proof Document <span className="text-destructive">*</span>
             </Label>
             <div className="flex items-center gap-2">
@@ -799,7 +799,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="co-pepPerson" className="text-gray-800 font-semibold text-base">Politically Exposed Person*</Label>
+            <Label htmlFor="co-pepPerson" className="text-gray-800 font-semibold text-sm">Politically Exposed Person<span className="text-destructive">*</span></Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select value={data.pepPerson} onValueChange={(value) => setData({ ...data, pepPerson: value })}>
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
@@ -814,7 +814,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-pepSubCategory" className="text-gray-800 font-semibold text-base">PEP Sub Category*</Label>
+            <Label htmlFor="co-pepSubCategory" className="text-gray-800 font-semibold text-sm">PEP Sub Category<span className="text-destructive">*</span></Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select
                 value={data.pepPerson === 'yes' ? data.pepSubCategory : ''}
@@ -845,7 +845,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-pepRelated" className="text-gray-800 font-semibold text-base">Are you related to any PEP?*</Label>
+            <Label htmlFor="co-pepRelated" className="text-gray-800 font-semibold text-sm">Are you related to any PEP?<span className="text-destructive">*</span></Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select 
                 value={data.pepPerson === 'no' ? data.pepRelated : ''} 
@@ -866,7 +866,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="co-pepRelationship" className="text-gray-800 font-semibold text-base">Relationship*</Label>
+            <Label htmlFor="co-pepRelationship" className="text-gray-800 font-semibold text-sm">Relationship<span className="text-destructive">*</span></Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select
                 value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepRelationship : ''}
@@ -887,7 +887,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-pepIdentification" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-pepIdentification" className="text-gray-800 font-semibold text-sm">
               Identification No. <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -901,7 +901,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-pepCategory" className="text-gray-800 font-semibold text-base">PEP Category*</Label>
+            <Label htmlFor="co-pepCategory" className="text-gray-800 font-semibold text-sm">PEP Category<span className="text-destructive">*</span></Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select
                 value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepCategory : ''}
@@ -932,7 +932,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-pepSubCat2" className="text-gray-800 font-semibold text-base">PEP Sub Category*</Label>
+            <Label htmlFor="co-pepSubCat2" className="text-gray-800 font-semibold text-sm">PEP Sub Category<span className="text-destructive">*</span></Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select
                 value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepSubCat2 : ''}
@@ -964,7 +964,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
         </div>
 
         <div className="space-y-2.5">
-          <Label htmlFor="co-uploadId" className="text-gray-800 font-semibold text-base">
+          <Label htmlFor="co-uploadId" className="text-gray-800 font-semibold text-sm">
             Upload Identification Proof <span className="text-destructive">*</span>
           </Label>
           <div className="flex items-center gap-2">
@@ -985,7 +985,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
       {/* Employment Status */}
       <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-6 shadow-md hover:shadow-lg transition-shadow duration-200">
         <div className="space-y-2.5">
-          <Label className="text-gray-800 font-semibold text-base">Employment Status*</Label>
+          <Label className="text-gray-800 font-semibold text-sm">Employment Status<span className="text-destructive">*</span></Label>
           <RadioGroup
             value={data.employmentStatus}
             onValueChange={(value) => setData({ ...data, employmentStatus: value })}
@@ -1020,7 +1020,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="space-y-2.5">
-              <Label htmlFor="co-occupation" className="text-gray-800 font-semibold text-base">
+              <Label htmlFor="co-occupation" className="text-gray-800 font-semibold text-sm">
                 Occupation <span className="text-destructive">*</span>
               </Label>
               <div className="w-full h-12" style={{ minHeight: '48px' }}>
@@ -1049,7 +1049,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             </div>
 
             <div className="space-y-2.5">
-              <Label htmlFor="co-organizationName" className="text-gray-800 font-semibold text-base">
+              <Label htmlFor="co-organizationName" className="text-gray-800 font-semibold text-sm">
                 Organization Name <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -1062,7 +1062,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             </div>
 
             <div className="space-y-2.5">
-              <Label htmlFor="co-employerType" className="text-gray-800 font-semibold text-base">
+              <Label htmlFor="co-employerType" className="text-gray-800 font-semibold text-sm">
                 Type of Employer <span className="text-destructive">*</span>
               </Label>
               <div className="w-full h-12" style={{ minHeight: '48px' }}>
@@ -1080,7 +1080,7 @@ export function CoBorrowerDetailsForm({ onNext, onBack, formData }: CoBorrowerDe
             </div>
 
             <div className="space-y-2.5">
-              <Label htmlFor="co-annualSalary" className="text-gray-800 font-semibold text-base">
+              <Label htmlFor="co-annualSalary" className="text-gray-800 font-semibold text-sm">
                 Annual Salary Income <span className="text-destructive">*</span>
               </Label>
               <Input

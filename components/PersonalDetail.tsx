@@ -362,7 +362,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="salutation" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="salutation" className="text-gray-800 font-semibold text-sm">
               Salutation <span className="text-red-500">*</span>
             </Label>
             <Select value={data.salutation} onValueChange={(value) => setData({ ...data, salutation: value })}>
@@ -379,7 +379,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="applicantName" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="applicantName" className="text-gray-800 font-semibold text-sm">
               Applicant Name <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -393,7 +393,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="nationality" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="nationality" className="text-gray-800 font-semibold text-sm">
               Nationality <span className="text-red-500">*</span>
             </Label>
             <Select value={data.nationality} onValueChange={(value) => setData({ ...data, nationality: value })}>
@@ -421,7 +421,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="identificationType" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="identificationType" className="text-gray-800 font-semibold text-sm">
               Identification Type <span className="text-red-500">*</span>
             </Label>
             <Select
@@ -454,7 +454,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="identificationNo" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="identificationNo" className="text-gray-800 font-semibold text-sm">
               Identification No. <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -468,7 +468,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="identificationIssueDate" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="identificationIssueDate" className="text-gray-800 font-semibold text-sm">
               Identification Issue Date <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -489,7 +489,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="identificationExpiryDate" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="identificationExpiryDate" className="text-gray-800 font-semibold text-sm">
               Identification Expiry Date <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -510,7 +510,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="dateOfBirth" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="dateOfBirth" className="text-gray-800 font-semibold text-sm">
               Date of Birth <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -533,7 +533,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="tpn" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="tpn" className="text-gray-800 font-semibold text-sm">
               TPN No <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -547,7 +547,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="maritalStatus" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="maritalStatus" className="text-gray-800 font-semibold text-sm">
               Marital Status <span className="text-red-500">*</span>
             </Label>
             <Select value={data.maritalStatus} onValueChange={(value) => setData({ ...data, maritalStatus: value })}>
@@ -575,7 +575,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="gender" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="gender" className="text-gray-800 font-semibold text-sm">
               Gender <span className="text-red-500">*</span>
             </Label>
             <Select value={data.gender} onValueChange={(value) => setData({ ...data, gender: value })}>
@@ -591,7 +591,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="spouseName" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="spouseName" className="text-gray-800 font-semibold text-sm">
               Spouse Name <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -606,7 +606,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="spouseCid" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="spouseCid" className="text-gray-800 font-semibold text-sm">
               Spouse CID No <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -619,7 +619,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="spouseContact" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="spouseContact" className="text-gray-800 font-semibold text-sm">
               Spouse Contact No <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -632,7 +632,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="uploadFamilyTree" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="uploadFamilyTree" className="text-gray-800 font-semibold text-sm">
               Upload Family Tree <span className="text-red-500">*</span>
             </Label>
             <div className="flex items-center gap-2">
@@ -665,7 +665,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="bankAccount" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="bankAccount" className="text-gray-800 font-semibold text-sm">
               Bank Saving Account No <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -678,7 +678,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="bankName" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="bankName" className="text-gray-800 font-semibold text-sm">
               Name of Bank <span className="text-red-500">*</span>
             </Label>
             <Select value={data.bankName} onValueChange={(value) => setData({ ...data, bankName: value })}>
@@ -708,7 +708,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         </div>
 
         <div className="space-y-2.5">
-          <Label htmlFor="uploadPassport" className="text-gray-800 font-semibold text-base">
+          <Label htmlFor="uploadPassport" className="text-gray-800 font-semibold text-sm">
             Upload Passport-size Photograph <span className="text-red-500">*</span>
           </Label>
           <div className="flex items-center gap-2">
@@ -745,7 +745,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="permCountry" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="permCountry" className="text-gray-800 font-semibold text-sm">
               Country <span className="text-red-500">*</span>
             </Label>
             <Select value={data.permCountry} onValueChange={(value) => setData({ ...data, permCountry: value })}>
@@ -773,7 +773,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="permDzongkhag" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="permDzongkhag" className="text-gray-800 font-semibold text-sm">
               {data.permCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Dzongkhag' : 'State'} <span className="text-red-500">*</span>
             </Label>
             {data.permCountry && !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -815,7 +815,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="permGewog" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="permGewog" className="text-gray-800 font-semibold text-sm">
               {data.permCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Gewog' : 'Province'} <span className="text-red-500">*</span>
             </Label>
             {data.permCountry && !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -857,7 +857,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="permVillage" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="permVillage" className="text-gray-800 font-semibold text-sm">
               {data.permCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Village/Street' : 'Street'} <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -875,7 +875,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         {data.permCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="permThram" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="permThram" className="text-gray-800 font-semibold text-sm">
               Thram No. <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -889,7 +889,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="permHouse" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="permHouse" className="text-gray-800 font-semibold text-sm">
               House No. <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -907,7 +907,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         {/* Document Upload for Non-Bhutan Countries */}
         {data.permCountry && !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
           <div className="space-y-2.5 border-t pt-4">
-            <Label htmlFor="permAddressProof" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="permAddressProof" className="text-gray-800 font-semibold text-sm">
               Upload Address Proof Document <span className="text-red-500">*</span>
             </Label>
             <div className="flex items-center gap-2">
@@ -945,7 +945,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="currCountry" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="currCountry" className="text-gray-800 font-semibold text-sm">
               Country of Resident <span className="text-red-500">*</span>
             </Label>
             <Select value={data.currCountry} onValueChange={(value) => setData({ ...data, currCountry: value })}>
@@ -973,7 +973,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="currDzongkhag" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="currDzongkhag" className="text-gray-800 font-semibold text-sm">
               {data.currCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Dzongkhag' : 'State'} <span className="text-red-500">*</span>
             </Label>
             {data.currCountry && !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -1015,7 +1015,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="currGewog" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="currGewog" className="text-gray-800 font-semibold text-sm">
               {data.currCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Gewog' : 'Province'} <span className="text-red-500">*</span>
             </Label>
             {data.currCountry && !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -1057,7 +1057,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="currVillage" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="currVillage" className="text-gray-800 font-semibold text-sm">
               {data.currCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Village/Street' : 'Street'} <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1075,7 +1075,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         {data.currCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="currFlat" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="currFlat" className="text-gray-800 font-semibold text-sm">
               House/Building/ Flat No <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1088,7 +1088,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="currEmail" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="currEmail" className="text-gray-800 font-semibold text-sm">
               Email Address <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1102,7 +1102,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="currContact" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="currContact" className="text-gray-800 font-semibold text-sm">
               Contact Number <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1119,7 +1119,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         {data.currCountry && !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="currEmail" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="currEmail" className="text-gray-800 font-semibold text-sm">
               Email Address <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1133,7 +1133,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="currContact" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="currContact" className="text-gray-800 font-semibold text-sm">
               Contact Number <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1150,7 +1150,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         {/* Document Upload for Non-Bhutan Countries */}
         {data.currCountry && !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
           <div className="space-y-2.5 border-t pt-4">
-            <Label htmlFor="currAddressProof" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="currAddressProof" className="text-gray-800 font-semibold text-sm">
               Upload Address Proof Document <span className="text-red-500">*</span>
             </Label>
             <div className="flex items-center gap-2">
@@ -1182,7 +1182,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         )}
 
         <div className="space-y-2.5">
-          <Label htmlFor="currAlternateContact" className="text-gray-800 font-semibold text-base">Alternate Contact No</Label>
+          <Label htmlFor="currAlternateContact" className="text-gray-800 font-semibold text-sm">Alternate Contact No</Label>
           <Input
             id="currAlternateContact"
             placeholder="Enter Contact No"
@@ -1199,7 +1199,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="pepPerson" className="text-gray-800 font-semibold text-base">Politically Exposed Person*</Label>
+            <Label htmlFor="pepPerson" className="text-gray-800 font-semibold text-sm">Politically Exposed Person<span className="text-destructive">*</span></Label>
             <Select value={data.pepPerson} onValueChange={(value) => setData({ ...data, pepPerson: value })}>
               <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
@@ -1212,7 +1212,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="pepSubCategory" className="text-gray-800 font-semibold text-base">PEP Sub Category*</Label>
+            <Label htmlFor="pepSubCategory" className="text-gray-800 font-semibold text-sm">PEP Sub Category<span className="text-destructive">*</span></Label>
             <Select
               value={data.pepPerson === 'yes' ? data.pepSubCategory : ''}
               onValueChange={(value) => setData({ ...data, pepSubCategory: value })}
@@ -1242,7 +1242,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="pepRelated" className="text-gray-800 font-semibold text-base">Are you related to any PEP?*</Label>
+            <Label htmlFor="pepRelated" className="text-gray-800 font-semibold text-sm">Are you related to any PEP?<span className="text-destructive">*</span></Label>
             <Select 
               value={data.pepPerson === 'no' ? data.pepRelated : ''} 
               onValueChange={(value) => setData({ ...data, pepRelated: value })}
@@ -1261,7 +1261,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="pepRelationship" className="text-gray-800 font-semibold text-base">Relationship*</Label>
+            <Label htmlFor="pepRelationship" className="text-gray-800 font-semibold text-sm">Relationship<span className="text-destructive">*</span></Label>
             <Select
               value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepRelationship : ''}
               onValueChange={(value) => setData({ ...data, pepRelationship: value })}
@@ -1280,7 +1280,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="pepIdentification" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="pepIdentification" className="text-gray-800 font-semibold text-sm">
               Identification No. <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1294,7 +1294,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="pepCategory" className="text-gray-800 font-semibold text-base">PEP Category*</Label>
+            <Label htmlFor="pepCategory" className="text-gray-800 font-semibold text-sm">PEP Category<span className="text-destructive">*</span></Label>
             <Select
               value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepCategory : ''}
               onValueChange={(value) => setData({ ...data, pepCategory: value })}
@@ -1323,7 +1323,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="pepSubCat2" className="text-gray-800 font-semibold text-base">PEP Sub Category*</Label>
+            <Label htmlFor="pepSubCat2" className="text-gray-800 font-semibold text-sm">PEP Sub Category<span className="text-destructive">*</span></Label>
             <Select
               value={data.pepPerson === 'no' && data.pepRelated === 'yes' ? data.pepSubCat2 : ''}
               onValueChange={(value) => setData({ ...data, pepSubCat2: value })}
@@ -1353,7 +1353,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         </div>
 
         <div className="space-y-2.5">
-          <Label htmlFor="uploadId" className="text-gray-800 font-semibold text-base">
+          <Label htmlFor="uploadId" className="text-gray-800 font-semibold text-sm">
             Upload Identification Proof <span className="text-red-500">*</span>
           </Label>
           <div className="flex items-center gap-2">
@@ -1387,7 +1387,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">Related to BIL</h2>
 
         <div className="space-y-2.5">
-          <Label htmlFor="relatedToBil" className="text-gray-800 font-semibold text-base">
+          <Label htmlFor="relatedToBil" className="text-gray-800 font-semibold text-sm">
             Related to BIL <span className="text-red-500">*</span>
           </Label>
           <Select value={data.relatedToBil} onValueChange={(value) => setData({ ...data, relatedToBil: value })}>
@@ -1407,7 +1407,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">Employment Status</h2>
 
         <div className="space-y-4">
-          <Label className="text-gray-800 font-semibold text-base">Employment Status*</Label>
+          <Label className="text-gray-800 font-semibold text-sm">Employment Status <span className="text-red-500">*</span></Label>
           <RadioGroup
             value={data.employmentStatus}
             onValueChange={(value) => setData({ ...data, employmentStatus: value })}
@@ -1442,7 +1442,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-2.5">
-              <Label htmlFor="occupation" className="text-gray-800 font-semibold text-base">
+              <Label htmlFor="occupation" className="text-gray-800 font-semibold text-sm">
                 Occupation <span className="text-red-500">*</span>
               </Label>
               <Select value={data.occupation} onValueChange={(value) => setData({ ...data, occupation: value })}>
@@ -1470,7 +1470,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             </div>
 
             <div className="space-y-2.5">
-              <Label htmlFor="organizationName" className="text-gray-800 font-semibold text-base">
+              <Label htmlFor="organizationName" className="text-gray-800 font-semibold text-sm">
                 Organization Name <span className="text-red-500">*</span>
               </Label>
               <Select
@@ -1501,7 +1501,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             </div>
 
             <div className="space-y-2.5">
-              <Label htmlFor="employerType" className="text-gray-800 font-semibold text-base">
+              <Label htmlFor="employerType" className="text-gray-800 font-semibold text-sm">
                 Type of Employer <span className="text-red-500">*</span>
               </Label>
               <Select value={data.employerType} onValueChange={(value) => setData({ ...data, employerType: value })}>
@@ -1517,7 +1517,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             </div>
 
             <div className="space-y-2.5">
-              <Label htmlFor="orgLocation" className="text-gray-800 font-semibold text-base">
+              <Label htmlFor="orgLocation" className="text-gray-800 font-semibold text-sm">
                 Organization Location <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -1532,7 +1532,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-2.5">
-              <Label htmlFor="employeeId" className="text-gray-800 font-semibold text-base">
+              <Label htmlFor="employeeId" className="text-gray-800 font-semibold text-sm">
                 Employee ID <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -1545,7 +1545,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             </div>
 
             <div className="space-y-2.5">
-              <Label htmlFor="joiningDate" className="text-gray-800 font-semibold text-base">
+              <Label htmlFor="joiningDate" className="text-gray-800 font-semibold text-sm">
                 Service Joining Date <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -1559,8 +1559,8 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             </div>
 
             <div className="space-y-2.5">
-              <Label htmlFor="designation" className="text-gray-800 font-semibold text-base">
-                Designation* <span className="text-red-500">*</span>
+              <Label htmlFor="designation" className="text-gray-800 font-semibold text-sm">
+                Designation <span className="text-red-500">*</span>
               </Label>
               <Select value={data.designation} onValueChange={(value) => setData({ ...data, designation: value })}>
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
@@ -1575,7 +1575,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             </div>
 
             <div className="space-y-2.5">
-              <Label htmlFor="grade" className="text-gray-800 font-semibold text-base">
+              <Label htmlFor="grade" className="text-gray-800 font-semibold text-sm">
                 Grade <span className="text-red-500">*</span>
               </Label>
               <Select value={data.grade} onValueChange={(value) => setData({ ...data, grade: value })}>
@@ -1593,7 +1593,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2.5">
-              <Label htmlFor="serviceNature" className="text-gray-800 font-semibold text-base">Nature of Service*</Label>
+              <Label htmlFor="serviceNature" className="text-gray-800 font-semibold text-sm">Nature of Service <span className="text-red-500">*</span></Label>
               <Select value={data.serviceNature} onValueChange={(value) => setData({ ...data, serviceNature: value })}>
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
@@ -1607,7 +1607,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             </div>
 
             <div className="space-y-2.5">
-              <Label htmlFor="annualSalary" className="text-gray-800 font-semibold text-base">
+              <Label htmlFor="annualSalary" className="text-gray-800 font-semibold text-sm">
                 Gross Annual Salary Income <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -1625,7 +1625,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           {data.serviceNature === "contract" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor="contractEndDate" className="text-gray-800 font-semibold text-base">
+                <Label htmlFor="contractEndDate" className="text-gray-800 font-semibold text-sm">
                   Contract End Date <span className="text-red-500">*</span>
                 </Label>
                 <Input

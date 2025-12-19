@@ -112,7 +112,8 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
                 checked={data.enableMonthlySalary || false}
                 onChange={(e) => setData({ ...data, enableMonthlySalary: e.target.checked, monthlySalary: e.target.checked ? data.monthlySalary : '' })}
               />
-              <label htmlFor="enable-monthly-salary" className="font-medium text-gray-700 text-sm">
+              <label htmlFor="enable-monthly-salary" className="text-gray-800 font-semibold text-sm">
+                {/* className="text-gray-800 font-semibold text-sm" */}
                 Monthly Salary (Nu.)
               </label>
             </div>
@@ -137,7 +138,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
                 checked={data.enableRentalIncome || false}
                 onChange={(e) => setData({ ...data, enableRentalIncome: e.target.checked, rentalIncome: e.target.checked ? data.rentalIncome : '' })}
               />
-              <label htmlFor="enable-rental-income" className="font-medium text-gray-700 text-sm">
+              <label htmlFor="enable-rental-income" className="text-gray-800 font-semibold text-sm">
                 Monthly Rental Income (Nu.)
               </label>
             </div>
@@ -162,7 +163,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
                 checked={data.enableBusinessIncome || false}
                 onChange={(e) => setData({ ...data, enableBusinessIncome: e.target.checked, businessIncome: e.target.checked ? data.businessIncome : '' })}
               />
-              <label htmlFor="enable-business-income" className="font-medium text-gray-700 text-sm">
+              <label htmlFor="enable-business-income" className="text-gray-800 font-semibold text-sm">
                 Business Income (Nu.)
               </label>
             </div>
@@ -187,7 +188,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
                 checked={data.enableVehicleHiring || false}
                 onChange={(e) => setData({ ...data, enableVehicleHiring: e.target.checked, vehicleHiringIncome: e.target.checked ? data.vehicleHiringIncome : '' })}
               />
-              <label htmlFor="enable-vehicle-hiring" className="font-medium text-gray-700 text-sm">
+              <label htmlFor="enable-vehicle-hiring" className="text-gray-800 font-semibold text-sm">
                 Vehicle Hiring Income (Nu.)
               </label>
             </div>
@@ -212,7 +213,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
                 checked={data.enableDividendIncome || false}
                 onChange={(e) => setData({ ...data, enableDividendIncome: e.target.checked, dividendIncome: e.target.checked ? data.dividendIncome : '' })}
               />
-              <label htmlFor="enable-dividend-income" className="font-medium text-gray-700 text-sm">
+              <label htmlFor="enable-dividend-income" className="text-gray-800 font-semibold text-sm">
                 Dividend Income (Nu.)
               </label>
             </div>
@@ -237,7 +238,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
                 checked={data.enableAgricultureIncome || false}
                 onChange={(e) => setData({ ...data, enableAgricultureIncome: e.target.checked, agricultureIncome: e.target.checked ? data.agricultureIncome : '' })}
               />
-              <label htmlFor="enable-agriculture-income" className="font-medium text-gray-700 text-sm">
+              <label htmlFor="enable-agriculture-income" className="text-gray-800 font-semibold text-sm">
                 Agriculture Income (Nu.)
               </label>
             </div>
@@ -262,9 +263,10 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
                 checked={data.enableTruckTaxiIncome || false}
                 onChange={(e) => setData({ ...data, enableTruckTaxiIncome: e.target.checked, truckTaxiIncome: e.target.checked ? data.truckTaxiIncome : '' })}
               />
-              <label htmlFor="enable-truck-taxi-income" className="font-medium text-gray-700 text-sm">
+              <label htmlFor="enable-truck-taxi-income" className="text-gray-800 font-semibold text-sm">
                 Truck/Taxi Income (Nu.)
               </label>
+              
             </div>
             <Input
               id="truck-taxi-income"
@@ -280,8 +282,8 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
           <div className="space-y-3">
-            <Label htmlFor="repayment-proof">Upload Repayment Proof</Label>
-            <div className="flex items-center gap-2">
+            <Label htmlFor="repayment-proof" className="text-gray-800 font-semibold text-sm">Upload Repayment Proof <span className="text-destructive">*</span></Label>
+            <div className="flex items-center gap-2 text-gray-800 font-semibold text-sm">
               <Button type="button" variant="outline" size="sm" className="w-28 bg-transparent">
                 Choose File
               </Button>
@@ -290,8 +292,8 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="repayment-guarantor">
-              Repayment Guarantor? <span className="text-destructive">*</span>
+            <Label htmlFor="repayment-guarantor" className="text-gray-800 font-semibold text-sm">
+              Is Repayment Guarantor Applicable? <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select
@@ -299,7 +301,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
                 onValueChange={(value) => setData({ ...data, repaymentGuarantor: value })}
               >
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <SelectValue placeholder="Select" />
+                  <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="yes">Yes</SelectItem>
@@ -318,13 +320,13 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
         {/* Row 1: Salutation, Name, Nationality */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
-            <Label htmlFor="salutation">
+            <Label htmlFor="salutation" className="text-gray-800 font-semibold text-sm">
               Salutation <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select value={data.salutation} onValueChange={(value) => setData({ ...data, salutation: value })}>
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <SelectValue placeholder="Select" />
+                  <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="mr">Mr.</SelectItem>
@@ -337,7 +339,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="guarantor-name">
+            <Label htmlFor="guarantor-name" className="text-gray-800 font-semibold text-sm">
               Guarantor Name <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -350,13 +352,13 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="nationality">
+            <Label htmlFor="nationality" className="text-gray-800 font-semibold text-sm">
               Nationality <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select value={data.nationality} onValueChange={(value) => setData({ ...data, nationality: value })}>
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <SelectValue placeholder="Select" />
+                  <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent>
                   {nationalityOptions.length > 0 ? (
@@ -382,13 +384,13 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
         {/* Row 2: ID Type, ID Number, Issue Date */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
-            <Label htmlFor="id-type">
+            <Label htmlFor="id-type" className="text-gray-800 font-semibold text-sm">
               Identification Type <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select value={data.idType} onValueChange={(value) => setData({ ...data, idType: value })}>
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <SelectValue placeholder="Select" />
+                  <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent>
                   {identificationTypeOptions.length > 0 ? (
@@ -411,7 +413,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="id-number">
+            <Label htmlFor="id-number" className="text-gray-800 font-semibold text-sm">
               Identification No. <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -424,7 +426,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="id-issue-date">
+            <Label htmlFor="id-issue-date" className="text-gray-800 font-semibold text-sm">
               Identification Issue Date <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -440,7 +442,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
         {/* Row 3: Expiry Date, DOB, TPN */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
-            <Label htmlFor="id-expiry-date">
+            <Label htmlFor="id-expiry-date" className="text-gray-800 font-semibold text-sm">
               Identification Expiry Date <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -453,7 +455,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="dob">
+            <Label htmlFor="dob" className="text-gray-800 font-semibold text-sm">
               Date of Birth <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -466,7 +468,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="tpn-no">TPN No</Label>
+            <Label htmlFor="tpn-no" className="text-gray-800 font-semibold text-sm">TPN No.</Label>
             <Input
               id="tpn-no"
               placeholder="Enter TPN Number"
@@ -480,13 +482,13 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
         {/* Row 4: Marital Status, Gender, Spouse Name */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
-            <Label htmlFor="marital-status">
+            <Label htmlFor="marital-status" className="text-gray-800 font-semibold text-sm">
               Marital Status <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select value={data.maritalStatus} onValueChange={(value) => setData({ ...data, maritalStatus: value })}>
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <SelectValue placeholder="Select" />
+                  <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent>
                   {maritalStatusOptions.length > 0 ? (
@@ -509,13 +511,13 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="gender">
+            <Label htmlFor="gender" className="text-gray-800 font-semibold text-sm">
               Gender <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select value={data.gender} onValueChange={(value) => setData({ ...data, gender: value })}>
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <SelectValue placeholder="Select" />
+                  <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="male">Male</SelectItem>
@@ -527,7 +529,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="spouse-name">Spouse Name</Label>
+            <Label htmlFor="spouse-name" className="text-gray-800 font-semibold text-sm">Spouse Name</Label>
             <Input
               id="spouse-name"
               placeholder="Enter Spouse Name"
@@ -541,7 +543,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
         {/* Row 5: Spouse CID, Spouse Contact, Family Tree */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
-            <Label htmlFor="spouse-cid">Spouse CID No</Label>
+            <Label htmlFor="spouse-cid" className="text-gray-800 font-semibold text-sm">Spouse CID No.</Label>
             <Input
               id="spouse-cid"
               placeholder="Enter Spouse CID"
@@ -552,7 +554,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="spouse-contact">Spouse Contact No</Label>
+            <Label htmlFor="spouse-contact" className="text-gray-800 font-semibold text-sm">Spouse Contact No.</Label>
             <Input
               id="spouse-contact"
               placeholder="Enter Contact Number"
@@ -563,7 +565,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="family-tree">Upload Family Tree</Label>
+            <Label htmlFor="family-tree" className="text-gray-800 font-semibold text-sm">Upload Family Tree</Label>
             <div className="flex items-center gap-2">
               <Button type="button" variant="outline" size="sm" className="w-28 bg-transparent">
                 Choose File
@@ -580,13 +582,13 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
-            <Label htmlFor="perm-country">
+            <Label htmlFor="perm-country" className="text-gray-800 font-semibold text-sm">
               Country <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select value={data.permCountry} onValueChange={(value) => setData({ ...data, permCountry: value })}>
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <SelectValue placeholder="Select Country" />
+                  <SelectValue placeholder="[Select Country]" />
                 </SelectTrigger>
                 <SelectContent>
                   {countryOptions.length > 0 ? (
@@ -609,7 +611,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="perm-dzongkhag">
+            <Label htmlFor="perm-dzongkhag" className="text-gray-800 font-semibold text-sm">
               {data.permCountry && countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Dzongkhag' : 'State'} <span className="text-destructive">*</span>
             </Label>
             {data.permCountry && !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -628,7 +630,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
                 disabled={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
               >
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <SelectValue placeholder="Select Dzongkhag" />
+                  <SelectValue placeholder="[Select Dzongkhag]" />
                 </SelectTrigger>
                 <SelectContent>
                   {dzongkhagOptions.length > 0 ? (
@@ -652,7 +654,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="perm-gewog">
+            <Label htmlFor="perm-gewog" className="text-gray-800 font-semibold text-sm">
               {data.permCountry && countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Gewog' : 'Province'} <span className="text-destructive">*</span>
             </Label>
             {data.permCountry && !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -671,7 +673,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
                 disabled={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
               >
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <SelectValue placeholder="Select Gewog" />
+                  <SelectValue placeholder="[Select Gewog]" />
                 </SelectTrigger>
                 <SelectContent>
                   {permGewogOptions.length > 0 ? (
@@ -697,7 +699,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
-            <Label htmlFor="perm-village">
+            <Label htmlFor="perm-village" className="text-gray-800 font-semibold text-sm">
               {data.permCountry && countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Village/Street' : 'Street'} <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -714,7 +716,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           {data.permCountry && countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
           <>
           <div className="space-y-3">
-            <Label htmlFor="perm-thram">Thram No</Label>
+            <Label htmlFor="perm-thram" className="text-gray-800 font-semibold text-sm">Thram No</Label>
             <Input
               id="perm-thram"
               placeholder="Enter Thram No"
@@ -726,7 +728,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="perm-house">House No</Label>
+            <Label htmlFor="perm-house" className="text-gray-800 font-semibold text-sm">House No</Label>
             <Input
               id="perm-house"
               placeholder="Enter House No"
@@ -742,7 +744,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
 
         {data.permCountry && !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
           <div className="space-y-2 mt-4">
-            <Label htmlFor="perm-address-proof">
+            <Label htmlFor="perm-address-proof" className="text-gray-800 font-semibold text-sm">
               Upload Address Proof Document <span className="text-destructive">*</span>
             </Label>
             <div className="flex items-center gap-2">
@@ -762,13 +764,13 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
-            <Label htmlFor="curr-country">
+            <Label htmlFor="curr-country" className="text-gray-800 font-semibold text-sm">
               Country of Resident <span className="text-destructive">*</span>
             </Label>
             <div className="w-full h-12" style={{ minHeight: '48px' }}>
               <Select value={data.currCountry} onValueChange={(value) => setData({ ...data, currCountry: value })}>
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <SelectValue placeholder="Select Country" />
+                  <SelectValue placeholder="[Select Country]" />
                 </SelectTrigger>
                 <SelectContent>
                   {countryOptions.length > 0 ? (
@@ -791,7 +793,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="curr-dzongkhag">
+            <Label htmlFor="curr-dzongkhag" className="text-gray-800 font-semibold text-sm">
               {data.currCountry && countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Dzongkhag' : 'State'} <span className="text-destructive">*</span>
             </Label>
             {data.currCountry && !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -810,7 +812,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
                 disabled={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
               >
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <SelectValue placeholder="Select Dzongkhag" />
+                  <SelectValue placeholder="[Select Dzongkhag]" />
                 </SelectTrigger>
                 <SelectContent>
                   {dzongkhagOptions.length > 0 ? (
@@ -834,7 +836,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="curr-gewog">
+            <Label htmlFor="curr-gewog" className="text-gray-800 font-semibold text-sm">
               {data.currCountry && countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Gewog' : 'Province'} <span className="text-destructive">*</span>
             </Label>
             {data.currCountry && !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -853,7 +855,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
                 disabled={!data.currCountry || !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
               >
                 <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <SelectValue placeholder="Select Gewog" />
+                  <SelectValue placeholder="[Select Gewog]" />
                 </SelectTrigger>
                 <SelectContent>
                   {currGewogOptions.length > 0 ? (
@@ -879,7 +881,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
-            <Label htmlFor="curr-village">
+            <Label htmlFor="curr-village" className="text-gray-800 font-semibold text-sm">
               {data.currCountry && countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Village/Street' : 'Street'} <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -893,7 +895,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="curr-house">House/Building/Flat No</Label>
+            <Label htmlFor="curr-house" className="text-gray-800 font-semibold text-sm">House/Building/Flat No. </Label>
             <Input
               id="curr-house"
               placeholder="Enter House/Building/Flat No"
@@ -905,7 +907,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="email">
+            <Label htmlFor="email" className="text-gray-800 font-semibold text-sm">
               Email Address <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -921,7 +923,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
-            <Label htmlFor="contact">
+            <Label htmlFor="contact" className="text-gray-800 font-semibold text-sm">
               Contact Number <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -936,7 +938,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
 
         {data.currCountry && !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
           <div className="space-y-2 mt-4">
-            <Label htmlFor="curr-address-proof">
+            <Label htmlFor="curr-address-proof" className="text-gray-800 font-semibold text-sm">
               Upload Address Proof Document <span className="text-destructive">*</span>
             </Label>
             <div className="flex items-center gap-2">
@@ -956,7 +958,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="is-pep" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="is-pep" className="text-gray-800 font-semibold text-sm">
               Politically Exposed Person? <span className="text-destructive">*</span>
             </Label>
             <Select value={data.isPep} onValueChange={(value) => setData({ ...data, isPep: value })}>
@@ -971,7 +973,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="pep-category" className="text-gray-800 font-semibold text-base">PEP Category*</Label>
+            <Label htmlFor="pep-category" className="text-gray-800 font-semibold text-sm">PEP Category <span className="text-destructive">*</span></Label>
             <Select 
               value={data.isPep === 'yes' ? data.pepCategory : ''} 
               onValueChange={(value) => setData({ ...data, pepCategory: value })}
@@ -989,7 +991,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="related-to-pep" className="text-gray-800 font-semibold text-base">Are you related to any PEP?*</Label>
+            <Label htmlFor="related-to-pep" className="text-gray-800 font-semibold text-sm">Are you related to any PEP? <span className="text-destructive">*</span></Label>
             <Select 
               value={data.isPep === 'no' ? data.relatedToPep : ''} 
               onValueChange={(value) => setData({ ...data, relatedToPep: value })}
@@ -1008,7 +1010,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="pep-relationship" className="text-gray-800 font-semibold text-base">Relationship*</Label>
+            <Label htmlFor="pep-relationship" className="text-gray-800 font-semibold text-sm">Relationship <span className="text-destructive">*</span></Label>
             <Select
               value={data.isPep === 'no' && data.relatedToPep === 'yes' ? data.pepRelationship : ''}
               onValueChange={(value) => setData({ ...data, pepRelationship: value })}
@@ -1027,7 +1029,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="pep-id-no" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="pep-id-no" className="text-gray-800 font-semibold text-sm">
               Identification No. <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1041,7 +1043,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="pep-category-2" className="text-gray-800 font-semibold text-base">PEP Category*</Label>
+            <Label htmlFor="pep-category-2" className="text-gray-800 font-semibold text-sm">PEP Category <span className="text-destructive">*</span></Label>
             <Input
               id="pep-category-2"
               placeholder="Enter PEP Category"
@@ -1054,7 +1056,7 @@ export function RepaymentSourceForm({ onNext, onBack, formData }: RepaymentSourc
         </div>
 
         <div className="space-y-2.5">
-          <Label htmlFor="pep-upload" className="text-gray-800 font-semibold text-base">
+          <Label htmlFor="pep-upload" className="text-gray-800 font-semibold text-sm">
             Upload Identification Proof <span className="text-red-500">*</span>
           </Label>
           <div className="flex items-center gap-2">

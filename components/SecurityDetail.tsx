@@ -183,7 +183,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
         {/* Security Type and Ownership Details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="security-type" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="security-type" className="text-gray-800 font-semibold text-sm">
               Type of Security <span className="text-red-500">*</span>
             </Label>
             <Select value={data.securityType} onValueChange={(value) => setData({ ...data, securityType: value })} required>
@@ -201,8 +201,8 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="ownership-type" className="text-gray-800 font-semibold text-base">
-              Security ownership <span className="text-red-500">*</span>
+            <Label htmlFor="ownership-type" className="text-gray-800 font-semibold text-sm">
+              Security Ownership <span className="text-red-500">*</span>
             </Label>
             <Select value={data.ownershipType} onValueChange={(value) => setData({ ...data, ownershipType: value })} required>
               <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
@@ -223,7 +223,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="vehicle-type" className="text-gray-800 font-semibold text-base">Vehicle Type</Label>
+            <Label htmlFor="vehicle-type" className="text-gray-800 font-semibold text-sm">Vehicle Type</Label>
             <Select value={data.vehicleType} onValueChange={(value) => setData({ ...data, vehicleType: value })}>
               <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
@@ -239,7 +239,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="vehicle-make" className="text-gray-800 font-semibold text-base">Make/Brand</Label>
+            <Label htmlFor="vehicle-make" className="text-gray-800 font-semibold text-sm">Make/Brand</Label>
             <Input
               id="vehicle-make"
               placeholder="Enter Make/Brand"
@@ -250,7 +250,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="vehicle-model" className="text-gray-800 font-semibold text-base">Model</Label>
+            <Label htmlFor="vehicle-model" className="text-gray-800 font-semibold text-sm">Model</Label>
             <Input
               id="vehicle-model"
               placeholder="Enter Model"
@@ -261,7 +261,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="vehicle-year" className="text-gray-800 font-semibold text-base">Year of Manufacture</Label>
+            <Label htmlFor="vehicle-year" className="text-gray-800 font-semibold text-sm">Year of Manufacture</Label>
             <Input
               id="vehicle-year"
               type="number"
@@ -275,7 +275,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="registration-no" className="text-gray-800 font-semibold text-base">Registration No.</Label>
+            <Label htmlFor="registration-no" className="text-gray-800 font-semibold text-sm">Registration No.</Label>
             <Input
               id="registration-no"
               placeholder="Enter Registration No"
@@ -286,7 +286,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="chassis-no" className="text-gray-800 font-semibold text-base">Chassis No.</Label>
+            <Label htmlFor="chassis-no" className="text-gray-800 font-semibold text-sm">Chassis No.</Label>
             <Input
               id="chassis-no"
               placeholder="Enter Chassis No"
@@ -297,7 +297,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="engine-no" className="text-gray-800 font-semibold text-base">Engine No.</Label>
+            <Label htmlFor="engine-no" className="text-gray-800 font-semibold text-sm">Engine No.</Label>
             <Input
               id="engine-no"
               placeholder="Enter Engine No"
@@ -315,7 +315,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="security-dzongkhag" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="security-dzongkhag" className="text-gray-800 font-semibold text-sm">
               Dzongkhag <span className="text-red-500">*</span>
             </Label>
             <Select value={data.dzongkhag} onValueChange={(value) => setData({ ...data, dzongkhag: value })} required>
@@ -342,7 +342,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="security-gewog" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="security-gewog" className="text-gray-800 font-semibold text-sm">
               Gewog <span className="text-red-500">*</span>
             </Label>
             <Select value={data.gewog} onValueChange={(value) => setData({ ...data, gewog: value })} required>
@@ -369,7 +369,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="security-village" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="security-village" className="text-gray-800 font-semibold text-sm">
               Village/Street <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -383,7 +383,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="house-no" className="text-gray-800 font-semibold text-base">House No.</Label>
+            <Label htmlFor="house-no" className="text-gray-800 font-semibold text-sm">House No.</Label>
             <Input
               id="house-no"
               placeholder="Enter House No"
@@ -396,7 +396,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="thram-no" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="thram-no" className="text-gray-800 font-semibold text-sm">
               Thram No. <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -410,7 +410,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="plot-no" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="plot-no" className="text-gray-800 font-semibold text-sm">
               Plot No. <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -424,7 +424,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="area" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="area" className="text-gray-800 font-semibold text-sm">
               Area (in Sq. Ft) <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -439,7 +439,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="land-use" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="land-use" className="text-gray-800 font-semibold text-sm">
               Land Use Type <span className="text-red-500">*</span>
             </Label>
             <Select value={data.landUse} onValueChange={(value) => setData({ ...data, landUse: value })} required>
@@ -463,7 +463,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="insurance-company" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="insurance-company" className="text-gray-800 font-semibold text-sm">
               Insurance Company <span className="text-red-500">*</span>
             </Label>
             <Select
@@ -483,7 +483,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="policy-no" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="policy-no" className="text-gray-800 font-semibold text-sm">
               Policy No. <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -497,7 +497,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="insurance-value" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="insurance-value" className="text-gray-800 font-semibold text-sm">
               Insurance Value (Nu.) <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -514,7 +514,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="insurance-start" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="insurance-start" className="text-gray-800 font-semibold text-sm">
               Insurance Start Date <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -528,7 +528,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="insurance-expiry" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="insurance-expiry" className="text-gray-800 font-semibold text-sm">
               Insurance Expiry Date <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -565,7 +565,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
         {/* Row 1: Salutation, Name, Nationality, ID Type */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="salutation" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="salutation" className="text-gray-800 font-semibold text-sm">
               Salutation <span className="text-red-500">*</span>
             </Label>
             <Select value={data.salutation} onValueChange={(value) => setData({ ...data, salutation: value })} required>
@@ -582,7 +582,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="co-borrower-name" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="co-borrower-name" className="text-gray-800 font-semibold text-sm">
               Guarantor Name <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -596,7 +596,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="nationality" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="nationality" className="text-gray-800 font-semibold text-sm">
               Nationality <span className="text-red-500">*</span>
             </Label>
             <Select value={data.nationality} onValueChange={(value) => setData({ ...data, nationality: value })} required>
@@ -623,7 +623,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="id-type" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="id-type" className="text-gray-800 font-semibold text-sm">
               Identification Type <span className="text-red-500">*</span>
             </Label>
             <Select value={data.idType} onValueChange={(value) => setData({ ...data, idType: value })} required>
@@ -653,7 +653,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
         {/* Row 2: ID Number, Issue Date, Expiry Date, DOB */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="id-number" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="id-number" className="text-gray-800 font-semibold text-sm">
               Identification No. <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -667,7 +667,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="id-issue-date" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="id-issue-date" className="text-gray-800 font-semibold text-sm">
               Issue Date <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -682,7 +682,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="id-expiry-date" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="id-expiry-date" className="text-gray-800 font-semibold text-sm">
               Expiry Date <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -697,7 +697,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="dob" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="dob" className="text-gray-800 font-semibold text-sm">
               Date of Birth <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -715,7 +715,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
         {/* Row 3: TPN, Marital Status, Gender, Spouse Name */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="tpn-no" className="text-gray-800 font-semibold text-base">TPN No</Label>
+            <Label htmlFor="tpn-no" className="text-gray-800 font-semibold text-sm">TPN No</Label>
             <Input
               id="tpn-no"
               placeholder="Enter TPN Number"
@@ -726,7 +726,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="marital-status" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="marital-status" className="text-gray-800 font-semibold text-sm">
               Marital Status <span className="text-red-500">*</span>
             </Label>
             <Select value={data.maritalStatus} onValueChange={(value) => setData({ ...data, maritalStatus: value })} required>
@@ -753,7 +753,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="gender" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="gender" className="text-gray-800 font-semibold text-sm">
               Gender <span className="text-red-500">*</span>
             </Label>
             <Select value={data.gender} onValueChange={(value) => setData({ ...data, gender: value })} required>
@@ -769,7 +769,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="spouse-name" className="text-gray-800 font-semibold text-base">Spouse Name</Label>
+            <Label htmlFor="spouse-name" className="text-gray-800 font-semibold text-sm">Spouse Name</Label>
             <Input
               id="spouse-name"
               placeholder="Enter Spouse Name"
@@ -783,7 +783,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
         {/* Row 4: Spouse CID, Spouse Contact, Family Tree Upload */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="spouse-cid" className="text-gray-800 font-semibold text-base">Spouse CID No</Label>
+            <Label htmlFor="spouse-cid" className="text-gray-800 font-semibold text-sm">Spouse CID No</Label>
             <Input
               id="spouse-cid"
               placeholder="Enter Spouse CID"
@@ -794,7 +794,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="spouse-contact" className="text-gray-800 font-semibold text-base">Spouse Contact No</Label>
+            <Label htmlFor="spouse-contact" className="text-gray-800 font-semibold text-sm">Spouse Contact No</Label>
             <Input
               id="spouse-contact"
               placeholder="Enter Contact Number"
@@ -805,7 +805,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="family-tree" className="text-gray-800 font-semibold text-base">Upload Family Tree</Label>
+            <Label htmlFor="family-tree" className="text-gray-800 font-semibold text-sm">Upload Family Tree</Label>
             <div className="flex items-center gap-2">
               <input
                 id="family-tree-input"
@@ -835,7 +835,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="perm-country" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="perm-country" className="text-gray-800 font-semibold text-sm">
               Country <span className="text-red-500">*</span>
             </Label>
             <Select value={data.permCountry} onValueChange={(value) => setData({ ...data, permCountry: value })} required>
@@ -862,7 +862,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="perm-dzongkhag" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="perm-dzongkhag" className="text-gray-800 font-semibold text-sm">
               {data.permCountry && countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Dzongkhag' : 'State'} <span className="text-red-500">*</span>
             </Label>
             {data.permCountry && !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -903,7 +903,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="perm-gewog" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="perm-gewog" className="text-gray-800 font-semibold text-sm">
               {data.permCountry && countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Gewog' : 'Province'} <span className="text-red-500">*</span>
             </Label>
             {data.permCountry && !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -946,7 +946,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="perm-village" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="perm-village" className="text-gray-800 font-semibold text-sm">
               {data.permCountry && countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Village/Street' : 'Street'} <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -963,7 +963,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           {data.permCountry && countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
           <>
           <div className="space-y-2.5">
-            <Label htmlFor="perm-thram" className="text-gray-800 font-semibold text-base">Thram No</Label>
+            <Label htmlFor="perm-thram" className="text-gray-800 font-semibold text-sm">Thram No</Label>
             <Input
               id="perm-thram"
               placeholder="Enter Thram No"
@@ -975,7 +975,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="perm-house" className="text-gray-800 font-semibold text-base">House No</Label>
+            <Label htmlFor="perm-house" className="text-gray-800 font-semibold text-sm">House No</Label>
             <Input
               id="perm-house"
               placeholder="Enter House No"
@@ -991,7 +991,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         {data.permCountry && !countryOptions.find(c => String(c.country_pk_code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
           <div className="space-y-2.5 mt-4">
-            <Label htmlFor="perm-address-proof" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="perm-address-proof" className="text-gray-800 font-semibold text-sm">
               Upload Address Proof Document <span className="text-red-500">*</span>
             </Label>
             <div className="flex items-center gap-2">
@@ -1011,7 +1011,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="curr-country" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="curr-country" className="text-gray-800 font-semibold text-sm">
               Country <span className="text-red-500">*</span>
             </Label>
             <Select value={data.currCountry} onValueChange={(value) => setData({ ...data, currCountry: value })}>
@@ -1038,7 +1038,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="curr-dzongkhag" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="curr-dzongkhag" className="text-gray-800 font-semibold text-sm">
               {data.currCountry && countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Dzongkhag' : 'State'} <span className="text-red-500">*</span>
             </Label>
             {data.currCountry && !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -1079,7 +1079,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="curr-gewog" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="curr-gewog" className="text-gray-800 font-semibold text-sm">
               {data.currCountry && countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Gewog' : 'Province'} <span className="text-red-500">*</span>
             </Label>
             {data.currCountry && !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? (
@@ -1122,7 +1122,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="curr-village" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="curr-village" className="text-gray-800 font-semibold text-sm">
               {data.currCountry && countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? 'Village/Street' : 'Street'} <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1136,7 +1136,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="curr-house" className="text-gray-800 font-semibold text-base">House/Flat No</Label>
+            <Label htmlFor="curr-house" className="text-gray-800 font-semibold text-sm">House/Flat No</Label>
             <Input
               id="curr-house"
               placeholder="Enter House/Flat No"
@@ -1148,7 +1148,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="email" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="email" className="text-gray-800 font-semibold text-sm">
               Email Address <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1164,7 +1164,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="contact" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="contact" className="text-gray-800 font-semibold text-sm">
               Contact Number <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1179,7 +1179,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         {data.currCountry && !countryOptions.find(c => String(c.country_pk_code) === data.currCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
           <div className="space-y-2.5 mt-4">
-            <Label htmlFor="curr-address-proof" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="curr-address-proof" className="text-gray-800 font-semibold text-sm">
               Upload Address Proof Document <span className="text-red-500">*</span>
             </Label>
             <div className="flex items-center gap-2">
@@ -1199,7 +1199,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="is-pep" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="is-pep" className="text-gray-800 font-semibold text-sm">
               Politically Exposed Person <span className="text-red-500">*</span>
             </Label>
             <Select value={data.isPep} onValueChange={(value) => setData({ ...data, isPep: value })}>
@@ -1214,7 +1214,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="pep-sub-category" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="pep-sub-category" className="text-gray-800 font-semibold text-sm">
               PEP Sub Category <span className="text-red-500">*</span>
             </Label>
             <Select 
@@ -1238,7 +1238,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="related-to-pep" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="related-to-pep" className="text-gray-800 font-semibold text-sm">
               Are you related to any PEP? <span className="text-red-500">*</span>
             </Label>
             <Select 
@@ -1259,7 +1259,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2.5">
-            <Label htmlFor="pep-relationship" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="pep-relationship" className="text-gray-800 font-semibold text-sm">
               Relationship <span className="text-red-500">*</span>
             </Label>
             <Select
@@ -1280,7 +1280,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="pep-id-no" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="pep-id-no" className="text-gray-800 font-semibold text-sm">
               Identification No. <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1294,7 +1294,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="pep-category" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="pep-category" className="text-gray-800 font-semibold text-sm">
               PEP Category <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1308,7 +1308,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
           </div>
 
           <div className="space-y-2.5">
-            <Label htmlFor="pep-sub-cat-2" className="text-gray-800 font-semibold text-base">
+            <Label htmlFor="pep-sub-cat-2" className="text-gray-800 font-semibold text-sm">
               PEP Sub Category <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -1323,7 +1323,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
         </div>
 
         <div className="space-y-2.5">
-          <Label htmlFor="pep-upload" className="text-gray-800 font-semibold text-base">
+          <Label htmlFor="pep-upload" className="text-gray-800 font-semibold text-sm">
             Upload Identification Proof <span className="text-red-500">*</span>
           </Label>
           <div className="flex items-center gap-2">
@@ -1371,7 +1371,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
             {/* Row 1: Salutation, Name, Nationality, ID Type */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor={`salutation-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`salutation-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Salutation <span className="text-red-500">*</span>
                 </Label>
                 <Select>
@@ -1388,14 +1388,14 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`guarantor-name-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`guarantor-name-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Guarantor Name <span className="text-red-500">*</span>
                 </Label>
                 <Input placeholder="Enter Full Name" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`nationality-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`nationality-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Nationality <span className="text-red-500">*</span>
                 </Label>
                 <Select>
@@ -1417,7 +1417,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`id-type-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`id-type-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Identification Type <span className="text-red-500">*</span>
                 </Label>
                 <Select>
@@ -1442,28 +1442,28 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
             {/* Row 2: ID Number, Issue Date, Expiry Date, DOB */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor={`id-number-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`id-number-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Identification No. <span className="text-red-500">*</span>
                 </Label>
                 <Input placeholder="Enter ID Number" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`id-issue-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`id-issue-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Issue Date <span className="text-red-500">*</span>
                 </Label>
                 <Input type="date" max={today} className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`id-expiry-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`id-expiry-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Expiry Date <span className="text-red-500">*</span>
                 </Label>
                 <Input type="date" min={today} className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`dob-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`dob-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Date of Birth <span className="text-red-500">*</span>
                 </Label>
                 <Input type="date" max={maxDobDate} className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
@@ -1473,12 +1473,12 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
             {/* Row 3: TPN, Marital Status, Gender, Spouse Name */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor={`tpn-${index + 1}`} className="text-gray-800 font-semibold text-base">TPN No</Label>
+                <Label htmlFor={`tpn-${index + 1}`} className="text-gray-800 font-semibold text-sm">TPN No</Label>
                 <Input placeholder="Enter TPN Number" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`marital-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`marital-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Marital Status <span className="text-red-500">*</span>
                 </Label>
                 <Select>
@@ -1500,7 +1500,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`gender-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`gender-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Gender <span className="text-red-500">*</span>
                 </Label>
                 <Select>
@@ -1516,7 +1516,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`spouse-name-${index + 1}`} className="text-gray-800 font-semibold text-base">Spouse Name</Label>
+                <Label htmlFor={`spouse-name-${index + 1}`} className="text-gray-800 font-semibold text-sm">Spouse Name</Label>
                 <Input placeholder="Enter Spouse Name" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
             </div>
@@ -1524,17 +1524,17 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
             {/* Row 4: Spouse CID, Spouse Contact, Family Tree Upload */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor={`spouse-cid-${index + 1}`} className="text-gray-800 font-semibold text-base">Spouse CID No</Label>
+                <Label htmlFor={`spouse-cid-${index + 1}`} className="text-gray-800 font-semibold text-sm">Spouse CID No</Label>
                 <Input placeholder="Enter Spouse CID" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`spouse-contact-${index + 1}`} className="text-gray-800 font-semibold text-base">Spouse Contact No</Label>
+                <Label htmlFor={`spouse-contact-${index + 1}`} className="text-gray-800 font-semibold text-sm">Spouse Contact No</Label>
                 <Input placeholder="Enter Contact Number" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`family-tree-${index + 1}`} className="text-gray-800 font-semibold text-base">Upload Family Tree</Label>
+                <Label htmlFor={`family-tree-${index + 1}`} className="text-gray-800 font-semibold text-sm">Upload Family Tree</Label>
                 <div className="flex items-center gap-2">
                   <input
                     id={`family-tree-input-${index + 1}`}
@@ -1562,7 +1562,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor={`perm-country-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`perm-country-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Country <span className="text-red-500">*</span>
                 </Label>
                 <Select>
@@ -1584,7 +1584,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`perm-dzongkhag-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`perm-dzongkhag-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Dzongkhag/State <span className="text-red-500">*</span>
                 </Label>
                 <Select>
@@ -1606,7 +1606,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`perm-gewog-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`perm-gewog-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Gewog/Province <span className="text-red-500">*</span>
                 </Label>
                 <Select>
@@ -1622,19 +1622,19 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor={`perm-village-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`perm-village-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Village/Street <span className="text-red-500">*</span>
                 </Label>
                 <Input placeholder="Enter Village/Street" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`perm-thram-${index + 1}`} className="text-gray-800 font-semibold text-base">Thram No</Label>
+                <Label htmlFor={`perm-thram-${index + 1}`} className="text-gray-800 font-semibold text-sm">Thram No</Label>
                 <Input placeholder="Enter Thram No" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`perm-house-${index + 1}`} className="text-gray-800 font-semibold text-base">House No</Label>
+                <Label htmlFor={`perm-house-${index + 1}`} className="text-gray-800 font-semibold text-sm">House No</Label>
                 <Input placeholder="Enter House No" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
             </div>
@@ -1646,7 +1646,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor={`curr-country-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`curr-country-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Country <span className="text-red-500">*</span>
                 </Label>
                 <Select>
@@ -1668,7 +1668,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`curr-dzongkhag-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`curr-dzongkhag-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Dzongkhag/State <span className="text-red-500">*</span>
                 </Label>
                 <Select>
@@ -1690,7 +1690,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`curr-gewog-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`curr-gewog-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Gewog/Province <span className="text-red-500">*</span>
                 </Label>
                 <Select>
@@ -1706,19 +1706,19 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor={`curr-village-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`curr-village-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Village/Street <span className="text-red-500">*</span>
                 </Label>
                 <Input placeholder="Enter Village/Street" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`curr-house-${index + 1}`} className="text-gray-800 font-semibold text-base">House/Flat No</Label>
+                <Label htmlFor={`curr-house-${index + 1}`} className="text-gray-800 font-semibold text-sm">House/Flat No</Label>
                 <Input placeholder="Enter House/Flat No" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`email-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`email-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Email Address <span className="text-red-500">*</span>
                 </Label>
                 <Input type="email" placeholder="Enter Email Address" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
@@ -1727,7 +1727,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor={`contact-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`contact-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Contact Number <span className="text-red-500">*</span>
                 </Label>
                 <Input placeholder="Enter Contact Number" className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]" />
@@ -1741,7 +1741,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor={`is-pep-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`is-pep-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Politically Exposed Person <span className="text-red-500">*</span>
                 </Label>
                 <Select value={guarantor.isPep || ''} onValueChange={(value) => updateGuarantor(index + 1, 'isPep', value)}>
@@ -1756,7 +1756,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`pep-sub-category-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`pep-sub-category-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   PEP Sub Category <span className="text-red-500">*</span>
                 </Label>
                 <Select
@@ -1780,7 +1780,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`related-to-pep-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`related-to-pep-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Are you related to any PEP? <span className="text-red-500">*</span>
                 </Label>
                 <Select
@@ -1801,7 +1801,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor={`pep-relationship-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`pep-relationship-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Relationship <span className="text-red-500">*</span>
                 </Label>
                 <Select
@@ -1822,7 +1822,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`pep-id-no-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`pep-id-no-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   Identification No. <span className="text-red-500">*</span>
                 </Label>
                 <Input 
@@ -1835,7 +1835,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`pep-category-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`pep-category-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   PEP Category <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -1848,7 +1848,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor={`pep-sub-cat-2-${index + 1}`} className="text-gray-800 font-semibold text-base">
+                <Label htmlFor={`pep-sub-cat-2-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                   PEP Sub Category <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -1862,7 +1862,7 @@ export function SecurityDetailsForm({ onNext, onBack, formData }: SecurityDetail
             </div>
 
             <div className="space-y-2.5">
-              <Label htmlFor={`pep-upload-${index + 1}`} className="text-gray-800 font-semibold text-base">
+              <Label htmlFor={`pep-upload-${index + 1}`} className="text-gray-800 font-semibold text-sm">
                 Upload Identification Proof <span className="text-red-500">*</span>
               </Label>
               <div className="flex items-center gap-2">

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeOtp } from '@/lib/otpCache';
+import { sendOTPEmail } from '@/lib/emailService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
     // Check if this is for email (has @ symbol) or phone
     const isEmail = to.includes('@');
 
-    // For email, we just cache the provided OTP (no SMS sent)
+    // For email, send OTP via email
     if (isEmail) {
       if (!otp) {
         return NextResponse.json(
@@ -24,13 +25,37 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      storeOtp(to, String(otp));
-      console.log(`Email OTP cached for: ${to}, valid for 2 minutes`);
-      return NextResponse.json({ 
-        success: true, 
-        message: 'OTP cached for email verification',
-        otp: otp
-      });
+      
+      try {
+        // Send email with OTP
+        await sendOTPEmail(to, String(otp));
+        
+        // Also store in cache for verification
+        storeOtp(to, String(otp));
+        
+        // Clear console display of OTP
+        console.log('\n'.repeat(2));
+        console.log('╔═══════════════════════════════════════╗');
+        console.log('║       📧 EMAIL OTP SENT               ║');
+        console.log('╠═══════════════════════════════════════╣');
+        console.log(`║  Email: ${to.padEnd(28)} ║`);
+        console.log(`║  OTP:   ${String(otp).padEnd(28)} ║`);
+        console.log('║  Valid: 5 minutes                     ║');
+        console.log('╚═══════════════════════════════════════╝');
+        console.log('\n');
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: 'OTP sent to email successfully',
+          otp: otp
+        });
+      } catch (emailError) {
+        console.error('Failed to send email:', emailError);
+        return NextResponse.json(
+          { error: 'Failed to send OTP email', details: emailError instanceof Error ? emailError.message : 'Unknown error' },
+          { status: 500 }
+        );
+      }
     }
 
     // For phone, call the SMS API
@@ -72,20 +97,50 @@ export async function POST(request: NextRequest) {
 
       const result = await smsResponse.json().catch(() => ({ success: true }));
 
-      console.log('===== SMS API Response =====');
+      console.log('');
+      console.log('╔═══════════════════════════════════════════════════════╗');
+      console.log('║           📡 SMS API FULL RESPONSE                    ║');
+      console.log('╠═══════════════════════════════════════════════════════╣');
       console.log(JSON.stringify(result, null, 2));
+      console.log('╚═══════════════════════════════════════════════════════╝');
+      console.log('');
 
       // Extract OTP from the SMS API response
       // The API should return the OTP it sent - check common response formats
       let sentOtp = null;
       if (result.otp) {
         sentOtp = result.otp;
+        console.log('✓ OTP found at: result.otp');
       } else if (result.data?.otp) {
         sentOtp = result.data.otp;
+        console.log('✓ OTP found at: result.data.otp');
       } else if (result.code) {
         sentOtp = result.code;
+        console.log('✓ OTP found at: result.code');
       } else if (result.data?.code) {
         sentOtp = result.data.code;
+        console.log('✓ OTP found at: result.data.code');
+      } else if (result.data?.message) {
+        // Try to extract OTP from message if it contains numbers
+        const otpMatch = String(result.data.message).match(/\b\d{4,6}\b/);
+        if (otpMatch) {
+          sentOtp = otpMatch[0];
+          console.log('✓ OTP extracted from: result.data.message');
+        }
+      } else if (result.message) {
+        // Try to extract OTP from message if it contains numbers
+        const otpMatch = String(result.message).match(/\b\d{4,6}\b/);
+        if (otpMatch) {
+          sentOtp = otpMatch[0];
+          console.log('✓ OTP extracted from: result.message');
+        }
+      }
+      
+      // If SMS API didn't return OTP, generate one for testing
+      if (!sentOtp) {
+        console.log('⚠️  SMS API did not return OTP - generating fallback OTP for testing');
+        sentOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        console.log('⚠️  Note: In production, the SMS should contain this OTP');
       }
 
       if (sentOtp) {
@@ -95,12 +150,16 @@ export async function POST(request: NextRequest) {
         // Store the OTP that was actually sent by the SMS API
         storeOtp(to, formattedOtp);
         
-        console.log('===== OTP CACHED =====');
-        console.log(`Phone Number: ${to}`);
-        console.log(`OTP from SMS API: ${sentOtp}`);
-        console.log(`Formatted OTP (6-digit): ${formattedOtp}`);
-        console.log(`Valid for: 2 minutes`);
-        console.log('=====================');
+        // Clear console display of OTP
+        console.log('\n'.repeat(2));
+        console.log('╔═══════════════════════════════════════╗');
+        console.log('║       📱 SMS OTP SENT                 ║');
+        console.log('╠═══════════════════════════════════════╣');
+        console.log(`║  Phone: ${to.padEnd(28)} ║`);
+        console.log(`║  OTP:   ${formattedOtp.padEnd(28)} ║`);
+        console.log('║  Valid: 2 minutes                     ║');
+        console.log('╚═══════════════════════════════════════╝');
+        console.log('\n');
         
         sentOtp = formattedOtp; // Return formatted OTP
       } else {

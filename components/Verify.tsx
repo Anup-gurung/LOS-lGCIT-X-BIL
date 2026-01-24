@@ -252,10 +252,13 @@ export default function ExistingUserVerification() {
                   try {
                     const payload = {
                       type: "I",
+                      identification_type_pk_code: idType,
                       identity_no: idNumber,
                       contact_no: contactPreference === "phone" ? phone : "",
                       email_id: contactPreference === "email" ? email : ""
                     };
+                    
+                    console.log('Sending payload:', payload);
                     
                     // Call our Next.js API route instead of external API directly
                     const response = await fetch('/api/customer-onboarded-details', {
@@ -341,14 +344,12 @@ export default function ExistingUserVerification() {
                         }
                       }
                       
-                      // If email is selected, generate OTP (email sending can be implemented later)
+                      // If email is selected, generate OTP and send via email
                       if (contactPreference === "email" && email) {
                         const otp = generateOtp();
                         setGeneratedOtp(otp);
-                        console.log('Generated OTP for email:', otp); // For testing - remove in production
                         
-                        // Store OTP in cache for email verification by calling our API
-                        // This just stores it without actually sending an email
+                        // Send OTP via email using our email service
                         try {
                           const response = await fetch('/api/send-sms', {
                             method: 'POST',
@@ -361,14 +362,21 @@ export default function ExistingUserVerification() {
                             })
                           });
                           
-                          if (response.ok) {
-                            console.log('Email OTP cached successfully');
+                          const emailResult = await response.json();
+                          
+                          if (response.ok && emailResult.success) {
+                            console.log('✅ Email OTP sent successfully');
+                            alert(`OTP has been sent to your email: ${email}\n\nPlease check your inbox (and spam folder).`);
+                          } else {
+                            console.error('Failed to send email OTP:', emailResult);
+                            alert('Failed to send OTP email. Please try again.');
+                            return;
                           }
                         } catch (error) {
-                          console.error('Failed to cache email OTP:', error);
+                          console.error('Failed to send email OTP:', error);
+                          alert('Failed to send OTP email. Please check your internet connection and try again.');
+                          return;
                         }
-                        
-                        alert(`OTP for testing: ${otp}\n(Email sending not yet implemented)`);
                       }
                       
                       setShowOtpModal(true);

@@ -13,11 +13,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Log the verification attempt
+    console.log('');
+    console.log('🔐 ===== OTP VERIFICATION ATTEMPT =====');
+    console.log(`📱 Phone/Email: ${phoneOrEmail}`);
+    console.log(`🔢 OTP Entered: ${otp}`);
+    console.log('=======================================');
+    console.log('');
+
     // Verify OTP using shared cache
     const result = verifyOtp(phoneOrEmail, otp);
 
     if (result.success) {
-      console.log(`OTP verified successfully for: ${phoneOrEmail}`);
+      console.log(`✅ OTP verified successfully for: ${phoneOrEmail}`);
       return NextResponse.json({
         success: true,
         message: result.message

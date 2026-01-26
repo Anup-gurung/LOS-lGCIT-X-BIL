@@ -19,12 +19,9 @@ interface PersonalDetailsFormProps {
 }
 
 export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetailsFormProps) {
-  console.log('PersonalDetail - Component rendered with formData:', formData)
-  
   const [data, setData] = useState(() => {
     // Initialize with formData if available, otherwise empty object
     const initial = formData?.personalDetails || formData || {}
-    console.log('PersonalDetail - Initial data:', initial)
     return initial
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -56,7 +53,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         const options = await fetchMaritalStatus()
         setMaritalStatusOptions(options)
       } catch (error) {
-        console.error('Failed to load marital status:', error)
         // Fallback to default options
         setMaritalStatusOptions([
           { id: 'single', name: 'Single' },
@@ -75,7 +71,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         const options = await fetchBanks()
         setBanksOptions(options)
       } catch (error) {
-        console.error('Failed to load banks:', error)
         // Fallback to default options
         setBanksOptions([
           { id: 'bob', name: 'Bank of Bhutan' },
@@ -94,7 +89,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         const options = await fetchNationality()
         setNationalityOptions(options)
       } catch (error) {
-        console.error('Failed to load nationality:', error)
         // Fallback to default options
         setNationalityOptions([
           { id: 'bhutanese', name: 'Bhutanese' },
@@ -112,7 +106,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         const options = await fetchIdentificationType()
         setIdentificationTypeOptions(options)
       } catch (error) {
-        console.error('Failed to load identification type:', error)
         setIdentificationTypeOptions([
           { id: 'cid', name: 'Citizenship ID' },
           { id: 'passport', name: 'Passport' },
@@ -129,7 +122,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         const options = await fetchCountry()
         setCountryOptions(options)
       } catch (error) {
-        console.error('Failed to load country:', error)
         setCountryOptions([
           { id: 'bhutan', name: 'Bhutan' },
           { id: 'india', name: 'India' }
@@ -145,7 +137,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         const options = await fetchDzongkhag()
         setDzongkhagOptions(options)
       } catch (error) {
-        console.error('Failed to load dzongkhag:', error)
         setDzongkhagOptions([
           { id: 'thimphu', name: 'Thimphu' },
           { id: 'paro', name: 'Paro' },
@@ -162,7 +153,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         const options = await fetchOccupations()
         setOccupationOptions(options)
       } catch (error) {
-        console.error('Failed to load occupations:', error)
         setOccupationOptions([
           { id: 'engineer', name: 'Engineer' },
           { id: 'teacher', name: 'Teacher' },
@@ -180,7 +170,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         const options = await fetchLegalConstitution()
         setOrganizationOptions(options)
       } catch (error) {
-        console.error('Failed to load organizations:', error)
         setOrganizationOptions([
           { id: 'org1', name: 'Organization 1' },
           { id: 'org2', name: 'Organization 2' }
@@ -199,7 +188,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         }
         setPepCategoryOptions(options)
       } catch (error) {
-        console.error('Failed to load PEP categories:', error)
         setPepCategoryOptions([
           { pep_category_pk_code: '14001', pep_category: 'Foreign PEP' },
           { pep_category_pk_code: '14002', pep_category: 'Domestic PEP' },
@@ -215,8 +203,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
   // Sync with formData when it changes (e.g., from verified customer data)
   useEffect(() => {
-    console.log('PersonalDetail - useEffect triggered with formData:', formData)
-    
     // Only update if formData has meaningful data
     if (formData && typeof formData === 'object' && Object.keys(formData).length > 0) {
       // Check if formData has actual values (not just empty nested objects)
@@ -236,24 +222,16 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         return val !== null && val !== undefined
       })
       
-      console.log('PersonalDetail - hasData:', hasData)
-      
       if (hasData) {
-        console.log('PersonalDetail - Updating with formData')
         setData((prev: any) => {
           const merged = {
             ...prev,
             ...(formData.personalDetails || {}),
             ...formData // Also spread root level properties from verified data
           }
-          console.log('PersonalDetail - Merged data:', merged)
           return merged
         })
-      } else {
-        console.log('PersonalDetail - Skipping - no meaningful data')
       }
-    } else {
-      console.log('PersonalDetail - Skipping - formData is empty or invalid')
     }
   }, [formData])
 
@@ -265,7 +243,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           const options = await fetchGewogsByDzongkhag(data.permDzongkhag)
           setPermGewogOptions(options)
         } catch (error) {
-          console.error('Failed to load permanent gewogs:', error)
           setPermGewogOptions([])
         }
       }
@@ -281,7 +258,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           const options = await fetchGewogsByDzongkhag(data.currDzongkhag)
           setCurrGewogOptions(options)
         } catch (error) {
-          console.error('Failed to load current gewogs:', error)
           setCurrGewogOptions([])
         }
       }
@@ -301,7 +277,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           }
           setPepSubCategoryOptions(options)
         } catch (error) {
-          console.error('Failed to load PEP sub-categories:', error)
           setPepSubCategoryOptions([
             { id: 'foreign-pep', name: 'Foreign PEP' },
             { id: 'domestic-pep', name: 'Domestic PEP' },
@@ -328,7 +303,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           }
           setRelatedPepSubCategoryOptions(options)
         } catch (error) {
-          console.error('Failed to load related PEP sub-categories:', error)
           setRelatedPepSubCategoryOptions([
             { id: 'related-foreign-pep', name: 'Foreign PEP' },
             { id: 'related-domestic-pep', name: 'Domestic PEP' },
@@ -405,22 +379,19 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
     onNext({ personalDetails: data, hasCoBorrower })
   }
 
-  // Debug: Log data state before rendering
-  console.log('PersonalDetail - Rendering with data:', data)
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-10 pt-8 pb-12">
+    <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8 md:space-y-10 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12">
       {/* Application Personal Information */}
-      <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
-        <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">Application Personal Information</h2>
+      <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
+        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">Application Personal Information</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="space-y-2.5">
-            <Label htmlFor="salutation" className="text-gray-800 font-semibold text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <div className="space-y-1.5 sm:space-y-2.5">
+            <Label htmlFor="salutation" className="text-gray-800 font-semibold text-xs sm:text-sm">
               Salutation <span className="text-red-500">*</span>
             </Label>
             <Select value={data.salutation} onValueChange={(value) => setData({ ...data, salutation: value })}>
-              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+              <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -432,26 +403,26 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             </Select>
           </div>
 
-          <div className="space-y-2.5">
-            <Label htmlFor="applicantName" className="text-gray-800 font-semibold text-sm">
+          <div className="space-y-1.5 sm:space-y-2.5">
+            <Label htmlFor="applicantName" className="text-gray-800 font-semibold text-xs sm:text-sm">
               Applicant Name <span className="text-red-500">*</span>
             </Label>
             <Input
               id="applicantName"
               placeholder="Enter Your Full Name"
-              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
               value={data.applicantName || ""}
               onChange={(e) => setData({ ...data, applicantName: e.target.value })}
               required
             />
           </div>
 
-          <div className="space-y-2.5">
-            <Label htmlFor="nationality" className="text-gray-800 font-semibold text-sm">
+          <div className="space-y-1.5 sm:space-y-2.5">
+            <Label htmlFor="nationality" className="text-gray-800 font-semibold text-xs sm:text-sm">
               Nationality <span className="text-red-500">*</span>
             </Label>
             <Select value={data.nationality} onValueChange={(value) => setData({ ...data, nationality: value })}>
-              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+              <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -474,15 +445,15 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             </Select>
           </div>
 
-          <div className="space-y-2.5">
-            <Label htmlFor="identificationType" className="text-gray-800 font-semibold text-sm">
+          <div className="space-y-1.5 sm:space-y-2.5">
+            <Label htmlFor="identificationType" className="text-gray-800 font-semibold text-xs sm:text-sm">
               Identification Type <span className="text-red-500">*</span>
             </Label>
             <Select
               value={data.identificationType}
               onValueChange={(value) => setData({ ...data, identificationType: value })}
             >
-              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+              <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -506,30 +477,30 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="space-y-2.5">
-            <Label htmlFor="identificationNo" className="text-gray-800 font-semibold text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <div className="space-y-1.5 sm:space-y-2.5">
+            <Label htmlFor="identificationNo" className="text-gray-800 font-semibold text-xs sm:text-sm">
               Identification No. <span className="text-red-500">*</span>
             </Label>
             <Input
               id="identificationNo"
               placeholder="Enter identification No"
-              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
               value={data.identificationNo || ""}
               onChange={(e) => setData({ ...data, identificationNo: e.target.value })}
               required
             />
           </div>
 
-          <div className="space-y-2.5">
-            <Label htmlFor="identificationIssueDate" className="text-gray-800 font-semibold text-sm">
+          <div className="space-y-1.5 sm:space-y-2.5">
+            <Label htmlFor="identificationIssueDate" className="text-gray-800 font-semibold text-xs sm:text-sm">
               Identification Issue Date <span className="text-red-500">*</span>
             </Label>
             <Input
               type="date"
               id="identificationIssueDate"
               max={today}
-              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
               value={data.identificationIssueDate || ""}
               onChange={(e) => {
                 setData({ ...data, identificationIssueDate: e.target.value })
@@ -542,8 +513,8 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             )}
           </div>
 
-          <div className="space-y-2.5">
-            <Label htmlFor="identificationExpiryDate" className="text-gray-800 font-semibold text-sm">
+          <div className="space-y-1.5 sm:space-y-2.5">
+            <Label htmlFor="identificationExpiryDate" className="text-gray-800 font-semibold text-xs sm:text-sm">
               Identification Expiry Date <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -794,10 +765,10 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
       </div>
 
       {/* Permanent Address */}
-      <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
-        <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">Permanent Address</h2>
+      <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
+        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">Permanent Address</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <div className="space-y-2.5">
             <Label htmlFor="permCountry" className="text-gray-800 font-semibold text-sm">
               Country <span className="text-red-500">*</span>
@@ -994,10 +965,10 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
       </div>
 
       {/* Current/Residential Address */}
-      <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
-        <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">Current/Residential Address</h2>
+      <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
+        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">Current/Residential Address</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <div className="space-y-2.5">
             <Label htmlFor="currCountry" className="text-gray-800 font-semibold text-sm">
               Country of Resident <span className="text-red-500">*</span>
@@ -1248,10 +1219,10 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
       </div>
 
       {/* PEP Declaration */}
-      <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
-        <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">PEP Declaration</h2>
+      <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
+        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">PEP Declaration</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <div className="space-y-2.5">
             <Label htmlFor="pepPerson" className="text-gray-800 font-semibold text-sm">Politically Exposed Person<span className="text-destructive">*</span></Label>
             <Select value={data.pepPerson} onValueChange={(value) => setData({ ...data, pepPerson: value })}>
@@ -1437,8 +1408,8 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
       </div>
 
       {/* Related to BIL */}
-      <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
-        <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">Related to BIL</h2>
+      <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
+        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">Related to BIL</h2>
 
         <div className="space-y-2.5">
           <Label htmlFor="relatedToBil" className="text-gray-800 font-semibold text-sm">
@@ -1457,31 +1428,31 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
       </div>
 
       {/* Employment Status */}
-      <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
-        <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">Employment Status</h2>
+      <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
+        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">Employment Status</h2>
 
         <div className="space-y-4">
-          <Label className="text-gray-800 font-semibold text-sm">Employment Status <span className="text-red-500">*</span></Label>
+          <Label className="text-gray-800 font-semibold text-xs sm:text-sm">Employment Status <span className="text-red-500">*</span></Label>
           <RadioGroup
             value={data.employmentStatus}
             onValueChange={(value) => setData({ ...data, employmentStatus: value })}
-            className="flex gap-8"
+            className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8"
           >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="employed" id="employed" />
-              <Label htmlFor="employed" className="font-normal cursor-pointer">
+              <Label htmlFor="employed" className="font-normal cursor-pointer text-sm">
                 Employed
               </Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="unemployed" id="unemployed" />
-              <Label htmlFor="unemployed" className="font-normal cursor-pointer">
+              <Label htmlFor="unemployed" className="font-normal cursor-pointer text-sm">
                 Unemployed
               </Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="self-employed" id="self-employed" />
-              <Label htmlFor="self-employed" className="font-normal cursor-pointer">
+              <Label htmlFor="self-employed" className="font-normal cursor-pointer text-sm">
                 Self-employed
               </Label>
             </div>
@@ -1491,10 +1462,10 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
       {/* Employment Details */}
       {data.employmentStatus === "employed" && (
-        <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
-          <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">Employment Details</h2>
+        <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">Employment Details</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             <div className="space-y-2.5">
               <Label htmlFor="occupation" className="text-gray-800 font-semibold text-sm">
                 Occupation <span className="text-red-500">*</span>
@@ -1697,11 +1668,11 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         </div>
       )}
 
-      <div className="flex justify-between gap-6 pt-4">
-        <Button type="button" onClick={onBack} variant="secondary" size="lg" className="min-w-40 px-10 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all">
+      <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 md:gap-6 pt-3 sm:pt-4">
+        <Button type="button" onClick={onBack} variant="secondary" size="lg" className="w-full sm:w-auto sm:min-w-32 md:min-w-40 px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-6 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all">
           Back
         </Button>
-        <Button type="submit" size="lg" className="min-w-40 px-10 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all bg-[#003DA5] hover:bg-[#002D7A]">
+        <Button type="submit" size="lg" className="w-full sm:w-auto sm:min-w-32 md:min-w-40 px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-6 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all bg-[#003DA5] hover:bg-[#002D7A]">
           Next
         </Button>
       </div>

@@ -1,9 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"; // Added DialogTitle
+import Link from "next/link"; // Added Link import
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, Search, UserPlus } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  Search,
+  AlertCircle,
+  QrCode,
+} from "lucide-react";
 
 interface DocumentPopupProps {
   open: boolean;
@@ -18,7 +25,8 @@ export default function DocumentPopup({
   onProceed,
   searchStatus = "searching",
 }: DocumentPopupProps) {
-  const handleAction = () => {
+  // Handler for when data is FOUND (Fill form)
+  const handleFoundAction = () => {
     onOpenChange(false);
     if (onProceed) {
       onProceed();
@@ -28,13 +36,13 @@ export default function DocumentPopup({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-8 rounded-2xl border-none shadow-2xl">
-        {/* Accessibility: DialogTitle is required. sr-only hides it visually but keeps it for screen readers */}
+        {/* Accessibility: DialogTitle is required */}
         <DialogTitle className="sr-only">
           {searchStatus === "searching"
             ? "Searching Database"
             : searchStatus === "found"
               ? "Record Found"
-              : "New Record"}
+              : "User Not Registered"}
         </DialogTitle>
 
         {/* Branding Header */}
@@ -82,34 +90,39 @@ export default function DocumentPopup({
             </div>
             <Button
               className="w-full h-12 bg-[#003DA5] hover:bg-[#002D7A] text-white font-semibold rounded-xl transition-all"
-              onClick={handleAction}
+              onClick={handleFoundAction}
             >
               Continue with Existing Data
             </Button>
           </div>
         )}
 
-        {/* 3. NOT FOUND STATE (New User) */}
+        {/* 3. NOT FOUND STATE (Redirect to NDI via Link) */}
         {searchStatus === "not_found" && (
           <div className="flex flex-col items-center justify-center py-4 space-y-5 text-center">
-            <div className="bg-blue-50 p-4 rounded-full">
-              <UserPlus className="h-12 w-12 text-[#003DA5]" />
+            <div className="bg-orange-50 p-4 rounded-full">
+              <AlertCircle className="h-12 w-12 text-orange-600" />
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-bold text-gray-900">
-                New Co-Borrower
+                User Not Registered
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed px-4">
-                No existing record found in the BIL database. Please proceed to
-                register their details.
+                This user is not registered with BIL. They should register using
+                the <span className="font-bold text-[#003DA5]">Bhutan NDI</span>{" "}
+                app.
               </p>
             </div>
-            <Button
-              className="w-full h-12 bg-[#003DA5] hover:bg-[#002D7A] text-white font-semibold rounded-xl transition-all"
-              onClick={handleAction}
-            >
-              Start New Registration
-            </Button>
+
+            <Link href="/qr-scan" className="w-full">
+              <Button
+                variant="outline"
+                className="w-full h-12 border-2 border-[#003DA5] text-[#003DA5] hover:bg-[#003DA5] hover:text-white bg-transparent font-semibold rounded-xl transition-all gap-2"
+              >
+                <QrCode className="h-4 w-4" />
+                Continue with NDI
+              </Button>
+            </Link>
           </div>
         )}
       </DialogContent>

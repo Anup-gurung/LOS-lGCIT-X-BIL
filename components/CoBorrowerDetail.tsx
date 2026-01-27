@@ -164,6 +164,7 @@ export function CoBorrowerDetailsForm({
         }));
       }
     }
+    console.log("data test", data);
   }, [formData]);
 
   // Load permanent gewogs
@@ -276,16 +277,15 @@ export function CoBorrowerDetailsForm({
 
       if (response.ok && result?.success && result?.data) {
         // Map the existing data to match the form structure
-        const mappedData = mapCustomerDataToForm(result.data || result);
+        // Pass the correct structure to the mapper. If mapCustomerDataToForm handles 'result', pass 'result'.
+        // If it handles 'result.data', pass that. Usually mappers handle the data object.
+        const mappedData = mapCustomerDataToForm(result);
 
-        // Store in sessionStorage for form auto-population
-        sessionStorage.setItem(
-          "verifiedCoBorrowerData",
-          JSON.stringify(mappedData),
-        );
-
-        console.log("Fetched Customer Data:", result.data);
-        console.log("Mapped Form Data:", mappedData);
+        // // Store in sessionStorage for form auto-population
+        // sessionStorage.setItem(
+        //   "verifiedCoBorrowerData",
+        //   JSON.stringify(mappedData),
+        // );
 
         setFetchedCustomerData(mappedData);
         setLookupStatus("found");
@@ -302,121 +302,61 @@ export function CoBorrowerDetailsForm({
 
   const handleLookupProceed = () => {
     if (lookupStatus === "found" && fetchedCustomerData) {
-      // Create a properly mapped object from fetched data to form fields
-      const mappedFormData = {
-        // Personal Information
-        name:
-          fetchedCustomerData.fullName ||
-          fetchedCustomerData.applicantName ||
-          "",
-        salutation: fetchedCustomerData.salutation || "",
-        nationality: fetchedCustomerData.nationality || "",
-        identificationType: data.identificationType, // Keep user entered value
-        identificationNo: data.identificationNo, // Keep user entered value
+      // Prepare sanitized data to ensure it populates the form correctly
+      const sanitizedData = {
+        ...fetchedCustomerData,
+        // Ensure dates are in YYYY-MM-DD format for input fields
         identificationIssueDate: formatDateForInput(
-          fetchedCustomerData.identificationIssueDate ||
-            fetchedCustomerData.identitylssuecoate,
+          fetchedCustomerData.identificationIssueDate,
         ),
         identificationExpiryDate: formatDateForInput(
-          fetchedCustomerData.identificationExpiryDate ||
-            fetchedCustomerData.identityExpiryDate,
+          fetchedCustomerData.identificationExpiryDate,
         ),
         dateOfBirth: formatDateForInput(fetchedCustomerData.dateOfBirth),
-        tpn: fetchedCustomerData.tpn || fetchedCustomerData.tpnNunber || "",
-        maritalStatus: fetchedCustomerData.maritalStatus || "",
-        gender: fetchedCustomerData.gender || "",
-        relationship: fetchedCustomerData.relationship || "",
 
-        // Contact Information
-        email: fetchedCustomerData.email || fetchedCustomerData.emailld || "",
-        contact:
-          fetchedCustomerData.phone || fetchedCustomerData.contactNo || "",
-        alternateContact:
-          fetchedCustomerData.alternatePhone ||
-          fetchedCustomerData.alternateContactNo ||
-          "",
-
-        // Permanent Address
-        permCountry:
-          fetchedCustomerData.permCountry ||
-          fetchedCustomerData.permanentCountry ||
-          "",
-        permDzongkhag:
-          fetchedCustomerData.permDzongkhag ||
-          fetchedCustomerData.permanentDzongkhag ||
-          "",
-        permGewog:
-          fetchedCustomerData.permGewog ||
-          fetchedCustomerData.permanentGewog ||
-          "",
-        permVillage:
-          fetchedCustomerData.permStreet ||
-          fetchedCustomerData.permanentStreet ||
-          "",
-
-        // Current Address
-        currCountry:
-          fetchedCustomerData.currCountry ||
-          fetchedCustomerData.currentCountry ||
-          "",
-        currDzongkhag:
-          fetchedCustomerData.currDzongkhag ||
-          fetchedCustomerData.currentDzongkhag ||
-          "",
-        currGewog:
-          fetchedCustomerData.currGewog ||
-          fetchedCustomerData.currentGewog ||
-          "",
-        currVillage:
-          fetchedCustomerData.currStreet ||
-          fetchedCustomerData.currentStreet ||
-          "",
-        currFlat:
-          fetchedCustomerData.currBui1dingNo ||
-          fetchedCustomerData.currentBui1dingNo ||
-          fetchedCustomerData.houseNo ||
-          "",
-
-        // PEP Declaration
-        pepPerson:
-          fetchedCustomerData.pepPerson ||
-          fetchedCustomerData.pepperson ||
-          "no",
-        pepRelated:
-          fetchedCustomerData.relatedToAnyPep ||
-          fetchedCustomerData.pepRe1ated ||
-          "no",
-        pepCategory: fetchedCustomerData.pepCategory || "",
-        pepSubCategory: fetchedCustomerData.pepSubCategory || "",
-        pepRelationship: fetchedCustomerData.pepRelationship || "",
-        pepIdentification: fetchedCustomerData.pepIdentification || "",
-        pepSubCat2: fetchedCustomerData.pepSubCategory || "",
-
-        // Employment Details
-        employmentStatus: fetchedCustomerData.employmentStatus || "",
-        occupation: fetchedCustomerData.occupation || "",
-        organizationName:
-          fetchedCustomerData.employerName ||
-          fetchedCustomerData.organizationName ||
-          "",
-        employerType:
-          fetchedCustomerData.employerType ||
-          fetchedCustomerData.organizationType ||
-          "",
-        annualSalary: fetchedCustomerData.annuallnccnk || "",
+        // Ensure dropdown values are strings (API often returns numbers)
+        nationality: fetchedCustomerData.nationality
+          ? String(fetchedCustomerData.nationality)
+          : "",
+        permCountry: fetchedCustomerData.permCountry
+          ? String(fetchedCustomerData.permCountry)
+          : "",
+        permDzongkhag: fetchedCustomerData.permDzongkhag
+          ? String(fetchedCustomerData.permDzongkhag)
+          : "",
+        permGewog: fetchedCustomerData.permGewog
+          ? String(fetchedCustomerData.permGewog)
+          : "",
+        currCountry: fetchedCustomerData.currCountry
+          ? String(fetchedCustomerData.currCountry)
+          : "",
+        currDzongkhag: fetchedCustomerData.currDzongkhag
+          ? String(fetchedCustomerData.currDzongkhag)
+          : "",
+        currGewog: fetchedCustomerData.currGewog
+          ? String(fetchedCustomerData.currGewog)
+          : "",
+        maritalStatus: fetchedCustomerData.maritalStatus
+          ? String(fetchedCustomerData.maritalStatus)
+          : "",
+        occupation: fetchedCustomerData.occupation
+          ? String(fetchedCustomerData.occupation)
+          : "",
       };
 
-      console.log("Mapped form data to populate:", mappedFormData);
-
-      // Update the form state with mapped data
+      // Merge fetched data into current state, keeping the ID info that was just typed
       setData((prev: any) => ({
         ...prev,
-        ...mappedFormData,
-        // Preserve the original ID fields that user entered
+        ...fetchedCustomerData,
+        // Explicitly preserve ID fields to prevent overwrite if API returns slightly different keys
         identificationType: prev.identificationType,
         identificationNo: prev.identificationNo,
       }));
+
+      console.log("fetchedCustomerData data data", fetchedCustomerData);
     }
+    console.log("original data ", data);
+
     setShowLookupPopup(false);
   };
 
@@ -442,18 +382,6 @@ export function CoBorrowerDetailsForm({
     };
     setCoBorrowers(updatedCoBorrowers);
   };
-
-  // Debug: Log current data state
-  useEffect(() => {
-    console.log("Current form data state:", data);
-  }, [data]);
-
-  // Debug: Log fetched data
-  useEffect(() => {
-    if (fetchedCustomerData) {
-      console.log("Fetched customer data available:", fetchedCustomerData);
-    }
-  }, [fetchedCustomerData]);
 
   return (
     <>
@@ -486,6 +414,7 @@ export function CoBorrowerDetailsForm({
                   value={data.identificationType}
                   onValueChange={(value) => {
                     setData({ ...data, identificationType: value });
+                    // Optional: You could trigger search here if ID No is already filled
                   }}
                 >
                   <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
@@ -2260,7 +2189,7 @@ export function CoBorrowerDetailsForm({
           <Button
             type="submit"
             size="lg"
-            className="min-w-40 px-10 py          -6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all bg-[#003DA5] hover:bg-[#002D7A]"
+            className="min-w-40 px-10 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all bg-[#003DA5] hover:bg-[#002D7A]"
           >
             Next
           </Button>

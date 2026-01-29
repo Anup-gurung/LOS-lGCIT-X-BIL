@@ -533,6 +533,19 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               <p className="text-xs text-red-500 mt-1">{errors.identificationExpiryDate}</p>
             )}
           </div>
+                    <div className="space-y-2.5">
+            <Label htmlFor="tpn" className="text-gray-800 font-semibold text-sm">
+              TPN No <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="tpn"
+              placeholder="Enter TPN"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              value={data.tpn || ""}
+              onChange={(e) => setData({ ...data, tpn: e.target.value })}
+              required
+            />
+          </div>
 
           <div className="space-y-2.5">
             <Label htmlFor="dateOfBirth" className="text-gray-800 font-semibold text-sm">
@@ -554,22 +567,24 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               <p className="text-xs text-red-500 mt-1">{errors.dateOfBirth}</p>
             )}
           </div>
+          <div className="space-y-2.5">
+            <Label htmlFor="gender" className="text-gray-800 font-semibold text-sm">
+              Gender <span className="text-red-500">*</span>
+            </Label>
+            <Select value={data.gender} onValueChange={(value) => setData({ ...data, gender: value })}>
+              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                <SelectValue placeholder="[Select]" />
+              </SelectTrigger>
+              <SelectContent sideOffset={4}>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="space-y-2.5">
-            <Label htmlFor="tpn" className="text-gray-800 font-semibold text-sm">
-              TPN No <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="tpn"
-              placeholder="Enter TPN"
-              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              value={data.tpn || ""}
-              onChange={(e) => setData({ ...data, tpn: e.target.value })}
-              required
-            />
-          </div>
 
           <div className="space-y-2.5">
             <Label htmlFor="maritalStatus" className="text-gray-800 font-semibold text-sm">
@@ -598,38 +613,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               </SelectContent>
             </Select>
           </div>
-
-          <div className="space-y-2.5">
-            <Label htmlFor="gender" className="text-gray-800 font-semibold text-sm">
-              Gender <span className="text-red-500">*</span>
-            </Label>
-            <Select value={data.gender} onValueChange={(value) => setData({ ...data, gender: value })}>
-              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                <SelectValue placeholder="[Select]" />
-              </SelectTrigger>
-              <SelectContent sideOffset={4}>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2.5">
-            <Label htmlFor="spouseName" className="text-gray-800 font-semibold text-sm">
-              Spouse Name <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="spouseName"
-              placeholder="Enter Full Name"
-              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              value={data.spouseName || ""}
-              onChange={(e) => setData({ ...data, spouseName: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2.5">
             <Label htmlFor="spouseCid" className="text-gray-800 font-semibold text-sm">
               Spouse CID No <span className="text-red-500">*</span>
@@ -644,6 +627,20 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
 
           <div className="space-y-2.5">
+            <Label htmlFor="spouseName" className="text-gray-800 font-semibold text-sm">
+              Spouse Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="spouseName"
+              placeholder="Enter Full Name"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              value={data.spouseName || ""}
+              onChange={(e) => setData({ ...data, spouseName: e.target.value })}
+            />
+          </div>
+
+
+          <div className="space-y-2.5">
             <Label htmlFor="spouseContact" className="text-gray-800 font-semibold text-sm">
               Spouse Contact No <span className="text-red-500">*</span>
             </Label>
@@ -655,6 +652,9 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               onChange={(e) => setData({ ...data, spouseContact: e.target.value })}
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
           <div className="space-y-2.5">
             <Label htmlFor="uploadFamilyTree" className="text-gray-800 font-semibold text-sm">
@@ -689,18 +689,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2.5">
-            <Label htmlFor="bankAccount" className="text-gray-800 font-semibold text-sm">
-              Bank Saving Account No <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="bankAccount"
-              placeholder="Enter saving account number"
-              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              value={data.bankAccount || ""}
-              onChange={(e) => setData({ ...data, bankAccount: e.target.value })}
-            />
-          </div>
 
           <div className="space-y-2.5">
             <Label htmlFor="bankName" className="text-gray-800 font-semibold text-sm">
@@ -729,6 +717,18 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
                 )}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2.5">
+            <Label htmlFor="bankAccount" className="text-gray-800 font-semibold text-sm">
+              Bank Saving Account No <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="bankAccount"
+              placeholder="Enter saving account number"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              value={data.bankAccount || ""}
+              onChange={(e) => setData({ ...data, bankAccount: e.target.value })}
+            />
           </div>
         </div>
 
@@ -1169,6 +1169,17 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               onChange={(e) => setData({ ...data, currContact: e.target.value })}
             />
           </div>
+
+          <div className="space-y-2.5">
+          <Label htmlFor="currAlternateContact" className="text-gray-800 font-semibold text-sm">Alternate Contact No</Label>
+          <Input
+            id="currAlternateContact"
+            placeholder="Enter Contact No"
+            className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+            value={data.currAlternateContact || ""}
+            onChange={(e) => setData({ ...data, currAlternateContact: e.target.value })}
+          />
+        </div>
         </div>
         )}
 
@@ -1206,16 +1217,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           </div>
         )}
 
-        <div className="space-y-2.5">
-          <Label htmlFor="currAlternateContact" className="text-gray-800 font-semibold text-sm">Alternate Contact No</Label>
-          <Input
-            id="currAlternateContact"
-            placeholder="Enter Contact No"
-            className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-            value={data.currAlternateContact || ""}
-            onChange={(e) => setData({ ...data, currAlternateContact: e.target.value })}
-          />
-        </div>
+
       </div>
 
       {/* PEP Declaration */}
@@ -1467,6 +1469,18 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             <div className="space-y-2.5">
+              <Label htmlFor="employeeId" className="text-gray-800 font-semibold text-sm">
+                Employee ID <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="employeeId"
+                placeholder="Enter ID"
+                className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                value={data.employeeId || ""}
+                onChange={(e) => setData({ ...data, employeeId: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2.5">
               <Label htmlFor="occupation" className="text-gray-800 font-semibold text-sm">
                 Occupation <span className="text-red-500">*</span>
               </Label>
@@ -1490,6 +1504,54 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
                   ) : (
                     <SelectItem value="loading" disabled>Loading...</SelectItem>
                   )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2.5">
+              <Label htmlFor="employerType" className="text-gray-800 font-semibold text-sm">
+                Type of Employer <span className="text-red-500">*</span>
+              </Label>
+              <Select value={data.employerType} onValueChange={(value) => setData({ ...data, employerType: value })}>
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent sideOffset={4}>
+                  <SelectItem value="government">Government</SelectItem>
+                  <SelectItem value="private">Private</SelectItem>
+                  <SelectItem value="corporate">Corporate</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2.5">
+              <Label htmlFor="designation" className="text-gray-800 font-semibold text-sm">
+                Designation <span className="text-red-500">*</span>
+              </Label>
+              <Select value={data.designation} onValueChange={(value) => setData({ ...data, designation: value })}>
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent sideOffset={4}>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="officer">Officer</SelectItem>
+                  <SelectItem value="assistant">Assistant</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+           <div className="space-y-2.5">
+              <Label htmlFor="grade" className="text-gray-800 font-semibold text-sm">
+                Grade <span className="text-red-500">*</span>
+              </Label>
+              <Select value={data.grade} onValueChange={(value) => setData({ ...data, grade: value })}>
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent sideOffset={4}>
+                  <SelectItem value="p1">P1</SelectItem>
+                  <SelectItem value="p2">P2</SelectItem>
+                  <SelectItem value="p3">P3</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1525,21 +1587,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               </Select>
             </div>
 
-            <div className="space-y-2.5">
-              <Label htmlFor="employerType" className="text-gray-800 font-semibold text-sm">
-                Type of Employer <span className="text-red-500">*</span>
-              </Label>
-              <Select value={data.employerType} onValueChange={(value) => setData({ ...data, employerType: value })}>
-                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                  <SelectValue placeholder="[Select]" />
-                </SelectTrigger>
-                <SelectContent sideOffset={4}>
-                  <SelectItem value="government">Government</SelectItem>
-                  <SelectItem value="private">Private</SelectItem>
-                  <SelectItem value="corporate">Corporate</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
 
             <div className="space-y-2.5">
               <Label htmlFor="orgLocation" className="text-gray-800 font-semibold text-sm">
@@ -1551,21 +1599,6 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
                 className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 value={data.orgLocation || ""}
                 onChange={(e) => setData({ ...data, orgLocation: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="space-y-2.5">
-              <Label htmlFor="employeeId" className="text-gray-800 font-semibold text-sm">
-                Employee ID <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="employeeId"
-                placeholder="Enter ID"
-                className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                value={data.employeeId || ""}
-                onChange={(e) => setData({ ...data, employeeId: e.target.value })}
               />
             </div>
 
@@ -1582,39 +1615,13 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
                 onChange={(e) => setData({ ...data, joiningDate: e.target.value })}
               />
             </div>
-
-            <div className="space-y-2.5">
-              <Label htmlFor="designation" className="text-gray-800 font-semibold text-sm">
-                Designation <span className="text-red-500">*</span>
-              </Label>
-              <Select value={data.designation} onValueChange={(value) => setData({ ...data, designation: value })}>
-                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                  <SelectValue placeholder="[Select]" />
-                </SelectTrigger>
-                <SelectContent sideOffset={4}>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="officer">Officer</SelectItem>
-                  <SelectItem value="assistant">Assistant</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2.5">
-              <Label htmlFor="grade" className="text-gray-800 font-semibold text-sm">
-                Grade <span className="text-red-500">*</span>
-              </Label>
-              <Select value={data.grade} onValueChange={(value) => setData({ ...data, grade: value })}>
-                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                  <SelectValue placeholder="[Select]" />
-                </SelectTrigger>
-                <SelectContent sideOffset={4}>
-                  <SelectItem value="p1">P1</SelectItem>
-                  <SelectItem value="p2">P2</SelectItem>
-                  <SelectItem value="p3">P3</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
+
+          {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+
+
+          </div> */}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2.5">

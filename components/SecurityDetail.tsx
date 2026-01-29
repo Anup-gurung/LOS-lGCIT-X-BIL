@@ -430,11 +430,16 @@ export function SecurityDetailsForm({
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent sideOffset={4}>
+                      <SelectItem value="Not Applicable">Not Applicable</SelectItem>
                       <SelectItem value="land">Land</SelectItem>
                       <SelectItem value="building">Building</SelectItem>
                       <SelectItem value="vehicle">Vehicle</SelectItem>
                       <SelectItem value="equipment">Equipment</SelectItem>
                       <SelectItem value="fd">Fixed Deposit</SelectItem>
+                      <SelectItem value="insurance">Insurance</SelectItem>
+                      <SelectItem value="PPF">Pension & Provident Fund</SelectItem>
+                      <SelectItem value="Share">Share & Security</SelectItem>
+                      <SelectItem value="Stocks">Stocks</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -466,6 +471,8 @@ export function SecurityDetailsForm({
             </div>
 
             {/* Vehicle Details (if applicable) */}
+            {data.securityType === "vehicle" && (
+
             <div
               className={`border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm ${secIndex === 0 ? "bg-white" : "bg-blue-50 border-blue-200"}`}
             >
@@ -612,8 +619,9 @@ export function SecurityDetailsForm({
                 </div>
               </div>
             </div>
-
+            )}
             {/* Property/Land Details */}
+            {data.securityType === "land" && (
             <div
               className={`border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm ${secIndex === 0 ? "bg-white" : "bg-blue-50 border-blue-200"}`}
             >
@@ -622,6 +630,89 @@ export function SecurityDetailsForm({
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="thram-no"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Thram No. <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="thram-no"
+                    placeholder="Enter Thram No"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={data.thramNo || ""}
+                    onChange={(e) =>
+                      setData({ ...data, thramNo: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="plot-no"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Plot No. <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="plot-no"
+                    placeholder="Enter Plot No"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={data.plotNo || ""}
+                    onChange={(e) =>
+                      setData({ ...data, plotNo: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="area"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Area (in Sq. Ft) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="area"
+                    type="number"
+                    placeholder="Enter Area"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={data.area || ""}
+                    onChange={(e) => setData({ ...data, area: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="land-use"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Land Use Type <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={data.landUse}
+                    onValueChange={(value) =>
+                      setData({ ...data, landUse: value })
+                    }
+                    required
+                  >
+                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent sideOffset={4}>
+                      <SelectItem value="residential">Residential</SelectItem>
+                      <SelectItem value="commercial">Commercial</SelectItem>
+                      <SelectItem value="agricultural">Agricultural</SelectItem>
+                      <SelectItem value="industrial">Industrial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="space-y-2.5">
                   <Label
                     htmlFor="security-dzongkhag"
@@ -749,93 +840,11 @@ export function SecurityDetailsForm({
                   />
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor="thram-no"
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Thram No. <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="thram-no"
-                    placeholder="Enter Thram No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={data.thramNo || ""}
-                    onChange={(e) =>
-                      setData({ ...data, thramNo: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor="plot-no"
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Plot No. <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="plot-no"
-                    placeholder="Enter Plot No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={data.plotNo || ""}
-                    onChange={(e) =>
-                      setData({ ...data, plotNo: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor="area"
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Area (in Sq. Ft) <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="area"
-                    type="number"
-                    placeholder="Enter Area"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={data.area || ""}
-                    onChange={(e) => setData({ ...data, area: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor="land-use"
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Land Use Type <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={data.landUse}
-                    onValueChange={(value) =>
-                      setData({ ...data, landUse: value })
-                    }
-                    required
-                  >
-                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4}>
-                      <SelectItem value="residential">Residential</SelectItem>
-                      <SelectItem value="commercial">Commercial</SelectItem>
-                      <SelectItem value="agricultural">Agricultural</SelectItem>
-                      <SelectItem value="industrial">Industrial</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
             </div>
+            )}
 
             {/* Insurance Details */}
+            {data.securityType === "insurance" && (
             <div
               className={`border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm ${secIndex === 0 ? "bg-white" : "bg-blue-50 border-blue-200"}`}
             >
@@ -956,7 +965,243 @@ export function SecurityDetailsForm({
                 </div>
               </div>
             </div>
+            )}
 
+            {/* Pension and  Provident Fund*/}
+            {data.securityType === "PPF" && (
+            <div
+              className={`border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm ${secIndex === 0 ? "bg-white" : "bg-blue-50 border-blue-200"}`}
+            >
+              <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+                Pension & Provident Fund Details
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="ppf-institution"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Institution Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="ppf-institution"
+                    placeholder="Enter Institution Name"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={data.ppfInstitution || ""}
+                    onChange={(e) =>
+                      setData({ ...data, ppfInstitution: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="ppf-fund-no"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Provident Fund No. <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="ppf-fund-no"
+                    placeholder="Enter fund No"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={data.ppfAccountNo || ""}
+                    onChange={(e) =>
+                      setData({ ...data, ppfAccountNo: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="ppf-account-no"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Account No. <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="ppf-account-no"
+                    placeholder="Enter Account No"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={data.ppfAccountNo || ""}
+                    onChange={(e) =>
+                      setData({ ...data, ppfAccountNo: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="ppf-value"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Fund Value (Nu.) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="ppf-value"
+                    type="number"
+                    placeholder="Enter Fund Value"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={data.ppfValue || ""}
+                    onChange={(e) =>
+                      setData({ ...data, ppfValue: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            )}
+
+
+            {/* Share and  Security*/}
+            {data.securityType === "Share" && (
+            <div
+              className={`border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm ${secIndex === 0 ? "bg-white" : "bg-blue-50 border-blue-200"}`}
+            >
+              <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+                Share & Security Details
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="share-company"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Company Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="share-company"
+                    placeholder="Enter Company Name"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={data.shareCompany || ""}
+                    onChange={(e) =>
+                      setData({ ...data, shareCompany: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="share-CertificateNo"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Share Certificate Folio No <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="share-CertificateNo"
+                    type="number"
+                    placeholder="Enter Certificate No"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={data.shareCertificateNo || ""}
+                    onChange={(e) =>
+                      setData({ ...data, shareCertificateNo: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="share-RegistrationNo"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Share Registration No  <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="share-Registration-No"
+                    type="number"
+                    placeholder="Enter Share Registration No"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value ={data.shareRegistrationNo || ""}
+                    onChange={(e) =>
+                      setData({ ...data, shareRegistrationNo: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            )}
+
+            {/* Stocks */}
+            {data.securityType === "Stocks" && (
+            <div
+              className={`border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm ${secIndex === 0 ? "bg-white" : "bg-blue-50 border-blue-200"}`}
+            >
+              <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+                Stocks Details
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="stock-name"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Stock Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="stock-name"
+                    placeholder="Enter Stock Name"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={data.stockName || ""}
+                    onChange={(e) =>
+                      setData({ ...data, stockName: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="stock-quantity"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Quantity <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="stock-quantity"
+                    type="number"
+                    placeholder="Enter Quantity"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={data.stockQuantity || ""}
+                    onChange={(e) =>
+                      setData({ ...data, stockQuantity: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="stock-value"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Stock Value (Nu.) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="stock-value"
+                    type="number"
+                    placeholder="Enter Stock Value"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={data.stockValue || ""}
+                    onChange={(e) =>
+                      setData({ ...data, stockValue: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            )}
+
+            
             {/* Add Securities Button - shown after each security */}
             {secIndex === securities.length - 1 && (
               <div className="flex justify-center pt-4">
@@ -979,7 +1224,7 @@ export function SecurityDetailsForm({
             {/* First Guarantor */}
             <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
               <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
-                Guarantor 1
+                Security Guarantor 1
               </h2>
 
               {/* Row 1: ID Type, ID Number, Salutation, Name */}

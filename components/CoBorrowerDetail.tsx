@@ -560,6 +560,30 @@ export function CoBorrowerDetailsForm({
                 </Select>
               </div>
             </div>
+
+                        <div className="space-y-2.5">
+              <Label
+                htmlFor="co-gender"
+                className="text-gray-800 font-semibold text-sm"
+              >
+                Gender <span className="text-destructive">*</span>
+              </Label>
+              <div className="w-full h-12" style={{ minHeight: "48px" }}>
+                <Select
+                  value={data.gender}
+                  onValueChange={(value) => setData({ ...data, gender: value })}
+                >
+                  <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
 
           {/* Dates and TPN Row */}
@@ -686,29 +710,6 @@ export function CoBorrowerDetailsForm({
               </div>
             </div>
 
-            <div className="space-y-2.5">
-              <Label
-                htmlFor="co-gender"
-                className="text-gray-800 font-semibold text-sm"
-              >
-                Gender <span className="text-destructive">*</span>
-              </Label>
-              <div className="w-full h-12" style={{ minHeight: "48px" }}>
-                <Select
-                  value={data.gender}
-                  onValueChange={(value) => setData({ ...data, gender: value })}
-                >
-                  <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
             <div className="space-y-2.5">
               <Label
@@ -1064,6 +1065,39 @@ export function CoBorrowerDetailsForm({
             </div>
           </div>
 
+       {/* Conditional grid - show Thram and House only for Bhutan */}
+        {data.permCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2.5">
+            <Label htmlFor="permThram" className="text-gray-800 font-semibold text-sm">
+              Thram No. <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="permThram"
+              placeholder="Enter Thram No"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              value={data.permCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? data.permThram || "" : ''}
+              onChange={(e) => setData({ ...data, permThram: e.target.value })}
+              disabled={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
+            />
+          </div>
+
+          <div className="space-y-2.5">
+            <Label htmlFor="permHouse" className="text-gray-800 font-semibold text-sm">
+              House No. <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="permHouse"
+              placeholder="Enter House No"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              value={data.permCountry && countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan')) ? data.permHouse || "" : ''}
+              onChange={(e) => setData({ ...data, permHouse: e.target.value })}
+              disabled={!data.permCountry || !countryOptions.find(c => String(c.country_pk_code || c.id || c.code) === data.permCountry && (c.country || c.name || '').toLowerCase().includes('bhutan'))}
+            />
+          </div>
+        </div>
+        )}
+        
           {data.permCountry &&
             !countryOptions.find(
               (c) =>

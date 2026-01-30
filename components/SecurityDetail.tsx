@@ -1127,6 +1127,7 @@ export function SecurityDetailsForm({
                 </div>
               </div>
             </div>
+            
             )}
 
             {/* Stocks */}

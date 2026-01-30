@@ -312,13 +312,13 @@ export default function ExistingUserVerification() {
                             const formattedOtp = String(smsResult.otp).padStart(6, '0');
                             setGeneratedOtp(formattedOtp);
                             
-                            console.log('===== SMS OTP SENT =====');
-                            console.log('Phone Number:', phone);
-                            console.log('OTP Received:', smsResult.otp);
-                            console.log('Formatted OTP (6-digit):', formattedOtp);
-                            console.log('========================');
-                            
-                            alert(`OTP has been sent to your phone number: ${phone}\n\nFor testing: ${formattedOtp}`);
+                            // console.log('===== SMS OTP SENT =====');
+                            // console.log('Phone Number:', phone);
+                            // console.log('OTP Received:', smsResult.otp);
+                            // console.log('Formatted OTP (6-digit):', formattedOtp);
+                            // console.log('========================');
+                            alert(`OTP has been sent to your phone number: ${phone}`);
+                            // alert(`OTP has been sent to your phone number: ${phone}\n\nFor testing: ${formattedOtp}`);
                           } else {
                             console.warn('⚠️ SMS sent but OTP not in response:', smsResult);
                             alert('OTP has been sent to your phone number');

@@ -545,7 +545,7 @@ function LoanApplicationContent() {
         )}
 
         {/* Navigation Buttons */}
-        {currentStep !== 1 && currentStep !== 2 && currentStep !== 3 && currentStep !== 4 && (
+        {/* {currentStep !== 1 && currentStep !== 2 && currentStep !== 3 && currentStep !== 4 && (
         <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-6 sm:mt-8 md:mt-12 mb-4 sm:mb-6">
           <Button
             variant="secondary"
@@ -565,7 +565,7 @@ function LoanApplicationContent() {
             Next
           </Button>
         </div>
-        )}
+        )} */}
       </div>
 
       <DocumentPopup 

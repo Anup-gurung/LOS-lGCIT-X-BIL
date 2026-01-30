@@ -653,6 +653,8 @@ export function RepaymentSourceForm({
         </div>
 
         {/* DYNAMIC GUARANTORS LOOP */}
+        {incomeData.repaymentGuarantor === "yes" && (
+        <>
         {guarantors.map((guarantor, index) => {
           const currentPermGewogOptions =
             dynamicGewogOptions[`${index}-perm`] || [];
@@ -1835,6 +1837,8 @@ export function RepaymentSourceForm({
             </div>
           );
         })}
+        </>
+        )}
 
         {/* Action Buttons */}
         <div className="flex justify-center gap-6 pt-4">

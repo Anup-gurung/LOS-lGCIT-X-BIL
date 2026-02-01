@@ -35,8 +35,24 @@ function verifyWebhookSignature(payload: string, signature: string, secret: stri
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('🔔 ========================================');
+    console.log('🔔 WEBHOOK CALLED!');
+    console.log('🔔 Timestamp:', new Date().toISOString());
+    console.log('🔔 ========================================');
+    
     const rawBody = await req.text();
+    console.log('📦 Raw Body:', rawBody);
+    console.log('📦 Body Length:', rawBody.length);
+    
     const signature = req.headers.get('x-ndi-signature') || '';
+    console.log('🔐 Signature present:', !!signature);
+    
+    // Log all headers
+    console.log('📋 Headers:');
+    req.headers.forEach((value, key) => {
+      console.log(`  ${key}: ${value}`);
+    });
+    
     const webhookSecret = process.env.WEBHOOK_SECRET;
 
     // Verify webhook signature if secret is configured
@@ -44,21 +60,23 @@ export async function POST(req: NextRequest) {
       const isValid = verifyWebhookSignature(rawBody, signature, webhookSecret);
       
       if (!isValid) {
-        console.error('Invalid webhook signature');
+        console.error('❌ Invalid webhook signature');
         return NextResponse.json(
           { error: 'Invalid signature' },
           { status: 401 }
         );
       }
+      console.log('✅ Signature verified');
+    } else {
+      console.warn('⚠️ No signature verification (webhook secret or signature missing)');
     }
 
     const webhookData: WebhookPayload = JSON.parse(rawBody);
 
-    console.log('NDI Webhook received:', {
-      presentationRequestId: webhookData.presentationRequestId,
-      state: webhookData.state,
-      timestamp: webhookData.timestamp,
-    });
+    console.log('🎯 Parsed Webhook Data:');
+    console.log('  - presentationRequestId:', webhookData.presentationRequestId);
+    console.log('  - state:', webhookData.state);
+    console.log('  - timestamp:', webhookData.timestamp);
 
     console.log('🎯 Webhook State:', webhookData.state);
     console.log('📦 Full Webhook Payload:', JSON.stringify(webhookData, null, 2));

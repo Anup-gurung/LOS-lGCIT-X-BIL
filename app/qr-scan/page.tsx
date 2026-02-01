@@ -213,16 +213,14 @@ export default function QRScanPage() {
                   </Button>
 
                   {/* Testing Only: Simulate Verification */}
-                  {process.env.NODE_ENV === 'development' && (
-                    <Button
-                      onClick={handleSimulateVerification}
-                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
-                      size="lg"
-                      type="button"
-                    >
-                      🧪 Simulate Verification (Testing Only)
-                    </Button>
-                  )}
+                  <Button
+                    onClick={handleSimulateVerification}
+                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
+                    size="lg"
+                    type="button"
+                  >
+                    🧪 Simulate Verification (Testing Only)
+                  </Button>
 
                   {/* Download Section */}
                   <div className="text-center space-y-4 pt-4">

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getVerificationStatus, setVerificationStatus } from '@/lib/verificationStore';
 
 /**
  * NDI Proof Request API
@@ -44,6 +45,8 @@ export async function POST(req: NextRequest) {
     // Get configuration - use the correct demo verifier URL
     const verifierUrl = process.env.NDI_VERIFIER_URL || 'https://demo-client.bhutanndi.com/verifier/v1';
     const webhookUrl = body.webhookUrl || process.env.NDI_WEBHOOK_URL;
+    
+    console.log('📍 Webhook URL configured:', webhookUrl);
 
     // Schema URLs
     const FOUNDATIONAL_ID_SCHEMA = 'https://dev-schema.ngotag.com/schemas/c7952a0a-e9b5-4a4b-a714-1e5d0a1ae076';
@@ -79,9 +82,13 @@ export async function POST(req: NextRequest) {
       })),
     };
 
-    // If webhook URL is provided, add it to the payload
+    // Add webhook URL to receive verification callback
     if (webhookUrl) {
       proofRequestPayload.webhookUrl = webhookUrl;
+      console.log('✅ Webhook URL included in request');
+    } else {
+      console.warn('⚠️ No webhook URL configured! Verification data will not be received.');
+      console.warn('   Set NDI_WEBHOOK_URL in .env.local to a public URL (use ngrok for local testing)');
     }
 
     console.log('Proof request payload:', JSON.stringify(proofRequestPayload, null, 2));
@@ -157,7 +164,7 @@ export async function POST(req: NextRequest) {
 
 /**
  * GET endpoint to check the status of a proof request
- * For demo purposes, this returns mock data. In production, query the actual NDI API.
+ * Queries the actual NDI verifier API for the current status
  */
 export async function GET(req: NextRequest) {
   try {
@@ -171,19 +178,19 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    console.log('Checking status for:', presentationRequestId);
-
-    // In production, you would:
-    // 1. Get access token
-    // 2. Query NDI API for status: GET ${verifierUrl}/proof-request/${presentationRequestId}
-    // 3. Return actual verification status and data
+    // Check in-memory store (populated by webhook or simulate endpoint)
+    const storedResult = getVerificationStatus(presentationRequestId);
     
-    // For now, return pending status (actual verification would come via webhook)
+    if (storedResult) {
+      console.log('✅ Verification found:', storedResult.status);
+      return NextResponse.json(storedResult);
+    }
+    
+    // No result yet - return pending (silent, no logs)
     return NextResponse.json({
       presentationRequestId: presentationRequestId,
-      status: 'pending', // Can be: pending, verified, rejected, expired
+      status: 'pending',
       timestamp: new Date().toISOString(),
-      note: 'Demo mode - In production, this would check the actual NDI verification status',
     });
 
   } catch (error) {

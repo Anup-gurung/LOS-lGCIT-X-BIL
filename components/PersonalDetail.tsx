@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { fetchMaritalStatus, fetchBanks, fetchNationality, fetchIdentificationType, fetchCountry, fetchDzongkhag, fetchGewogsByDzongkhag, fetchOccupations, fetchLegalConstitution, fetchPepCategory, fetchPepSubCategoryByCategory } from "@/services/api"
+import { getNdiDataFromSession } from "@/lib/mapNdiData"
 
 interface PersonalDetailsFormProps {
   onNext: (data: any) => void
@@ -20,7 +21,16 @@ interface PersonalDetailsFormProps {
 
 export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetailsFormProps) {
   const [data, setData] = useState(() => {
-    // Initialize with formData if available, otherwise empty object
+    // First, try to get NDI verified data from session
+    const ndiData = getNdiDataFromSession();
+    
+    // If NDI data exists, merge it with formData (formData takes precedence)
+    if (ndiData) {
+      const initial = formData?.personalDetails || formData || {};
+      return { ...ndiData, ...initial };
+    }
+    
+    // Otherwise, use formData if available
     const initial = formData?.personalDetails || formData || {}
     return initial
   })
@@ -45,6 +55,19 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
   const fifteenYearsAgo = new Date()
   fifteenYearsAgo.setFullYear(fifteenYearsAgo.getFullYear() - 15)
   const maxDobDate = fifteenYearsAgo.toISOString().split('T')[0]
+
+  // Load NDI verified data from session on mount
+  useEffect(() => {
+    const ndiData = getNdiDataFromSession();
+    if (ndiData && Object.keys(ndiData).length > 0) {
+      console.log('Loading NDI data into form:', ndiData);
+      // Merge NDI data with existing data (existing data takes precedence)
+      setData((prevData: any) => ({
+        ...ndiData,
+        ...prevData
+      }));
+    }
+  }, []); // Run only once on mount
 
   useEffect(() => {
     // Fetch marital status options from API

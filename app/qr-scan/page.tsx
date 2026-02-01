@@ -7,6 +7,7 @@ import { Mail, Phone, PlayCircle, CheckCircle, XCircle, Loader2 } from "lucide-r
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createProofRequest, checkProofRequestStatus, type ProofRequestResponse, type ProofRequestStatus } from "@/lib/ndiService"
+import { storeNdiDataInSession } from "@/lib/mapNdiData"
 
 export default function QRScanPage() {
   const router = useRouter()
@@ -29,22 +30,27 @@ export default function QRScanPage() {
           const statusData: ProofRequestStatus = await checkProofRequestStatus(presentationRequestId)
           
           if (statusData.status === 'verified' && statusData.verifiedData) {
+            console.log('✅ Verification complete! Redirecting...')
             setStatus('verified')
             setVerifiedData(statusData.verifiedData)
             clearInterval(interval)
             
-            // Store verified data and redirect to loan application
-            sessionStorage.setItem('ndi_verified_data', JSON.stringify(statusData.verifiedData))
+            // Map and store verified data properly using the mapping utility
+            storeNdiDataInSession(statusData.verifiedData)
+            
+            // Redirect to loan application
             setTimeout(() => {
-              router.push('/loan-application')
+              router.push('/loan-application?step=1')
             }, 2000)
           } else if (statusData.status === 'rejected' || statusData.status === 'expired') {
+            console.log('❌ Verification failed:', statusData.status)
             setStatus('error')
             setErrorMessage('Verification failed or expired. Please try again.')
             clearInterval(interval)
           }
+          // Silently continue polling if still pending
         } catch (error) {
-          console.error('Error checking status:', error)
+          console.error('❌ Error checking status:', error)
         }
       }, 3000) // Poll every 3 seconds
 
@@ -77,6 +83,29 @@ export default function QRScanPage() {
 
   const handleRetry = () => {
     initializeProofRequest()
+  }
+
+  const handleSimulateVerification = async () => {
+    if (!presentationRequestId) return
+    
+    try {
+      console.log('🧪 Simulating verification for:', presentationRequestId)
+      const response = await fetch('/api/ndi/simulate-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ presentationRequestId })
+      })
+      
+      const result = await response.json()
+      console.log('✅ Simulation result:', result)
+      
+      if (result.success) {
+        alert('✅ Verification simulated! The next poll will detect it.')
+      }
+    } catch (error) {
+      console.error('❌ Simulation failed:', error)
+      alert('❌ Simulation failed. Check console.')
+    }
   }
 
   return (
@@ -182,6 +211,18 @@ export default function QRScanPage() {
                     <PlayCircle className="mr-2 h-5 w-5" />
                     Watch video guide
                   </Button>
+
+                  {/* Testing Only: Simulate Verification */}
+                  {process.env.NODE_ENV === 'development' && (
+                    <Button
+                      onClick={handleSimulateVerification}
+                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
+                      size="lg"
+                      type="button"
+                    >
+                      🧪 Simulate Verification (Testing Only)
+                    </Button>
+                  )}
 
                   {/* Download Section */}
                   <div className="text-center space-y-4 pt-4">

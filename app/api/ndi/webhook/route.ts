@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { setVerificationStatus } from '@/lib/verificationStore';
 
 /**
  * NDI Webhook Handler
@@ -59,36 +60,48 @@ export async function POST(req: NextRequest) {
       timestamp: webhookData.timestamp,
     });
 
+    console.log('🎯 Webhook State:', webhookData.state);
+    console.log('📦 Full Webhook Payload:', JSON.stringify(webhookData, null, 2));
+
     // Process based on verification state
     switch (webhookData.state) {
       case 'verified':
-        console.log('Verification successful:', webhookData.presentationRequestId);
+        console.log('✅ VERIFICATION SUCCESSFUL:', webhookData.presentationRequestId);
         
-        // Here you can:
-        // 1. Store verified data in database
-        // 2. Send notification to user
-        // 3. Update application status
-        // 4. Trigger any business logic
-        
-        // Example: Store in session or database
         if (webhookData.verifiedData) {
-          // Process and store the verified credentials
-          console.log('Verified credentials:', webhookData.verifiedData);
+          console.log('📋 Verified Credentials Received:');
+          console.log(JSON.stringify(webhookData.verifiedData, null, 2));
+          
+          // Log each credential attribute
+          Object.entries(webhookData.verifiedData).forEach(([key, value]) => {
+            console.log(`  - ${key}:`, value);
+          });
+          
+          // Store the verification result so the status endpoint can retrieve it
+          setVerificationStatus(
+            webhookData.presentationRequestId,
+            'verified',
+            webhookData.verifiedData
+          );
+          console.log('💾 Stored verification result in memory store');
+        } else {
+          console.warn('⚠️ No verified data in webhook payload!');
+          setVerificationStatus(webhookData.presentationRequestId, 'verified');
         }
         break;
 
       case 'rejected':
-        console.log('Verification rejected:', webhookData.presentationRequestId);
-        // Handle rejection - maybe notify user or log the event
+        console.log('❌ Verification rejected:', webhookData.presentationRequestId);
+        setVerificationStatus(webhookData.presentationRequestId, 'rejected');
         break;
 
       case 'expired':
-        console.log('Verification expired:', webhookData.presentationRequestId);
-        // Handle expiration - cleanup or notify
+        console.log('⏰ Verification expired:', webhookData.presentationRequestId);
+        setVerificationStatus(webhookData.presentationRequestId, 'expired');
         break;
 
       default:
-        console.warn('Unknown webhook state:', webhookData.state);
+        console.warn('❓ Unknown webhook state:', webhookData.state);
     }
 
     // Return success response to NDI

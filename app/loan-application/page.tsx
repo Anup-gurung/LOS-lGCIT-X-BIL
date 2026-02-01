@@ -47,25 +47,7 @@ function LoanApplicationContent() {
   const [totalLoanInput, setTotalLoanInput] = useState("")
   const [showDocumentPopup, setShowDocumentPopup] = useState(false)
   const [showStepsMenu, setShowStepsMenu] = useState(false)
-  const [formData, setFormData] = useState(() => {
-    // Initialize formData with sessionStorage data immediately
-    try {
-      const verifiedDataStr = sessionStorage.getItem('verifiedCustomerData')
-      if (verifiedDataStr) {
-        const verifiedData = JSON.parse(verifiedDataStr)
-        return {
-          ...verifiedData,
-          personalDetails: verifiedData,
-          coBorrowerDetails: verifiedData,
-          securityDetails: verifiedData,
-          repaymentSource: verifiedData
-        }
-      }
-    } catch (error) {
-      // Failed to initialize with verified data
-    }
-    return {}
-  })
+  const [formData, setFormData] = useState<any>({})
   const [loanSectorOptions, setLoanSectorOptions] = useState<any[]>([])
   const [loanSubSectorOptions, setLoanSubSectorOptions] = useState<any[]>([])
   const [selectedSector, setSelectedSector] = useState("")

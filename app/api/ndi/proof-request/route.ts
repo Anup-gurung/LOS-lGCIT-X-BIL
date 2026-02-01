@@ -121,8 +121,10 @@ export async function POST(req: NextRequest) {
 
       const proofData = await proofResponse.json();
       console.log('✅ Proof request created successfully');
-      console.log('Full NDI response:', JSON.stringify(proofData, null, 2));
-
+      console.log('Full NDI response:', JSON.stringify(proofData, null, 2));    console.log('');
+    console.log('⚠️ IMPORTANT: Check if webhook was included in request');
+    console.log('Webhook URL sent:', webhookUrl || 'NONE');
+    console.log('');
       // Extract the data from the NDI response
       const responseData = proofData.data || proofData;
       const invitationUrl = responseData.proofRequestURL || responseData.deepLinkURL;
@@ -185,8 +187,54 @@ export async function GET(req: NextRequest) {
       console.log('✅ Verification found:', storedResult.status);
       return NextResponse.json(storedResult);
     }
-    
-    // No result yet - return pending (silent, no logs)
+        // If no webhook received, try fetching directly from NDI verifier
+    // (Some NDI implementations store the result on their side)
+    try {
+      const tokenResponse = await fetch(`${req.nextUrl.origin}/api/ndi/token`, {
+        method: 'POST',
+      });
+
+      if (tokenResponse.ok) {
+        const tokenData = await tokenResponse.json();
+        const accessToken = tokenData.access_token;
+        const verifierUrl = process.env.NDI_VERIFIER_URL || 'https://demo-client.bhutanndi.com/verifier/v1';
+        
+        // Try the presentation exchange endpoint
+        const presentationUrl = `${verifierUrl}/presentations/${presentationRequestId}`;
+        const presentationResponse = await fetch(presentationUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (presentationResponse.ok) {
+          const presentationData = await presentationResponse.json();
+          console.log('📦 Found presentation data:', JSON.stringify(presentationData, null, 2));
+          
+          // Check if it has verified credentials
+          const data = presentationData.data || presentationData;
+          if (data.credentials || data.verifiedCredentials || data.presentationData) {
+            const verifiedData = data.credentials || data.verifiedCredentials || data.presentationData;
+            console.log('✅ Credentials found in presentation!');
+            
+            // Store it
+            setVerificationStatus(presentationRequestId, 'verified', verifiedData);
+            
+            return NextResponse.json({
+              presentationRequestId,
+              status: 'verified',
+              verifiedData,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.log('⚠️ Could not fetch from verifier:', error);
+    }
+        // No result yet - return pending (silent, no logs)
     return NextResponse.json({
       presentationRequestId: presentationRequestId,
       status: 'pending',

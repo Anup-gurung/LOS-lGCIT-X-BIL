@@ -55,16 +55,25 @@ export default function ExistingUserVerification() {
   useEffect(() => {
     const loadIdentificationType = async () => {
       try {
+        console.log('Loading identification types...');
         const options = await fetchIdentificationType();
+        console.log('Identification types loaded:', options);
+        
+        if (!options || options.length === 0) {
+          throw new Error('No identification types returned');
+        }
+        
         setIdentificationTypeOptions(options);
       } catch (error) {
         console.error('Failed to load identification types:', error);
         // Fallback options if API fails
-        setIdentificationTypeOptions([
-          { identity_type_pk_code: 'cid', identity_type: 'CID' },
-          { identity_type_pk_code: 'workpermit', identity_type: 'Work Permit' },
-          { identity_type_pk_code: 'passport', identity_type: 'Passport' }
-        ]);
+        const fallbackOptions = [
+          { identity_type_pk_code: '1', identity_type: 'CID' },
+          { identity_type_pk_code: '2', identity_type: 'Work Permit' },
+          { identity_type_pk_code: '3', identity_type: 'Passport' }
+        ];
+        console.log('Using fallback options:', fallbackOptions);
+        setIdentificationTypeOptions(fallbackOptions);
       }
     };
 
@@ -114,25 +123,33 @@ export default function ExistingUserVerification() {
 
               {/* ID Type */}
               <div>
-                <label className="text-sm text-gray-700 font-medium">
+                <label className="text-sm text-gray-700 font-medium block mb-1">
                   Select Identification Type <span className="text-red-500">*</span>
                 </label>
                 <select
-                  className="w-full mt-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-600 focus:outline-none bg-white text-gray-900"
                   value={idType}
-                  onChange={(e) => setIdType(e.target.value)}
+                  onChange={(e) => {
+                    console.log('ID Type selected:', e.target.value);
+                    setIdType(e.target.value);
+                  }}
+                  required
                 >
-                  <option value="">Select</option>
-                  {identificationTypeOptions.map((option, index) => {
-                    const key = option.identity_type_pk_code || option.identification_type_pk_code || option.id || `id-${index}`;
-                    const value = String(option.identity_type_pk_code || option.identification_type_pk_code || option.id || index);
-                    const label = option.identity_type || option.identification_type || option.name || 'Unknown';
-                    return (
-                      <option key={key} value={value}>
-                        {label}
-                      </option>
-                    );
-                  })}
+                  <option value="" disabled>Select</option>
+                  {identificationTypeOptions.length === 0 ? (
+                    <option value="" disabled>Loading...</option>
+                  ) : (
+                    identificationTypeOptions.map((option, index) => {
+                      const key = option.identity_type_pk_code || option.identification_type_pk_code || option.id || `id-${index}`;
+                      const value = String(option.identity_type_pk_code || option.identification_type_pk_code || option.id || index);
+                      const label = option.identity_type || option.identification_type || option.name || 'Unknown';
+                      return (
+                        <option key={key} value={value}>
+                          {label}
+                        </option>
+                      );
+                    })
+                  )}
                 </select>
               </div>
 

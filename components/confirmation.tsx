@@ -266,18 +266,20 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
 
            <Field label="Salutation" value={personalData.salutation} capitalizeFirst={true} />
-          <Field label="Full Name" value={personalData.applicantName} capitalizeFirst={true} />
+          <Field label="Applicant Name" value={personalData.applicantName} capitalizeFirst={true} />
           <Field label="Nationality" value={personalData.nationality} capitalizeFirst={true} />
-          <Field label="CID" value={personalData.identificationNo} />
-          <Field label="Issue Date" value={personalData.identificationIssueDate} />
-          <Field label="Expiry Date" value={personalData.identificationExpiryDate} /> 
-          <Field label="Gender" value={personalData.gender} capitalizeFirst={true} />
-          <Field label="Date of Birth" value={personalData.dateOfBirth} />
-          <Field label="Marital Status" value={personalData.maritalStatus} capitalizeFirst={true} />
-          <Field label="TPN" value={personalData.tpn} />
-          </div>
-         <div>
+          <Field label="Identification Type" value={personalData.identificationType} capitalizeFirst={true} />
 
+          <Field label="Identification No" value={personalData.identificationNo} />
+          <Field label="Identification Issue Date" value={personalData.identificationIssueDate} />
+          <Field label="Identification Expiry Date" value={personalData.identificationExpiryDate} />
+          <Field label="TPN" value={personalData.tpn} />
+          <Field label="Date of Birth" value={personalData.dateOfBirth} />
+          <Field label="Gender" value={personalData.gender} capitalizeFirst={true} />
+          </div>          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Marital Status" value={personalData.maritalStatus} capitalizeFirst={true} />
+          </div>
           {personalData.maritalStatus === "married" && (
             <>
             <div>
@@ -292,6 +294,21 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
             </div>
             </>
           )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Bank Name"  value={personalData.bankName} capitalizeFirst={true} />
+          <Field label="Bank Account" value={personalData.bankAccount} />
+          </div>
+         <div>
+          <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">Contact Details</h3>
+          <hr />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Contact" value={personalData.currContact} />
+          <Field label="Alternate Contact" value={personalData.alternateContact} />
+          <Field label="Email" value={personalData.currEmail} />
+          </div>
+          </div>
+
           </div>
           <div>
           <h3 className="py-4 px-6 text-sm font-bold pt-15">Permanent Address</h3>
@@ -345,18 +362,6 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
           <Field label="Grade" value={personalData.grade} />
           <Field label="Employee Type" value={personalData.employeeType} capitalizeFirst={true} />
           <Field label="Gross Income" value={personalData.grossIncome} />
-          </div>
-          </div>
-
-          <div>
-          <h3 className="py-4 px-6 text-sm font-bold pt-15">Contact Details</h3>
-          <hr />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
-          <Field label="Bank Name"  value={personalData.bankName} capitalizeFirst={true} />
-          <Field label="Bank Account" value={personalData.bankAccount} />
-          <Field label="Contact" value={personalData.currContact} />
-          <Field label="Alternate Contact" value={personalData.alternateContact} />
-          <Field label="Email" value={personalData.currEmail} />
           </div>
           </div>
         </div>

@@ -634,7 +634,7 @@ export function RepaymentSourceForm({
               </Label>
               <div className="w-full h-12" style={{ minHeight: "48px" }}>
                 <Select
-                  value={incomeData.repaymentGuarantor}
+                  value={incomeData.repaymentGuarantor || ""}
                   onValueChange={(value) =>
                     handleIncomeChange("repaymentGuarantor", value)
                   }
@@ -694,7 +694,7 @@ export function RepaymentSourceForm({
                     </Label>
                     <div className="w-full h-12" style={{ minHeight: "48px" }}>
                       <Select
-                        value={guarantor.idType}
+                        value={guarantor.idType || ""}
                         onValueChange={(value) =>
                           handleGuarantorChange(index, "idType", value)
                         }
@@ -823,7 +823,7 @@ export function RepaymentSourceForm({
                     </Label>
                     <div className="w-full h-12" style={{ minHeight: "48px" }}>
                       <Select
-                        value={guarantor.salutation}
+                        value={guarantor.salutation || ""}
                         onValueChange={(value) =>
                           handleGuarantorChange(index, "salutation", value)
                         }
@@ -872,7 +872,7 @@ export function RepaymentSourceForm({
                     </Label>
                     <div className="w-full h-12" style={{ minHeight: "48px" }}>
                       <Select
-                        value={guarantor.nationality}
+                        value={guarantor.nationality || ""}
                         onValueChange={(value) =>
                           handleGuarantorChange(index, "nationality", value)
                         }
@@ -930,7 +930,7 @@ export function RepaymentSourceForm({
                     </Label>
                     <div className="w-full h-12" style={{ minHeight: "48px" }}>
                       <Select
-                        value={guarantor.maritalStatus}
+                        value={guarantor.maritalStatus || ""}
                         onValueChange={(value) =>
                           handleGuarantorChange(index, "maritalStatus", value)
                         }
@@ -963,7 +963,7 @@ export function RepaymentSourceForm({
                     </Label>
                     <div className="w-full h-12" style={{ minHeight: "48px" }}>
                       <Select
-                        value={guarantor.gender}
+                        value={guarantor.gender || ""}
                         onValueChange={(value) =>
                           handleGuarantorChange(index, "gender", value)
                         }
@@ -1087,7 +1087,7 @@ export function RepaymentSourceForm({
                     </Label>
                     <div className="w-full h-12" style={{ minHeight: "48px" }}>
                       <Select
-                        value={guarantor.permCountry}
+                        value={guarantor.permCountry || ""}
                         onValueChange={(value) =>
                           handleGuarantorChange(index, "permCountry", value)
                         }
@@ -1346,7 +1346,7 @@ export function RepaymentSourceForm({
                     </Label>
                     <div className="w-full h-12" style={{ minHeight: "48px" }}>
                       <Select
-                        value={guarantor.currCountry}
+                        value={guarantor.currCountry || ""}
                         onValueChange={(value) =>
                           handleGuarantorChange(index, "currCountry", value)
                         }
@@ -1618,7 +1618,7 @@ export function RepaymentSourceForm({
                       <span className="text-destructive">*</span>
                     </Label>
                     <Select
-                      value={guarantor.isPep}
+                      value={guarantor.isPep || ""}
                       onValueChange={(value) =>
                         handleGuarantorChange(index, "isPep", value)
                       }

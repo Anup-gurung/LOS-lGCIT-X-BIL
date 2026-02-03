@@ -411,7 +411,7 @@ export function CoBorrowerDetailsForm({
               </Label>
               <div className="w-full h-12" style={{ minHeight: "48px" }}>
                 <Select
-                  value={data.identificationType}
+                  value={data.identificationType || ""}
                   onValueChange={(value) => {
                     setData({ ...data, identificationType: value });
                     // Optional: You could trigger search here if ID No is already filled
@@ -481,7 +481,7 @@ export function CoBorrowerDetailsForm({
               </Label>
               <div className="w-full h-12" style={{ minHeight: "48px" }}>
                 <Select
-                  value={data.salutation}
+                  value={data.salutation || ""}
                   onValueChange={(value) =>
                     setData({ ...data, salutation: value })
                   }
@@ -570,7 +570,7 @@ export function CoBorrowerDetailsForm({
               </Label>
               <div className="w-full h-12" style={{ minHeight: "48px" }}>
                 <Select
-                  value={data.gender}
+                  value={data.gender || ""}
                   onValueChange={(value) => setData({ ...data, gender: value })}
                 >
                   <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
@@ -721,7 +721,7 @@ export function CoBorrowerDetailsForm({
               </Label>
               <div className="w-full h-12" style={{ minHeight: "48px" }}>
                 <Select
-                  value={data.relationship}
+                  value={data.relationship || ""}
                   onValueChange={(value) =>
                     setData({ ...data, relationship: value })
                   }
@@ -1486,7 +1486,7 @@ export function CoBorrowerDetailsForm({
               </Label>
               <div className="w-full h-12" style={{ minHeight: "48px" }}>
                 <Select
-                  value={data.pepPerson}
+                  value={data.pepPerson || ""}
                   onValueChange={(value) =>
                     setData({ ...data, pepPerson: value })
                   }
@@ -1511,7 +1511,7 @@ export function CoBorrowerDetailsForm({
               </Label>
               <div className="w-full h-12" style={{ minHeight: "48px" }}>
                 <Select
-                  value={data.pepPerson === "yes" ? data.pepSubCategory : ""}
+                  value={data.pepPerson === "yes" ? (data.pepSubCategory || "") : ""}
                   onValueChange={(value) =>
                     setData({ ...data, pepSubCategory: value })
                   }
@@ -1558,7 +1558,7 @@ export function CoBorrowerDetailsForm({
               </Label>
               <div className="w-full h-12" style={{ minHeight: "48px" }}>
                 <Select
-                  value={data.pepPerson === "no" ? data.pepRelated : ""}
+                  value={data.pepPerson === "no" ? (data.pepRelated || "") : ""}
                   onValueChange={(value) =>
                     setData({ ...data, pepRelated: value })
                   }
@@ -1588,7 +1588,7 @@ export function CoBorrowerDetailsForm({
                 <Select
                   value={
                     data.pepPerson === "no" && data.pepRelated === "yes"
-                      ? data.pepRelationship
+                      ? (data.pepRelationship || "")
                       : ""
                   }
                   onValueChange={(value) =>
@@ -1645,7 +1645,7 @@ export function CoBorrowerDetailsForm({
                 <Select
                   value={
                     data.pepPerson === "no" && data.pepRelated === "yes"
-                      ? data.pepCategory
+                      ? (data.pepCategory || "")
                       : ""
                   }
                   onValueChange={(value) =>
@@ -1697,7 +1697,7 @@ export function CoBorrowerDetailsForm({
                 <Select
                   value={
                     data.pepPerson === "no" && data.pepRelated === "yes"
-                      ? data.pepSubCat2
+                      ? (data.pepSubCat2 || "")
                       : ""
                   }
                   onValueChange={(value) =>
@@ -1773,7 +1773,7 @@ export function CoBorrowerDetailsForm({
               Employment Status<span className="text-destructive">*</span>
             </Label>
             <RadioGroup
-              value={data.employmentStatus}
+              value={data.employmentStatus || ""}
               onValueChange={(value) =>
                 setData({ ...data, employmentStatus: value })
               }
@@ -1969,7 +1969,7 @@ export function CoBorrowerDetailsForm({
                         style={{ minHeight: "48px" }}
                       >
                         <Select
-                          value={coBorrower.salutation}
+                          value={coBorrower.salutation || ""}
                           onValueChange={(value) =>
                             updateCoBorrower(actualIndex, "salutation", value)
                           }
@@ -2035,7 +2035,7 @@ export function CoBorrowerDetailsForm({
                         style={{ minHeight: "48px" }}
                       >
                         <Select
-                          value={coBorrower.identificationType}
+                          value={coBorrower.identificationType || ""}
                           onValueChange={(value) =>
                             updateCoBorrower(
                               actualIndex,
@@ -2140,7 +2140,7 @@ export function CoBorrowerDetailsForm({
                         style={{ minHeight: "48px" }}
                       >
                         <Select
-                          value={coBorrower.relationship}
+                          value={coBorrower.relationship || ""}
                           onValueChange={(value) =>
                             updateCoBorrower(actualIndex, "relationship", value)
                           }

@@ -450,7 +450,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Label htmlFor="salutation" className="text-gray-800 font-semibold text-xs sm:text-sm">
               Salutation <span className="text-red-500">*</span>
             </Label>
-            <Select value={data.salutation} onValueChange={(value) => setData({ ...data, salutation: value })}>
+            <Select value={data.salutation || ""} onValueChange={(value) => setData({ ...data, salutation: value })}>
               <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -481,7 +481,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Label htmlFor="nationality" className="text-gray-800 font-semibold text-xs sm:text-sm">
               Nationality <span className="text-red-500">*</span>
             </Label>
-            <Select value={data.nationality} onValueChange={(value) => setData({ ...data, nationality: value })}>
+            <Select value={data.nationality || ""} onValueChange={(value) => setData({ ...data, nationality: value })}>
               <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -510,7 +510,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               Identification Type <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.identificationType}
+              value={data.identificationType || ""}
               onValueChange={(value) => setData({ ...data, identificationType: value })}
             >
               <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
@@ -631,7 +631,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Label htmlFor="gender" className="text-gray-800 font-semibold text-sm">
               Gender <span className="text-red-500">*</span>
             </Label>
-            <Select value={data.gender} onValueChange={(value) => setData({ ...data, gender: value })}>
+            <Select value={data.gender || ""} onValueChange={(value) => setData({ ...data, gender: value })}>
               <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -650,7 +650,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Label htmlFor="maritalStatus" className="text-gray-800 font-semibold text-sm">
               Marital Status <span className="text-red-500">*</span>
             </Label>
-            <Select value={data.maritalStatus} onValueChange={(value) => setData({ ...data, maritalStatus: value })}>
+            <Select value={data.maritalStatus || ""} onValueChange={(value) => setData({ ...data, maritalStatus: value })}>
               <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -754,7 +754,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Label htmlFor="bankName" className="text-gray-800 font-semibold text-sm">
               Name of Bank <span className="text-red-500">*</span>
             </Label>
-            <Select value={data.bankName} onValueChange={(value) => setData({ ...data, bankName: value })}>
+            <Select value={data.bankName || ""} onValueChange={(value) => setData({ ...data, bankName: value })}>
               <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -833,7 +833,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Label htmlFor="permCountry" className="text-gray-800 font-semibold text-sm">
               Country <span className="text-red-500">*</span>
             </Label>
-            <Select value={data.permCountry} onValueChange={(value) => setData({ ...data, permCountry: value })}>
+            <Select value={data.permCountry || ""} onValueChange={(value) => setData({ ...data, permCountry: value })}>
               <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -1033,7 +1033,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
             <Label htmlFor="currCountry" className="text-gray-800 font-semibold text-sm">
               Country of Resident <span className="text-red-500">*</span>
             </Label>
-            <Select value={data.currCountry} onValueChange={(value) => setData({ ...data, currCountry: value })}>
+            <Select value={data.currCountry || ""} onValueChange={(value) => setData({ ...data, currCountry: value })}>
               <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -1287,7 +1287,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <div className="space-y-2.5">
             <Label htmlFor="pepPerson" className="text-gray-800 font-semibold text-sm">Politically Exposed Person<span className="text-destructive">*</span></Label>
-            <Select value={data.pepPerson} onValueChange={(value) => setData({ ...data, pepPerson: value })}>
+            <Select value={data.pepPerson || ""} onValueChange={(value) => setData({ ...data, pepPerson: value })}>
               <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
@@ -1477,7 +1477,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           <Label htmlFor="relatedToBil" className="text-gray-800 font-semibold text-sm">
             Related to BIL <span className="text-red-500">*</span>
           </Label>
-          <Select value={data.relatedToBil} onValueChange={(value) => setData({ ...data, relatedToBil: value })}>
+          <Select value={data.relatedToBil || ""} onValueChange={(value) => setData({ ...data, relatedToBil: value })}>
             <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
               <SelectValue placeholder="Select" />
             </SelectTrigger>
@@ -1496,7 +1496,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
         <div className="space-y-4">
           <Label className="text-gray-800 font-semibold text-xs sm:text-sm">Employment Status <span className="text-red-500">*</span></Label>
           <RadioGroup
-            value={data.employmentStatus}
+            value={data.employmentStatus || ""}
             onValueChange={(value) => setData({ ...data, employmentStatus: value })}
             className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8"
           >
@@ -1544,7 +1544,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               <Label htmlFor="occupation" className="text-gray-800 font-semibold text-sm">
                 Occupation <span className="text-red-500">*</span>
               </Label>
-              <Select value={data.occupation} onValueChange={(value) => setData({ ...data, occupation: value })}>
+              <Select value={data.occupation || ""} onValueChange={(value) => setData({ ...data, occupation: value })}>
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
@@ -1572,7 +1572,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               <Label htmlFor="employerType" className="text-gray-800 font-semibold text-sm">
                 Type of Employer <span className="text-red-500">*</span>
               </Label>
-              <Select value={data.employerType} onValueChange={(value) => setData({ ...data, employerType: value })}>
+              <Select value={data.employerType || ""} onValueChange={(value) => setData({ ...data, employerType: value })}>
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
@@ -1588,7 +1588,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               <Label htmlFor="designation" className="text-gray-800 font-semibold text-sm">
                 Designation <span className="text-red-500">*</span>
               </Label>
-              <Select value={data.designation} onValueChange={(value) => setData({ ...data, designation: value })}>
+              <Select value={data.designation || ""} onValueChange={(value) => setData({ ...data, designation: value })}>
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
@@ -1604,7 +1604,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               <Label htmlFor="grade" className="text-gray-800 font-semibold text-sm">
                 Grade <span className="text-red-500">*</span>
               </Label>
-              <Select value={data.grade} onValueChange={(value) => setData({ ...data, grade: value })}>
+              <Select value={data.grade || ""} onValueChange={(value) => setData({ ...data, grade: value })}>
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
@@ -1621,7 +1621,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
                 Organization Name <span className="text-red-500">*</span>
               </Label>
               <Select
-                value={data.organizationName}
+                value={data.organizationName || ""}
                 onValueChange={(value) => setData({ ...data, organizationName: value })}
               >
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
@@ -1686,7 +1686,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2.5">
               <Label htmlFor="serviceNature" className="text-gray-800 font-semibold text-sm">Nature of Service <span className="text-red-500">*</span></Label>
-              <Select value={data.serviceNature} onValueChange={(value) => setData({ ...data, serviceNature: value })}>
+              <Select value={data.serviceNature || ""} onValueChange={(value) => setData({ ...data, serviceNature: value })}>
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>

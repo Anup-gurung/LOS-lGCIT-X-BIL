@@ -420,7 +420,7 @@ export function SecurityDetailsForm({
                     Type of Security <span className="text-red-500">*</span>
                   </Label>
                   <Select
-                    value={data.securityType}
+                    value={data.securityType || ""}
                     onValueChange={(value) =>
                       setData({ ...data, securityType: value })
                     }
@@ -452,7 +452,7 @@ export function SecurityDetailsForm({
                     Security Ownership <span className="text-red-500">*</span>
                   </Label>
                   <Select
-                    value={data.ownershipType}
+                    value={data.ownershipType || ""}
                     onValueChange={(value) =>
                       setData({ ...data, ownershipType: value })
                     }
@@ -489,7 +489,7 @@ export function SecurityDetailsForm({
                     Vehicle Type
                   </Label>
                   <Select
-                    value={data.vehicleType}
+                    value={data.vehicleType || ""}
                     onValueChange={(value) =>
                       setData({ ...data, vehicleType: value })
                     }
@@ -694,7 +694,7 @@ export function SecurityDetailsForm({
                     Land Use Type <span className="text-red-500">*</span>
                   </Label>
                   <Select
-                    value={data.landUse}
+                    value={data.landUse || ""}
                     onValueChange={(value) =>
                       setData({ ...data, landUse: value })
                     }
@@ -765,7 +765,7 @@ export function SecurityDetailsForm({
                     Gewog <span className="text-red-500">*</span>
                   </Label>
                   <Select
-                    value={data.gewog}
+                    value={data.gewog || ""}
                     onValueChange={(value) =>
                       setData({ ...data, gewog: value })
                     }
@@ -861,7 +861,7 @@ export function SecurityDetailsForm({
                     Insurance Company <span className="text-red-500">*</span>
                   </Label>
                   <Select
-                    value={data.insuranceCompany}
+                    value={data.insuranceCompany || ""}
                     onValueChange={(value) =>
                       setData({ ...data, insuranceCompany: value })
                     }

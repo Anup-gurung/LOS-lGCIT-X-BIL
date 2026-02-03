@@ -26,7 +26,7 @@ export default function HomePage() {
             </Card>
           </Link>
 
-          <Link href="/login">
+          <Link href="/loan-application/business">
             <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer h-full border-gray-200">
               <CardContent className="flex flex-col items-center justify-center p-10 text-center space-y-4">
                 <div className="w-24 h-24 rounded-full bg-white border-4 border-[#003DA5] flex items-center justify-center">

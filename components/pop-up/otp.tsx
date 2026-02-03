@@ -63,7 +63,8 @@ export default function OtpVerify({ onClose, generatedOtp = "", contactMethod = 
     if (isVerified) {
       // Navigate to loan application page at Personal Details step after animation completes (2 seconds)
       const timer = setTimeout(() => {
-        router.push("/loan-application?step=1");
+        // Add timestamp to force component reload
+        router.push("/loan-application?step=1&t=" + Date.now());
       }, 2000);
 
       return () => clearTimeout(timer);

@@ -15,7 +15,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Import mapping utility and the Popup component
-import { mapCustomerDataToForm } from "@/lib/mapCustomerData";
+import { mapCustomerDataToForm, getVerifiedCustomerDataFromSession } from "@/lib/mapCustomerData";
 import DocumentPopup from "@/components/BILSearchStatus"; // Adjust path if needed
 
 import {

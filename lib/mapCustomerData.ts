@@ -433,3 +433,40 @@ export function applyDataToFormState(
 export function isFieldVerified(fieldName: string, mappedData: MappedFormData): boolean {
   return mappedData.verifiedFields?.includes(fieldName) || false;
 }
+
+/**
+ * Retrieve verified customer data from session storage
+ */
+export function getVerifiedCustomerDataFromSession(): MappedFormData | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    
+    const storedData = sessionStorage.getItem('verifiedCustomerData');
+    if (storedData) {
+      const parsedData = JSON.parse(storedData);
+      console.log('✅ Retrieved verified customer data from session:', parsedData);
+      console.log('✅ Number of fields:', Object.keys(parsedData).length);
+      return parsedData;
+    } else {
+      console.log('⚠️ No verified customer data found in sessionStorage');
+    }
+  } catch (error) {
+    console.error('❌ Error retrieving verified customer data from session:', error);
+  }
+  
+  return null;
+}
+
+/**
+ * Clear verified customer data from session storage
+ */
+export function clearVerifiedCustomerDataFromSession(): void {
+  try {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('verifiedCustomerData');
+      console.log('Cleared verified customer data from session');
+    }
+  } catch (error) {
+    console.error('Error clearing verified customer data from session:', error);
+  }
+}

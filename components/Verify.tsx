@@ -304,10 +304,15 @@ export default function ExistingUserVerification() {
                       console.log('Verify - Mapped Data:', mappedData);
                       console.log('Verify - Mapped Data Keys:', Object.keys(mappedData));
                       
-                      // Store in sessionStorage for form auto-population
+                      // Clear old data first, then store new verified customer data
+                      sessionStorage.removeItem('verifiedCustomerData');
+                      // Also clear NDI data to prevent conflicts
+                      sessionStorage.removeItem('ndi_verified_data');
+                      sessionStorage.removeItem('ndi_mapped_personal_details');
                       sessionStorage.setItem('verifiedCustomerData', JSON.stringify(mappedData));
                       
                       console.log('Verify - Data stored in sessionStorage');
+                      console.log('Verify - User:', mappedData.applicantName || mappedData.fullName);
                       
                       // If phone is selected, generate and send SMS OTP
                       if (contactPreference === "phone" && phone) {
@@ -329,11 +334,11 @@ export default function ExistingUserVerification() {
                             const formattedOtp = String(smsResult.otp).padStart(6, '0');
                             setGeneratedOtp(formattedOtp);
                             
-                            // console.log('===== SMS OTP SENT =====');
-                            // console.log('Phone Number:', phone);
-                            // console.log('OTP Received:', smsResult.otp);
-                            // console.log('Formatted OTP (6-digit):', formattedOtp);
-                            // console.log('========================');
+                            console.log('\n===== SMS OTP SENT =====');
+                            console.log('Phone Number:', phone);
+                            console.log('OTP Received:', smsResult.otp);
+                            console.log('Formatted OTP (6-digit):', formattedOtp);
+                            console.log('========================\n');
                             alert(`OTP has been sent to your phone number: ${phone}`);
                             // alert(`OTP has been sent to your phone number: ${phone}\n\nFor testing: ${formattedOtp}`);
                           } else {
@@ -365,6 +370,11 @@ export default function ExistingUserVerification() {
                       if (contactPreference === "email" && email) {
                         const otp = generateOtp();
                         setGeneratedOtp(otp);
+                        
+                        console.log('\n===== EMAIL OTP GENERATED =====');
+                        console.log('Email Address:', email);
+                        console.log('OTP:', otp);
+                        console.log('================================\n');
                         
                         // Send OTP via email using our email service
                         try {

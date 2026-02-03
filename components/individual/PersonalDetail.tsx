@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { fetchMaritalStatus, fetchBanks, fetchNationality, fetchIdentificationType, fetchCountry, fetchDzongkhag, fetchGewogsByDzongkhag, fetchOccupations, fetchLegalConstitution, fetchPepCategory, fetchPepSubCategoryByCategory } from "@/services/api"
 import { getNdiDataFromSession } from "@/lib/mapNdiData"
+import { getVerifiedCustomerDataFromSession } from "@/lib/mapCustomerData"
 
 interface PersonalDetailsFormProps {
   onNext: (data: any) => void
@@ -21,18 +22,22 @@ interface PersonalDetailsFormProps {
 
 export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetailsFormProps) {
   const [data, setData] = useState(() => {
-    // First, try to get NDI verified data from session
-    const ndiData = getNdiDataFromSession();
+    // First priority: Check for verified customer data from Verify page
+    const verifiedData = getVerifiedCustomerDataFromSession();
     
-    // If NDI data exists, merge it with formData (formData takes precedence)
-    if (ndiData) {
+    if (verifiedData && Object.keys(verifiedData).length > 0) {
+      // If verified data exists, use it and ignore NDI data
+      console.log('✅ Initial state: Using verified customer data');
       const initial = formData?.personalDetails || formData || {};
-      return { ...ndiData, ...initial };
+      return { ...verifiedData, ...initial };
     }
     
-    // Otherwise, use formData if available
-    const initial = formData?.personalDetails || formData || {}
-    return initial
+    // Only check NDI data if no verified data exists
+    const ndiData = getNdiDataFromSession();
+    const initial = formData?.personalDetails || formData || {};
+    
+    // Merge all data sources (priority: initial > ndiData)
+    return { ...ndiData, ...initial };
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showCoBorrowerDialog, setShowCoBorrowerDialog] = useState(false)
@@ -56,17 +61,49 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
   fifteenYearsAgo.setFullYear(fifteenYearsAgo.getFullYear() - 15)
   const maxDobDate = fifteenYearsAgo.toISOString().split('T')[0]
 
-  // Load NDI verified data from session on mount
+  // Load verified customer data and NDI data from session on mount
   useEffect(() => {
-    const ndiData = getNdiDataFromSession();
-    if (ndiData && Object.keys(ndiData).length > 0) {
-      console.log('Loading NDI data into form:', ndiData);
-      // Merge NDI data with existing data (existing data takes precedence)
-      setData((prevData: any) => ({
-        ...ndiData,
-        ...prevData
-      }));
-    }
+    const loadVerifiedData = () => {
+      // First check for verified customer data from Verify page
+      const verifiedData = getVerifiedCustomerDataFromSession();
+      if (verifiedData && Object.keys(verifiedData).length > 0) {
+        console.log('✅ Loading verified customer data into PersonalDetail form:', verifiedData);
+        console.log('✅ User:', verifiedData.applicantName || verifiedData.fullName);
+        setData((prevData: any) => ({
+          ...prevData,
+          ...verifiedData
+        }));
+        return true;
+      }
+      
+      // Otherwise, check for NDI data
+      const ndiData = getNdiDataFromSession();
+      if (ndiData && Object.keys(ndiData).length > 0) {
+        console.log('Loading NDI data into form:', ndiData);
+        setData((prevData: any) => ({
+          ...prevData,
+          ...ndiData
+        }));
+        return true;
+      }
+      
+      return false;
+    };
+    
+    // Load data initially
+    loadVerifiedData();
+    
+    // Also reload when window regains focus (user comes back from verify page)
+    const handleFocus = () => {
+      console.log('🔄 Window focused - checking for updated verified data');
+      loadVerifiedData();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []); // Run only once on mount
 
   useEffect(() => {
@@ -451,7 +488,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               <SelectContent sideOffset={4}>
                 {nationalityOptions.length > 0 ? (
                   nationalityOptions.map((option, index) => {
-                    const key = option.nationality_pk_code || option.id || option.code || `nationality-${index}`
+                    const key = `nationality-${index}-${option.nationality_pk_code || option.id || option.code || index}`
                     const value = String(option.nationality_pk_code || option.id || option.code || index)
                     const label = option.nationality || option.name || option.label || 'Unknown'
                     
@@ -482,7 +519,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
               <SelectContent sideOffset={4}>
                 {identificationTypeOptions.length > 0 ? (
                   identificationTypeOptions.map((option, index) => {
-                    const key = option.identity_type_pk_code || option.identification_type_pk_code || option.id || `id-${index}`
+                    const key = `id-type-${index}-${option.identity_type_pk_code || option.identification_type_pk_code || option.id || index}`
                     const value = String(option.identity_type_pk_code || option.identification_type_pk_code || option.id || index)
                     const label = option.identity_type || option.identification_type || option.name || 'Unknown'
                     
@@ -1593,7 +1630,7 @@ export function PersonalDetailsForm({ onNext, onBack, formData }: PersonalDetail
                 <SelectContent sideOffset={4}>
                   {organizationOptions.length > 0 ? (
                     organizationOptions.map((option, index) => {
-                      const key = option.lgal_constitution_pk_code || option.legal_const_pk_code || option.id || `org-${index}`
+                      const key = `org-${index}-${option.lgal_constitution_pk_code || option.legal_const_pk_code || option.id || index}`
                       const value = String(option.lgal_constitution_pk_code || option.legal_const_pk_code || option.id || index)
                       const label = option.lgal_constitution || option.legal_const_name || option.name || 'Unknown'
                       

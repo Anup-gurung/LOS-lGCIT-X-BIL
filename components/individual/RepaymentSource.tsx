@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Trash2, PlusCircle } from "lucide-react";
+
+// Import mapping utility and Popup
+import { mapCustomerDataToForm } from "@/lib/mapCustomerData";
+import DocumentPopup from "@/components/BILSearchStatus";
 import {
   fetchNationality,
   fetchIdentificationType,
@@ -19,11 +24,10 @@ import {
   fetchDzongkhag,
   fetchGewogsByDzongkhag,
   fetchMaritalStatus,
+  fetchPepCategory,
+  fetchPepSubCategoryByCategory,
+  fetchBanks,
 } from "@/services/api";
-
-// Import mapping utility and Popup (Adjust paths based on your project structure)
-import { mapCustomerDataToForm } from "@/lib/mapCustomerData";
-import DocumentPopup from "@/components/BILSearchStatus";
 
 interface RepaymentSourceFormProps {
   onNext: (data: any) => void;
@@ -43,22 +47,104 @@ const formatDateForInput = (dateString: string | null | undefined) => {
   }
 };
 
+// Initialize empty related PEP entry
+const createEmptyRelatedPep = () => ({
+  relationship: "",
+  identificationNo: "",
+  category: "",
+  subCategory: "",
+  identificationProof: "",
+});
+
+// Initialize empty guarantor with updated fields
+const createEmptyGuarantor = () => ({
+  // Personal Information
+  idType: "",
+  idNumber: "",
+  salutation: "",
+  guarantorName: "",
+  nationality: "",
+  gender: "",
+  idIssueDate: "",
+  idExpiryDate: "",
+  dateOfBirth: "",
+  tpnNo: "",
+  maritalStatus: "",
+  spouseCid: "",
+  spouseName: "",
+  spouseContact: "",
+  passportPhoto: "",
+  bankName: "",
+  bankAccountNumber: "",
+
+  permCountry: "",
+  permDzongkhag: "",
+  permGewog: "",
+  permVillage: "",
+  permThram: "",
+  permHouse: "",
+  permCity: "",
+  permPostal: "",
+  permAddressProof: "",
+
+  // Current Address
+  currCountry: "",
+  currDzongkhag: "",
+  currGewog: "",
+  currVillage: "",
+  currHouse: "",
+  currCity: "",
+  currPostal: "",
+  email: "",
+  contact: "",
+  currAlternateContact: "",
+  currAddressProof: "",
+
+  // PEP Declaration
+  isPep: "",
+  pepCategory: "",
+  pepSubCategory: "",
+  pepUpload: "",
+  relatedToPep: "",
+  relatedPeps: [],
+
+  // Internal State
+  showLookupPopup: false,
+  lookupStatus: "searching" as "searching" | "found" | "not_found",
+  fetchedCustomerData: null,
+  errors: {} as Record<string, string>,
+
+  // Dropdown options specific to this guarantor
+  permGewogOptions: [] as any[],
+  currGewogOptions: [] as any[],
+  pepSubCategoryOptions: [] as any[],
+  relatedPepOptionsMap: {} as Record<number, any[]>,
+});
+
 export function RepaymentSourceForm({
   onNext,
   onBack,
   formData,
 }: RepaymentSourceFormProps) {
-  // Separate Income Data from Guarantor Data
-  const [incomeData, setIncomeData] = useState(formData?.incomeDetails || {});
-
-  // Initialize guarantors array
-  const [guarantors, setGuarantors] = useState<any[]>(
-    formData?.guarantors && formData.guarantors.length > 0
-      ? formData.guarantors
-      : [{}],
+  // --- STATE ---
+  const [incomeData, setIncomeData] = useState(
+    formData?.incomeDetails || {
+      repaymentGuarantor: "no",
+      enableMonthlySalary: false,
+      enableRentalIncome: false,
+      enableBusinessIncome: false,
+      enableVehicleHiring: false,
+      enableDividendIncome: false,
+      enableAgricultureIncome: false,
+      enableTruckTaxiIncome: false,
+      repaymentProof: null as File | null,
+    },
   );
 
-  // Dropdown Options
+  // Guarantors Array (Independent Objects)
+  const [guarantors, setGuarantors] = useState<any[]>([createEmptyGuarantor()]);
+
+  // Dropdown Options (Shared)
   const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
   const [identificationTypeOptions, setIdentificationTypeOptions] = useState<
     any[]
@@ -66,255 +152,425 @@ export function RepaymentSourceForm({
   const [countryOptions, setCountryOptions] = useState<any[]>([]);
   const [dzongkhagOptions, setDzongkhagOptions] = useState<any[]>([]);
   const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([]);
+  const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
+  const [banksOptions, setBankOptions] = useState<any[]>([]);
 
-  // Store gewog options keyed by "guarantorIndex-type" (e.g. "0-perm", "1-curr")
-  const [dynamicGewogOptions, setDynamicGewogOptions] = useState<
-    Record<string, any[]>
-  >({});
+  // Constants
+  const today = new Date().toISOString().split("T")[0];
+  const fifteenYearsAgo = new Date();
+  fifteenYearsAgo.setFullYear(fifteenYearsAgo.getFullYear() - 15);
+  const maxDobDate = fifteenYearsAgo.toISOString().split("T")[0];
 
-  // --- Lookup States ---
-  const [showLookupPopup, setShowLookupPopup] = useState(false);
-  const [lookupStatus, setLookupStatus] = useState<
-    "searching" | "found" | "not_found"
-  >("searching");
-  const [fetchedCustomerData, setFetchedCustomerData] = useState<any>(null);
-  const [activeGuarantorIndex, setActiveGuarantorIndex] = useState<
-    number | null
-  >(null);
+  // --- HELPER: Determine if Married ---
+  const getIsMarried = (guarantor: any) => {
+    const status = guarantor.maritalStatus;
+    if (!status) return false;
+    const statusStr = String(status).toLowerCase();
+    if (statusStr === "married") return true;
+    if (statusStr === "unmarried") return false;
 
+    const selectedOption = maritalStatusOptions.find(
+      (opt) =>
+        String(opt.marital_status_pk_code || opt.id || opt.value) == status,
+    );
+    if (selectedOption) {
+      const label = (
+        selectedOption.marital_status ||
+        selectedOption.name ||
+        ""
+      ).toLowerCase();
+      return label.includes("married") && !label.includes("unmarried");
+    }
+    return false;
+  };
+
+  const isBhutan = (id: string) => {
+    if (!id) return false;
+    const c = countryOptions.find(
+      (o) => String(o.country_pk_code || o.id) === String(id),
+    );
+    return c && (c.country || c.name || "").toLowerCase().includes("bhutan");
+  };
+
+  // --- DATA LOADING ---
   useEffect(() => {
     const loadAllData = async () => {
       try {
-        const [
-          nationality,
-          identificationType,
-          country,
-          dzongkhag,
-          maritalStatus,
-        ] = await Promise.all([
-          fetchNationality().catch(() => []),
-          fetchIdentificationType().catch(() => []),
-          fetchCountry().catch(() => []),
-          fetchDzongkhag().catch(() => []),
-          fetchMaritalStatus().catch(() => []),
-        ]);
-
-        setNationalityOptions(nationality);
-        setIdentificationTypeOptions(identificationType);
-        setCountryOptions(country);
-        setDzongkhagOptions(dzongkhag);
-        setMaritalStatusOptions(maritalStatus);
+        const [nat, idTypes, countries, dzos, marital, pepCats, banks] =
+          await Promise.all([
+            fetchNationality().catch(() => []),
+            fetchIdentificationType().catch(() => []),
+            fetchCountry().catch(() => []),
+            fetchDzongkhag().catch(() => []),
+            fetchMaritalStatus().catch(() => []),
+            fetchPepCategory().catch(() => []),
+            fetchBanks().catch(() => []),
+          ]);
+        setNationalityOptions(nat);
+        setIdentificationTypeOptions(idTypes);
+        setCountryOptions(countries);
+        setDzongkhagOptions(dzos);
+        setMaritalStatusOptions(marital);
+        setPepCategoryOptions(pepCats);
+        setBankOptions(banks || []);
       } catch (error) {
         console.error("Failed to load dropdown data:", error);
       }
     };
-
     loadAllData();
   }, []);
 
-  // Sync with formData when it changes
+  // Sync with formData
   useEffect(() => {
     if (formData) {
-      if (formData.incomeDetails) setIncomeData(formData.incomeDetails);
-      if (formData.guarantors && Array.isArray(formData.guarantors)) {
-        setGuarantors(formData.guarantors);
+      if (formData.repaymentSource) {
+        const { guarantors: savedGuarantors, ...restIncome } =
+          formData.repaymentSource;
+        setIncomeData(restIncome);
+        if (
+          savedGuarantors &&
+          Array.isArray(savedGuarantors) &&
+          savedGuarantors.length > 0
+        ) {
+          setGuarantors(savedGuarantors);
+        }
+      } else if (formData.incomeDetails) {
+        setIncomeData(formData.incomeDetails);
+        if (formData.guarantors && Array.isArray(formData.guarantors)) {
+          setGuarantors(formData.guarantors);
+        }
       }
     }
   }, [formData]);
 
-  // Handle Income Data Changes
+  // --- DYNAMIC GEWOG LOADING (Per Guarantor) ---
+  useEffect(() => {
+    const loadPermGewogs = async () => {
+      const updated = [...guarantors];
+      let needsUpdate = false;
+      for (let i = 0; i < guarantors.length; i++) {
+        const g = guarantors[i];
+        if (g.permCountry && isBhutan(g.permCountry) && g.permDzongkhag) {
+          if (!g.permGewogOptions || g.permGewogOptions.length === 0) {
+            try {
+              const opts = await fetchGewogsByDzongkhag(g.permDzongkhag);
+              updated[i] = { ...updated[i], permGewogOptions: opts };
+              needsUpdate = true;
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        }
+      }
+      if (needsUpdate) setGuarantors(updated);
+    };
+    loadPermGewogs();
+  }, [guarantors.map((g) => `${g.permCountry}-${g.permDzongkhag}`).join(",")]);
+
+  useEffect(() => {
+    const loadCurrGewogs = async () => {
+      const updated = [...guarantors];
+      let needsUpdate = false;
+      for (let i = 0; i < guarantors.length; i++) {
+        const g = guarantors[i];
+        if (g.currCountry && isBhutan(g.currCountry) && g.currDzongkhag) {
+          if (!g.currGewogOptions || g.currGewogOptions.length === 0) {
+            try {
+              const opts = await fetchGewogsByDzongkhag(g.currDzongkhag);
+              updated[i] = { ...updated[i], currGewogOptions: opts };
+              needsUpdate = true;
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        }
+      }
+      if (needsUpdate) setGuarantors(updated);
+    };
+    loadCurrGewogs();
+  }, [guarantors.map((g) => `${g.currCountry}-${g.currDzongkhag}`).join(",")]);
+
+  // --- PEP SUBCATEGORY LOADING ---
+  useEffect(() => {
+    const loadPepSub = async () => {
+      const updated = [...guarantors];
+      let needsUpdate = false;
+      for (let i = 0; i < guarantors.length; i++) {
+        if (guarantors[i].isPep === "yes" && guarantors[i].pepCategory) {
+          if (
+            !updated[i].pepSubCategoryOptions ||
+            updated[i].pepSubCategoryOptions.length === 0
+          ) {
+            try {
+              const opts = await fetchPepSubCategoryByCategory(
+                guarantors[i].pepCategory,
+              );
+              updated[i] = { ...updated[i], pepSubCategoryOptions: opts };
+              needsUpdate = true;
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        }
+      }
+      if (needsUpdate) setGuarantors(updated);
+    };
+    loadPepSub();
+  }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
+
+  // --- HANDLERS ---
+
   const handleIncomeChange = (field: string, value: any) => {
     setIncomeData((prev: any) => ({ ...prev, [field]: value }));
   };
 
-  // Handle Guarantor Data Changes
-  const handleGuarantorChange = (index: number, field: string, value: any) => {
-    const updatedGuarantors = [...guarantors];
-    updatedGuarantors[index] = { ...updatedGuarantors[index], [field]: value };
-    setGuarantors(updatedGuarantors);
+  const handleRepaymentProofChange = (file: File | null) => {
+    setIncomeData((prev: any) => ({ ...prev, repaymentProof: file }));
   };
 
-  // Handle Dynamic Gewog Fetching via Dropdown
-  const handleDzongkhagChange = async (
-    index: number,
-    type: "perm" | "curr",
-    dzongkhagId: string,
-  ) => {
-    handleGuarantorChange(
-      index,
-      type === "perm" ? "permDzongkhag" : "currDzongkhag",
-      dzongkhagId,
-    );
-    handleGuarantorChange(
-      index,
-      type === "perm" ? "permGewog" : "currGewog",
-      "",
-    );
+  const addGuarantor = () =>
+    setGuarantors([...guarantors, createEmptyGuarantor()]);
 
-    try {
-      const options = await fetchGewogsByDzongkhag(dzongkhagId);
-      setDynamicGewogOptions((prev) => ({
-        ...prev,
-        [`${index}-${type}`]: options,
-      }));
-    } catch (error) {
-      console.error(
-        `Failed to load ${type} gewogs for guarantor ${index}:`,
-        error,
-      );
-      setDynamicGewogOptions((prev) => ({
-        ...prev,
-        [`${index}-${type}`]: [],
-      }));
+  const removeGuarantor = (index: number) => {
+    if (guarantors.length > 1)
+      setGuarantors(guarantors.filter((_, i) => i !== index));
+  };
+
+  const updateGuarantorField = (index: number, field: string, value: any) => {
+    setGuarantors((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        [field]: value,
+        ...(field === "isPep" && value === "yes" ? { relatedToPep: "" } : {}),
+        ...(field === "isPep" && value === "no"
+          ? { pepCategory: "", pepSubCategory: "", pepUpload: "" }
+          : {}),
+        ...(field === "relatedToPep" && value === "yes"
+          ? {
+              relatedPeps: [createEmptyRelatedPep()],
+            }
+          : {}),
+        ...(field === "relatedToPep" && value === "no"
+          ? { relatedPeps: [] }
+          : {}),
+        ...(field === "permDzongkhag"
+          ? { permGewog: "", permGewogOptions: [] }
+          : {}),
+        ...(field === "currDzongkhag"
+          ? { currGewog: "", currGewogOptions: [] }
+          : {}),
+        ...(field === "permCountry"
+          ? {
+              permDzongkhag: "",
+              permGewog: "",
+              permThram: "",
+              permHouse: "",
+              permCity: "",
+              permPostal: "",
+            }
+          : {}),
+        ...(field === "currCountry"
+          ? { currDzongkhag: "", currGewog: "", currCity: "", currPostal: "" }
+          : {}),
+
+        errors: { ...updated[index].errors, [field]: "" },
+      };
+      return updated;
+    });
+  };
+
+  const handleFileChange = (
+    index: number,
+    fieldName: string,
+    file: File | null,
+  ) => {
+    if (file) {
+      setGuarantors((prev) => {
+        const updated = [...prev];
+        updated[index] = { ...updated[index], [fieldName]: file.name };
+        return updated;
+      });
     }
   };
 
-  // --- AUTOMATIC LOOKUP LOGIC ---
-  const handleGuarantorIdentityCheck = async (index: number) => {
+  const handleRelatedPepFileChange = (
+    gIndex: number,
+    pIndex: number,
+    file: File | null,
+  ) => {
+    if (file) {
+      setGuarantors((prev) => {
+        const updated = [...prev];
+        const relatedPeps = [...updated[gIndex].relatedPeps];
+        relatedPeps[pIndex] = {
+          ...relatedPeps[pIndex],
+          identificationProof: file.name,
+        };
+        updated[gIndex].relatedPeps = relatedPeps;
+        return updated;
+      });
+    }
+  };
+
+  // --- IDENTITY LOOKUP ---
+  const handleIdentityCheck = async (index: number) => {
     const guarantor = guarantors[index];
-    const idType = guarantor.idType;
-    const idNo = guarantor.idNumber;
+    if (!guarantor.idType || !guarantor.idNumber) return;
 
-    if (!idType || !idNo || idNo.trim() === "") return;
-
-    setActiveGuarantorIndex(index);
-    setShowLookupPopup(true);
-    setLookupStatus("searching");
+    setGuarantors((prev) => {
+      const up = [...prev];
+      up[index].showLookupPopup = true;
+      up[index].lookupStatus = "searching";
+      return up;
+    });
 
     try {
-      const payload = {
-        type: "I",
-        identification_type_pk_code: idType,
-        identity_no: idNo,
-      };
-
       const response = await fetch("/api/customer-onboarded-details", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          type: "I",
+          identification_type_pk_code: guarantor.idType,
+          identity_no: guarantor.idNumber,
+        }),
       });
-
       const result = await response.json();
-
       if (response.ok && result?.success && result?.data) {
-        const mappedData = mapCustomerDataToForm(result);
-        setFetchedCustomerData(mappedData);
-        setLookupStatus("found");
+        const mapped = mapCustomerDataToForm(result);
+        setGuarantors((prev) => {
+          const up = [...prev];
+          up[index].fetchedCustomerData = mapped;
+          up[index].lookupStatus = "found";
+          return up;
+        });
       } else {
-        setLookupStatus("not_found");
-        setFetchedCustomerData(null);
+        setGuarantors((prev) => {
+          const up = [...prev];
+          up[index].lookupStatus = "not_found";
+          return up;
+        });
       }
     } catch (error) {
-      console.error("Identity lookup failed", error);
-      setLookupStatus("not_found");
-      setFetchedCustomerData(null);
+      setGuarantors((prev) => {
+        const up = [...prev];
+        up[index].lookupStatus = "not_found";
+        return up;
+      });
     }
   };
 
-  const handleLookupProceed = async () => {
-    if (
-      lookupStatus === "found" &&
-      fetchedCustomerData &&
-      activeGuarantorIndex !== null
-    ) {
-      const index = activeGuarantorIndex;
-
-      // Prepare sanitized data
-      const sanitizedData = {
-        ...fetchedCustomerData,
-        idIssueDate: formatDateForInput(
-          fetchedCustomerData.identificationIssueDate,
-        ),
-        idExpiryDate: formatDateForInput(
-          fetchedCustomerData.identificationExpiryDate,
-        ),
-        dateOfBirth: formatDateForInput(fetchedCustomerData.dateOfBirth),
-
-        // Map common fields to Guarantor specific field names if needed
-        guarantorName: fetchedCustomerData.name, // Ensure name maps to guarantorName
-        idNumber:
-          fetchedCustomerData.identificationNo || guarantors[index].idNumber, // Preserve typing
-        idType:
-          fetchedCustomerData.identificationType || guarantors[index].idType,
-
-        // String conversions
-        nationality: fetchedCustomerData.nationality
-          ? String(fetchedCustomerData.nationality)
-          : "",
-        permCountry: fetchedCustomerData.permCountry
-          ? String(fetchedCustomerData.permCountry)
-          : "",
-        permDzongkhag: fetchedCustomerData.permDzongkhag
-          ? String(fetchedCustomerData.permDzongkhag)
-          : "",
-        permGewog: fetchedCustomerData.permGewog
-          ? String(fetchedCustomerData.permGewog)
-          : "",
-        currCountry: fetchedCustomerData.currCountry
-          ? String(fetchedCustomerData.currCountry)
-          : "",
-        currDzongkhag: fetchedCustomerData.currDzongkhag
-          ? String(fetchedCustomerData.currDzongkhag)
-          : "",
-        currGewog: fetchedCustomerData.currGewog
-          ? String(fetchedCustomerData.currGewog)
-          : "",
-        maritalStatus: fetchedCustomerData.maritalStatus
-          ? String(fetchedCustomerData.maritalStatus)
-          : "",
+  const handleLookupProceed = (index: number) => {
+    const g = guarantors[index];
+    if (g.lookupStatus === "found" && g.fetchedCustomerData) {
+      const d = g.fetchedCustomerData;
+      const mapped = {
+        guarantorName: d.name,
+        nationality: d.nationality ? String(d.nationality) : "",
+        idIssueDate: formatDateForInput(d.identificationIssueDate),
+        idExpiryDate: formatDateForInput(d.identificationExpiryDate),
+        dateOfBirth: formatDateForInput(d.dateOfBirth),
+        tpnNo: d.tpn || "",
+        maritalStatus: d.maritalStatus ? String(d.maritalStatus) : "",
+        gender: d.gender ? String(d.gender) : "",
+        email: d.email || "",
+        contact: d.contact || "",
+        permCountry: d.permCountry ? String(d.permCountry) : "",
+        permDzongkhag: d.permDzongkhag ? String(d.permDzongkhag) : "",
+        permGewog: d.permGewog ? String(d.permGewog) : "",
+        permVillage: d.permVillage || "",
+        currCountry: d.currCountry ? String(d.currCountry) : "",
+        currDzongkhag: d.currDzongkhag ? String(d.currDzongkhag) : "",
+        currGewog: d.currGewog ? String(d.currGewog) : "",
+        currVillage: d.currVillage || "",
       };
 
-      // Load Gewogs immediately if Dzongkhags are present in fetched data
-      // This ensures dropdowns show the correct label instead of just ID
-      if (sanitizedData.permDzongkhag) {
-        try {
-          const options = await fetchGewogsByDzongkhag(
-            sanitizedData.permDzongkhag,
-          );
-          setDynamicGewogOptions((prev) => ({
-            ...prev,
-            [`${index}-perm`]: options,
-          }));
-        } catch (e) {
-          console.error(e);
-        }
+      setGuarantors((prev) => {
+        const up = [...prev];
+        up[index] = { ...up[index], ...mapped, showLookupPopup: false };
+        return up;
+      });
+    } else {
+      setGuarantors((prev) => {
+        const up = [...prev];
+        up[index].showLookupPopup = false;
+        return up;
+      });
+    }
+  };
+
+  // --- FIXED PEP HANDLERS ---
+  const handleAddRelatedPep = useCallback((index: number) => {
+    setGuarantors((prev) => {
+      const up = [...prev];
+      // Ensure relatedPeps array exists
+      if (!up[index].relatedPeps) {
+        up[index].relatedPeps = [];
       }
 
-      if (sanitizedData.currDzongkhag) {
-        try {
-          const options = await fetchGewogsByDzongkhag(
-            sanitizedData.currDzongkhag,
-          );
-          setDynamicGewogOptions((prev) => ({
-            ...prev,
-            [`${index}-curr`]: options,
-          }));
-        } catch (e) {
-          console.error(e);
-        }
-      }
+      // Create a new array with one additional entry
+      const updatedRelatedPeps = [
+        ...up[index].relatedPeps,
+        createEmptyRelatedPep(),
+      ];
 
-      // Update State
-      const updatedGuarantors = [...guarantors];
-      updatedGuarantors[index] = {
-        ...updatedGuarantors[index],
-        ...sanitizedData,
+      // Update the specific guarantor with the new array
+      up[index] = {
+        ...up[index],
+        relatedPeps: updatedRelatedPeps,
       };
-      setGuarantors(updatedGuarantors);
-    }
 
-    setShowLookupPopup(false);
-    setActiveGuarantorIndex(null);
+      return up;
+    });
+  }, []);
+
+  const handleRemoveRelatedPep = (gIndex: number, pIndex: number) => {
+    setGuarantors((prev) => {
+      const up = [...prev];
+      if (up[gIndex].relatedPeps && up[gIndex].relatedPeps.length > 1) {
+        up[gIndex].relatedPeps = up[gIndex].relatedPeps.filter(
+          (_: any, i: number) => i !== pIndex,
+        );
+      } else {
+        // If only one entry, reset to empty array
+        up[gIndex].relatedPeps = [];
+      }
+      return up;
+    });
   };
 
-  const addGuarantor = () => {
-    setGuarantors([...guarantors, {}]);
-  };
+  const handleRelatedPepChange = (
+    gIndex: number,
+    pIndex: number,
+    field: string,
+    value: string,
+  ) => {
+    setGuarantors((prev) => {
+      const up = [...prev];
+      const peps = [...up[gIndex].relatedPeps];
 
-  const removeGuarantor = (index: number) => {
-    if (guarantors.length > 1) {
-      setGuarantors(guarantors.filter((_, i) => i !== index));
-    }
+      if (!peps[pIndex]) {
+        // Initialize if doesn't exist
+        peps[pIndex] = createEmptyRelatedPep();
+      }
+
+      peps[pIndex] = { ...peps[pIndex], [field]: value };
+
+      if (field === "category") {
+        peps[pIndex].subCategory = "";
+        fetchPepSubCategoryByCategory(value).then((res) => {
+          setGuarantors((curr) => {
+            const cUp = [...curr];
+            if (!cUp[gIndex].relatedPepOptionsMap)
+              cUp[gIndex].relatedPepOptionsMap = {};
+            cUp[gIndex].relatedPepOptionsMap[pIndex] = res || [];
+            return cUp;
+          });
+        });
+      }
+      up[gIndex].relatedPeps = peps;
+      return up;
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -322,353 +578,326 @@ export function RepaymentSourceForm({
     onNext({
       repaymentSource: {
         ...incomeData,
-        guarantors: guarantors,
+        guarantors: incomeData.repaymentGuarantor === "yes" ? guarantors : [],
       },
     });
   };
 
-  const isBhutan = (countryId: string) => {
-    if (!countryId) return false;
-    const country = countryOptions.find(
-      (c) => String(c.country_pk_code || c.id) === String(countryId),
-    );
-    return (
-      country &&
-      (country.country || country.name || "").toLowerCase().includes("bhutan")
-    );
-  };
-
   return (
-    <>
-      {/* Search Status Popup */}
-      <DocumentPopup
-        open={showLookupPopup}
-        onOpenChange={setShowLookupPopup}
-        searchStatus={lookupStatus}
-        onProceed={handleLookupProceed}
-      />
+    <form onSubmit={handleSubmit} className="space-y-10">
+      {/* 1. INCOME DETAILS */}
+      <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
+        <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+          INCOME DETAILS
+        </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-10">
-        {/* INCOME DETAILS - Remains Static */}
-        <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
-          <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
-            INCOME DETAILS
-          </h2>
-          {/* ... (Income inputs remain unchanged) ... */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="enable-monthly-salary"
-                  className="h-4 w-4 rounded border-gray-400"
-                  checked={incomeData.enableMonthlySalary || false}
-                  onChange={(e) => {
-                    handleIncomeChange("enableMonthlySalary", e.target.checked);
-                    if (!e.target.checked)
-                      handleIncomeChange("monthlySalary", "");
-                  }}
-                />
-                <label
-                  htmlFor="enable-monthly-salary"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  Monthly Salary (Nu.)
-                </label>
-              </div>
-              <Input
-                id="monthly-salary"
-                type="number"
-                placeholder="Amount *"
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                value={incomeData.monthlySalary || ""}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Monthly Salary */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="chk-salary"
+                checked={incomeData.enableMonthlySalary || false}
                 onChange={(e) =>
-                  handleIncomeChange("monthlySalary", e.target.value)
+                  handleIncomeChange("enableMonthlySalary", e.target.checked)
                 }
-                disabled={!incomeData.enableMonthlySalary}
+                className="h-4 w-4 rounded border-gray-400"
               />
+              <label
+                htmlFor="chk-salary"
+                className="text-gray-800 font-semibold text-sm"
+              >
+                Monthly Salary (Nu.)
+              </label>
             </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="enable-rental-income"
-                  className="h-4 w-4 rounded border-gray-400"
-                  checked={incomeData.enableRentalIncome || false}
-                  onChange={(e) => {
-                    handleIncomeChange("enableRentalIncome", e.target.checked);
-                    if (!e.target.checked)
-                      handleIncomeChange("rentalIncome", "");
-                  }}
-                />
-                <label
-                  htmlFor="enable-rental-income"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  Monthly Rental Income (Nu.)
-                </label>
-              </div>
-              <Input
-                id="rental-income"
-                type="number"
-                placeholder="Amount *"
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                value={incomeData.rentalIncome || ""}
-                onChange={(e) =>
-                  handleIncomeChange("rentalIncome", e.target.value)
-                }
-                disabled={!incomeData.enableRentalIncome}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="enable-business-income"
-                  className="h-4 w-4 rounded border-gray-400"
-                  checked={incomeData.enableBusinessIncome || false}
-                  onChange={(e) => {
-                    handleIncomeChange(
-                      "enableBusinessIncome",
-                      e.target.checked,
-                    );
-                    if (!e.target.checked)
-                      handleIncomeChange("businessIncome", "");
-                  }}
-                />
-                <label
-                  htmlFor="enable-business-income"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  Business Income (Nu.)
-                </label>
-              </div>
-              <Input
-                id="business-income"
-                type="number"
-                placeholder="Amount *"
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                value={incomeData.businessIncome || ""}
-                onChange={(e) =>
-                  handleIncomeChange("businessIncome", e.target.value)
-                }
-                disabled={!incomeData.enableBusinessIncome}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="enable-vehicle-hiring"
-                  className="h-4 w-4 rounded border-gray-400"
-                  checked={incomeData.enableVehicleHiring || false}
-                  onChange={(e) => {
-                    handleIncomeChange("enableVehicleHiring", e.target.checked);
-                    if (!e.target.checked)
-                      handleIncomeChange("vehicleHiringIncome", "");
-                  }}
-                />
-                <label
-                  htmlFor="enable-vehicle-hiring"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  Vehicle Hiring Income (Nu.)
-                </label>
-              </div>
-              <Input
-                id="vehicle-hiring"
-                type="number"
-                placeholder="Amount *"
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                value={incomeData.vehicleHiringIncome || ""}
-                onChange={(e) =>
-                  handleIncomeChange("vehicleHiringIncome", e.target.value)
-                }
-                disabled={!incomeData.enableVehicleHiring}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="enable-dividend-income"
-                  className="h-4 w-4 rounded border-gray-400"
-                  checked={incomeData.enableDividendIncome || false}
-                  onChange={(e) => {
-                    handleIncomeChange(
-                      "enableDividendIncome",
-                      e.target.checked,
-                    );
-                    if (!e.target.checked)
-                      handleIncomeChange("dividendIncome", "");
-                  }}
-                />
-                <label
-                  htmlFor="enable-dividend-income"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  Dividend Income (Nu.)
-                </label>
-              </div>
-              <Input
-                id="dividend-income"
-                type="number"
-                placeholder="Amount *"
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                value={incomeData.dividendIncome || ""}
-                onChange={(e) =>
-                  handleIncomeChange("dividendIncome", e.target.value)
-                }
-                disabled={!incomeData.enableDividendIncome}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="enable-agriculture-income"
-                  className="h-4 w-4 rounded border-gray-400"
-                  checked={incomeData.enableAgricultureIncome || false}
-                  onChange={(e) => {
-                    handleIncomeChange(
-                      "enableAgricultureIncome",
-                      e.target.checked,
-                    );
-                    if (!e.target.checked)
-                      handleIncomeChange("agricultureIncome", "");
-                  }}
-                />
-                <label
-                  htmlFor="enable-agriculture-income"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  Agriculture Income (Nu.)
-                </label>
-              </div>
-              <Input
-                id="agriculture-income"
-                type="number"
-                placeholder="Amount *"
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                value={incomeData.agricultureIncome || ""}
-                onChange={(e) =>
-                  handleIncomeChange("agricultureIncome", e.target.value)
-                }
-                disabled={!incomeData.enableAgricultureIncome}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="enable-truck-taxi-income"
-                  className="h-4 w-4 rounded border-gray-400"
-                  checked={incomeData.enableTruckTaxiIncome || false}
-                  onChange={(e) => {
-                    handleIncomeChange(
-                      "enableTruckTaxiIncome",
-                      e.target.checked,
-                    );
-                    if (!e.target.checked)
-                      handleIncomeChange("truckTaxiIncome", "");
-                  }}
-                />
-                <label
-                  htmlFor="enable-truck-taxi-income"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  Truck/Taxi Income (Nu.)
-                </label>
-              </div>
-              <Input
-                id="truck-taxi-income"
-                type="number"
-                placeholder="Amount *"
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                value={incomeData.truckTaxiIncome || ""}
-                onChange={(e) =>
-                  handleIncomeChange("truckTaxiIncome", e.target.value)
-                }
-                disabled={!incomeData.enableTruckTaxiIncome}
-              />
-            </div>
+            <Input
+              type="number"
+              disabled={!incomeData.enableMonthlySalary}
+              value={incomeData.monthlySalary || ""}
+              onChange={(e) =>
+                handleIncomeChange("monthlySalary", e.target.value)
+              }
+              placeholder="Amount"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+            />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
-            <div className="space-y-3">
-              <Label
-                htmlFor="repayment-proof"
+          {/* Rental Income */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="chk-rental"
+                checked={incomeData.enableRentalIncome || false}
+                onChange={(e) =>
+                  handleIncomeChange("enableRentalIncome", e.target.checked)
+                }
+                className="h-4 w-4 rounded border-gray-400"
+              />
+              <label
+                htmlFor="chk-rental"
                 className="text-gray-800 font-semibold text-sm"
               >
-                Upload Repayment Proof{" "}
-                <span className="text-destructive">*</span>
-              </Label>
-              <div className="flex items-center gap-2 text-gray-800 font-semibold text-sm">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-28 bg-transparent"
-                >
-                  Choose File
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  No file chosen
-                </span>
-              </div>
+                Monthly Rental Income (Nu.)
+              </label>
             </div>
+            <Input
+              type="number"
+              disabled={!incomeData.enableRentalIncome}
+              value={incomeData.rentalIncome || ""}
+              onChange={(e) =>
+                handleIncomeChange("rentalIncome", e.target.value)
+              }
+              placeholder="Amount"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+            />
+          </div>
 
-            <div className="space-y-3">
-              <Label
-                htmlFor="repayment-guarantor"
+          {/* Business Income */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="chk-business"
+                checked={incomeData.enableBusinessIncome || false}
+                onChange={(e) =>
+                  handleIncomeChange("enableBusinessIncome", e.target.checked)
+                }
+                className="h-4 w-4 rounded border-gray-400"
+              />
+              <label
+                htmlFor="chk-business"
                 className="text-gray-800 font-semibold text-sm"
               >
-                Is Repayment Guarantor Applicable?{" "}
-                <span className="text-destructive">*</span>
-              </Label>
-              <div className="w-full h-12" style={{ minHeight: "48px" }}>
-                <Select
-                  value={incomeData.repaymentGuarantor}
-                  onValueChange={(value) =>
-                    handleIncomeChange("repaymentGuarantor", value)
-                  }
-                >
-                  <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="yes">Yes</SelectItem>
-                    <SelectItem value="no">No</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                Business Income (Nu.)
+              </label>
             </div>
+            <Input
+              type="number"
+              disabled={!incomeData.enableBusinessIncome}
+              value={incomeData.businessIncome || ""}
+              onChange={(e) =>
+                handleIncomeChange("businessIncome", e.target.value)
+              }
+              placeholder="Amount"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+            />
+          </div>
+
+          {/* Vehicle Hiring */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="chk-vehicle"
+                checked={incomeData.enableVehicleHiring || false}
+                onChange={(e) =>
+                  handleIncomeChange("enableVehicleHiring", e.target.checked)
+                }
+                className="h-4 w-4 rounded border-gray-400"
+              />
+              <label
+                htmlFor="chk-vehicle"
+                className="text-gray-800 font-semibold text-sm"
+              >
+                Vehicle Hiring Income (Nu.)
+              </label>
+            </div>
+            <Input
+              type="number"
+              disabled={!incomeData.enableVehicleHiring}
+              value={incomeData.vehicleHiringIncome || ""}
+              onChange={(e) =>
+                handleIncomeChange("vehicleHiringIncome", e.target.value)
+              }
+              placeholder="Amount"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+            />
+          </div>
+
+          {/* Dividend Income */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="chk-dividend"
+                checked={incomeData.enableDividendIncome || false}
+                onChange={(e) =>
+                  handleIncomeChange("enableDividendIncome", e.target.checked)
+                }
+                className="h-4 w-4 rounded border-gray-400"
+              />
+              <label
+                htmlFor="chk-dividend"
+                className="text-gray-800 font-semibold text-sm"
+              >
+                Dividend Income (Nu.)
+              </label>
+            </div>
+            <Input
+              type="number"
+              disabled={!incomeData.enableDividendIncome}
+              value={incomeData.dividendIncome || ""}
+              onChange={(e) =>
+                handleIncomeChange("dividendIncome", e.target.value)
+              }
+              placeholder="Amount"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+            />
+          </div>
+
+          {/* Agriculture Income */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="chk-agri"
+                checked={incomeData.enableAgricultureIncome || false}
+                onChange={(e) =>
+                  handleIncomeChange(
+                    "enableAgricultureIncome",
+                    e.target.checked,
+                  )
+                }
+                className="h-4 w-4 rounded border-gray-400"
+              />
+              <label
+                htmlFor="chk-agri"
+                className="text-gray-800 font-semibold text-sm"
+              >
+                Agriculture Income (Nu.)
+              </label>
+            </div>
+            <Input
+              type="number"
+              disabled={!incomeData.enableAgricultureIncome}
+              value={incomeData.agricultureIncome || ""}
+              onChange={(e) =>
+                handleIncomeChange("agricultureIncome", e.target.value)
+              }
+              placeholder="Amount"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+            />
+          </div>
+
+          {/* Truck/Taxi Income */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="chk-truck"
+                checked={incomeData.enableTruckTaxiIncome || false}
+                onChange={(e) =>
+                  handleIncomeChange("enableTruckTaxiIncome", e.target.checked)
+                }
+                className="h-4 w-4 rounded border-gray-400"
+              />
+              <label
+                htmlFor="chk-truck"
+                className="text-gray-800 font-semibold text-sm"
+              >
+                Truck/Taxi Income (Nu.)
+              </label>
+            </div>
+            <Input
+              type="number"
+              disabled={!incomeData.enableTruckTaxiIncome}
+              value={incomeData.truckTaxiIncome || ""}
+              onChange={(e) =>
+                handleIncomeChange("truckTaxiIncome", e.target.value)
+              }
+              placeholder="Amount"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+            />
           </div>
         </div>
 
-        {/* DYNAMIC GUARANTORS LOOP */}
-        {incomeData.repaymentGuarantor === "yes" && (
-        <>
-        {guarantors.map((guarantor, index) => {
-          const currentPermGewogOptions =
-            dynamicGewogOptions[`${index}-perm`] || [];
-          const currentCurrGewogOptions =
-            dynamicGewogOptions[`${index}-curr`] || [];
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+          {/* FIXED: Repayment Proof File Upload */}
+          <div className="space-y-3">
+            <Label className="text-gray-800 font-semibold text-sm">
+              Upload Repayment Proof <span className="text-destructive">*</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                className="hidden"
+                id="repayment-proof"
+                onChange={(e) =>
+                  handleRepaymentProofChange(e.target.files?.[0] || null)
+                }
+              />
+              <Button
+                variant="outline"
+                type="button"
+                className="h-12 bg-transparent"
+                onClick={() =>
+                  document.getElementById("repayment-proof")?.click()
+                }
+              >
+                Choose File
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {incomeData.repaymentProof
+                  ? incomeData.repaymentProof.name
+                  : "No file chosen"}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label className="text-gray-800 font-semibold text-sm">
+              Is Repayment Guarantor Applicable?{" "}
+              <span className="text-destructive">*</span>
+            </Label>
+            <Select
+              value={incomeData.repaymentGuarantor}
+              onValueChange={(val) =>
+                handleIncomeChange("repaymentGuarantor", val)
+              }
+            >
+              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                <SelectValue placeholder="[Select]" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yes">Yes</SelectItem>
+                <SelectItem value="no">No</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. GUARANTORS SECTION */}
+      {incomeData.repaymentGuarantor === "yes" &&
+        guarantors.map((guarantor, index) => {
+          const errors = guarantor.errors || {};
           const isPermBhutan = isBhutan(guarantor.permCountry);
           const isCurrBhutan = isBhutan(guarantor.currCountry);
+          const isMarried = getIsMarried(guarantor);
 
           return (
             <div key={index} className="space-y-10">
+              <DocumentPopup
+                open={guarantor.showLookupPopup}
+                onOpenChange={(v) => {
+                  if (!v)
+                    setGuarantors((p) => {
+                      const u = [...p];
+                      u[index].showLookupPopup = false;
+                      return u;
+                    });
+                }}
+                searchStatus={guarantor.lookupStatus}
+                onProceed={() => handleLookupProceed(index)}
+              />
+
+              {/* A. PERSONAL DETAILS */}
               <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-4">
                   <h2 className="text-2xl font-bold text-[#003DA5]">
-                    Guarantor {index + 1}
+                    Guarantor {index + 1} Personal Details
                   </h2>
                   {guarantors.length > 1 && (
                     <Button
@@ -677,184 +906,88 @@ export function RepaymentSourceForm({
                       size="sm"
                       onClick={() => removeGuarantor(index)}
                     >
-                      Remove Guarantor
+                      <Trash2 className="w-4 h-4 mr-2" /> Remove
                     </Button>
                   )}
                 </div>
 
-                {/* Row 1 - Identification Type, Number, Issue Date */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Row 1: ID Type, ID No, Issue Date */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`id-type-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
+                    <Label className="text-sm font-semibold">
                       Identification Type{" "}
-                      <span className="text-destructive">*</span>
+                      <span className="text-red-500">*</span>
                     </Label>
-                    <div className="w-full h-12" style={{ minHeight: "48px" }}>
-                      <Select
-                        value={guarantor.idType}
-                        onValueChange={(value) =>
-                          handleGuarantorChange(index, "idType", value)
-                        }
-                      >
-                        <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {identificationTypeOptions.length > 0 ? (
-                            identificationTypeOptions.map((option, idx) => (
-                              <SelectItem
-                                key={option.identity_type_pk_code || idx}
-                                value={String(
-                                  option.identity_type_pk_code || option.id,
-                                )}
-                              >
-                                {option.identity_type || option.name}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <SelectItem value="loading" disabled>
-                              Loading...
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label
-                      htmlFor={`id-number-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
+                    <Select
+                      value={guarantor.idType}
+                      onValueChange={(val) =>
+                        updateGuarantorField(index, "idType", val)
+                      }
                     >
-                      Identification No.{" "}
-                      <span className="text-destructive">*</span>
+                      <SelectTrigger
+                        className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] ${errors.idType ? "border-red-500" : ""}`}
+                      >
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {identificationTypeOptions.map((opt, i) => (
+                          <SelectItem
+                            key={i}
+                            value={String(opt.identity_type_pk_code || opt.id)}
+                          >
+                            {opt.identity_type || opt.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
+                      Identification No. <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                      id={`id-number-${index}`}
-                      placeholder="Enter ID Number"
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       value={guarantor.idNumber || ""}
                       onChange={(e) =>
-                        handleGuarantorChange(index, "idNumber", e.target.value)
+                        updateGuarantorField(index, "idNumber", e.target.value)
                       }
-                      // TRIGGER SEARCH ON BLUR
-                      onBlur={() => handleGuarantorIdentityCheck(index)}
+                      onBlur={() => handleIdentityCheck(index)}
+                      className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] ${errors.idNumber ? "border-red-500" : ""}`}
+                      placeholder="Enter ID"
                     />
                   </div>
-
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`id-issue-date-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Identification Issue Date{" "}
-                      <span className="text-destructive">*</span>
+                    <Label className="text-sm font-semibold">
+                      Salutation <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      id={`id-issue-date-${index}`}
-                      type="date"
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      value={formatDateForInput(guarantor.idIssueDate)}
-                      onChange={(e) =>
-                        handleGuarantorChange(
-                          index,
-                          "idIssueDate",
-                          e.target.value,
-                        )
+                    <Select
+                      value={guarantor.salutation}
+                      onValueChange={(val) =>
+                        updateGuarantorField(index, "salutation", val)
                       }
-                    />
+                    >
+                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mr">Mr.</SelectItem>
+                        <SelectItem value="mrs">Mrs.</SelectItem>
+                        <SelectItem value="ms">Ms.</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
-                {/* Row 2: Expiry Date, TPN */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Row 2: Salutation, Name, Nationality */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`id-expiry-date-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Identification Expiry Date{" "}
-                      <span className="text-destructive">*</span>
+                    <Label className="text-sm font-semibold">
+                      Guarantor Name <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                      id={`id-expiry-date-${index}`}
-                      type="date"
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      value={formatDateForInput(guarantor.idExpiryDate)}
-                      onChange={(e) =>
-                        handleGuarantorChange(
-                          index,
-                          "idExpiryDate",
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <Label
-                      htmlFor={`tpn-no-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      TPN No.
-                    </Label>
-                    <Input
-                      id={`tpn-no-${index}`}
-                      placeholder="Enter TPN Number"
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      value={guarantor.tpnNo || ""}
-                      onChange={(e) =>
-                        handleGuarantorChange(index, "tpnNo", e.target.value)
-                      }
-                    />
-                  </div>
-                </div>
-
-                {/* Row 3: Salutation, Name, Nationality */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="space-y-3">
-                    <Label
-                      htmlFor={`salutation-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Salutation <span className="text-destructive">*</span>
-                    </Label>
-                    <div className="w-full h-12" style={{ minHeight: "48px" }}>
-                      <Select
-                        value={guarantor.salutation}
-                        onValueChange={(value) =>
-                          handleGuarantorChange(index, "salutation", value)
-                        }
-                      >
-                        <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="mr">Mr.</SelectItem>
-                          <SelectItem value="mrs">Mrs.</SelectItem>
-                          <SelectItem value="ms">Ms.</SelectItem>
-                          <SelectItem value="dr">Dr.</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label
-                      htmlFor={`guarantor-name-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Guarantor Name <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id={`guarantor-name-${index}`}
-                      placeholder="Enter Full Name"
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] ${errors.guarantorName ? "border-red-500" : ""}`}
                       value={guarantor.guarantorName || ""}
                       onChange={(e) =>
-                        handleGuarantorChange(
+                        updateGuarantorField(
                           index,
                           "guarantorName",
                           e.target.value,
@@ -864,55 +997,114 @@ export function RepaymentSourceForm({
                   </div>
 
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`nationality-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Nationality <span className="text-destructive">*</span>
+                    <Label className="text-sm font-semibold">
+                      Nationality <span className="text-red-500">*</span>
                     </Label>
-                    <div className="w-full h-12" style={{ minHeight: "48px" }}>
-                      <Select
-                        value={guarantor.nationality}
-                        onValueChange={(value) =>
-                          handleGuarantorChange(index, "nationality", value)
-                        }
-                      >
-                        <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {nationalityOptions.map((option, idx) => (
-                            <SelectItem
-                              key={option.nationality_pk_code || idx}
-                              value={String(
-                                option.nationality_pk_code || option.id,
-                              )}
-                            >
-                              {option.nationality || option.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Select
+                      value={guarantor.nationality}
+                      onValueChange={(val) =>
+                        updateGuarantorField(index, "nationality", val)
+                      }
+                    >
+                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {nationalityOptions.map((opt, i) => (
+                          <SelectItem
+                            key={i}
+                            value={String(opt.nationality_pk_code || opt.id)}
+                          >
+                            {opt.nationality || opt.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
+                      Gender <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={guarantor.gender}
+                      onValueChange={(val) =>
+                        updateGuarantorField(index, "gender", val)
+                      }
+                    >
+                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {/* Row 2: Expiry, TPN */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
+                      Identification Issue Date{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      value={formatDateForInput(guarantor.idIssueDate)}
+                      onChange={(e) =>
+                        updateGuarantorField(
+                          index,
+                          "idIssueDate",
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
+                      Identification Expiry Date{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      value={formatDateForInput(guarantor.idExpiryDate)}
+                      onChange={(e) =>
+                        updateGuarantorField(
+                          index,
+                          "idExpiryDate",
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">TPN No.</Label>
+                    <Input
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      placeholder="Enter TPN"
+                      value={guarantor.tpnNo || ""}
+                      onChange={(e) =>
+                        updateGuarantorField(index, "tpnNo", e.target.value)
+                      }
+                    />
                   </div>
                 </div>
 
-                {/* Row 4: DOB, Marital Status, Gender */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Row 4: DOB, Marital, Gender */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`dob-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Date of Birth <span className="text-destructive">*</span>
+                    <Label className="text-sm font-semibold">
+                      Date of Birth <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                      id={`dob-${index}`}
                       type="date"
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      max={maxDobDate}
                       value={formatDateForInput(guarantor.dateOfBirth)}
                       onChange={(e) =>
-                        handleGuarantorChange(
+                        updateGuarantorField(
                           index,
                           "dateOfBirth",
                           e.target.value,
@@ -920,357 +1112,393 @@ export function RepaymentSourceForm({
                       }
                     />
                   </div>
-
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`marital-status-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Marital Status <span className="text-destructive">*</span>
+                    <Label className="text-sm font-semibold">
+                      Marital Status <span className="text-red-500">*</span>
                     </Label>
-                    <div className="w-full h-12" style={{ minHeight: "48px" }}>
-                      <Select
-                        value={guarantor.maritalStatus}
-                        onValueChange={(value) =>
-                          handleGuarantorChange(index, "maritalStatus", value)
-                        }
-                      >
-                        <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {maritalStatusOptions.map((option, idx) => (
-                            <SelectItem
-                              key={option.marital_status_pk_code || idx}
-                              value={String(
-                                option.marital_status_pk_code || option.id,
-                              )}
-                            >
-                              {option.marital_status || option.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Select
+                      value={guarantor.maritalStatus}
+                      onValueChange={(val) =>
+                        updateGuarantorField(index, "maritalStatus", val)
+                      }
+                    >
+                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {maritalStatusOptions.map((opt, i) => (
+                          <SelectItem
+                            key={i}
+                            value={String(opt.marital_status_pk_code || opt.id)}
+                          >
+                            {opt.marital_status || opt.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-
+                  {/* SPOUSE PERSONAL INFORMATION */}
+                  {isMarried && (
+                    <div className="space-y-4 pt-4 border-t border-gray-200">
+                      <h3 className="text-lg font-bold text-[#003DA5]">
+                        Spouse Personal Information
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-3">
+                          <Label className="text-sm font-semibold">
+                            Spouse Name
+                          </Label>
+                          <Input
+                            className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                            placeholder="Enter Spouse Name"
+                            value={guarantor.spouseName || ""}
+                            onChange={(e) =>
+                              updateGuarantorField(
+                                index,
+                                "spouseName",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-3">
+                          <Label className="text-sm font-semibold">
+                            Spouse CID No.
+                          </Label>
+                          <Input
+                            className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                            placeholder="Enter Spouse CID"
+                            value={guarantor.spouseCid || ""}
+                            onChange={(e) =>
+                              updateGuarantorField(
+                                index,
+                                "spouseCid",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-3">
+                          <Label className="text-sm font-semibold">
+                            Spouse Contact No.
+                          </Label>
+                          <Input
+                            className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                            placeholder="Enter Spouse Contact"
+                            value={guarantor.spouseContact || ""}
+                            onChange={(e) =>
+                              updateGuarantorField(
+                                index,
+                                "spouseContact",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`gender-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Gender <span className="text-destructive">*</span>
+                    <Label className="text-sm font-semibold">
+                      Upload Family Tree
                     </Label>
-                    <div className="w-full h-12" style={{ minHeight: "48px" }}>
-                      <Select
-                        value={guarantor.gender}
-                        onValueChange={(value) =>
-                          handleGuarantorChange(index, "gender", value)
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        className="hidden"
+                        id={`ft-${index}`}
+                        onChange={(e) =>
+                          handleFileChange(
+                            index,
+                            "familyTree",
+                            e.target.files?.[0] || null,
+                          )
+                        }
+                      />
+                      <Button
+                        variant="outline"
+                        type="button"
+                        className="h-12 w-28"
+                        onClick={() =>
+                          document.getElementById(`ft-${index}`)?.click()
                         }
                       >
-                        <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        Choose File
+                      </Button>
+                      <span className="text-sm text-gray-500">
+                        {guarantor.familyTree || "No file chosen"}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Row 5: Spouse Info & Family Tree */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5 sm:space-y-2.5">
                     <Label
-                      htmlFor={`spouse-name-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
+                      htmlFor={`bankName-${index}`}
+                      className="text-gray-800 font-semibold text-xs sm:text-sm"
                     >
-                      Spouse Name
+                      Name of Bank <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      id={`spouse-name-${index}`}
-                      placeholder="Enter Spouse Name"
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      value={guarantor.spouseName || ""}
-                      onChange={(e) =>
-                        handleGuarantorChange(
-                          index,
-                          "spouseName",
-                          e.target.value,
-                        )
+                    <Select
+                      value={guarantor.bankName}
+                      onValueChange={(value) =>
+                        updateGuarantorField(index, "bankName", value)
                       }
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <Label
-                      htmlFor={`spouse-cid-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
                     >
-                      Spouse CID No.
-                    </Label>
-                    <Input
-                      id={`spouse-cid-${index}`}
-                      placeholder="Enter Spouse CID"
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      value={guarantor.spouseCid || ""}
-                      onChange={(e) =>
-                        handleGuarantorChange(
-                          index,
-                          "spouseCid",
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
+                      <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent sideOffset={4}>
+                        {banksOptions.length > 0 ? (
+                          banksOptions.map((option, optionIndex) => {
+                            const key =
+                              option.bank_pk_code ||
+                              option.id ||
+                              option.code ||
+                              option.bank_code ||
+                              `bank-${optionIndex}`;
+                            const value = String(
+                              option.bank_pk_code ||
+                                option.id ||
+                                option.code ||
+                                option.bank_code ||
+                                optionIndex,
+                            );
+                            const label =
+                              option.bank_name ||
+                              option.name ||
+                              option.label ||
+                              option.bankName ||
+                              option.bank ||
+                              "Unknown";
 
-                  <div className="space-y-3">
+                            return (
+                              <SelectItem key={key} value={value}>
+                                {label}
+                              </SelectItem>
+                            );
+                          })
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            Loading...
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5 sm:space-y-2.5">
                     <Label
-                      htmlFor={`spouse-contact-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
+                      htmlFor={`bankAccount-${index}`}
+                      className="text-gray-800 font-semibold text-xs sm:text-sm"
                     >
-                      Spouse Contact No.
+                      Bank Saving Account No{" "}
+                      <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                      id={`spouse-contact-${index}`}
-                      placeholder="Enter Contact Number"
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      value={guarantor.spouseContact || ""}
+                      id={`bankAccount-${index}`}
+                      placeholder="Enter saving account number"
+                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                      value={guarantor.bankAccount || ""}
                       onChange={(e) =>
-                        handleGuarantorChange(
+                        updateGuarantorField(
                           index,
-                          "spouseContact",
+                          "bankAccount",
                           e.target.value,
                         )
                       }
                     />
                   </div>
                 </div>
+
                 <div className="space-y-3">
-                  <Label
-                    htmlFor={`family-tree-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Upload Family Tree
+                  <Label className="text-sm font-semibold">
+                    Passport Size Photo
                   </Label>
                   <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      className="hidden"
+                      id={`passport-${index}`}
+                      accept="image/*"
+                      onChange={(e) =>
+                        handleFileChange(
+                          index,
+                          "passportPhoto",
+                          e.target.files?.[0] || null,
+                        )
+                      }
+                    />
                     <Button
-                      type="button"
                       variant="outline"
-                      size="sm"
-                      className="w-28 bg-transparent"
+                      type="button"
+                      className="h-12 w-28"
+                      onClick={() =>
+                        document.getElementById(`passport-${index}`)?.click()
+                      }
                     >
                       Choose File
                     </Button>
-                    <span className="text-sm text-muted-foreground">
-                      No file chosen
+                    <span className="text-sm text-gray-500">
+                      {guarantor.passportPhoto || "No file chosen"}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Permanent Address */}
+              {/* B. PERMANENT ADDRESS */}
               <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
                   Permanent Address (Guarantor {index + 1})
                 </h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`perm-country-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Country <span className="text-destructive">*</span>
+                    <Label className="text-sm font-semibold">
+                      Country <span className="text-red-500">*</span>
                     </Label>
-                    <div className="w-full h-12" style={{ minHeight: "48px" }}>
+                    <Select
+                      value={guarantor.permCountry}
+                      onValueChange={(val) =>
+                        updateGuarantorField(index, "permCountry", val)
+                      }
+                    >
+                      <SelectTrigger
+                        className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] ${errors.permCountry ? "border-red-500" : ""}`}
+                      >
+                        <SelectValue placeholder="[Select Country]" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countryOptions.map((opt, i) => (
+                          <SelectItem
+                            key={i}
+                            value={String(opt.country_pk_code || opt.id)}
+                          >
+                            {opt.country || opt.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
+                      {isPermBhutan ? "Dzongkhag" : "State"}{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    {isPermBhutan ? (
                       <Select
-                        value={guarantor.permCountry}
-                        onValueChange={(value) =>
-                          handleGuarantorChange(index, "permCountry", value)
+                        value={guarantor.permDzongkhag}
+                        onValueChange={(val) =>
+                          updateGuarantorField(index, "permDzongkhag", val)
                         }
                       >
-                        <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                          <SelectValue placeholder="[Select Country]" />
+                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent>
-                          {countryOptions.map((option, idx) => (
+                          {dzongkhagOptions.map((opt, i) => (
                             <SelectItem
-                              key={option.country_pk_code || idx}
-                              value={String(
-                                option.country_pk_code || option.id,
-                              )}
+                              key={i}
+                              value={String(opt.dzongkhag_pk_code || opt.id)}
                             >
-                              {option.country || option.name}
+                              {opt.dzongkhag || opt.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label
-                      htmlFor={`perm-dzongkhag-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      {isPermBhutan ? "Dzongkhag" : "State"}{" "}
-                      <span className="text-destructive">*</span>
-                    </Label>
-                    {!isPermBhutan ? (
+                    ) : (
                       <Input
-                        id={`perm-dzongkhag-${index}`}
+                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                         placeholder="Enter State"
-                        className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         value={guarantor.permDzongkhag || ""}
                         onChange={(e) =>
-                          handleGuarantorChange(
+                          updateGuarantorField(
                             index,
                             "permDzongkhag",
                             e.target.value,
                           )
                         }
                       />
-                    ) : (
-                      <div
-                        className="w-full h-12"
-                        style={{ minHeight: "48px" }}
-                      >
-                        <Select
-                          value={guarantor.permDzongkhag || ""}
-                          onValueChange={(value) =>
-                            handleDzongkhagChange(index, "perm", value)
-                          }
-                          disabled={!guarantor.permCountry}
-                        >
-                          <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                            <SelectValue placeholder="[Select Dzongkhag]" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {dzongkhagOptions.map((option, idx) => (
-                              <SelectItem
-                                key={option.dzongkhag_pk_code || idx}
-                                value={String(
-                                  option.dzongkhag_pk_code || option.id,
-                                )}
-                              >
-                                {option.dzongkhag || option.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
                     )}
                   </div>
 
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`perm-gewog-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
+                    <Label className="text-sm font-semibold">
                       {isPermBhutan ? "Gewog" : "Province"}{" "}
-                      <span className="text-destructive">*</span>
+                      <span className="text-red-500">*</span>
                     </Label>
-                    {!isPermBhutan ? (
+                    {isPermBhutan ? (
+                      <Select
+                        value={guarantor.permGewog}
+                        onValueChange={(val) =>
+                          updateGuarantorField(index, "permGewog", val)
+                        }
+                        disabled={!guarantor.permDzongkhag}
+                      >
+                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {guarantor.permGewogOptions?.map(
+                            (opt: any, i: number) => (
+                              <SelectItem
+                                key={i}
+                                value={String(opt.gewog_pk_code || opt.id)}
+                              >
+                                {opt.gewog || opt.name}
+                              </SelectItem>
+                            ),
+                          )}
+                        </SelectContent>
+                      </Select>
+                    ) : (
                       <Input
-                        id={`perm-gewog-${index}`}
+                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                         placeholder="Enter Province"
-                        className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         value={guarantor.permGewog || ""}
                         onChange={(e) =>
-                          handleGuarantorChange(
+                          updateGuarantorField(
                             index,
                             "permGewog",
                             e.target.value,
                           )
                         }
                       />
-                    ) : (
-                      <div
-                        className="w-full h-12"
-                        style={{ minHeight: "48px" }}
-                      >
-                        <Select
-                          value={guarantor.permGewog || ""}
-                          onValueChange={(value) =>
-                            handleGuarantorChange(index, "permGewog", value)
-                          }
-                          disabled={!guarantor.permDzongkhag}
-                        >
-                          <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                            <SelectValue placeholder="[Select Gewog]" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {currentPermGewogOptions.length > 0 ? (
-                              currentPermGewogOptions.map((option, idx) => (
-                                <SelectItem
-                                  key={option.gewog_pk_code || idx}
-                                  value={String(
-                                    option.gewog_pk_code || option.id,
-                                  )}
-                                >
-                                  {option.gewog || option.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="empty" disabled>
-                                {guarantor.permDzongkhag
-                                  ? "Loading..."
-                                  : "Select Dzongkhag"}
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`perm-village-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
+                    <Label className="text-sm font-semibold">
                       {isPermBhutan ? "Village/Street" : "Street"}{" "}
-                      <span className="text-destructive">*</span>
+                      <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                      id={`perm-village-${index}`}
-                      placeholder={
-                        isPermBhutan ? "Enter Village/Street" : "Enter Street"
-                      }
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                       value={guarantor.permVillage || ""}
                       onChange={(e) =>
-                        handleGuarantorChange(
+                        updateGuarantorField(
                           index,
                           "permVillage",
                           e.target.value,
                         )
                       }
-                      disabled={!guarantor.permCountry}
                     />
                   </div>
 
-                  {isPermBhutan && (
+                  {isPermBhutan ? (
                     <>
                       <div className="space-y-3">
-                        <Label
-                          htmlFor={`perm-thram-${index}`}
-                          className="text-gray-800 font-semibold text-sm"
-                        >
+                        <Label className="text-sm font-semibold">
                           Thram No
                         </Label>
                         <Input
-                          id={`perm-thram-${index}`}
-                          placeholder="Enter Thram No"
-                          className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                           value={guarantor.permThram || ""}
                           onChange={(e) =>
-                            handleGuarantorChange(
+                            updateGuarantorField(
                               index,
                               "permThram",
                               e.target.value,
@@ -1278,21 +1506,15 @@ export function RepaymentSourceForm({
                           }
                         />
                       </div>
-
                       <div className="space-y-3">
-                        <Label
-                          htmlFor={`perm-house-${index}`}
-                          className="text-gray-800 font-semibold text-sm"
-                        >
+                        <Label className="text-sm font-semibold">
                           House No
                         </Label>
                         <Input
-                          id={`perm-house-${index}`}
-                          placeholder="Enter House No"
-                          className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                           value={guarantor.permHouse || ""}
                           onChange={(e) =>
-                            handleGuarantorChange(
+                            updateGuarantorField(
                               index,
                               "permHouse",
                               e.target.value,
@@ -1301,576 +1523,731 @@ export function RepaymentSourceForm({
                         />
                       </div>
                     </>
+                  ) : (
+                    <>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          City <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          value={guarantor.permCity || ""}
+                          onChange={(e) =>
+                            updateGuarantorField(
+                              index,
+                              "permCity",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Postal/ZIP Code
+                        </Label>
+                        <Input
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          value={guarantor.permPostal || ""}
+                          onChange={(e) =>
+                            updateGuarantorField(
+                              index,
+                              "permPostal",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
+
+                {/* Perm Address Proof - Only for non-Bhutan */}
                 {!isPermBhutan && guarantor.permCountry && (
-                  <div className="space-y-2 mt-4">
-                    <Label
-                      htmlFor={`perm-address-proof-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
                       Upload Address Proof Document{" "}
-                      <span className="text-destructive">*</span>
+                      <span className="text-red-500">*</span>
                     </Label>
                     <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        className="hidden"
+                        id={`pap-${index}`}
+                        onChange={(e) =>
+                          handleFileChange(
+                            index,
+                            "permAddressProof",
+                            e.target.files?.[0] || null,
+                          )
+                        }
+                      />
                       <Button
-                        type="button"
                         variant="outline"
-                        size="sm"
-                        className="w-28 bg-transparent"
+                        type="button"
+                        className="h-12 w-28"
+                        onClick={() =>
+                          document.getElementById(`pap-${index}`)?.click()
+                        }
                       >
                         Choose File
                       </Button>
-                      <span className="text-sm text-muted-foreground">
-                        No file chosen
+                      <span className="text-sm text-gray-500">
+                        {guarantor.permAddressProof || "No file chosen"}
                       </span>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Current/Residential Address */}
+              {/* C. CURRENT ADDRESS */}
               <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
                   Current/Residential Address (Guarantor {index + 1})
                 </h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`curr-country-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Country of Resident{" "}
-                      <span className="text-destructive">*</span>
+                    <Label className="text-sm font-semibold">
+                      Country <span className="text-red-500">*</span>
                     </Label>
-                    <div className="w-full h-12" style={{ minHeight: "48px" }}>
+                    <Select
+                      value={guarantor.currCountry}
+                      onValueChange={(val) =>
+                        updateGuarantorField(index, "currCountry", val)
+                      }
+                    >
+                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectValue placeholder="[Select Country]" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countryOptions.map((opt, i) => (
+                          <SelectItem
+                            key={i}
+                            value={String(opt.country_pk_code || opt.id)}
+                          >
+                            {opt.country || opt.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
+                      {isCurrBhutan ? "Dzongkhag" : "State"}{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    {isCurrBhutan ? (
                       <Select
-                        value={guarantor.currCountry}
-                        onValueChange={(value) =>
-                          handleGuarantorChange(index, "currCountry", value)
+                        value={guarantor.currDzongkhag}
+                        onValueChange={(val) =>
+                          updateGuarantorField(index, "currDzongkhag", val)
                         }
                       >
-                        <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                          <SelectValue placeholder="[Select Country]" />
+                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent>
-                          {countryOptions.map((option, idx) => (
+                          {dzongkhagOptions.map((opt, i) => (
                             <SelectItem
-                              key={option.country_pk_code || idx}
-                              value={String(
-                                option.country_pk_code || option.id,
-                              )}
+                              key={i}
+                              value={String(opt.dzongkhag_pk_code || opt.id)}
                             >
-                              {option.country || option.name}
+                              {opt.dzongkhag || opt.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label
-                      htmlFor={`curr-dzongkhag-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      {isCurrBhutan ? "Dzongkhag" : "State"}{" "}
-                      <span className="text-destructive">*</span>
-                    </Label>
-                    {!isCurrBhutan ? (
+                    ) : (
                       <Input
-                        id={`curr-dzongkhag-${index}`}
+                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                         placeholder="Enter State"
-                        className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         value={guarantor.currDzongkhag || ""}
                         onChange={(e) =>
-                          handleGuarantorChange(
+                          updateGuarantorField(
                             index,
                             "currDzongkhag",
                             e.target.value,
                           )
                         }
                       />
-                    ) : (
-                      <div
-                        className="w-full h-12"
-                        style={{ minHeight: "48px" }}
-                      >
-                        <Select
-                          value={guarantor.currDzongkhag || ""}
-                          onValueChange={(value) =>
-                            handleDzongkhagChange(index, "curr", value)
-                          }
-                          disabled={!guarantor.currCountry}
-                        >
-                          <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                            <SelectValue placeholder="[Select Dzongkhag]" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {dzongkhagOptions.map((option, idx) => (
-                              <SelectItem
-                                key={option.dzongkhag_pk_code || idx}
-                                value={String(
-                                  option.dzongkhag_pk_code || option.id,
-                                )}
-                              >
-                                {option.dzongkhag || option.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
                     )}
                   </div>
 
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`curr-gewog-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
+                    <Label className="text-sm font-semibold">
                       {isCurrBhutan ? "Gewog" : "Province"}{" "}
-                      <span className="text-destructive">*</span>
+                      <span className="text-red-500">*</span>
                     </Label>
-                    {!isCurrBhutan ? (
+                    {isCurrBhutan ? (
+                      <Select
+                        value={guarantor.currGewog}
+                        onValueChange={(val) =>
+                          updateGuarantorField(index, "currGewog", val)
+                        }
+                        disabled={!guarantor.currDzongkhag}
+                      >
+                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {guarantor.currGewogOptions?.map(
+                            (opt: any, i: number) => (
+                              <SelectItem
+                                key={i}
+                                value={String(opt.gewog_pk_code || opt.id)}
+                              >
+                                {opt.gewog || opt.name}
+                              </SelectItem>
+                            ),
+                          )}
+                        </SelectContent>
+                      </Select>
+                    ) : (
                       <Input
-                        id={`curr-gewog-${index}`}
+                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                         placeholder="Enter Province"
-                        className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         value={guarantor.currGewog || ""}
                         onChange={(e) =>
-                          handleGuarantorChange(
+                          updateGuarantorField(
                             index,
                             "currGewog",
                             e.target.value,
                           )
                         }
                       />
-                    ) : (
-                      <div
-                        className="w-full h-12"
-                        style={{ minHeight: "48px" }}
-                      >
-                        <Select
-                          value={guarantor.currGewog || ""}
-                          onValueChange={(value) =>
-                            handleGuarantorChange(index, "currGewog", value)
-                          }
-                          disabled={!guarantor.currDzongkhag}
-                        >
-                          <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                            <SelectValue placeholder="[Select Gewog]" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {currentCurrGewogOptions.length > 0 ? (
-                              currentCurrGewogOptions.map((option, idx) => (
-                                <SelectItem
-                                  key={option.gewog_pk_code || idx}
-                                  value={String(
-                                    option.gewog_pk_code || option.id,
-                                  )}
-                                >
-                                  {option.gewog || option.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="empty" disabled>
-                                {guarantor.currDzongkhag
-                                  ? "Loading..."
-                                  : "Select Dzongkhag"}
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`curr-village-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
+                    <Label className="text-sm font-semibold">
                       {isCurrBhutan ? "Village/Street" : "Street"}{" "}
-                      <span className="text-destructive">*</span>
+                      <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                      id={`curr-village-${index}`}
-                      placeholder={
-                        isCurrBhutan ? "Enter Village/Street" : "Enter Street"
-                      }
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                       value={guarantor.currVillage || ""}
                       onChange={(e) =>
-                        handleGuarantorChange(
+                        updateGuarantorField(
                           index,
                           "currVillage",
                           e.target.value,
                         )
                       }
-                      disabled={!guarantor.currCountry}
                     />
                   </div>
-
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`curr-house-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
+                    <Label className="text-sm font-semibold">
                       House/Building/Flat No.
                     </Label>
                     <Input
-                      id={`curr-house-${index}`}
-                      placeholder="Enter House/Building/Flat No"
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                       value={guarantor.currHouse || ""}
                       onChange={(e) =>
-                        handleGuarantorChange(
+                        updateGuarantorField(index, "currHouse", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  {!isCurrBhutan && (
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold">
+                        City <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                        value={guarantor.currCity || ""}
+                        onChange={(e) =>
+                          updateGuarantorField(
+                            index,
+                            "currCity",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+                {!isCurrBhutan && (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
+                      Postal/ZIP Code
+                    </Label>
+                    <Input
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      value={guarantor.currPostal || ""}
+                      onChange={(e) =>
+                        updateGuarantorField(
                           index,
-                          "currHouse",
+                          "currPostal",
                           e.target.value,
                         )
                       }
-                      disabled={!guarantor.currCountry}
                     />
                   </div>
+                )}
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-3">
-                    <Label
-                      htmlFor={`email-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Email Address <span className="text-destructive">*</span>
+                    <Label className="text-sm font-semibold">
+                      Email <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                      id={`email-${index}`}
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                       type="email"
-                      placeholder="Enter Email Address"
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       value={guarantor.email || ""}
                       onChange={(e) =>
-                        handleGuarantorChange(index, "email", e.target.value)
+                        updateGuarantorField(index, "email", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
+                      Contact Number <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      value={guarantor.contact || ""}
+                      onChange={(e) =>
+                        updateGuarantorField(index, "contact", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
+                      Alternate Contact Number{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      value={guarantor.contact || ""}
+                      onChange={(e) =>
+                        updateGuarantorField(index, "contact", e.target.value)
                       }
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="space-y-3">
-                    <Label
-                      htmlFor={`contact-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Contact Number <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id={`contact-${index}`}
-                      placeholder="Enter Contact Number"
-                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      value={guarantor.contact || ""}
-                      onChange={(e) =>
-                        handleGuarantorChange(index, "contact", e.target.value)
-                      }
-                    />
-                  </div>
-                </div>
+                {/* Curr Address Proof - Only for non-Bhutan */}
                 {!isCurrBhutan && guarantor.currCountry && (
-                  <div className="space-y-2 mt-4">
-                    <Label
-                      htmlFor={`curr-address-proof-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
                       Upload Address Proof Document{" "}
-                      <span className="text-destructive">*</span>
+                      <span className="text-red-500">*</span>
                     </Label>
                     <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        className="hidden"
+                        id={`cap-${index}`}
+                        onChange={(e) =>
+                          handleFileChange(
+                            index,
+                            "currAddressProof",
+                            e.target.files?.[0] || null,
+                          )
+                        }
+                      />
                       <Button
-                        type="button"
                         variant="outline"
-                        size="sm"
-                        className="w-28 bg-transparent"
+                        type="button"
+                        className="h-12 w-28"
+                        onClick={() =>
+                          document.getElementById(`cap-${index}`)?.click()
+                        }
                       >
                         Choose File
                       </Button>
-                      <span className="text-sm text-muted-foreground">
-                        No file chosen
+                      <span className="text-sm text-gray-500">
+                        {guarantor.currAddressProof || "No file chosen"}
                       </span>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* PEP Declaration */}
+              {/* D. PEP DECLARATION */}
               <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
                   PEP Declaration (Guarantor {index + 1})
                 </h2>
 
+                {/* Self PEP */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2.5">
-                    <Label
-                      htmlFor={`is-pep-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
                       Politically Exposed Person?{" "}
-                      <span className="text-destructive">*</span>
+                      <span className="text-red-500">*</span>
                     </Label>
                     <Select
                       value={guarantor.isPep}
-                      onValueChange={(value) =>
-                        handleGuarantorChange(index, "isPep", value)
+                      onValueChange={(val) =>
+                        updateGuarantorField(index, "isPep", val)
                       }
                     >
                       <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                         <SelectValue placeholder="[Select]" />
                       </SelectTrigger>
-                      <SelectContent sideOffset={4}>
+                      <SelectContent>
                         <SelectItem value="yes">Yes</SelectItem>
                         <SelectItem value="no">No</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <div className="space-y-2.5">
-                    <Label
-                      htmlFor={`pep-category-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      PEP Category <span className="text-destructive">*</span>
-                    </Label>
-                    <Select
-                      value={
-                        guarantor.isPep === "yes" ? guarantor.pepCategory : ""
-                      }
-                      onValueChange={(value) =>
-                        handleGuarantorChange(index, "pepCategory", value)
-                      }
-                      disabled={guarantor.isPep !== "yes"}
-                    >
-                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                        <SelectValue placeholder="[Select]" />
-                      </SelectTrigger>
-                      <SelectContent sideOffset={4}>
-                        <SelectItem value="domestic">Domestic PEP</SelectItem>
-                        <SelectItem value="foreign">Foreign PEP</SelectItem>
-                        <SelectItem value="international">
-                          International Organization PEP
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    <Label
-                      htmlFor={`related-to-pep-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Are you related to any PEP?{" "}
-                      <span className="text-destructive">*</span>
-                    </Label>
-                    <Select
-                      value={
-                        guarantor.isPep === "no" ? guarantor.relatedToPep : ""
-                      }
-                      onValueChange={(value) =>
-                        handleGuarantorChange(index, "relatedToPep", value)
-                      }
-                      disabled={guarantor.isPep !== "no"}
-                    >
-                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                        <SelectValue placeholder="[Select]" />
-                      </SelectTrigger>
-                      <SelectContent sideOffset={4}>
-                        <SelectItem value="yes">Yes</SelectItem>
-                        <SelectItem value="no">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {guarantor.isPep === "yes" && (
+                    <>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          PEP Category <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.pepCategory}
+                          onValueChange={(val) =>
+                            updateGuarantorField(index, "pepCategory", val)
+                          }
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {pepCategoryOptions.map((opt, i) => (
+                              <SelectItem
+                                key={i}
+                                value={String(
+                                  opt.pep_category_pk_code || opt.id,
+                                )}
+                              >
+                                {opt.pep_category || opt.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Sub Category <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.pepSubCategory}
+                          onValueChange={(val) =>
+                            updateGuarantorField(index, "pepSubCategory", val)
+                          }
+                          disabled={!guarantor.pepCategory}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {guarantor.pepSubCategoryOptions?.map(
+                              (opt: any, i: number) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.pep_sub_category_pk_code || opt.id,
+                                  )}
+                                >
+                                  {opt.pep_sub_category || opt.name}
+                                </SelectItem>
+                              ),
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Upload ID Proof{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            className="hidden"
+                            id={`pep-self-${index}`}
+                            onChange={(e) =>
+                              handleFileChange(
+                                index,
+                                "pepUpload",
+                                e.target.files?.[0] || null,
+                              )
+                            }
+                          />
+                          <Button
+                            variant="outline"
+                            type="button"
+                            className="h-12 w-28"
+                            onClick={() =>
+                              document
+                                .getElementById(`pep-self-${index}`)
+                                ?.click()
+                            }
+                          >
+                            Choose File
+                          </Button>
+                          <span className="text-sm text-gray-500">
+                            {guarantor.pepUpload || "No file chosen"}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2.5">
-                    <Label
-                      htmlFor={`pep-relationship-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Relationship <span className="text-destructive">*</span>
-                    </Label>
-                    <Select
-                      value={
-                        guarantor.isPep === "no" &&
-                        guarantor.relatedToPep === "yes"
-                          ? guarantor.pepRelationship
-                          : ""
-                      }
-                      onValueChange={(value) =>
-                        handleGuarantorChange(index, "pepRelationship", value)
-                      }
-                      disabled={
-                        guarantor.isPep !== "no" ||
-                        guarantor.relatedToPep !== "yes"
-                      }
-                    >
-                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                        <SelectValue placeholder="[Select]" />
-                      </SelectTrigger>
-                      <SelectContent sideOffset={4}>
-                        <SelectItem value="spouse">Spouse</SelectItem>
-                        <SelectItem value="parent">Parent</SelectItem>
-                        <SelectItem value="sibling">Sibling</SelectItem>
-                        <SelectItem value="child">Child</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Related PEP */}
+                {guarantor.isPep === "no" && (
+                  <div className="mt-6">
+                    <div className="space-y-3 max-w-xs mb-4">
+                      <Label className="text-sm font-semibold">
+                        Related to any PEP?{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={guarantor.relatedToPep}
+                        onValueChange={(val) =>
+                          updateGuarantorField(index, "relatedToPep", val)
+                        }
+                      >
+                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Yes</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div className="space-y-2.5">
-                    <Label
-                      htmlFor={`pep-id-no-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      Identification No. <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id={`pep-id-no-${index}`}
-                      placeholder="Enter Identification No"
-                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      value={
-                        guarantor.isPep === "no" &&
-                        guarantor.relatedToPep === "yes"
-                          ? guarantor.pepIdNo || ""
-                          : ""
-                      }
-                      onChange={(e) =>
-                        handleGuarantorChange(index, "pepIdNo", e.target.value)
-                      }
-                      disabled={
-                        guarantor.isPep !== "no" ||
-                        guarantor.relatedToPep !== "yes"
-                      }
-                    />
-                  </div>
+                    {guarantor.relatedToPep === "yes" && (
+                      <div className="space-y-4">
+                        {guarantor.relatedPeps?.map(
+                          (pep: any, pIndex: number) => (
+                            <div
+                              key={pIndex}
+                              className="bg-gray-50 p-4 rounded-lg border relative"
+                            >
+                              {guarantor.relatedPeps.length > 1 && (
+                                <div className="absolute top-2 right-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleRemoveRelatedPep(index, pIndex)
+                                    }
+                                  >
+                                    <Trash2 className="w-4 h-4 text-red-500" />
+                                  </Button>
+                                </div>
+                              )}
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
+                                <div className="space-y-2">
+                                  <Label className="text-xs">
+                                    Relationship
+                                  </Label>
+                                  <Select
+                                    value={pep.relationship}
+                                    onValueChange={(val) =>
+                                      handleRelatedPepChange(
+                                        index,
+                                        pIndex,
+                                        "relationship",
+                                        val,
+                                      )
+                                    }
+                                  >
+                                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                                      <SelectValue placeholder="Select" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="spouse">
+                                        Spouse
+                                      </SelectItem>
+                                      <SelectItem value="parent">
+                                        Parent
+                                      </SelectItem>
+                                      <SelectItem value="sibling">
+                                        Sibling
+                                      </SelectItem>
+                                      <SelectItem value="child">
+                                        Child
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-xs">ID Number</Label>
+                                  <Input
+                                    className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                                    value={pep.identificationNo || ""}
+                                    onChange={(e) =>
+                                      handleRelatedPepChange(
+                                        index,
+                                        pIndex,
+                                        "identificationNo",
+                                        e.target.value,
+                                      )
+                                    }
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Category</Label>
+                                  <Select
+                                    value={pep.category}
+                                    onValueChange={(val) =>
+                                      handleRelatedPepChange(
+                                        index,
+                                        pIndex,
+                                        "category",
+                                        val,
+                                      )
+                                    }
+                                  >
+                                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                                      <SelectValue placeholder="Select" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {pepCategoryOptions.map((opt, i) => (
+                                        <SelectItem
+                                          key={i}
+                                          value={String(
+                                            opt.pep_category_pk_code || opt.id,
+                                          )}
+                                        >
+                                          {opt.pep_category || opt.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-xs">
+                                    Sub Category
+                                  </Label>
+                                  <Select
+                                    value={pep.subCategory}
+                                    onValueChange={(val) =>
+                                      handleRelatedPepChange(
+                                        index,
+                                        pIndex,
+                                        "subCategory",
+                                        val,
+                                      )
+                                    }
+                                    disabled={!pep.category}
+                                  >
+                                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                                      <SelectValue placeholder="Select" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {guarantor.relatedPepOptionsMap?.[
+                                        pIndex
+                                      ]?.map((opt: any, i: number) => (
+                                        <SelectItem
+                                          key={i}
+                                          value={String(
+                                            opt.pep_sub_category_pk_code ||
+                                              opt.id,
+                                          )}
+                                        >
+                                          {opt.pep_sub_category || opt.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div className="mt-4">
+                                <Label className="text-sm font-semibold">
+                                  Identification Proof{" "}
+                                  <span className="text-red-500">*</span>
+                                </Label>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    id={`pep-related-proof-${index}-${pIndex}`}
+                                    onChange={(e) =>
+                                      handleRelatedPepFileChange(
+                                        index,
+                                        pIndex,
+                                        e.target.files?.[0] || null,
+                                      )
+                                    }
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    type="button"
+                                    className="h-12 w-28"
+                                    onClick={() =>
+                                      document
+                                        .getElementById(
+                                          `pep-related-proof-${index}-${pIndex}`,
+                                        )
+                                        ?.click()
+                                    }
+                                  >
+                                    Choose File
+                                  </Button>
+                                  <span className="text-sm text-gray-500">
+                                    {pep.identificationProof ||
+                                      "No file chosen"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ),
+                        )}
 
-                  <div className="space-y-2.5">
-                    <Label
-                      htmlFor={`pep-category-2-${index}`}
-                      className="text-gray-800 font-semibold text-sm"
-                    >
-                      PEP Category <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id={`pep-category-2-${index}`}
-                      placeholder="Enter PEP Category"
-                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      value={
-                        guarantor.isPep === "no" &&
-                        guarantor.relatedToPep === "yes"
-                          ? guarantor.pepCategory2 || ""
-                          : ""
-                      }
-                      onChange={(e) =>
-                        handleGuarantorChange(
-                          index,
-                          "pepCategory2",
-                          e.target.value,
-                        )
-                      }
-                      disabled={
-                        guarantor.isPep !== "no" ||
-                        guarantor.relatedToPep !== "yes"
-                      }
-                    />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAddRelatedPep(index)}
+                        >
+                          <PlusCircle className="w-4 h-4 mr-2" /> Add Related
+                          Person
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`pep-upload-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Upload Identification Proof{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="file"
-                      id={`pep-upload-${index}`}
-                      className="hidden"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file)
-                          handleGuarantorChange(
-                            index,
-                            "pepIdentificationProof",
-                            file,
-                          );
-                      }}
-                      disabled={
-                        guarantor.isPep !== "no" ||
-                        guarantor.relatedToPep !== "yes"
-                      }
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-28 bg-transparent"
-                      disabled={
-                        guarantor.isPep !== "no" ||
-                        guarantor.relatedToPep !== "yes"
-                      }
-                      onClick={() =>
-                        document.getElementById(`pep-upload-${index}`)?.click()
-                      }
-                    >
-                      Choose File
-                    </Button>
-                    <span className="text-sm text-muted-foreground">
-                      {guarantor.pepIdentificationProof?.name ||
-                        "No file chosen"}
-                    </span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           );
         })}
-        </>
-        )}
 
-        {/* Action Buttons */}
-        <div className="flex justify-center gap-6 pt-4">
+      {incomeData.repaymentGuarantor === "yes" && (
+        <div className="flex justify-center pt-4">
           <Button
             type="button"
             size="lg"
-            className="min-w-40"
+            className="min-w-40 px-10 py-6 rounded-xl bg-[#003DA5] hover:bg-[#002D7A]"
             onClick={addGuarantor}
           >
             + Add Guarantor
           </Button>
         </div>
+      )}
 
-        <div className="flex justify-between gap-6 pt-4">
-          <Button
-            type="button"
-            onClick={onBack}
-            variant="secondary"
-            size="lg"
-            className="min-w-40 px-10 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
-          >
-            Back
-          </Button>
-          <Button
-            type="submit"
-            size="lg"
-            className="min-w-40 px-10 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all bg-[#003DA5] hover:bg-[#002D7A]"
-          >
-            Next
-          </Button>
-        </div>
-      </form>
-    </>
+      <div className="flex justify-between gap-6 pt-4">
+        <Button
+          type="button"
+          onClick={onBack}
+          variant="secondary"
+          size="lg"
+          className="min-w-40 px-10 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+        >
+          Back
+        </Button>
+        <Button
+          type="submit"
+          size="lg"
+          className="min-w-40 px-10 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all bg-[#003DA5] hover:bg-[#002D7A]"
+        >
+          Next
+        </Button>
+      </div>
+    </form>
   );
 }

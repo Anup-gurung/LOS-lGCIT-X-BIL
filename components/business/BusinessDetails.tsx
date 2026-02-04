@@ -501,7 +501,7 @@ export function BusinessDetailsForm({
                 Identification Type
               </Label>
               <Select
-                value={businessData.identificationType}
+                value={businessData.identificationType || ""}
                 onValueChange={(value) =>
                   handleBusinessDataChange("identificationType", value)
                 }
@@ -659,7 +659,7 @@ export function BusinessDetailsForm({
                 Business Type <span className="text-red-500">*</span>
               </Label>
               <Select
-                value={businessData.businessType}
+                value={businessData.businessType || ""}
                 onValueChange={(value) => handleBusinessDataChange("businessType", value)}
               >
                 <SelectTrigger className="border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
@@ -696,7 +696,7 @@ export function BusinessDetailsForm({
                 Country <span className="text-red-500">*</span>
               </Label>
               <Select
-                value={businessAddress.country}
+                value={businessAddress.country || ""}
                 onValueChange={(value) => handleBusinessAddressChange("country", value)}
               >
                 <SelectTrigger className="border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
@@ -715,7 +715,7 @@ export function BusinessDetailsForm({
             <div className="space-y-2">
               <Label className="text-gray-800 font-semibold">Dzongkhag</Label>
               <Select
-                value={businessAddress.dzongkhag}
+                value={businessAddress.dzongkhag || ""}
                 onValueChange={(value) => handleBusinessAddressChange("dzongkhag", value)}
               >
                 <SelectTrigger className="border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
@@ -734,7 +734,7 @@ export function BusinessDetailsForm({
             <div className="space-y-2">
               <Label className="text-gray-800 font-semibold">Gewog</Label>
               <Select
-                value={businessAddress.gewog}
+                value={businessAddress.gewog || ""}
                 onValueChange={(value) => handleBusinessAddressChange("gewog", value)}
               >
                 <SelectTrigger className="border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">

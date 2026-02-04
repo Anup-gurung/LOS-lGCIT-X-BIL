@@ -493,53 +493,1729 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
 
       <AccordionSection title="Co-Borrower Details"
       defaultOpen>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-          <Field label="Salutation" value={coBorrowerData.salutation} capitalizeFirst={true} />
-          <Field label="Co-Borrower Name" value={coBorrowerData.name} capitalizeFirst/>
+         <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Co-Borrower Details</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+
+           <Field label="Salutation" value={coBorrowerData.salutation} capitalizeFirst={true} />
+          <Field label="Applicant Name" value={coBorrowerData.applicantName} capitalizeFirst={true} />
           <Field label="Nationality" value={coBorrowerData.nationality} capitalizeFirst={true} />
-          <Field label="Identification Type" value={coBorrowerData.identificationType} capitalizeFirst={true} /> 
-          <Field label="Identification No" value={coBorrowerData.cid} />
-          <Field label="Identificatin Issue Date" value={coBorrowerData.identificationIssueDate0} />
+          <Field label="Identification Type" value={coBorrowerData.identificationType} capitalizeFirst={true} />
+
+          <Field label="Identification No" value={coBorrowerData.identificationNo} />
+          <Field label="Identification Issue Date" value={coBorrowerData.identificationIssueDate} />
           <Field label="Identification Expiry Date" value={coBorrowerData.identificationExpiryDate} />
-          <Field label="TPN No" value={coBorrowerData.TPN} />
+          <Field label="TPN" value={coBorrowerData.tpn} />
           <Field label="Date of Birth" value={coBorrowerData.dateOfBirth} />
-          <Field label="Gender" value={coBorrowerData.gender} />
-          <Field label="Marital Status" value={coBorrowerData.marital_status} />
-          <Field label="Spouse CID No" value={coBorrowerData.spouseCid} />
-          <Field label="Spouse Name" value={coBorrowerData.spouseName} />
-          <Field label="Spouse Contact No" value={coBorrowerData.spouseContact} />
-          <Field label="Family Tree Docs" value={coBorrowerData.familyTree?.name} />
-          <Field label="Name of Bank" value={coBorrowerData.bank_name} />
-          <Field label="Bank Saving Account No" value={coBorrowerData.bankAccount} />
-          <Field label="Passport-size Photo" value={coBorrowerData.passportPhoto} />
+          <Field label="Gender" value={coBorrowerData.gender} capitalizeFirst={true} />
+          <Field label="Marital Status" value={coBorrowerData.maritalStatus} capitalizeFirst={true} />
+          </div> 
+          {coBorrowerData.maritalStatus === "married" && (
+            <>
+            <div className="mt-6 sm:mt-8">
+             <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Marital Status Details</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <Field label = "Marital Status" value={coBorrowerData.maritalStatus} capitalizeFirst={true} />
+              <Field label="Spouse Name" value={coBorrowerData.spouseName} capitalizeFirst={true} />
+              <Field label="Spouse CID" value={coBorrowerData.spouseCid} />
+              <Field label="Spouse Contact" value={coBorrowerData.spouseContact} />
+            </div>
+            </>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Family Tree Documents" value={coBorrowerData.familyTreeDocs? coBorrowerData.familyTreeDocs.name : ""} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Bank Name"  value={coBorrowerData.bankName} capitalizeFirst={true} />
+          <Field label="Bank Account" value={coBorrowerData.bankAccount} />
+          <Field label="Passport Photo" value={coBorrowerData.passportPhotoFile ? coBorrowerData.passportPhotoFile.name : ""} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
           <Field label="Relationship to Borrower" value={coBorrowerData.relationship} />
 
-          <Field label="Email Address" value={coBorrowerData.email} />
-          <Field label="Contact NUmber" value={coBorrowerData.contact} />
-          <Field label="Alternative Contact NUmber" value={coBorrowerData.alternateContact} />
+          </div>
 
-          <Field label="Politically Exposed Person" value={coBorrowerData.pep} capitalizeFirst={true} />
-          <Field label="Is he/she related to PEP?" value={coBorrowerData.pepRelated} capitalizeFirst={true} />
-          {/* <Field label="Relationship" value={coBorrowerData.relationship} /> */}
-          {/* <Field label="Contact" value={coBorrowerData.contact} /> */}
+          <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">Contact Details</h3>
+          <hr />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Contact" value={coBorrowerData.currContact} />
+          <Field label="Alternate Contact" value={coBorrowerData.alternateContact} />
+          <Field label="Email" value={coBorrowerData.currEmail} />
+          </div>
+          </div>
+
+          <div className="mt-6 sm:mt-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Permanent Address</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <Field label="Country" value={coBorrowerData.permCountry} capitalizeFirst={true} />
+          <Field label="Dzongkhag/State" value={coBorrowerData.permDzongkhag} capitalizeFirst={true} />
+          <Field label="Gewog/Province" value={coBorrowerData.permGewog} capitalizeFirst={true} />
+          <Field label="Village/Street" value={coBorrowerData.permVillage} capitalizeFirst={true} />
+          <Field label="Thram No." value={coBorrowerData.permThram} />
+          <Field label="House No." value={coBorrowerData.permHouse} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Permanent Address Proof" value={coBorrowerData.permAddressProofFile ? coBorrowerData.permAddressProofFile.name : ""} />
+          </div>
+          </div>
+
+          <div className="mt-6 sm:mt-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Current Address</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <Field label="Country of Residence" value={coBorrowerData.currCountry} capitalizeFirst={true} />
+          <Field label="Dzongkhag/State" value={coBorrowerData.currDzongkhag} capitalizeFirst={true} />
+          <Field label="Gewog/Province" value={coBorrowerData.currGewog} capitalizeFirst={true} />
+          <Field label="Village/Street" value={coBorrowerData.currVillage} capitalizeFirst={true} />
+          <Field label="Flat/House No." value={coBorrowerData.currFlat} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Current Address Proof" value={coBorrowerData.currAddressProofFile ? coBorrowerData.currAddressProofFile.name : ""} />
+
+          </div>
+          </div>
+
+          <div>
+            <h3  className="py-4 px-6 text-sm font-bold pt-15">BIL Related</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field label="BIL Related" value={coBorrowerData.bilRelated} capitalizeFirst={true} />
+            </div>
+          </div>
+        <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">PEP Declarations</h3>
+          <hr />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          {/* Always show the main PEP field */}
+          <Field
+            label="Politically Exposed Person"
+            value={coBorrowerData.pepPerson}
+            capitalizeFirst={true}
+          />
+
+          {coBorrowerData.pepPerson ? (
+            coBorrowerData.pepPerson === "Yes" ? (
+              // If PEP = Yes, show PEP Sub-Category and file
+              <>
+                <Field
+                  label="PEP Sub-Category"
+                  value={coBorrowerData.pepSubCategory || "No value"}
+                  capitalizeFirst={true}
+                />
+                {/* <Field
+                  label="PEP Sub-Category File"
+                  value={coBorrowerData.pepSubCategoryFile?.name || "No file uploaded"}
+                /> */}
+              </>
+            ) : (
+              // If PEP = No, show all other fields
+              <>
+                <Field
+                  label="PEP Related"
+                  value={coBorrowerData.pepRelated || "No value"}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="PEP Relationship"
+                  value={coBorrowerData.pepRelationship || "No value"}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="PEP Identification No"
+                  value={coBorrowerData.pepIdentificationNo || "No value"}
+                />
+                <Field
+                  label="PEP related PEP Category"
+                  value={coBorrowerData.pepRelatedPepCategroy || "No value"}
+                />
+                <Field
+                  label="PEP related PEP Subcategory"
+                  value={coBorrowerData.pep_category || "No value"}
+                />
+              </>
+            )
+          ) : null /* If no value, show only the main field */}
         </div>
+        </div>
+            <div>
+            <h3 className="py-4 px-6 text-sm font-bold pt-15">Employment Details</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              {/* Always show Employment Status */}
+              <Field
+                label="Employment Status"
+                value={coBorrowerData.employmentStatus || ""}
+                capitalizeFirst={true}
+              />
+            </div>
+
+            {coBorrowerData.employmentStatus === "employed" && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field label="Employee ID" value={coBorrowerData.employeeId || "No value"} />
+                  <Field
+                    label="Occupation"
+                    value={coBorrowerData.occupation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Employer Type"
+                    value={coBorrowerData.employerType || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Designation"
+                    value={coBorrowerData.designation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field label="Grade" value={coBorrowerData.grade || "No value"} />
+
+                  <Field
+                    label="Organization Name"
+                    value={coBorrowerData.organizationName || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Organization Location"
+                    value={coBorrowerData.orgLocation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Service Joining Date"
+                    value={coBorrowerData.joiningDate || "No value"}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field
+                    label="Nature of Service"
+                    value={coBorrowerData.serviceNature || "No value"}
+                  />
+
+                  {coBorrowerData.serviceNature?.toLowerCase() === "contract" && (
+                    <Field
+                      label="Contract End Date"
+                      value={coBorrowerData.contractEndDate || "No value"}
+                    />
+                  )}
+
+                  <Field
+                    label="Gross Income"
+                    value={coBorrowerData.grossIncome || "No value"}
+                  />
+                </div>
+              </>
+            )}
+
+          </div>
       </AccordionSection>
 
-      <AccordionSection title="Security Details"
-      defaultOpen>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-          <Field label="Security Type" value={securityData.securityType} capitalizeFirst={true} />
-          <Field label="Location" value={securityData.propertyLocation} capitalizeFirst={true} />
-          <Field label="Estimated Value" value={securityData.estimatedValue} />
+      <AccordionSection title="Security Details" defaultOpen>
+
+        {securityData.securityType?.toLowerCase() !== "not applicable" && (
+          <>
+            {/* COMMON HEADER */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 pb-6">
+              <Field
+                label="Security Type"
+                value={securityData.securityType || "N/A"}
+                capitalizeFirst
+              />
+              <Field
+                label="Security Ownership"
+                value={securityData.ownershipType || "N/A"}
+                capitalizeFirst
+              />
+            </div>
+
+{/* ================= LAND ================= */}
+{securityData.securityType?.toLowerCase() === "land" && (
+  <>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 pb-1">
+      <Field
+        label="Security Type"
+        value={securityData.securityType}
+        capitalizeFirst
+      />
+      <Field
+        label="Security Ownership"
+        value={securityData.ownershipType}
+        capitalizeFirst
+      />
+    </div>
+    <div className="pb-10">
+      <h3 className="py-4 px-6 font-bold">Land Details</h3>
+      <hr />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+        <Field label="Thram No." value={securityData.thramNo} />
+        <Field label="Plot No." value={securityData.plotNo} />
+        <Field label="Area (Sq.Ft)" value={securityData.Area} />
+        <Field label="Land Use Type" value={securityData.landUse} />
+        <Field label="Dzongkhag" value={securityData.dzongkhag} />
+        <Field label="Gewog" value={securityData.gewog} />
+        <Field label="Village/Street" value={securityData.village} />
+        <Field label="House No." value={securityData.houseNo} />
+        <Field label="Security Proof Document" value={securityData.proofDoc} />
+      </div>
+
+      {/* SHOW GUARANTORS IF THIRD PARTY OWNERSHIP */}
+      {securityData.ownershipType?.toLowerCase() === "third party" && (
+        <div>
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">
+            Security Guarantor Details
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            <Field
+              label="Salutation"
+              value={securityData.gaurantorSalutation}
+              capitalizeFirst={true}
+            />
+            <Field
+              label="Applicant Name"
+              value={securityData.guarantorName}
+              capitalizeFirst={true}
+            />
+            <Field
+              label="Nationality"
+              value={securityData.guarantorNationality}
+              capitalizeFirst={true}
+            />
+            <Field
+              label="Identification Type"
+              value={securityData.guarantorIdentificationType}
+              capitalizeFirst={true}
+            />
+            <Field
+              label="Identification No"
+              value={securityData.guarantorIdentificationNo}
+            />
+            <Field
+              label="Identification Issue Date"
+              value={securityData.guarantorIdentificationIssueDate}
+            />
+            <Field
+              label="Identification Expiry Date"
+              value={securityData.guarantorIdentificationExpiryDate}
+            />
+            <Field label="TPN" value={securityData.guarantortpn} />
+            <Field
+              label="Date of Birth"
+              value={securityData.guarantorDateOfBirth}
+            />
+            <Field
+              label="Gender"
+              value={securityData.guarantorGender}
+              capitalizeFirst={true}
+            />
+            <Field
+              label="Marital Status"
+              value={securityData.guarantorMaritalStatus}
+              capitalizeFirst={true}
+            />
+          </div>
+
+          {securityData.guarantorMaritalStatus === "married" && (
+            <>
+              <div className="mt-6 sm:mt-8">
+                <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">
+                  Marital Status Details
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+                <Field
+                  label="Marital Status"
+                  value={securityData.guarantorMaritalStatus}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="Spouse Name"
+                  value={securityData.guarantorSpouseName}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="Spouse CID"
+                  value={securityData.guarantorSpouseCid}
+                />
+                <Field
+                  label="Spouse Contact"
+                  value={securityData.guarantorSpouseContact}
+                />
+              </div>
+            </>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field
+              label="Family Tree Documents"
+              value={
+                securityData.guarantorFamilyTreeDocs
+                  ? securityData.guarantorFamilyTreeDocs.name
+                  : ""
+              }
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field
+              label="Bank Name"
+              value={securityData.guarantorBankName}
+              capitalizeFirst={true}
+            />
+            <Field
+              label="Bank Account"
+              value={securityData.guarantorBankAccount}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field
+              label="Passport Photo"
+              value={
+                securityData.guarantorPassportPhotoFile
+                  ? securityData.guarantorPassportPhotoFile.name
+                  : ""
+              }
+            />
+          </div>
+
+          <div>
+            <h3 className="py-4 px-6 text-sm font-bold pt-15">Contact Details</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              <Field
+                label="Contact"
+                value={securityData.guarantorCurrContact}
+              />
+              <Field
+                label="Alternate Contact"
+                value={securityData.guarantorAlternateContact}
+              />
+              <Field label="Email" value={securityData.guarantorCurrEmail} />
+            </div>
+          </div>
+
+          <div className="mt-6 sm:mt-8">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">
+              Permanent Address
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <Field
+                label="Country"
+                value={securityData.guarantorPermCountry}
+                capitalizeFirst={true}
+              />
+              <Field
+                label="Dzongkhag/State"
+                value={securityData.guarantorPermDzongkhag}
+                capitalizeFirst={true}
+              />
+              <Field
+                label="Gewog/Province"
+                value={securityData.guarantorPermGewog}
+                capitalizeFirst={true}
+              />
+              <Field
+                label="Village/Street"
+                value={securityData.guarantorPermVillage}
+                capitalizeFirst={true}
+              />
+              <Field
+                label="Thram No."
+                value={securityData.guarantorPermThram}
+              />
+              <Field label="House No." value={securityData.guarantorPermHouse} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              <Field
+                label="Permanent Address Proof"
+                value={
+                  securityData.guarantorPermAddressProofFile
+                    ? securityData.guarantorPermAddressProofFile.name
+                    : ""
+                }
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 sm:mt-8">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">
+              Current Address
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <Field
+                label="Country of Residence"
+                value={securityData.guarantorCurrCountry}
+                capitalizeFirst={true}
+              />
+              <Field
+                label="Dzongkhag/State"
+                value={securityData.guarantorCurrDzongkhag}
+                capitalizeFirst={true}
+              />
+              <Field
+                label="Gewog/Province"
+                value={securityData.guarantorCurrGewog}
+                capitalizeFirst={true}
+              />
+              <Field
+                label="Village/Street"
+                value={securityData.guarantorCurrVillage}
+                capitalizeFirst={true}
+              />
+              <Field
+                label="Flat/House No."
+                value={securityData.guarantorCurrFlat}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              <Field
+                label="Current Address Proof"
+                value={
+                  securityData.guarantorCurrAddressProofFile
+                    ? securityData.guarantorCurrAddressProofFile.name
+                    : ""
+                }
+              />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="py-4 px-6 text-sm font-bold pt-15">PEP Declarations</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              <Field
+                label="Politically Exposed Person"
+                value={securityData.guarantorPepPerson}
+                capitalizeFirst={true}
+              />
+
+              {securityData.guarantorPepPerson ? (
+                securityData.guarantorPepPerson === "Yes" ? (
+                  <>
+                    <Field
+                      label="PEP Sub-Category"
+                      value={securityData.guarantorPepSubCategory || "No value"}
+                      capitalizeFirst={true}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Field
+                      label="PEP Related"
+                      value={securityData.guarantorPepRelated || "No value"}
+                      capitalizeFirst={true}
+                    />
+                    <Field
+                      label="PEP Relationship"
+                      value={securityData.guarantorPepRelationship || "No value"}
+                      capitalizeFirst={true}
+                    />
+                    <Field
+                      label="PEP Identification No"
+                      value={securityData.guarantorPepIdentificationNo || "No value"}
+                    />
+                    <Field
+                      label="PEP related PEP Category"
+                      value={securityData.guarantorPepRelatedPepCategroy || "No value"}
+                    />
+                    <Field
+                      label="PEP related PEP Subcategory"
+                      value={securityData.guarantorPep_category || "No value"}
+                    />
+                  </>
+                )
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              <Field
+                label="PEP Sub-Category File"
+                value={securityData.guarantorPepSubCategoryFile?.name || "No file uploaded"}
+              />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="py-4 px-6 text-sm font-bold pt-15">BIL Related</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              <Field
+                label="BIL Related"
+                value={securityData.guarantorBilRelated}
+                capitalizeFirst={true}
+              />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="py-4 px-6 text-sm font-bold pt-15">Employment Details</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              <Field
+                label="Employment Status"
+                value={securityData.guarantorEmploymentStatus || ""}
+                capitalizeFirst={true}
+              />
+            </div>
+
+            {securityData.guarantorEmploymentStatus === "employed" && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field
+                    label="Employee ID"
+                    value={securityData.guarantorEmployeeId || "No value"}
+                  />
+                  <Field
+                    label="Occupation"
+                    value={securityData.guarantorOccupation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Employer Type"
+                    value={securityData.guarantorEmployerType || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Designation"
+                    value={securityData.guarantorDesignation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field label="Grade" value={securityData.guarantorGrade || "No value"} />
+                  <Field
+                    label="Organization Name"
+                    value={securityData.guarantorOrganizationName || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Organization Location"
+                    value={securityData.guarantorOrgLocation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Service Joining Date"
+                    value={securityData.guarantorJoiningDate || "No value"}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field
+                    label="Nature of Service"
+                    value={securityData.guarantorServiceNature || "No value"}
+                  />
+                  {securityData.guarantorServiceNature?.toLowerCase() === "contract" && (
+                    <Field
+                      label="Contract End Date"
+                      value={securityData.guarantorContractEndDate || "No value"}
+                    />
+                  )}
+                  <Field
+                    label="Gross Income"
+                    value={securityData.guarantorGrossIncome || "No value"}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
+      )}
+    </div>
+  </>
+)} 
+
+          {/* ================= VEHICLE ================= */}
+            {securityData.securityType?.toLowerCase() === "vehicle" && (
+              <div className="pb-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 pb-1">
+                  <Field
+                    label="Security Type"
+                    value={securityData.securityType}
+                    capitalizeFirst
+                  />
+                  <Field
+                    label="Security Ownership"
+                    value={securityData.ownershipType}
+                    capitalizeFirst
+                  />
+                </div>
+                <h3 className="py-4 px-6 font-bold">Vehicle Details</h3>
+                <hr />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field label="Vehicle Type" value={securityData.vehicleType} />
+                  <Field label="Make/Brand" value={securityData.Brand} />
+                  <Field label="Model" value={securityData.Model} />
+                  <Field label="Year of Manufacture" value={securityData.Manufacture} />
+                  <Field label="Registration No." value={securityData.registrationNo} />
+                  <Field label="Chassis No." value={securityData.chassisNo} />
+                  <Field label="Engine No." value={securityData.engineNo} />
+                  <Field label="Security Proof Document" value={securityData.proofDoc} />
+
+                </div>
+
+                {securityData.ownershipType?.toLowerCase() === "third party" && (
+        <div>
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Security Guarantor Details</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+
+           <Field label="Salutation" value={securityData.gaurantorSalutation} capitalizeFirst={true} />
+          <Field label="Applicant Name" value={securityData.guarantorName} capitalizeFirst={true} />
+          <Field label="Nationality" value={securityData.guarantorNationality} capitalizeFirst={true} />
+          <Field label="Identification Type" value={securityData.guarantorIdentificationType} capitalizeFirst={true} />
+
+          <Field label="Identification No" value={securityData.guarantorIdentificationNo} />
+          <Field label="Identification Issue Date" value={securityData.guarantorIdentificationIssueDate} />
+          <Field label="Identification Expiry Date" value={securityData.guarantorIdentificationExpiryDate} />
+          <Field label="TPN" value={securityData.guarantortpn} />
+          <Field label="Date of Birth" value={securityData.guarantorDateOfBirth} />
+          <Field label="Gender" value={securityData.guarantorGender} capitalizeFirst={true} />
+          <Field label="Marital Status" value={securityData.guarantorMaritalStatus} capitalizeFirst={true} />
+          </div>          
+          {securityData.guarantorMaritalStatus === "married" && (
+            <>
+            <div className="mt-6 sm:mt-8">
+             <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Marital Status Details</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <Field label = "Marital Status" value={securityData.guarantorMaritalStatus} capitalizeFirst={true} />
+              <Field label="Spouse Name" value={securityData.guarantorSpouseName} capitalizeFirst={true} />
+              <Field label="Spouse CID" value={securityData.guarantorSpouseCid} />
+              <Field label="Spouse Contact" value={securityData.guarantorSspouseContact} />
+            </div>
+            </>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Family Tree Documents" value={securityData.guarantorFamilyTreeDocs? securityData.guarantor.familyTreeDocs.name : ""} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Bank Name"  value={securityData.guarantorBankName} capitalizeFirst={true} />
+          <Field label="Bank Account" value={securityData.guarantorBankAccount} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Passport Photo" value={securityData.guarantorPassportPhotoFile ? securityData.guarantor.passportPhotoFile.name : ""} />
+          </div>
+         <div>
+          <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">Contact Details</h3>
+          <hr />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Contact" value={securityData.guarantorCurrContact} />
+          <Field label="Alternate Contact" value={securityData.guarantorAlternateContact} />
+          <Field label="Email" value={securityData.guarantorCurrEmail} />
+          </div>
+          </div>
+
+          </div>
+          <div className="mt-6 sm:mt-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Permanent Address</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <Field label="Country" value={securityData.guarantorPermCountry} capitalizeFirst={true} />
+          <Field label="Dzongkhag/State" value={securityData.guarantorPermDzongkhag} capitalizeFirst={true} />
+          <Field label="Gewog/Province" value={securityData.guarantorPermGewog} capitalizeFirst={true} />
+          <Field label="Village/Street" value={securityData.guarantorPermVillage} capitalizeFirst={true} />
+          <Field label="Thram No." value={securityData.guarantorPermThram} />
+          <Field label="House No." value={securityData.guarantorPermHouse} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Permanent Address Proof" value={securityData.guarantorPermAddressProofFile ? securityData.guarantorPermAddressProofFile.name : ""} />
+          </div>
+          </div>
+
+          <div className="mt-6 sm:mt-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Current Address</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <Field label="Country of Residence" value={securityData.guarantorCurrCountry} capitalizeFirst={true} />
+          <Field label="Dzongkhag/State" value={securityData.guarantorCurrDzongkhag} capitalizeFirst={true} />
+          <Field label="Gewog/Province" value={securityData.guarantorCurrGewog} capitalizeFirst={true} />
+          <Field label="Village/Street" value={securityData.guarantorCurrVillage} capitalizeFirst={true} />
+          <Field label="Flat/House No." value={securityData.guarantorCurrFlat} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Current Address Proof" value={securityData.guarantorCurrAddressProofFile ? securityData.guarantorCurrAddressProofFile.name : ""} />
+
+          </div>
+          </div>
+
+          <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">PEP Declarations</h3>
+          <hr />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          {/* Always show the main PEP field */}
+          <Field
+            label="Politically Exposed Person"
+            value={securityData.guarantorPepPerson}
+            capitalizeFirst={true}
+          />
+
+          {securityData.guarantorPepPerson ? (
+            securityData.guarantorPepPerson === "Yes" ? (
+              // If PEP = Yes, show PEP Sub-Category and file
+              <>
+                <Field
+                  label="PEP Sub-Category"
+                  value={securityData.guarantorPepSubCategory || "No value"}
+                  capitalizeFirst={true}
+                />
+                {/* <Field
+                  label="PEP Sub-Category File"
+                  value={securityData.guarantor.pepSubCategoryFile?.name || "No file uploaded"}
+                /> */}
+              </>
+            ) : (
+              // If PEP = No, show all other fields
+              <>
+                <Field
+                  label="PEP Related"
+                  value={securityData.guarantorPepRelated || "No value"}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="PEP Relationship"
+                  value={securityData.guarantorPepRelationship || "No value"}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="PEP Identification No"
+                  value={securityData.guarantorPepIdentificationNo || "No value"}
+                />
+                <Field
+                  label="PEP related PEP Category"
+                  value={securityData.guarantorPepRelatedPepCategroy || "No value"}
+                />
+                <Field
+                  label="PEP related PEP Subcategory"
+                  value={securityData.guarantorPep_category || "No value"}
+                />
+              </>
+            )
+          ) : null /* If no value, show only the main field */}
+        </div>
+
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field
+              label="PEP Sub-Category File"
+              value={securityData.guarantorPepSubCategoryFile?.name || "No file uploaded"}
+            />          
+        </div>
+          </div>
+          <div>
+            <h3  className="py-4 px-6 text-sm font-bold pt-15">BIL Related</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field label="BIL Related" value={securityData.guarantorBilRelated} capitalizeFirst={true} />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="py-4 px-6 text-sm font-bold pt-15">Employment Details</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              {/* Always show Employment Status */}
+              <Field
+                label="Employment Status"
+                value={securityData.guarantorEmploymentStatus || ""}
+                capitalizeFirst={true}
+              />
+            </div>
+
+            {securityData.guarantorEmploymentStatus === "employed" && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field label="Employee ID" value={securityData.guarantorEmployeeId || "No value"} />
+                  <Field
+                    label="Occupation"
+                    value={securityData.guarantorOccupation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Employer Type"
+                    value={securityData.guarantorEmployerType || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Designation"
+                    value={securityData.guarantorDesignation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field label="Grade" value={securityData.guarantorGrade || "No value"} />
+
+                  <Field
+                    label="Organization Name"
+                    value={securityData.guarantorOrganizationName || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Organization Location"
+                    value={securityData.guarantorOrgLocation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Service Joining Date"
+                    value={securityData.guarantorJoiningDate || "No value"}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field
+                    label="Nature of Service"
+                    value={securityData.guarantorServiceNature || "No value"}
+                  />
+
+                  {securityData.guarantorServiceNature?.toLowerCase() === "contract" && (
+                    <Field
+                      label="Contract End Date"
+                      value={securityData.guarantorContractEndDate || "No value"}
+                    />
+                  )}
+
+                  <Field
+                    label="Gross Income"
+                    value={securityData.guarantorGrossIncome || "No value"}
+                  />
+                </div>
+              </>
+            )}
+
+          </div>
+
+        </div>
+                )}
+              </div>
+            )}
+
+            {/* ================= INSURANCE ================= */}
+            {securityData.securityType?.toLowerCase() === "insurance" && (
+              <div className="pb-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 pb-1">
+                  <Field
+                    label="Security Type"
+                    value={securityData.securityType}
+                    capitalizeFirst
+                  />
+                  <Field
+                    label="Security Ownership"
+                    value={securityData.ownershipType}
+                    capitalizeFirst
+                  />
+                </div>
+                <h3 className="py-4 px-6 font-bold">Insurance Details</h3>
+                <hr />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field label="Insurance Company" value={securityData.insuranceCompany} />
+                  <Field label="Policy No." value={securityData.policyNo} />
+                  <Field label="Insurance Value" value={securityData.insuranceValue} />
+                  <Field label="Start Date" value={securityData.insuranceStartDate} />
+                  <Field label="Expiry Date" value={securityData.insuranceExpiryDate} />
+                  <Field label="Security Proof Document" value={securityData.proofDoc} />
+
+                </div>
+
+                {securityData.ownershipType?.toLowerCase() === "third party" && (
+        <div>
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Security Guarantor Details</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+
+           <Field label="Salutation" value={securityData.gaurantorSalutation} capitalizeFirst={true} />
+          <Field label="Applicant Name" value={securityData.guarantorName} capitalizeFirst={true} />
+          <Field label="Nationality" value={securityData.guarantorNationality} capitalizeFirst={true} />
+          <Field label="Identification Type" value={securityData.guarantorIdentificationType} capitalizeFirst={true} />
+
+          <Field label="Identification No" value={securityData.guarantorIdentificationNo} />
+          <Field label="Identification Issue Date" value={securityData.guarantorIdentificationIssueDate} />
+          <Field label="Identification Expiry Date" value={securityData.guarantorIdentificationExpiryDate} />
+          <Field label="TPN" value={securityData.guarantortpn} />
+          <Field label="Date of Birth" value={securityData.guarantorDateOfBirth} />
+          <Field label="Gender" value={securityData.guarantorGender} capitalizeFirst={true} />
+          <Field label="Marital Status" value={securityData.guarantorMaritalStatus} capitalizeFirst={true} />
+          </div>          
+          {securityData.guarantorMaritalStatus === "married" && (
+            <>
+            <div className="mt-6 sm:mt-8">
+             <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Marital Status Details</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <Field label = "Marital Status" value={securityData.guarantorMaritalStatus} capitalizeFirst={true} />
+              <Field label="Spouse Name" value={securityData.guarantorSpouseName} capitalizeFirst={true} />
+              <Field label="Spouse CID" value={securityData.guarantorSpouseCid} />
+              <Field label="Spouse Contact" value={securityData.guarantorSspouseContact} />
+            </div>
+            </>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Family Tree Documents" value={securityData.guarantorFamilyTreeDocs? securityData.guarantor.familyTreeDocs.name : ""} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Bank Name"  value={securityData.guarantorBankName} capitalizeFirst={true} />
+          <Field label="Bank Account" value={securityData.guarantorBankAccount} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Passport Photo" value={securityData.guarantorPassportPhotoFile ? securityData.guarantor.passportPhotoFile.name : ""} />
+          </div>
+         <div>
+          <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">Contact Details</h3>
+          <hr />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Contact" value={securityData.guarantorCurrContact} />
+          <Field label="Alternate Contact" value={securityData.guarantorAlternateContact} />
+          <Field label="Email" value={securityData.guarantorCurrEmail} />
+          </div>
+          </div>
+
+          </div>
+          <div className="mt-6 sm:mt-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Permanent Address</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <Field label="Country" value={securityData.guarantorPermCountry} capitalizeFirst={true} />
+          <Field label="Dzongkhag/State" value={securityData.guarantorPermDzongkhag} capitalizeFirst={true} />
+          <Field label="Gewog/Province" value={securityData.guarantorPermGewog} capitalizeFirst={true} />
+          <Field label="Village/Street" value={securityData.guarantorPermVillage} capitalizeFirst={true} />
+          <Field label="Thram No." value={securityData.guarantorPermThram} />
+          <Field label="House No." value={securityData.guarantorPermHouse} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Permanent Address Proof" value={securityData.guarantorPermAddressProofFile ? securityData.guarantorPermAddressProofFile.name : ""} />
+          </div>
+          </div>
+
+          <div className="mt-6 sm:mt-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Current Address</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <Field label="Country of Residence" value={securityData.guarantorCurrCountry} capitalizeFirst={true} />
+          <Field label="Dzongkhag/State" value={securityData.guarantorCurrDzongkhag} capitalizeFirst={true} />
+          <Field label="Gewog/Province" value={securityData.guarantorCurrGewog} capitalizeFirst={true} />
+          <Field label="Village/Street" value={securityData.guarantorCurrVillage} capitalizeFirst={true} />
+          <Field label="Flat/House No." value={securityData.guarantorCurrFlat} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Current Address Proof" value={securityData.guarantorCurrAddressProofFile ? securityData.guarantorCurrAddressProofFile.name : ""} />
+
+          </div>
+          </div>
+
+          <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">PEP Declarations</h3>
+          <hr />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          {/* Always show the main PEP field */}
+          <Field
+            label="Politically Exposed Person"
+            value={securityData.guarantorPepPerson}
+            capitalizeFirst={true}
+          />
+
+          {securityData.guarantorPepPerson ? (
+            securityData.guarantorPepPerson === "Yes" ? (
+              // If PEP = Yes, show PEP Sub-Category and file
+              <>
+                <Field
+                  label="PEP Sub-Category"
+                  value={securityData.guarantorPepSubCategory || "No value"}
+                  capitalizeFirst={true}
+                />
+                {/* <Field
+                  label="PEP Sub-Category File"
+                  value={securityData.guarantor.pepSubCategoryFile?.name || "No file uploaded"}
+                /> */}
+              </>
+            ) : (
+              // If PEP = No, show all other fields
+              <>
+                <Field
+                  label="PEP Related"
+                  value={securityData.guarantorPepRelated || "No value"}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="PEP Relationship"
+                  value={securityData.guarantorPepRelationship || "No value"}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="PEP Identification No"
+                  value={securityData.guarantorPepIdentificationNo || "No value"}
+                />
+                <Field
+                  label="PEP related PEP Category"
+                  value={securityData.guarantorPepRelatedPepCategroy || "No value"}
+                />
+                <Field
+                  label="PEP related PEP Subcategory"
+                  value={securityData.guarantorPep_category || "No value"}
+                />
+              </>
+            )
+          ) : null /* If no value, show only the main field */}
+        </div>
+
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field
+              label="PEP Sub-Category File"
+              value={securityData.guarantorPepSubCategoryFile?.name || "No file uploaded"}
+            />          
+        </div>
+          </div>
+          <div>
+            <h3  className="py-4 px-6 text-sm font-bold pt-15">BIL Related</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field label="BIL Related" value={securityData.guarantorBilRelated} capitalizeFirst={true} />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="py-4 px-6 text-sm font-bold pt-15">Employment Details</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              {/* Always show Employment Status */}
+              <Field
+                label="Employment Status"
+                value={securityData.guarantorEmploymentStatus || ""}
+                capitalizeFirst={true}
+              />
+            </div>
+
+            {securityData.guarantorEmploymentStatus === "employed" && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field label="Employee ID" value={securityData.guarantorEmployeeId || "No value"} />
+                  <Field
+                    label="Occupation"
+                    value={securityData.guarantorOccupation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Employer Type"
+                    value={securityData.guarantorEmployerType || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Designation"
+                    value={securityData.guarantorDesignation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field label="Grade" value={securityData.guarantorGrade || "No value"} />
+
+                  <Field
+                    label="Organization Name"
+                    value={securityData.guarantorOrganizationName || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Organization Location"
+                    value={securityData.guarantorOrgLocation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Service Joining Date"
+                    value={securityData.guarantorJoiningDate || "No value"}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field
+                    label="Nature of Service"
+                    value={securityData.guarantorServiceNature || "No value"}
+                  />
+
+                  {securityData.guarantorServiceNature?.toLowerCase() === "contract" && (
+                    <Field
+                      label="Contract End Date"
+                      value={securityData.guarantorContractEndDate || "No value"}
+                    />
+                  )}
+
+                  <Field
+                    label="Gross Income"
+                    value={securityData.guarantorGrossIncome || "No value"}
+                  />
+                </div>
+              </>
+            )}
+
+          </div>
+
+        </div>
+                )}
+              </div>
+            )}
+
+            {/* ================= PENSION / PROVIDENT ================= */}
+            {securityData.securityType?.toLowerCase() === "pension" && (
+              <div className="pb-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 pb-1">
+                  <Field
+                    label="Security Type"
+                    value={securityData.securityType}
+                    capitalizeFirst
+                  />
+                  <Field
+                    label="Security Ownership"
+                    value={securityData.ownershipType}
+                    capitalizeFirst
+                  />
+                </div>
+                <h3 className="py-4 px-6 font-bold">Pension & Provident Fund Details</h3>
+                <hr />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field label="Institution Name" value={securityData.Institution} />
+                  <Field label="Provident Fund" value={securityData.Provident} />
+                  <Field label="Account No." value={securityData.account} />
+                  <Field label="Fund Value (Nu.)" value={securityData.fund} />
+                  <Field label="Security Proof Document" value={securityData.proofDoc} />
+                </div>
+
+                {securityData.ownershipType?.toLowerCase() === "third party" && (
+        <div>
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Security Guarantor Details</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+
+           <Field label="Salutation" value={securityData.gaurantorSalutation} capitalizeFirst={true} />
+          <Field label="Applicant Name" value={securityData.guarantorName} capitalizeFirst={true} />
+          <Field label="Nationality" value={securityData.guarantorNationality} capitalizeFirst={true} />
+          <Field label="Identification Type" value={securityData.guarantorIdentificationType} capitalizeFirst={true} />
+
+          <Field label="Identification No" value={securityData.guarantorIdentificationNo} />
+          <Field label="Identification Issue Date" value={securityData.guarantorIdentificationIssueDate} />
+          <Field label="Identification Expiry Date" value={securityData.guarantorIdentificationExpiryDate} />
+          <Field label="TPN" value={securityData.guarantortpn} />
+          <Field label="Date of Birth" value={securityData.guarantorDateOfBirth} />
+          <Field label="Gender" value={securityData.guarantorGender} capitalizeFirst={true} />
+          <Field label="Marital Status" value={securityData.guarantorMaritalStatus} capitalizeFirst={true} />
+          </div>          
+          {securityData.guarantorMaritalStatus === "married" && (
+            <>
+            <div className="mt-6 sm:mt-8">
+             <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Marital Status Details</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <Field label = "Marital Status" value={securityData.guarantorMaritalStatus} capitalizeFirst={true} />
+              <Field label="Spouse Name" value={securityData.guarantorSpouseName} capitalizeFirst={true} />
+              <Field label="Spouse CID" value={securityData.guarantorSpouseCid} />
+              <Field label="Spouse Contact" value={securityData.guarantorSspouseContact} />
+            </div>
+            </>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Family Tree Documents" value={securityData.guarantorFamilyTreeDocs? securityData.guarantor.familyTreeDocs.name : ""} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Bank Name"  value={securityData.guarantorBankName} capitalizeFirst={true} />
+          <Field label="Bank Account" value={securityData.guarantorBankAccount} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Passport Photo" value={securityData.guarantorPassportPhotoFile ? securityData.guarantor.passportPhotoFile.name : ""} />
+          </div>
+         <div>
+          <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">Contact Details</h3>
+          <hr />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Contact" value={securityData.guarantorCurrContact} />
+          <Field label="Alternate Contact" value={securityData.guarantorAlternateContact} />
+          <Field label="Email" value={securityData.guarantorCurrEmail} />
+          </div>
+          </div>
+
+          </div>
+          <div className="mt-6 sm:mt-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Permanent Address</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <Field label="Country" value={securityData.guarantorPermCountry} capitalizeFirst={true} />
+          <Field label="Dzongkhag/State" value={securityData.guarantorPermDzongkhag} capitalizeFirst={true} />
+          <Field label="Gewog/Province" value={securityData.guarantorPermGewog} capitalizeFirst={true} />
+          <Field label="Village/Street" value={securityData.guarantorPermVillage} capitalizeFirst={true} />
+          <Field label="Thram No." value={securityData.guarantorPermThram} />
+          <Field label="House No." value={securityData.guarantorPermHouse} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Permanent Address Proof" value={securityData.guarantorPermAddressProofFile ? securityData.guarantorPermAddressProofFile.name : ""} />
+          </div>
+          </div>
+
+          <div className="mt-6 sm:mt-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Current Address</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <Field label="Country of Residence" value={securityData.guarantorCurrCountry} capitalizeFirst={true} />
+          <Field label="Dzongkhag/State" value={securityData.guarantorCurrDzongkhag} capitalizeFirst={true} />
+          <Field label="Gewog/Province" value={securityData.guarantorCurrGewog} capitalizeFirst={true} />
+          <Field label="Village/Street" value={securityData.guarantorCurrVillage} capitalizeFirst={true} />
+          <Field label="Flat/House No." value={securityData.guarantorCurrFlat} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Current Address Proof" value={securityData.guarantorCurrAddressProofFile ? securityData.guarantorCurrAddressProofFile.name : ""} />
+
+          </div>
+          </div>
+
+          <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">PEP Declarations</h3>
+          <hr />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          {/* Always show the main PEP field */}
+          <Field
+            label="Politically Exposed Person"
+            value={securityData.guarantorPepPerson}
+            capitalizeFirst={true}
+          />
+
+          {securityData.guarantorPepPerson ? (
+            securityData.guarantorPepPerson === "Yes" ? (
+              // If PEP = Yes, show PEP Sub-Category and file
+              <>
+                <Field
+                  label="PEP Sub-Category"
+                  value={securityData.guarantorPepSubCategory || "No value"}
+                  capitalizeFirst={true}
+                />
+                {/* <Field
+                  label="PEP Sub-Category File"
+                  value={securityData.guarantor.pepSubCategoryFile?.name || "No file uploaded"}
+                /> */}
+              </>
+            ) : (
+              // If PEP = No, show all other fields
+              <>
+                <Field
+                  label="PEP Related"
+                  value={securityData.guarantorPepRelated || "No value"}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="PEP Relationship"
+                  value={securityData.guarantorPepRelationship || "No value"}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="PEP Identification No"
+                  value={securityData.guarantorPepIdentificationNo || "No value"}
+                />
+                <Field
+                  label="PEP related PEP Category"
+                  value={securityData.guarantorPepRelatedPepCategroy || "No value"}
+                />
+                <Field
+                  label="PEP related PEP Subcategory"
+                  value={securityData.guarantorPep_category || "No value"}
+                />
+              </>
+            )
+          ) : null /* If no value, show only the main field */}
+        </div>
+
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field
+              label="PEP Sub-Category File"
+              value={securityData.guarantorPepSubCategoryFile?.name || "No file uploaded"}
+            />          
+        </div>
+          </div>
+          <div>
+            <h3  className="py-4 px-6 text-sm font-bold pt-15">BIL Related</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field label="BIL Related" value={securityData.guarantorBilRelated} capitalizeFirst={true} />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="py-4 px-6 text-sm font-bold pt-15">Employment Details</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              {/* Always show Employment Status */}
+              <Field
+                label="Employment Status"
+                value={securityData.guarantorEmploymentStatus || ""}
+                capitalizeFirst={true}
+              />
+            </div>
+
+            {securityData.guarantorEmploymentStatus === "employed" && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field label="Employee ID" value={securityData.guarantorEmployeeId || "No value"} />
+                  <Field
+                    label="Occupation"
+                    value={securityData.guarantorOccupation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Employer Type"
+                    value={securityData.guarantorEmployerType || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Designation"
+                    value={securityData.guarantorDesignation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field label="Grade" value={securityData.guarantorGrade || "No value"} />
+
+                  <Field
+                    label="Organization Name"
+                    value={securityData.guarantorOrganizationName || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Organization Location"
+                    value={securityData.guarantorOrgLocation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Service Joining Date"
+                    value={securityData.guarantorJoiningDate || "No value"}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field
+                    label="Nature of Service"
+                    value={securityData.guarantorServiceNature || "No value"}
+                  />
+
+                  {securityData.guarantorServiceNature?.toLowerCase() === "contract" && (
+                    <Field
+                      label="Contract End Date"
+                      value={securityData.guarantorContractEndDate || "No value"}
+                    />
+                  )}
+
+                  <Field
+                    label="Gross Income"
+                    value={securityData.guarantorGrossIncome || "No value"}
+                  />
+                </div>
+              </>
+            )}
+
+          </div>
+
+        </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
       </AccordionSection>
+
 
       <AccordionSection title="Repayment Source"
       defaultOpen>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+        {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           <Field label="Source" value={repaymentData.source} capitalizeFirst={true} />
           <Field label="Monthly Income" value={repaymentData.monthlyIncome} />
+        </div> */}
+
+<div>
+  <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+    INCOME DETAILS
+  </h2>
+
+  {(() => {
+    const incomeItems = [
+      { key: "enableMonthlySalary", label: "Monthly Salary", valueKey: "monthlySalary", proofKey: "monthlySalaryProof" },
+      { key: "enableRentalIncome", label: "Rental Income", valueKey: "rentalIncome", proofKey: "rentalIncomeProof" },
+      { key: "enableBusinessIncome", label: "Business Income", valueKey: "businessIncome", proofKey: "businessIncomeProof" },
+      { key: "enableVehicleHiring", label: "Vehicle Hiring Income", valueKey: "vehicleHiringIncome", proofKey: "vehicleHiringIncomeProof" },
+      { key: "enableDividendIncome", label: "Dividend Income", valueKey: "dividendIncome", proofKey: "dividendIncomeProof" },
+      { key: "enableAgricultureIncome", label: "Agriculture Income", valueKey: "agricultureIncome", proofKey: "agricultureIncomeProof" },
+      { key: "enableTruckTaxiIncome", label: "Truck/Taxi Income", valueKey: "truckTaxiIncome", proofKey: "truckTaxiIncomeProof" },
+    ];
+
+    // Filter only selected sources
+    const selectedIncome = incomeItems.filter(
+      (item) => securityData?.incomeData?.[item.key]
+    );
+
+    // If none selected, show default N/A row
+    if (selectedIncome.length === 0) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+          <Field label="Source" value="N/A" capitalizeFirst={true} />
+          <Field label="Monthly Income" value="N/A" />
+          <Field label="Repayment Proof" value="N/A" />
         </div>
+      );
+    }
+
+    // Display all selected sources
+    return selectedIncome.map((item) => (
+      <div
+        key={item.key}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6"
+      >
+        <Field label="Source" value={item.label} capitalizeFirst={true} />
+        <Field
+          label="Monthly Income"
+          value={securityData?.incomeData?.[item.valueKey] || "N/A"}
+        />
+        <Field
+          label="Repayment Proof"
+          value={
+                    repaymentData?.incomeData?.repaymentGuarantor
+?.incomeData?.[item.proofKey]?.name || "No file uploaded"
+          }
+        />
+      </div>
+    ));
+  })()}
+  <h2 className="text-md font-bold border-b border-gray-200 pb-4 pt-15">
+    Repayment Guarantor Details
+  </h2>
+
+  {/* Show if yes/no selection exists */}
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 pt-5">
+    <Field
+      label="Is Repayment Guarantor Applicable?"
+      value={
+        repaymentData?.incomeData?.repaymentGuarantor? repaymentData?.incomeData?.repaymentGuarantor.incomeData.repaymentGuarantor.toUpperCase()
+          : "N/A"
+      }
+    />
+  </div>
+
+  {/* Only show details if yes */}
+  {repaymentData?.incomeData?.repaymentGuarantor?.toLowerCase() === "yes" && (
+<div>
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Repayment Guarantor Details</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+
+           <Field label="Salutation" value={repaymentData.gaurantorSalutation} capitalizeFirst={true} />
+          <Field label="Applicant Name" value={repaymentData.guarantorName} capitalizeFirst={true} />
+          <Field label="Nationality" value={repaymentData.guarantorNationality} capitalizeFirst={true} />
+          <Field label="Identification Type" value={repaymentData.guarantorIdentificationType} capitalizeFirst={true} />
+
+          <Field label="Identification No" value={repaymentData.guarantorIdentificationNo} />
+          <Field label="Identification Issue Date" value={repaymentData.guarantorIdentificationIssueDate} />
+          <Field label="Identification Expiry Date" value={repaymentData.guarantorIdentificationExpiryDate} />
+          <Field label="TPN" value={repaymentData.guarantortpn} />
+          <Field label="Date of Birth" value={repaymentData.guarantorDateOfBirth} />
+          <Field label="Gender" value={repaymentData.guarantorGender} capitalizeFirst={true} />
+          <Field label="Marital Status" value={repaymentData.guarantorMaritalStatus} capitalizeFirst={true} />
+          </div>          
+          {repaymentData.guarantorMaritalStatus === "married" && (
+            <>
+            <div className="mt-6 sm:mt-8">
+             <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Marital Status Details</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <Field label = "Marital Status" value={repaymentData.guarantorMaritalStatus} capitalizeFirst={true} />
+              <Field label="Spouse Name" value={repaymentData.guarantorSpouseName} capitalizeFirst={true} />
+              <Field label="Spouse CID" value={repaymentData.guarantorSpouseCid} />
+              <Field label="Spouse Contact" value={repaymentData.guarantorSspouseContact} />
+            </div>
+            </>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Family Tree Documents" value={repaymentData.guarantorFamilyTreeDocs? repaymentData.guarantor.familyTreeDocs.name : ""} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Bank Name"  value={repaymentData.guarantorBankName} capitalizeFirst={true} />
+          <Field label="Bank Account" value={repaymentData.guarantorBankAccount} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Passport Photo" value={repaymentData.guarantorPassportPhotoFile ? repaymentData.guarantor.passportPhotoFile.name : ""} />
+          </div>
+         <div>
+          <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">Contact Details</h3>
+          <hr />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Contact" value={repaymentData.guarantorCurrContact} />
+          <Field label="Alternate Contact" value={repaymentData.guarantorAlternateContact} />
+          <Field label="Email" value={repaymentData.guarantorCurrEmail} />
+          </div>
+          </div>
+
+          </div>
+          <div className="mt-6 sm:mt-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Permanent Address</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <Field label="Country" value={repaymentData.guarantorPermCountry} capitalizeFirst={true} />
+          <Field label="Dzongkhag/State" value={repaymentData.guarantorPermDzongkhag} capitalizeFirst={true} />
+          <Field label="Gewog/Province" value={repaymentData.guarantorPermGewog} capitalizeFirst={true} />
+          <Field label="Village/Street" value={repaymentData.guarantorPermVillage} capitalizeFirst={true} />
+          <Field label="Thram No." value={repaymentData.guarantorPermThram} />
+          <Field label="House No." value={repaymentData.guarantorPermHouse} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Permanent Address Proof" value={repaymentData.guarantorPermAddressProofFile ? repaymentData.guarantorPermAddressProofFile.name : ""} />
+          </div>
+          </div>
+
+          <div className="mt-6 sm:mt-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Current Address</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <Field label="Country of Residence" value={repaymentData.guarantorCurrCountry} capitalizeFirst={true} />
+          <Field label="Dzongkhag/State" value={repaymentData.guarantorCurrDzongkhag} capitalizeFirst={true} />
+          <Field label="Gewog/Province" value={repaymentData.guarantorCurrGewog} capitalizeFirst={true} />
+          <Field label="Village/Street" value={repaymentData.guarantorCurrVillage} capitalizeFirst={true} />
+          <Field label="Flat/House No." value={repaymentData.guarantorCurrFlat} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Current Address Proof" value={repaymentData.guarantorCurrAddressProofFile ? repaymentData.guarantorCurrAddressProofFile.name : ""} />
+
+          </div>
+          </div>
+
+          <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">PEP Declarations</h3>
+          <hr />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          {/* Always show the main PEP field */}
+          <Field
+            label="Politically Exposed Person"
+            value={repaymentData.guarantorPepPerson}
+            capitalizeFirst={true}
+          />
+
+          {repaymentData.guarantorPepPerson ? (
+            repaymentData.guarantorPepPerson === "Yes" ? (
+              // If PEP = Yes, show PEP Sub-Category and file
+              <>
+                <Field
+                  label="PEP Sub-Category"
+                  value={repaymentData.guarantorPepSubCategory || "No value"}
+                  capitalizeFirst={true}
+                />
+                {/* <Field
+                  label="PEP Sub-Category File"
+                  value={repaymentData.guarantor.pepSubCategoryFile?.name || "No file uploaded"}
+                /> */}
+              </>
+            ) : (
+              // If PEP = No, show all other fields
+              <>
+                <Field
+                  label="PEP Related"
+                  value={repaymentData.guarantorPepRelated || "No value"}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="PEP Relationship"
+                  value={repaymentData.guarantorPepRelationship || "No value"}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="PEP Identification No"
+                  value={repaymentData.guarantorPepIdentificationNo || "No value"}
+                />
+                <Field
+                  label="PEP related PEP Category"
+                  value={repaymentData.guarantorPepRelatedPepCategroy || "No value"}
+                />
+                <Field
+                  label="PEP related PEP Subcategory"
+                  value={repaymentData.guarantorPep_category || "No value"}
+                />
+              </>
+            )
+          ) : null /* If no value, show only the main field */}
+        </div>
+
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field
+              label="PEP Sub-Category File"
+              value={repaymentData.guarantorPepSubCategoryFile?.name || "No file uploaded"}
+            />          
+        </div>
+          </div>
+          <div>
+            <h3  className="py-4 px-6 text-sm font-bold pt-15">BIL Related</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field label="BIL Related" value={repaymentData.guarantorBilRelated} capitalizeFirst={true} />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="py-4 px-6 text-sm font-bold pt-15">Employment Details</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              {/* Always show Employment Status */}
+              <Field
+                label="Employment Status"
+                value={repaymentData.guarantorEmploymentStatus || ""}
+                capitalizeFirst={true}
+              />
+            </div>
+
+            {repaymentData.guarantorEmploymentStatus === "employed" && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field label="Employee ID" value={repaymentData.guarantorEmployeeId || "No value"} />
+                  <Field
+                    label="Occupation"
+                    value={repaymentData.guarantorOccupation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Employer Type"
+                    value={repaymentData.guarantorEmployerType || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Designation"
+                    value={repaymentData.guarantorDesignation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field label="Grade" value={repaymentData.guarantorGrade || "No value"} />
+
+                  <Field
+                    label="Organization Name"
+                    value={repaymentData.guarantorOrganizationName || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Organization Location"
+                    value={repaymentData.guarantorOrgLocation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Service Joining Date"
+                    value={repaymentData.guarantorJoiningDate || "No value"}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field
+                    label="Nature of Service"
+                    value={repaymentData.guarantorServiceNature || "No value"}
+                  />
+
+                  {repaymentData.guarantorServiceNature?.toLowerCase() === "contract" && (
+                    <Field
+                      label="Contract End Date"
+                      value={repaymentData.guarantorContractEndDate || "No value"}
+                    />
+                  )}
+
+                  <Field
+                    label="Gross Income"
+                    value={repaymentData.guarantorGrossIncome || "No value"}
+                  />
+                </div>
+              </>
+            )}
+
+          </div>
+
+        </div>
+  )}
+
+</div>
+
+
+
       </AccordionSection>
 
       {error && (
@@ -609,7 +2285,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
 //   const router = useRouter()
 //   const personalData = formData ? { ...formData, ...formData.personalDetails } : {}
 //   const coBorrowerData = formData?.coBorrowerDetails || {}
-//   const securityData = formData?.securityDetails || {}
+//   const repaymentData = formData?.securityDetails || {}
 //   const repaymentData = formData?.repaymentSource || {}
 //   const [open, setOpen] = useState(false) // open by default
 

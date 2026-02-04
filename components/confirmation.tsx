@@ -110,6 +110,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
       spouseName: personalData.spouseName,
       spouseCid: personalData.spouseCid,
       spouseContact: personalData.spouseContact,
+      familyTreeDocs: personalData.familyTreeDocs,
       bankName: personalData.bankName,
       bankAccount: personalData.bankAccount,
       contact: personalData.currContact,
@@ -127,9 +128,15 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
       currVillage: personalData.currVillage,
       currFlat: personalData.currFlat,
       pep: personalData.pepPerson,
+      proofDoc: personalData.identificationProof,
       pepSubCategory: personalData.pepSubCategory,
       pepRelated: personalData.pepRelated,
       pepRelationship: personalData.pepRelationship,
+      // pepRelatedPepCategroy:personalData.
+      pepIdentificationNo: personalData.pepIdentificationNo,
+      pepCategory: personalData.pepCategory,
+      pepSubCat2: personalData.pepSubCat2,
+
       bilRelated: personalData.bilRelated,
       empolymentStatus: personalData.employmentStatus,
       occupation: personalData.occupation,
@@ -260,18 +267,18 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
 
            <Field label="Salutation" value={personalData.salutation} capitalizeFirst={true} />
-          <Field label="Full Name" value={personalData.applicantName} capitalizeFirst={true} />
+          <Field label="Applicant Name" value={personalData.applicantName} capitalizeFirst={true} />
           <Field label="Nationality" value={personalData.nationality} capitalizeFirst={true} />
-          <Field label="CID" value={personalData.identificationNo} />
-          <Field label="Issue Date" value={personalData.identificationIssueDate} />
-          <Field label="Expiry Date" value={personalData.identificationExpiryDate} /> 
-          <Field label="Gender" value={personalData.gender} capitalizeFirst={true} />
-          <Field label="Date of Birth" value={personalData.dateOfBirth} />
-          <Field label="Marital Status" value={personalData.maritalStatus} capitalizeFirst={true} />
-          <Field label="TPN" value={personalData.tpn} />
-          </div>
-         <div>
+          <Field label="Identification Type" value={personalData.identificationType} capitalizeFirst={true} />
 
+          <Field label="Identification No" value={personalData.identificationNo} />
+          <Field label="Identification Issue Date" value={personalData.identificationIssueDate} />
+          <Field label="Identification Expiry Date" value={personalData.identificationExpiryDate} />
+          <Field label="TPN" value={personalData.tpn} />
+          <Field label="Date of Birth" value={personalData.dateOfBirth} />
+          <Field label="Gender" value={personalData.gender} capitalizeFirst={true} />
+          <Field label="Marital Status" value={personalData.maritalStatus} capitalizeFirst={true} />
+          </div>          
           {personalData.maritalStatus === "married" && (
             <>
             <div className="mt-6 sm:mt-8">
@@ -285,6 +292,28 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
             </div>
             </>
           )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Family Tree Documents" value={personalData.familyTreeDocs? personalData.familyTreeDocs.name : ""} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Bank Name"  value={personalData.bankName} capitalizeFirst={true} />
+          <Field label="Bank Account" value={personalData.bankAccount} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Passport Photo" value={personalData.passportPhotoFile ? personalData.passportPhotoFile.name : ""} />
+          </div>
+         <div>
+          <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">Contact Details</h3>
+          <hr />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Contact" value={personalData.currContact} />
+          <Field label="Alternate Contact" value={personalData.alternateContact} />
+          <Field label="Email" value={personalData.currEmail} />
+          </div>
+          </div>
+
           </div>
           <div className="mt-6 sm:mt-8">
           <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Permanent Address</h3>
@@ -295,6 +324,9 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
           <Field label="Village/Street" value={personalData.permVillage} capitalizeFirst={true} />
           <Field label="Thram No." value={personalData.permThram} />
           <Field label="House No." value={personalData.permHouse} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Permanent Address Proof" value={personalData.permAddressProofFile ? personalData.permAddressProofFile.name : ""} />
           </div>
           </div>
 
@@ -307,46 +339,155 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
           <Field label="Village/Street" value={personalData.currVillage} capitalizeFirst={true} />
           <Field label="Flat/House No." value={personalData.currFlat} />
           </div>
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          <Field label="Current Address Proof" value={personalData.currAddressProofFile ? personalData.currAddressProofFile.name : ""} />
 
-          <div className="mt-6 sm:mt-8">
-          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">PEP Declarations</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-          <Field label="PEP Person" value={personalData.pepPerson} capitalizeFirst={true} />
-          <Field label="PEP Sub-Category" value={personalData.pepSubCategory} capitalizeFirst={true} />
-          <Field label="PEP Related" value={personalData.pepRelated} capitalizeFirst={true} />
-          <Field label="PEP Relationship" value={personalData.pepRelationship} capitalizeFirst={true} />
-          <Field label="BIL Related" value={personalData.bilRelated} capitalizeFirst={true} />
           </div>
           </div>
 
-          <div className="mt-6 sm:mt-8">
-          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Employment Details</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-          <Field label="Employment Status" value={personalData.employmentStatus} capitalizeFirst={true} />
-          <Field label="Occupation" value={personalData.occupation} capitalizeFirst={true} />
-          <Field label="Organization Name" value={personalData.organizationName} capitalizeFirst={true} />
-          <Field label="Employer Type" value={personalData.employerType} capitalizeFirst={true} />
-          <Field label="Organization Location" value={personalData.orgLocation} capitalizeFirst={true} />
-          <Field label="Employee ID" value={personalData.employeeId} />
-          <Field label="Service Joining Date" value={personalData.joiningDate} />
-          <Field label="Designation" value={personalData.designation} capitalizeFirst={true} />
-          <Field label="Grade" value={personalData.grade} />
-          <Field label="Employee Type" value={personalData.employeeType} capitalizeFirst={true} />
-          <Field label="Gross Income" value={personalData.grossIncome} />
+          <div>
+          <h3 className="py-4 px-6 text-sm font-bold pt-15">PEP Declarations</h3>
+          <hr />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          {/* Always show the main PEP field */}
+          <Field
+            label="Politically Exposed Person"
+            value={personalData.pepPerson}
+            capitalizeFirst={true}
+          />
+
+          {personalData.pepPerson ? (
+            personalData.pepPerson === "Yes" ? (
+              // If PEP = Yes, show PEP Sub-Category and file
+              <>
+                <Field
+                  label="PEP Sub-Category"
+                  value={personalData.pepSubCategory || "No value"}
+                  capitalizeFirst={true}
+                />
+                {/* <Field
+                  label="PEP Sub-Category File"
+                  value={personalData.pepSubCategoryFile?.name || "No file uploaded"}
+                /> */}
+              </>
+            ) : (
+              // If PEP = No, show all other fields
+              <>
+                <Field
+                  label="PEP Related"
+                  value={personalData.pepRelated || "No value"}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="PEP Relationship"
+                  value={personalData.pepRelationship || "No value"}
+                  capitalizeFirst={true}
+                />
+                <Field
+                  label="PEP Identification No"
+                  value={personalData.pepIdentificationNo || "No value"}
+                />
+                <Field
+                  label="PEP related PEP Category"
+                  value={personalData.pepRelatedPepCategroy || "No value"}
+                />
+                <Field
+                  label="PEP related PEP Subcategory"
+                  value={personalData.pep_category || "No value"}
+                />
+              </>
+            )
+          ) : null /* If no value, show only the main field */}
+        </div>
+
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field
+              label="PEP Sub-Category File"
+              value={personalData.pepSubCategoryFile?.name || "No file uploaded"}
+            />          
+        </div>
           </div>
+          <div>
+            <h3  className="py-4 px-6 text-sm font-bold pt-15">BIL Related</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <Field label="BIL Related" value={personalData.bilRelated} capitalizeFirst={true} />
+            </div>
           </div>
 
-          <div className="mt-6 sm:mt-8">
-          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Contact Details</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-          <Field label="Bank Name"  value={personalData.bankName} capitalizeFirst={true} />
-          <Field label="Bank Account" value={personalData.bankAccount} />
-          <Field label="Contact" value={personalData.currContact} />
-          <Field label="Alternate Contact" value={personalData.alternateContact} />
-          <Field label="Email" value={personalData.currEmail} />
+          <div>
+            <h3 className="py-4 px-6 text-sm font-bold pt-15">Employment Details</h3>
+            <hr />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+              {/* Always show Employment Status */}
+              <Field
+                label="Employment Status"
+                value={personalData.employmentStatus || ""}
+                capitalizeFirst={true}
+              />
+            </div>
+
+            {personalData.employmentStatus === "employed" && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field label="Employee ID" value={personalData.employeeId || "No value"} />
+                  <Field
+                    label="Occupation"
+                    value={personalData.occupation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Employer Type"
+                    value={personalData.employerType || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Designation"
+                    value={personalData.designation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field label="Grade" value={personalData.grade || "No value"} />
+
+                  <Field
+                    label="Organization Name"
+                    value={personalData.organizationName || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Organization Location"
+                    value={personalData.orgLocation || "No value"}
+                    capitalizeFirst={true}
+                  />
+                  <Field
+                    label="Service Joining Date"
+                    value={personalData.joiningDate || "No value"}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                  <Field
+                    label="Nature of Service"
+                    value={personalData.serviceNature || "No value"}
+                  />
+
+                  {personalData.serviceNature?.toLowerCase() === "contract" && (
+                    <Field
+                      label="Contract End Date"
+                      value={personalData.contractEndDate || "No value"}
+                    />
+                  )}
+
+                  <Field
+                    label="Gross Income"
+                    value={personalData.grossIncome || "No value"}
+                  />
+                </div>
+              </>
+            )}
+
           </div>
-          </div>
+
         </div>
       </AccordionSection>
 
@@ -357,7 +498,26 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
           <Field label="Co-Borrower Name" value={coBorrowerData.name} capitalizeFirst/>
           <Field label="Nationality" value={coBorrowerData.nationality} capitalizeFirst={true} />
           <Field label="Identification Type" value={coBorrowerData.identificationType} capitalizeFirst={true} /> 
-          <Field label="CID" value={coBorrowerData.cid} />
+          <Field label="Identification No" value={coBorrowerData.cid} />
+          <Field label="Identificatin Issue Date" value={coBorrowerData.identificationIssueDate0} />
+          <Field label="Identification Expiry Date" value={coBorrowerData.identificationExpiryDate} />
+          <Field label="TPN No" value={coBorrowerData.TPN} />
+          <Field label="Date of Birth" value={coBorrowerData.dateOfBirth} />
+          <Field label="Gender" value={coBorrowerData.gender} />
+          <Field label="Marital Status" value={coBorrowerData.marital_status} />
+          <Field label="Spouse CID No" value={coBorrowerData.spouseCid} />
+          <Field label="Spouse Name" value={coBorrowerData.spouseName} />
+          <Field label="Spouse Contact No" value={coBorrowerData.spouseContact} />
+          <Field label="Family Tree Docs" value={coBorrowerData.familyTree?.name} />
+          <Field label="Name of Bank" value={coBorrowerData.bank_name} />
+          <Field label="Bank Saving Account No" value={coBorrowerData.bankAccount} />
+          <Field label="Passport-size Photo" value={coBorrowerData.passportPhoto} />
+          <Field label="Relationship to Borrower" value={coBorrowerData.relationship} />
+
+          <Field label="Email Address" value={coBorrowerData.email} />
+          <Field label="Contact NUmber" value={coBorrowerData.contact} />
+          <Field label="Alternative Contact NUmber" value={coBorrowerData.alternateContact} />
+
           <Field label="Politically Exposed Person" value={coBorrowerData.pep} capitalizeFirst={true} />
           <Field label="Is he/she related to PEP?" value={coBorrowerData.pepRelated} capitalizeFirst={true} />
           {/* <Field label="Relationship" value={coBorrowerData.relationship} /> */}

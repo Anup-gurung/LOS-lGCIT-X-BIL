@@ -79,6 +79,7 @@ export interface CustomerApiResponse {
 
 export interface MappedFormData {
   // Personal Information
+  salutation?: string;
   fullName?: string;
   applicantName?: string; // Form alias
   dateOfBirth?: string;
@@ -162,6 +163,19 @@ export interface MappedFormData {
 }
 
 /**
+ * Safely extract value from object by trying multiple possible field names
+ */
+function extractField(obj: any, ...fieldNames: string[]): string {
+  for (const fieldName of fieldNames) {
+    const value = obj?.[fieldName];
+    if (value) {
+      return String(value).trim();
+    }
+  }
+  return '';
+}
+
+/**
  * Safely format date from YYYY-MM-DD to input-compatible format
  */
 export function formatDate(dateString?: string | null): string {
@@ -185,102 +199,114 @@ function safeGet(obj: any, path: string): any {
 
 /**
  * Map text labels to their corresponding codes for dropdown values
+ * Smart mapping that handles both codes and labels
  */
 function mapLabelToCode(label: string, type: string): string {
   if (!label) return '';
   
-  const labelLower = label.toLowerCase().trim();
+  const cleaned = String(label).trim();
+  if (!cleaned) return '';
   
-  // Nationality mappings
-  if (type === 'nationality') {
-    const nationalityMap: Record<string, string> = {
-      'bhutanese': 'bhutanese',
-      'indian': 'indian',
-      'nepali': 'nepali',
-      'bangladeshi': 'bangladeshi',
-    };
-    for (const [key, value] of Object.entries(nationalityMap)) {
-      if (labelLower.includes(key)) {
-        console.log(`Mapped ${type}: "${label}" -> "${value}"`);
-        return value;
-      }
-    }
-  }
+  const labelLower = cleaned.toLowerCase();
   
-  // Identification Type mappings
-  if (type === 'identificationType') {
-    const idTypeMap: Record<string, string> = {
-      'citizenship identity card': 'cid',
-      'cid': 'cid',
-      'work permit': 'workpermit',
-      'workpermit': 'workpermit',
-      'passport': 'passport',
-    };
-    for (const [key, value] of Object.entries(idTypeMap)) {
-      if (labelLower.includes(key)) {
-        console.log(`Mapped ${type}: "${label}" -> "${value}"`);
-        return value;
-      }
-    }
+  console.log(`mapLabelToCode - Input: "${label}", Type: "${type}", Cleaned: "${cleaned}"`);
+  
+  // Gender mappings - MOST IMPORTANT, exact matching first
+  if (type === 'gender') {
+    if (labelLower === 'male' || labelLower === 'm') return 'male';
+    if (labelLower === 'female' || labelLower === 'f') return 'female';
+    if (labelLower === 'other') return 'other';
+    return cleaned; // Fallback
   }
   
   // Marital Status mappings
   if (type === 'maritalStatus') {
-    const maritalMap: Record<string, string> = {
-      'single': 'single',
-      'married': 'married',
-      'divorced': 'divorced',
-      'widowed': 'widowed',
-      'separated': 'separated',
-    };
-    for (const [key, value] of Object.entries(maritalMap)) {
-      if (labelLower.includes(key)) {
-        console.log(`Mapped ${type}: "${label}" -> "${value}"`);
-        return value;
-      }
-    }
+    if (labelLower === 'single' || labelLower === 'unmarried') return 'single';
+    if (labelLower === 'married') return 'married';
+    if (labelLower === 'divorced') return 'divorced';
+    if (labelLower === 'widowed') return 'widowed';
+    if (labelLower === 'separated') return 'separated';
+    return cleaned; // Fallback
   }
   
-  // Gender mappings
-  if (type === 'gender') {
-    const genderMap: Record<string, string> = {
-      'male': 'male',
-      'female': 'female',
-      'other': 'other',
-    };
-    for (const [key, value] of Object.entries(genderMap)) {
-      if (labelLower.includes(key)) {
-        console.log(`Mapped ${type}: "${label}" -> "${value}"`);
-        return value;
-      }
-    }
+  // Nationality mappings
+  if (type === 'nationality') {
+    if (labelLower.includes('bhutan')) return cleaned;
+    if (labelLower.includes('indian') || labelLower.includes('india')) return cleaned;
+    if (labelLower.includes('nepali') || labelLower.includes('nepal')) return cleaned;
+    if (labelLower.includes('bangladeshi') || labelLower.includes('bangladesh')) return cleaned;
+    return cleaned; // Fallback
+  }
+  
+  // Identification Type mappings
+  if (type === 'identificationType') {
+    if (labelLower.includes('citizenship') || labelLower === 'cid') return cleaned;
+    if (labelLower.includes('work') || labelLower.includes('permit')) return cleaned;
+    if (labelLower === 'passport') return cleaned;
+    return cleaned; // Fallback
   }
   
   // Bank Name mappings
   if (type === 'bankName') {
-    const bankMap: Record<string, string> = {
-      'bank of bhutan': 'bob',
-      'bob': 'bob',
-      'bhutan national bank': 'bnb',
-      'bnb': 'bnb',
-      'druk pnb': 'dpnb',
-      'dpnb': 'dpnb',
-      't bank': 'tbank',
-      'tbank': 'tbank',
-      'bhutan development bank': 'bdbl',
-      'bdbl': 'bdbl',
-    };
-    for (const [key, value] of Object.entries(bankMap)) {
-      if (labelLower.includes(key)) {
-        console.log(`Mapped ${type}: "${label}" -> "${value}"`);
-        return value;
-      }
-    }
+    if (labelLower.includes('bank of bhutan') || labelLower === 'bob') return cleaned;
+    if (labelLower.includes('bhutan national bank') || labelLower === 'bnb') return cleaned;
+    if (labelLower.includes('druk') || labelLower === 'dpnb') return cleaned;
+    if (labelLower.includes('t bank') || labelLower === 'tbank') return cleaned;
+    if (labelLower.includes('development')) return cleaned;
+    return cleaned; // Fallback
   }
   
-  // If no mapping found, return the original label (it might already be a code)
-  console.log(`No mapping for ${type}: "${label}" - using as-is`);
-  return label;
+  // Salutation mappings
+  if (type === 'salutation') {
+    if (labelLower === 'mr' || labelLower === 'mr.' || labelLower.includes('mister')) return 'mr';
+    if (labelLower === 'mrs' || labelLower === 'mrs.') return 'mrs';
+    if (labelLower === 'ms' || labelLower === 'ms.' || labelLower === 'miss') return 'ms';
+    if (labelLower === 'dr' || labelLower === 'dr.' || labelLower.includes('doctor')) return 'dr';
+    return cleaned; // Fallback
+  }
+  
+  // Default: return cleaned value as-is
+  console.log(`No mapping found for ${type}: "${cleaned}", returning as-is`);
+  return cleaned;
+}
+
+/**
+ * Extract salutation prefix from full name (e.g., "Mr Thinley Gyeltshen" -> "mr")
+ * If API provides party_salutation, use that; otherwise extract from name
+ */
+function extractSalutation(fullName: string, apiSalutation?: string): string {
+  // If API provides salutation, use it
+  if (apiSalutation) {
+    return mapLabelToCode(apiSalutation, 'salutation');
+  }
+  
+  // Otherwise, try to extract from the beginning of the name
+  if (!fullName) return '';
+  
+  const nameLower = fullName.toLowerCase();
+  
+  if (nameLower.startsWith('mr')) return 'mr';
+  if (nameLower.startsWith('mrs')) return 'mrs';
+  if (nameLower.startsWith('ms')) return 'ms';
+  if (nameLower.startsWith('dr')) return 'dr';
+  
+  return ''; // No salutation found
+}
+
+/**
+ * Extract the actual name without salutation prefix
+ */
+function extractNameWithoutSalutation(fullName: string): string {
+  if (!fullName) return '';
+  
+  const trimmed = fullName.trim();
+  
+  // Remove common salutation prefixes
+  const withoutSalutation = trimmed
+    .replace(/^(Mr\.|Mrs\.|Ms\.|Dr\.|Mr|Mrs|Ms|Dr)\s+/i, '')
+    .trim();
+  
+  return withoutSalutation || trimmed; // Return original if no salutation found
 }
 
 /**
@@ -309,10 +335,20 @@ export function mapCustomerDataToForm(response: CustomerApiResponse): MappedForm
     pep
   });
   
+  // Log critical fields that user reported are missing
+  console.log('📋 CRITICAL FIELDS FROM API:');
+  console.log('   party_marital_status:', personal?.party_marital_status);
+  console.log('   party_bank_name:', personal?.party_bank_name);
+  console.log('   pty_adr_permanent_country:', address?.Permanent_address?.pty_adr_permanent_country);
+  console.log('\n🔍 ALL PERSONAL FIELDS:', Object.keys(personal || {}));
+  console.log('🔍 ALL ADDRESS FIELDS:', Object.keys(address?.Permanent_address || {}));
+  console.log('🔍 ALL ADDRESS STRUCTURE:', Object.keys(address || {}));
+  
   const mappedData: MappedFormData = {
     // Personal Information
-    fullName: personal?.party_name || '',
-    applicantName: personal?.party_name || '', // Form uses applicantName
+    salutation: extractSalutation(personal?.party_name || '', personal?.party_salutation),
+    fullName: extractNameWithoutSalutation(personal?.party_name || ''),
+    applicantName: extractNameWithoutSalutation(personal?.party_name || ''), // Form uses applicantName
     dateOfBirth: formatDate(personal?.party_date_of_birth),
     gender: mapLabelToCode(personal?.party_gender || '', 'gender'),
     idNumber: personal?.party_identity_no || '',
@@ -323,74 +359,81 @@ export function mapCustomerDataToForm(response: CustomerApiResponse): MappedForm
     identificationIssueDate: formatDate(personal?.party_identity_issued_date), // Form uses identificationIssueDate
     identityExpiryDate: formatDate(personal?.party_identity_expiry_date),
     identificationExpiryDate: formatDate(personal?.party_identity_expiry_date), // Form uses identificationExpiryDate
-    maritalStatus: mapLabelToCode(personal?.party_marital_status || '', 'maritalStatus'),
+    maritalStatus: mapLabelToCode(extractField(personal, 'party_marital_status', 'marital_status', 'maritalStatus'), 'maritalStatus'),
     nationality: mapLabelToCode(personal?.party_nationality || '', 'nationality'),
-    bankName: mapLabelToCode(personal?.party_bank_name || '', 'bankName'),
-    bankAccount: personal?.party_bank_account_no || '', // Form uses bankAccount
-    bankAccountNo: personal?.party_bank_account_no || '',
-    tpnNumber: personal?.party_tpn_number || '',
-    tpn: personal?.party_tpn_number || '', // Form uses tpn
-    partyId: personal?.party_id || '',
+    bankName: mapLabelToCode(extractField(personal, 'party_bank_name', 'bank_name', 'bankName'), 'bankName'),
+    bankAccount: extractField(personal, 'party_bank_account_no', 'bank_account_no', 'bankAccount'), // Form uses bankAccount
+    bankAccountNo: extractField(personal, 'party_bank_account_no', 'bank_account_no', 'bankAccount'),
+    tpnNumber: extractField(personal, 'party_tpn_number', 'tpn_number', 'tpn'),
+    tpn: extractField(personal, 'party_tpn_number', 'tpn_number', 'tpn'), // Form uses tpn
+    partyId: extractField(personal, 'party_id', 'id'),
     
     // Contact Information
-    phone: contact?.pty_ctc_contact_no || '',
-    contactNo: contact?.pty_ctc_contact_no || '', // Form uses contactNo
-    email: contact?.pty_ctc_email_id || '',
-    emailId: contact?.pty_ctc_email_id || '', // Form uses emailId
-    alternatePhone: contact?.pty_ctc_alternate_contact_no || '',
-    alternateContactNo: contact?.pty_ctc_alternate_contact_no || '', // Form uses alternateContactNo
+    phone: extractField(contact, 'pty_ctc_contact_no', 'contact_no', 'phone'),
+    contactNo: extractField(contact, 'pty_ctc_contact_no', 'contact_no', 'phone'), // Form uses contactNo
+    email: extractField(contact, 'pty_ctc_email_id', 'email_id', 'email'),
+    emailId: extractField(contact, 'pty_ctc_email_id', 'email_id', 'email'), // Form uses emailId
+    alternatePhone: extractField(contact, 'pty_ctc_alternate_contact_no', 'alternate_contact_no', 'alternateContactNo'),
+    alternateContactNo: extractField(contact, 'pty_ctc_alternate_contact_no', 'alternate_contact_no', 'alternateContactNo'), // Form uses alternateContactNo
     
     // Permanent Address
-    permanentCountry: address?.Permanent_address?.pty_adr_permanent_country || '',
-    permCountry: address?.Permanent_address?.pty_adr_permanent_country || '', // Form uses permCountry
-    permanentDzongkhag: address?.Permanent_address?.pty_adr_permanent_dzongkhag || '',
-    permDzongkhag: address?.Permanent_address?.pty_adr_permanent_dzongkhag || '', // Form uses permDzongkhag
-    permanentGewog: address?.Permanent_address?.pty_adr_permanent_gewog || '',
-    permGewog: address?.Permanent_address?.pty_adr_permanent_gewog || '', // Form uses permGewog
-    permanentStreet: address?.Permanent_address?.pty_adr_permanent_street || '',
-    permStreet: address?.Permanent_address?.pty_adr_permanent_street || '', // Form uses permStreet
-    thramNo: address?.Permanent_address?.pty_adr_thram_no || '',
-    houseNo: address?.Permanent_address?.pty_adr_house_no || '',
+    permanentCountry: extractField(address?.Permanent_address, 'pty_adr_permanent_country', 'permanent_country', 'country'),
+    permCountry: extractField(address?.Permanent_address, 'pty_adr_permanent_country', 'permanent_country', 'country'), // Form uses permCountry
+    permanentDzongkhag: extractField(address?.Permanent_address, 'pty_adr_permanent_dzongkhag', 'permanent_dzongkhag', 'dzongkhag'),
+    permDzongkhag: extractField(address?.Permanent_address, 'pty_adr_permanent_dzongkhag', 'permanent_dzongkhag', 'dzongkhag'), // Form uses permDzongkhag
+    permanentGewog: extractField(address?.Permanent_address, 'pty_adr_permanent_gewog', 'permanent_gewog', 'gewog'),
+    permGewog: extractField(address?.Permanent_address, 'pty_adr_permanent_gewog', 'permanent_gewog', 'gewog'), // Form uses permGewog
+    permanentStreet: extractField(address?.Permanent_address, 'pty_adr_permanent_street', 'permanent_street', 'street'),
+    permStreet: extractField(address?.Permanent_address, 'pty_adr_permanent_street', 'permanent_street', 'street'), // Form uses permStreet
+    thramNo: extractField(address?.Permanent_address, 'pty_adr_thram_no', 'thram_no', 'thramNo'),
+    houseNo: extractField(address?.Permanent_address, 'pty_adr_house_no', 'house_no', 'houseNo'),
     
     // Current/Resident Address
-    currentCountry: address?.resident_address?.pty_adr_resident_country || '',
-    currCountry: address?.resident_address?.pty_adr_resident_country || '', // Form uses currCountry
-    currentDzongkhag: address?.resident_address?.pty_adr_resident_dzongkhag || '',
-    currDzongkhag: address?.resident_address?.pty_adr_resident_dzongkhag || '', // Form uses currDzongkhag
-    currentGewog: address?.resident_address?.pty_adr_resident_gewog || '',
-    currGewog: address?.resident_address?.pty_adr_resident_gewog || '', // Form uses currGewog
-    currentStreet: address?.resident_address?.pty_adr_resident_street || '',
-    currStreet: address?.resident_address?.pty_adr_resident_street || '', // Form uses currStreet
-    currentBuildingNo: address?.resident_address?.pty_adr_resident_building_no || '',
-    currBuildingNo: address?.resident_address?.pty_adr_resident_building_no || '', // Form uses currBuildingNo
+    currentCountry: extractField(address?.resident_address, 'pty_adr_resident_country', 'resident_country', 'country'),
+    currCountry: extractField(address?.resident_address, 'pty_adr_resident_country', 'resident_country', 'country'), // Form uses currCountry
+    currentDzongkhag: extractField(address?.resident_address, 'pty_adr_resident_dzongkhag', 'resident_dzongkhag', 'dzongkhag'),
+    currDzongkhag: extractField(address?.resident_address, 'pty_adr_resident_dzongkhag', 'resident_dzongkhag', 'dzongkhag'), // Form uses currDzongkhag
+    currentGewog: extractField(address?.resident_address, 'pty_adr_resident_gewog', 'resident_gewog', 'gewog'),
+    currGewog: extractField(address?.resident_address, 'pty_adr_resident_gewog', 'resident_gewog', 'gewog'), // Form uses currGewog
+    currentStreet: extractField(address?.resident_address, 'pty_adr_resident_street', 'resident_street', 'street'),
+    currStreet: extractField(address?.resident_address, 'pty_adr_resident_street', 'resident_street', 'street'), // Form uses currStreet
+    currentBuildingNo: extractField(address?.resident_address, 'pty_adr_resident_building_no', 'resident_building_no', 'buildingNo'),
+    currBuildingNo: extractField(address?.resident_address, 'pty_adr_resident_building_no', 'resident_building_no', 'buildingNo'), // Form uses currBuildingNo
     
     // Employment Information
     occupation: employment?.pty_empl_occupation || '',
     employerType: employment?.pty_empl_employer_type || '',
-    organizationType: employment?.pty_empl_employer_type || '', // Form uses organizationType
-    employerName: employment?.pty_empl_organization_name || '',
-    organizationName: employment?.pty_empl_organization_name || '', // Form uses organizationName
-    employerLocation: employment?.pty_empl_organization_loc || '',
-    organizationLocation: employment?.pty_empl_organization_loc || '', // Form uses organizationLocation
-    employeeId: employment?.pty_empl_employee_id || '',
-    serviceNature: employment?.pty_empl_nature_of_service || '',
-    natureOfService: employment?.pty_empl_nature_of_service || '', // Form uses natureOfService
-    appointmentDate: formatDate(employment?.pty_empl_appointment_date),
-    designation: employment?.pty_empl_designation || '',
-    grade: employment?.pty_empl_grade || '',
-    annualIncome: employment?.pty_empl_annual_income || '',
+    organizationType: extractField(employment, 'pty_empl_employer_type', 'employer_type', 'organizationType'), // Form uses organizationType
+    employerName: extractField(employment, 'pty_empl_organization_name', 'organization_name', 'employerName'),
+    organizationName: extractField(employment, 'pty_empl_organization_name', 'organization_name', 'employerName'), // Form uses organizationName
+    employerLocation: extractField(employment, 'pty_empl_organization_loc', 'organization_location', 'employerLocation'),
+    organizationLocation: extractField(employment, 'pty_empl_organization_loc', 'organization_location', 'employerLocation'), // Form uses organizationLocation
+    employeeId: extractField(employment, 'pty_empl_employee_id', 'employee_id', 'employeeId'),
+    serviceNature: extractField(employment, 'pty_empl_nature_of_service', 'nature_of_service', 'serviceNature'),
+    natureOfService: extractField(employment, 'pty_empl_nature_of_service', 'nature_of_service', 'serviceNature'), // Form uses natureOfService
+    appointmentDate: formatDate(extractField(employment, 'pty_empl_appointment_date', 'appointment_date', 'appointmentDate')),
+    designation: extractField(employment, 'pty_empl_designation', 'designation'),
+    grade: extractField(employment, 'pty_empl_grade', 'grade'),
+    annualIncome: extractField(employment, 'pty_empl_annual_income', 'annual_income', 'annualIncome'),
     
     // PEP Information
-    pepDeclaration: pep?.pep_declaration_type || '',
-    pepPerson: pep?.pep_category === 'Not Applicable' ? 'no' : 'yes', // Form uses pepPerson (yes/no)
-    pepCategory: pep?.pep_category || '',
-    pepSubCategory: pep?.pep_sub_category,
-    relatedToAnyPep: pep?.related_to_any_pep || '',
-    pepRelated: pep?.related_to_any_pep === 'Yes' ? 'yes' : 'no', // Form uses pepRelated (yes/no)
+    pepDeclaration: extractField(pep, 'pep_declaration_type', 'declaration_type'),
+    pepPerson: extractField(pep, 'pep_category', 'category') === 'Not Applicable' ? 'no' : 'yes', // Form uses pepPerson (yes/no)
+    pepCategory: extractField(pep, 'pep_category', 'category'),
+    pepSubCategory: extractField(pep, 'pep_sub_category', 'sub_category'),
+    relatedToAnyPep: extractField(pep, 'related_to_any_pep', 'relatedToAnyPep'),
+    pepRelated: extractField(pep, 'related_to_any_pep', 'relatedToAnyPep') === 'Yes' ? 'yes' : 'no', // Form uses pepRelated (yes/no)
     
     // Metadata
     isVerified: true,
   };
+
+  // Diagnostic logging for missing fields
+  console.log('🔴 CHECKING MAPPED FIELDS:');
+  console.log('   maritalStatus:', mappedData.maritalStatus || '❌ EMPTY');
+  console.log('   bankName:', mappedData.bankName || '❌ EMPTY');
+  console.log('   permCountry:', mappedData.permCountry || '❌ EMPTY');
+  console.log('   permanentCountry:', mappedData.permanentCountry || '❌ EMPTY');
 
   // Filter verified fields after mappedData is fully defined
   const fieldsToCheck = [
@@ -435,25 +478,28 @@ export function isFieldVerified(fieldName: string, mappedData: MappedFormData): 
 }
 
 /**
- * Retrieve verified customer data from session storage
+ * Retrieve verified customer data from session storage (for existing users)
  */
 export function getVerifiedCustomerDataFromSession(): MappedFormData | null {
   try {
-    if (typeof window === 'undefined') return null;
+    console.log('🔍 getVerifiedCustomerDataFromSession: Checking sessionStorage...');
+    const verifiedData = sessionStorage.getItem('verifiedCustomerData');
     
-    const storedData = sessionStorage.getItem('verifiedCustomerData');
-    if (storedData) {
-      const parsedData = JSON.parse(storedData);
-      console.log('✅ Retrieved verified customer data from session:', parsedData);
-      console.log('✅ Number of fields:', Object.keys(parsedData).length);
+    if (verifiedData) {
+      const parsedData = JSON.parse(verifiedData);
+      console.log('✅ getVerifiedCustomerDataFromSession: Data found!');
+      console.log('   Data keys:', Object.keys(parsedData));
+      console.log('   Applicant Name:', parsedData.applicantName);
+      console.log('   Email:', parsedData.currEmail || parsedData.email);
+      console.log('   Phone:', parsedData.currContact || parsedData.phone);
       return parsedData;
     } else {
-      console.log('⚠️ No verified customer data found in sessionStorage');
+      console.log('❌ getVerifiedCustomerDataFromSession: No data in sessionStorage');
+      console.log('   Available keys:', Object.keys(sessionStorage));
     }
   } catch (error) {
     console.error('❌ Error retrieving verified customer data from session:', error);
   }
-  
   return null;
 }
 

@@ -38,6 +38,7 @@ import {
   fetchPepSubCategoryByCategory,
 } from "@/services/api";
 import { getNdiDataFromSession } from "@/lib/mapNdiData";
+import { getVerifiedCustomerDataFromSession } from "@/lib/mapCustomerData";
 import { PlusCircle, Trash2 } from "lucide-react";
 
 interface PersonalDetailsFormProps {
@@ -62,25 +63,41 @@ export function PersonalDetailsForm({
   formData,
 }: PersonalDetailsFormProps) {
   const [data, setData] = useState(() => {
-    // First, try to get NDI verified data from session
-    const ndiData = getNdiDataFromSession();
-
-    let initialData = {};
-
-    // If NDI data exists, merge it with formData (formData takes precedence)
-    if (ndiData) {
-      const formInitial = formData?.personalDetails || formData || {};
-      initialData = { ...ndiData, ...formInitial };
-    } else {
-      // Otherwise, use formData if available
-      initialData = formData?.personalDetails || formData || {};
+    console.log('========== PersonalDetail INIT ==========');
+    
+    // PRIORITY 1: Check for verified customer data (existing users)
+    const verifiedData = getVerifiedCustomerDataFromSession();
+    if (verifiedData && Object.keys(verifiedData).length > 0) {
+      console.log('✅ INIT: Loading verified customer data:', verifiedData);
+      let initialData = { ...verifiedData };
+      
+      if (!(initialData as any).relatedPeps) {
+        (initialData as any).relatedPeps = [createEmptyRelatedPep()];
+      }
+      console.log('========== Init Complete ==========\n');
+      return initialData as any;
     }
 
+    // PRIORITY 2: Check for NDI verified data (new users)
+    const ndiData = getNdiDataFromSession();
+    if (ndiData && Object.keys(ndiData).length > 0) {
+      console.log('✅ INIT: Loading NDI data:', ndiData);
+      let initialData = { ...ndiData };
+      
+      if (!(initialData as any).relatedPeps) {
+        (initialData as any).relatedPeps = [createEmptyRelatedPep()];
+      }
+      console.log('========== Init Complete ==========\n');
+      return initialData as any;
+    }
+
+    // PRIORITY 3: Use formData from page
+    console.log('⚠️ INIT: No verified/NDI data, using formData:', formData);
+    let initialData = formData?.personalDetails || formData || {};
+
     // --- MIGRATION LOGIC FOR RELATED PEPS ---
-    // Ensure relatedPeps array exists. If old data exists (flat fields), move it into the array.
     if (!(initialData as any).relatedPeps) {
       if ((initialData as any).pepRelated === "yes") {
-        // If user was previously saved as related to PEP, map old flat fields to first array item
         (initialData as any).relatedPeps = [
           {
             relationship: (initialData as any).pepRelationship || "",
@@ -91,11 +108,11 @@ export function PersonalDetailsForm({
           },
         ];
       } else {
-        // Initialize with one empty row
         (initialData as any).relatedPeps = [createEmptyRelatedPep()];
       }
     }
 
+    console.log('========== Init Complete ==========\n');
     return initialData as any;
   });
 
@@ -164,10 +181,73 @@ export function PersonalDetailsForm({
 
   const isMarried = getIsMarried();
 
-  // Load NDI verified data from session on mount
+  /**
+   * Helper to find pk_code from label by searching through available options
+   * This allows us to match stored label values to dropdown pk_codes
+   */
+  const findPkCodeByLabel = (label: string, options: any[], labelFields: string[]): string => {
+    if (!label) return '';
+    
+    const labelLower = String(label).toLowerCase().trim();
+    
+    for (const option of options) {
+      // Try each possible label field
+      for (const field of labelFields) {
+        const optionLabel = String(option[field] || '').toLowerCase().trim();
+        if (optionLabel === labelLower || optionLabel.includes(labelLower) || labelLower.includes(optionLabel)) {
+          // Found a match, return the pk_code by checking common pk_code field names
+          return String(
+            option.bank_pk_code ||
+            option.country_pk_code ||
+            option.nationality_pk_code || 
+            option.identity_type_pk_code || 
+            option.marital_status_pk_code || 
+            option.occupation_pk_code ||
+            option.pk_code ||
+            option.id || 
+            option.code || 
+            ''
+          );
+        }
+      }
+    }
+    
+    // No match found, return the label as-is (it might already be a pk_code)
+    return label;
+  };
+
+  // Load NDI verified data or existing customer verified data from session on mount
   useEffect(() => {
+    // Check for existing customer verified data first
+    const verifiedData = getVerifiedCustomerDataFromSession();
+    if (verifiedData && Object.keys(verifiedData).length > 0) {
+      console.log('========== PersonalDetail - LOADING VERIFIED CUSTOMER DATA ==========');
+      console.log('Verified data:', verifiedData);
+      console.log('Key fields:');
+      console.log('  applicantName:', verifiedData.applicantName);
+      console.log('  salutation:', verifiedData.salutation);
+      console.log('  gender:', verifiedData.gender);
+      console.log('  maritalStatus:', verifiedData.maritalStatus);
+      console.log('  nationality:', verifiedData.nationality);
+      console.log('  identificationType:', verifiedData.identificationType);
+      console.log('  currEmail:', verifiedData.currEmail);
+      console.log('  currContact:', verifiedData.currContact);
+      console.log('  bankName:', verifiedData.bankName);
+      console.log('====================================================================\n');
+      
+      setData((prevData: any) => ({
+        ...verifiedData,
+        ...prevData,
+        // Ensure relatedPeps is preserved
+        relatedPeps: prevData.relatedPeps || [createEmptyRelatedPep()],
+      }));
+      return; // Don't check NDI data if verified customer data exists
+    }
+    
+    // If no verified customer data, check for NDI data
     const ndiData = getNdiDataFromSession();
     if (ndiData && Object.keys(ndiData).length > 0) {
+      console.log('PersonalDetail - Loading NDI data:', ndiData);
       setData((prevData: any) => ({
         ...ndiData,
         ...prevData,
@@ -580,7 +660,7 @@ export function PersonalDetailsForm({
               Identification Type <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.identificationType}
+              value={findPkCodeByLabel(data.identificationType, identificationTypeOptions, ['identity_type', 'identification_type', 'name', 'label']) || data.identificationType}
               onValueChange={(value) =>
                 setData({ ...data, identificationType: value })
               }
@@ -694,7 +774,7 @@ export function PersonalDetailsForm({
               Nationality <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.nationality}
+              value={findPkCodeByLabel(data.nationality, nationalityOptions, ['nationality', 'name', 'label'])}
               onValueChange={(value) =>
                 setData({ ...data, nationality: value })
               }
@@ -859,7 +939,7 @@ export function PersonalDetailsForm({
               Marital Status <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.maritalStatus}
+              value={findPkCodeByLabel(data.maritalStatus, maritalStatusOptions, ['marital_status', 'name', 'label']) || data.maritalStatus}
               onValueChange={(value) =>
                 setData({ ...data, maritalStatus: value })
               }
@@ -1026,7 +1106,7 @@ export function PersonalDetailsForm({
               Name of Bank <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.bankName}
+              value={findPkCodeByLabel(data.bankName, banksOptions, ['bank_name', 'name', 'label']) || data.bankName}
               onValueChange={(value) => setData({ ...data, bankName: value })}
             >
               <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
@@ -1142,7 +1222,7 @@ export function PersonalDetailsForm({
               Country <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.permCountry}
+              value={findPkCodeByLabel(data.permCountry, countryOptions, ['country', 'name', 'label']) || data.permCountry}
               onValueChange={(value) =>
                 setData({ ...data, permCountry: value })
               }
@@ -1583,7 +1663,7 @@ export function PersonalDetailsForm({
               Country of Resident <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.currCountry}
+              value={findPkCodeByLabel(data.currCountry, countryOptions, ['country', 'name', 'label']) || data.currCountry}
               onValueChange={(value) =>
                 setData({ ...data, currCountry: value })
               }

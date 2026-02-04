@@ -27,6 +27,8 @@ import {
   fetchMaritalStatus,
   fetchBanks,
   fetchPepCategory,
+  fetchOccupations,
+  fetchLegalConstitution,
   fetchPepSubCategoryByCategory,
 } from "@/services/api";
 
@@ -97,7 +99,23 @@ const createEmptySecurity = () => ({
   stockName: "",
   stockQuantity: "",
   stockValue: "",
-
+  // Equipment fields
+  equipmentType: "",
+  equipmentMake: "",
+  equipmentModel: "",
+  equipmentSerialNo: "",
+  equipmentValue: "",
+  // Fixed Deposit fields
+  fdBank: "",
+  fdAccountNo: "",
+  fdAmount: "",
+  fdMaturityDate: "",
+  // Building fields
+  buildingType: "",
+  buildingArea: "",
+  buildingYear: "",
+  // Security Proof File Upload
+  securityProof: "",
   // Local options for this specific row (Prevents dropdown conflicts)
   gewogOptions: [] as any[],
 });
@@ -143,6 +161,20 @@ const createEmptyGuarantor = () => ({
   contact: "",
   currAlternateContact: "",
   currAddressProof: "",
+
+  // Employment Details
+  employmentStatus: "",
+  employeeId: "",
+  occupation: "",
+  employerType: "",
+  designation: "",
+  grade: "",
+  organizationName: "",
+  orgLocation: "",
+  joiningDate: "",
+  serviceNature: "",
+  annualSalary: "",
+  contractEndDate: "",
 
   // PEP Declaration
   isPep: "",
@@ -192,6 +224,8 @@ export function SecurityDetailsForm({
   const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([]);
   const [banksOptions, setBanksOptions] = useState<any[]>([]);
   const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
+  const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
+  const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
 
   // Calculate date constraints
   const today = new Date().toISOString().split("T")[0];
@@ -244,6 +278,8 @@ export function SecurityDetailsForm({
           maritalStatus,
           banks,
           pepCategories,
+          occupations,
+          organizations,
         ] = await Promise.all([
           fetchNationality().catch(() => []),
           fetchIdentificationType().catch(() => []),
@@ -252,6 +288,8 @@ export function SecurityDetailsForm({
           fetchMaritalStatus().catch(() => []),
           fetchBanks().catch(() => []),
           fetchPepCategory().catch(() => []),
+          fetchOccupations().catch(() => []),
+          fetchLegalConstitution().catch(() => []),
         ]);
 
         setNationalityOptions(nationality);
@@ -261,6 +299,15 @@ export function SecurityDetailsForm({
         setMaritalStatusOptions(maritalStatus);
         setBanksOptions(banks);
         setPepCategoryOptions(pepCategories || []);
+        setOccupationOptions(
+          occupations || [
+            { id: "engineer", name: "Engineer" },
+            { id: "teacher", name: "Teacher" },
+          ],
+        );
+        setOrganizationOptions(
+          organizations || [{ id: "org1", name: "Organization 1" }],
+        );
       } catch (error) {
         console.error("Failed to load dropdown data:", error);
       }
@@ -458,6 +505,7 @@ export function SecurityDetailsForm({
     loadPepSubCategories();
   }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
 
+  // --- FILE UPLOAD HANDLERS ---
   const handleFileChange = (
     index: number | "main",
     fieldName: string,
@@ -532,6 +580,45 @@ export function SecurityDetailsForm({
           return updated;
         });
       }
+    }
+  };
+
+  // Security file upload handler
+  const handleSecurityFileChange = (index: number, file: File | null) => {
+    if (file) {
+      const allowedTypes = [
+        "application/pdf",
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+      ];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      if (!allowedTypes.includes(file.type)) {
+        setErrors({
+          ...errors,
+          [`security-${index}-proof`]:
+            "Only PDF, JPG, JPEG, and PNG files are allowed",
+        });
+        return;
+      }
+
+      if (file.size > maxSize) {
+        setErrors({
+          ...errors,
+          [`security-${index}-proof`]: "File size must be less than 5MB",
+        });
+        return;
+      }
+
+      // Clear error and update security
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[`security-${index}-proof`];
+        return newErrors;
+      });
+
+      updateSecurityField(index, "securityProof", file.name);
     }
   };
 
@@ -965,8 +1052,30 @@ export function SecurityDetailsForm({
     return isValid;
   };
 
+  const validateSecurities = (): boolean => {
+    let isValid = true;
+    securities.forEach((security, index) => {
+      if (security.securityType && security.securityType !== "Not Applicable") {
+        if (!security.securityProof) {
+          setErrors((prev) => ({
+            ...prev,
+            [`security-${index}-proof`]: "Security proof is required",
+          }));
+          isValid = false;
+        }
+      }
+    });
+    return isValid;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate securities
+    const areSecuritiesValid = validateSecurities();
+    if (!areSecuritiesValid) {
+      return;
+    }
 
     // Check ownership type in securities
     const hasThirdParty = securities.some(
@@ -982,6 +1091,78 @@ export function SecurityDetailsForm({
     }
 
     onNext({ securityDetails: securities, additionalGuarantors: guarantors });
+  };
+
+  // Render security proof upload section
+  const renderSecurityProofUpload = (security: any, secIndex: number) => {
+    const securityType = security.securityType;
+    const proofFileName = security.securityProof || "No file chosen";
+
+    const getUploadLabel = () => {
+      switch (securityType) {
+        case "vehicle":
+          return "Upload Vehicle Proof (Registration, Insurance)";
+        case "land":
+          return "Upload Land Proof (Thram Copy, Land Tax Receipt)";
+        case "building":
+          return "Upload Building Proof (Building Approval, Valuation Report)";
+        case "equipment":
+          return "Upload Equipment Proof (Invoice, Serial Number Proof)";
+        case "insurance":
+          return "Upload Insurance Policy Document";
+        case "PPF":
+          return "Upload PPF Statement/Certificate";
+        case "Share":
+          return "Upload Share Certificate/Proof";
+        case "Stocks":
+          return "Upload Stock Holding Certificate";
+        case "fd":
+          return "Upload Fixed Deposit Certificate";
+        default:
+          return "Upload Security Proof";
+      }
+    };
+
+    return (
+      <div className="space-y-2.5 mt-6 pt-6 border-t">
+        <Label className="text-gray-800 font-semibold text-sm">
+          {getUploadLabel()} <span className="text-red-500">*</span>
+        </Label>
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            id={`security-proof-${secIndex}`}
+            className="hidden"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={(e) =>
+              handleSecurityFileChange(secIndex, e.target.files?.[0] || null)
+            }
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-28 bg-transparent"
+            onClick={() =>
+              document.getElementById(`security-proof-${secIndex}`)?.click()
+            }
+          >
+            Choose File
+          </Button>
+          <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+            {proofFileName}
+          </span>
+        </div>
+        {errors[`security-${secIndex}-proof`] && (
+          <p className="text-xs text-red-500 mt-1">
+            {errors[`security-${secIndex}-proof`]}
+          </p>
+        )}
+        <p className="text-xs text-gray-500">
+          Allowed: PDF, JPG, PNG (Max 5MB)
+        </p>
+      </div>
+    );
   };
 
   // Render a single guarantor form section
@@ -3035,6 +3216,371 @@ export function SecurityDetailsForm({
             </div>
           )}
         </div>
+
+        {/* Employment Status */}
+        <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm mt-6">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
+            Employment Status
+          </h2>
+
+          <div className="space-y-4">
+            <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+              Employment Status <span className="text-red-500">*</span>
+            </Label>
+            <RadioGroup
+              value={guarantor.employmentStatus}
+              onValueChange={(value) =>
+                updateGuarantorField(index, "employmentStatus", value)
+              }
+              className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="employed" id={`employed-${index}`} />
+                <Label
+                  htmlFor={`employed-${index}`}
+                  className="font-normal cursor-pointer text-sm"
+                >
+                  Employed
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="unemployed" id={`unemployed-${index}`} />
+                <Label
+                  htmlFor={`unemployed-${index}`}
+                  className="font-normal cursor-pointer text-sm"
+                >
+                  Unemployed
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem
+                  value="self-employed"
+                  id={`self-employed-${index}`}
+                />
+                <Label
+                  htmlFor={`self-employed-${index}`}
+                  className="font-normal cursor-pointer text-sm"
+                >
+                  Self-employed
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+        </div>
+
+        {/* Employment Details */}
+        {guarantor.employmentStatus === "employed" && (
+          <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm mt-6">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
+              Employment Details
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`employeeId-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Employee ID <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id={`employeeId-${index}`}
+                  placeholder="Enter ID"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={guarantor.employeeId || ""}
+                  onChange={(e) =>
+                    updateGuarantorField(index, "employeeId", e.target.value)
+                  }
+                />
+              </div>
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`occupation-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Occupation <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={guarantor.occupation}
+                  onValueChange={(value) =>
+                    updateGuarantorField(index, "occupation", value)
+                  }
+                >
+                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    {occupationOptions.length > 0 ? (
+                      occupationOptions.map((option, optionIndex) => {
+                        const key =
+                          option.occ_pk_code ||
+                          option.occupation_pk_code ||
+                          option.id ||
+                          `occupation-${optionIndex}`;
+                        const value = String(
+                          option.occ_pk_code ||
+                            option.occupation_pk_code ||
+                            option.id ||
+                            optionIndex,
+                        );
+                        const label =
+                          option.occ_name ||
+                          option.occupation ||
+                          option.name ||
+                          "Unknown";
+
+                        return (
+                          <SelectItem key={key} value={label}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        Loading...
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`employerType-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Type of Employer <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={guarantor.employerType}
+                  onValueChange={(value) =>
+                    updateGuarantorField(index, "employerType", value)
+                  }
+                >
+                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    <SelectItem value="government">Government</SelectItem>
+                    <SelectItem value="private">Private</SelectItem>
+                    <SelectItem value="corporate">Corporate</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`designation-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Designation <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={guarantor.designation}
+                  onValueChange={(value) =>
+                    updateGuarantorField(index, "designation", value)
+                  }
+                >
+                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="officer">Officer</SelectItem>
+                    <SelectItem value="assistant">Assistant</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`grade-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Grade <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={guarantor.grade}
+                  onValueChange={(value) =>
+                    updateGuarantorField(index, "grade", value)
+                  }
+                >
+                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    <SelectItem value="p1">P1</SelectItem>
+                    <SelectItem value="p2">P2</SelectItem>
+                    <SelectItem value="p3">P3</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`organizationName-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Organization Name <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={guarantor.organizationName}
+                  onValueChange={(value) =>
+                    updateGuarantorField(index, "organizationName", value)
+                  }
+                >
+                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    {organizationOptions.length > 0 ? (
+                      organizationOptions.map((option, optionIndex) => {
+                        const key =
+                          option.lgal_constitution_pk_code ||
+                          option.legal_const_pk_code ||
+                          option.id ||
+                          `org-${optionIndex}`;
+                        const value = String(
+                          option.lgal_constitution_pk_code ||
+                            option.legal_const_pk_code ||
+                            option.id ||
+                            optionIndex,
+                        );
+                        const label =
+                          option.lgal_constitution ||
+                          option.legal_const_name ||
+                          option.name ||
+                          "Unknown";
+
+                        return (
+                          <SelectItem key={key} value={value}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        Loading...
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`orgLocation-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Organization Location <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id={`orgLocation-${index}`}
+                  placeholder="Enter Full Name"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={guarantor.orgLocation || ""}
+                  onChange={(e) =>
+                    updateGuarantorField(index, "orgLocation", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`joiningDate-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Service Joining Date <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="date"
+                  id={`joiningDate-${index}`}
+                  max={today}
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={guarantor.joiningDate || ""}
+                  onChange={(e) =>
+                    updateGuarantorField(index, "joiningDate", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`serviceNature-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Nature of Service <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={guarantor.serviceNature}
+                  onValueChange={(value) =>
+                    updateGuarantorField(index, "serviceNature", value)
+                  }
+                >
+                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    <SelectItem value="permanent">Permanent</SelectItem>
+                    <SelectItem value="contract">Contract</SelectItem>
+                    <SelectItem value="temporary">Temporary</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`annualSalary-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Gross Annual Salary Income{" "}
+                  <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="number"
+                  id={`annualSalary-${index}`}
+                  placeholder="Enter Annual Salary"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={guarantor.annualSalary || ""}
+                  onChange={(e) =>
+                    updateGuarantorField(index, "annualSalary", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Contract End Date - Only visible when Nature of Service is Contract */}
+            {guarantor.serviceNature === "contract" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor={`contractEndDate-${index}`}
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Contract End Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    id={`contractEndDate-${index}`}
+                    min={today}
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={guarantor.contractEndDate || ""}
+                    onChange={(e) =>
+                      updateGuarantorField(
+                        index,
+                        "contractEndDate",
+                        e.target.value,
+                      )
+                    }
+                    required
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -3293,6 +3839,9 @@ export function SecurityDetailsForm({
                   />
                 </div>
               </div>
+
+              {/* Vehicle Security Proof Upload */}
+              {renderSecurityProofUpload(security, secIndex)}
             </div>
           )}
 
@@ -3521,6 +4070,243 @@ export function SecurityDetailsForm({
                   />
                 </div>
               </div>
+
+              {/* Land Security Proof Upload */}
+              {renderSecurityProofUpload(security, secIndex)}
+            </div>
+          )}
+
+          {/* Building Details */}
+          {security.securityType === "building" && (
+            <div
+              className={`border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm ${secIndex === 0 ? "bg-white" : "bg-blue-50 border-blue-200"}`}
+            >
+              <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+                Building Details
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="building-type"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Building Type <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={security.buildingType}
+                    onValueChange={(value) =>
+                      updateSecurityField(secIndex, "buildingType", value)
+                    }
+                    required
+                  >
+                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent sideOffset={4}>
+                      <SelectItem value="residential">Residential</SelectItem>
+                      <SelectItem value="commercial">Commercial</SelectItem>
+                      <SelectItem value="industrial">Industrial</SelectItem>
+                      <SelectItem value="mixed">Mixed Use</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="building-area"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Building Area (Sq. Ft){" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="building-area"
+                    type="number"
+                    placeholder="Enter Building Area"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={security.buildingArea || ""}
+                    onChange={(e) =>
+                      updateSecurityField(
+                        secIndex,
+                        "buildingArea",
+                        e.target.value,
+                      )
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="building-year"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Year Built <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="building-year"
+                    type="number"
+                    placeholder="Enter Year Built"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={security.buildingYear || ""}
+                    onChange={(e) =>
+                      updateSecurityField(
+                        secIndex,
+                        "buildingYear",
+                        e.target.value,
+                      )
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Building Security Proof Upload */}
+              {renderSecurityProofUpload(security, secIndex)}
+            </div>
+          )}
+
+          {/* Equipment Details */}
+          {security.securityType === "equipment" && (
+            <div
+              className={`border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm ${secIndex === 0 ? "bg-white" : "bg-blue-50 border-blue-200"}`}
+            >
+              <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+                Equipment Details
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="equipment-type"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Equipment Type <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={security.equipmentType}
+                    onValueChange={(value) =>
+                      updateSecurityField(secIndex, "equipmentType", value)
+                    }
+                    required
+                  >
+                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent sideOffset={4}>
+                      <SelectItem value="heavy">Heavy Machinery</SelectItem>
+                      <SelectItem value="medical">Medical Equipment</SelectItem>
+                      <SelectItem value="industrial">
+                        Industrial Equipment
+                      </SelectItem>
+                      <SelectItem value="computer">
+                        Computer Equipment
+                      </SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="equipment-make"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Make/Brand <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="equipment-make"
+                    placeholder="Enter Make/Brand"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={security.equipmentMake || ""}
+                    onChange={(e) =>
+                      updateSecurityField(
+                        secIndex,
+                        "equipmentMake",
+                        e.target.value,
+                      )
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="equipment-model"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Model <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="equipment-model"
+                    placeholder="Enter Model"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={security.equipmentModel || ""}
+                    onChange={(e) =>
+                      updateSecurityField(
+                        secIndex,
+                        "equipmentModel",
+                        e.target.value,
+                      )
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="equipment-serial"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Serial No. <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="equipment-serial"
+                    placeholder="Enter Serial No"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={security.equipmentSerialNo || ""}
+                    onChange={(e) =>
+                      updateSecurityField(
+                        secIndex,
+                        "equipmentSerialNo",
+                        e.target.value,
+                      )
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="equipment-value"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Equipment Value (Nu.){" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="equipment-value"
+                    type="number"
+                    placeholder="Enter Equipment Value"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={security.equipmentValue || ""}
+                    onChange={(e) =>
+                      updateSecurityField(
+                        secIndex,
+                        "equipmentValue",
+                        e.target.value,
+                      )
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Equipment Security Proof Upload */}
+              {renderSecurityProofUpload(security, secIndex)}
             </div>
           )}
 
@@ -3657,6 +4443,9 @@ export function SecurityDetailsForm({
                   />
                 </div>
               </div>
+
+              {/* Insurance Security Proof Upload */}
+              {renderSecurityProofUpload(security, secIndex)}
             </div>
           )}
 
@@ -3754,6 +4543,9 @@ export function SecurityDetailsForm({
                   />
                 </div>
               </div>
+
+              {/* PPF Security Proof Upload */}
+              {renderSecurityProofUpload(security, secIndex)}
             </div>
           )}
 
@@ -3840,6 +4632,9 @@ export function SecurityDetailsForm({
                   />
                 </div>
               </div>
+
+              {/* Share Security Proof Upload */}
+              {renderSecurityProofUpload(security, secIndex)}
             </div>
           )}
 
@@ -3920,6 +4715,149 @@ export function SecurityDetailsForm({
                   />
                 </div>
               </div>
+
+              {/* Stocks Security Proof Upload */}
+              {renderSecurityProofUpload(security, secIndex)}
+            </div>
+          )}
+
+          {/* Fixed Deposit Details */}
+          {security.securityType === "fd" && (
+            <div
+              className={`border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm ${secIndex === 0 ? "bg-white" : "bg-blue-50 border-blue-200"}`}
+            >
+              <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+                Fixed Deposit Details
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="fd-bank"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Bank Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={security.fdBank}
+                    onValueChange={(value) =>
+                      updateSecurityField(secIndex, "fdBank", value)
+                    }
+                    required
+                  >
+                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent sideOffset={4}>
+                      {banksOptions.length > 0 ? (
+                        banksOptions.map((option, optionIndex) => {
+                          const key =
+                            option.bank_pk_code ||
+                            option.id ||
+                            option.code ||
+                            option.bank_code ||
+                            `bank-${optionIndex}`;
+                          const value = String(
+                            option.bank_pk_code ||
+                              option.id ||
+                              option.code ||
+                              option.bank_code ||
+                              optionIndex,
+                          );
+                          const label =
+                            option.bank_name ||
+                            option.name ||
+                            option.label ||
+                            option.bankName ||
+                            option.bank ||
+                            "Unknown";
+
+                          return (
+                            <SelectItem key={key} value={value}>
+                              {label}
+                            </SelectItem>
+                          );
+                        })
+                      ) : (
+                        <SelectItem value="loading" disabled>
+                          Loading...
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="fd-account-no"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Account No. <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="fd-account-no"
+                    placeholder="Enter FD Account No"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={security.fdAccountNo || ""}
+                    onChange={(e) =>
+                      updateSecurityField(
+                        secIndex,
+                        "fdAccountNo",
+                        e.target.value,
+                      )
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="fd-amount"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Deposit Amount (Nu.) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="fd-amount"
+                    type="number"
+                    placeholder="Enter Deposit Amount"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={security.fdAmount || ""}
+                    onChange={(e) =>
+                      updateSecurityField(secIndex, "fdAmount", e.target.value)
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="fd-maturity"
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Maturity Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="fd-maturity"
+                    type="date"
+                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    value={security.fdMaturityDate || ""}
+                    onChange={(e) =>
+                      updateSecurityField(
+                        secIndex,
+                        "fdMaturityDate",
+                        e.target.value,
+                      )
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Fixed Deposit Security Proof Upload */}
+              {renderSecurityProofUpload(security, secIndex)}
             </div>
           )}
 

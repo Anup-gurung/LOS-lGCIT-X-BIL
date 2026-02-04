@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 import { Trash2, PlusCircle } from "lucide-react";
 
 // Import mapping utility and Popup
@@ -24,6 +26,8 @@ import {
   fetchDzongkhag,
   fetchGewogsByDzongkhag,
   fetchMaritalStatus,
+  fetchOccupations,
+  fetchLegalConstitution,
   fetchPepCategory,
   fetchPepSubCategoryByCategory,
   fetchBanks,
@@ -154,12 +158,14 @@ export function RepaymentSourceForm({
   const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([]);
   const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
   const [banksOptions, setBankOptions] = useState<any[]>([]);
+  const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
 
   // Constants
   const today = new Date().toISOString().split("T")[0];
   const fifteenYearsAgo = new Date();
   fifteenYearsAgo.setFullYear(fifteenYearsAgo.getFullYear() - 15);
   const maxDobDate = fifteenYearsAgo.toISOString().split("T")[0];
+  const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
 
   // --- HELPER: Determine if Married ---
   const getIsMarried = (guarantor: any) => {
@@ -318,6 +324,28 @@ export function RepaymentSourceForm({
     loadPepSub();
   }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
 
+  const loadOccupation = async () => {
+    try {
+      const options = await fetchOccupations();
+      setOccupationOptions(options);
+    } catch (error) {
+      setOccupationOptions([
+        { id: "engineer", name: "Engineer" },
+        { id: "teacher", name: "Teacher" },
+      ]);
+    }
+  };
+  loadOccupation();
+
+  const loadOrganizations = async () => {
+    try {
+      const options = await fetchLegalConstitution();
+      setOrganizationOptions(options);
+    } catch (error) {
+      setOrganizationOptions([{ id: "org1", name: "Organization 1" }]);
+    }
+  };
+  loadOrganizations();
   // --- HANDLERS ---
 
   const handleIncomeChange = (field: string, value: any) => {
@@ -940,7 +968,6 @@ export function RepaymentSourceForm({
                 searchStatus={guarantor.lookupStatus}
                 onProceed={() => handleLookupProceed(index)}
               />
-
               {/* A. PERSONAL DETAILS */}
               <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-4">
@@ -1393,7 +1420,6 @@ export function RepaymentSourceForm({
                   </div>
                 </div>
               </div>
-
               {/* B. PERMANENT ADDRESS */}
               <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
@@ -1646,7 +1672,6 @@ export function RepaymentSourceForm({
                   </div>
                 )}
               </div>
-
               {/* C. CURRENT ADDRESS */}
               <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
@@ -1919,7 +1944,6 @@ export function RepaymentSourceForm({
                   </div>
                 )}
               </div>
-
               {/* D. PEP DECLARATION */}
               <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
@@ -2265,6 +2289,396 @@ export function RepaymentSourceForm({
                   </div>
                 )}
               </div>
+              {/* Employment Status */}
+              <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm mt-6">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
+                  Employment Status
+                </h2>
+
+                <div className="space-y-4">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Employment Status <span className="text-red-500">*</span>
+                  </Label>
+                  <RadioGroup
+                    value={guarantor.employmentStatus}
+                    onValueChange={(value) =>
+                      updateGuarantorField(index, "employmentStatus", value)
+                    }
+                    className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem
+                        value="employed"
+                        id={`employed-${index}`}
+                      />
+                      <Label
+                        htmlFor={`employed-${index}`}
+                        className="font-normal cursor-pointer text-sm"
+                      >
+                        Employed
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem
+                        value="unemployed"
+                        id={`unemployed-${index}`}
+                      />
+                      <Label
+                        htmlFor={`unemployed-${index}`}
+                        className="font-normal cursor-pointer text-sm"
+                      >
+                        Unemployed
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem
+                        value="self-employed"
+                        id={`self-employed-${index}`}
+                      />
+                      <Label
+                        htmlFor={`self-employed-${index}`}
+                        className="font-normal cursor-pointer text-sm"
+                      >
+                        Self-employed
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              </div>
+              {/* /* Employment Details */}
+              {guarantor.employmentStatus === "employed" && (
+                <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm mt-6">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
+                    Employment Details
+                  </h2>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+                    <div className="space-y-2.5">
+                      <Label
+                        htmlFor={`employeeId-${index}`}
+                        className="text-gray-800 font-semibold text-sm"
+                      >
+                        Employee ID <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id={`employeeId-${index}`}
+                        placeholder="Enter ID"
+                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                        value={guarantor.employeeId || ""}
+                        onChange={(e) =>
+                          updateGuarantorField(
+                            index,
+                            "employeeId",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2.5">
+                      <Label
+                        htmlFor={`occupation-${index}`}
+                        className="text-gray-800 font-semibold text-sm"
+                      >
+                        Occupation <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={guarantor.occupation}
+                        onValueChange={(value) =>
+                          updateGuarantorField(index, "occupation", value)
+                        }
+                      >
+                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          {occupationOptions.length > 0 ? (
+                            occupationOptions.map((option, optionIndex) => {
+                              const key =
+                                option.occ_pk_code ||
+                                option.occupation_pk_code ||
+                                option.id ||
+                                `occupation-${optionIndex}`;
+                              const value = String(
+                                option.occ_pk_code ||
+                                  option.occupation_pk_code ||
+                                  option.id ||
+                                  optionIndex,
+                              );
+                              const label =
+                                option.occ_name ||
+                                option.occupation ||
+                                option.name ||
+                                "Unknown";
+
+                              return (
+                                <SelectItem key={key} value={label}>
+                                  {label}
+                                </SelectItem>
+                              );
+                            })
+                          ) : (
+                            <SelectItem value="loading" disabled>
+                              Loading...
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label
+                        htmlFor={`employerType-${index}`}
+                        className="text-gray-800 font-semibold text-sm"
+                      >
+                        Type of Employer <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={guarantor.employerType}
+                        onValueChange={(value) =>
+                          updateGuarantorField(index, "employerType", value)
+                        }
+                      >
+                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          <SelectItem value="government">Government</SelectItem>
+                          <SelectItem value="private">Private</SelectItem>
+                          <SelectItem value="corporate">Corporate</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label
+                        htmlFor={`designation-${index}`}
+                        className="text-gray-800 font-semibold text-sm"
+                      >
+                        Designation <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={guarantor.designation}
+                        onValueChange={(value) =>
+                          updateGuarantorField(index, "designation", value)
+                        }
+                      >
+                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="officer">Officer</SelectItem>
+                          <SelectItem value="assistant">Assistant</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label
+                        htmlFor={`grade-${index}`}
+                        className="text-gray-800 font-semibold text-sm"
+                      >
+                        Grade <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={guarantor.grade}
+                        onValueChange={(value) =>
+                          updateGuarantorField(index, "grade", value)
+                        }
+                      >
+                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          <SelectItem value="p1">P1</SelectItem>
+                          <SelectItem value="p2">P2</SelectItem>
+                          <SelectItem value="p3">P3</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label
+                        htmlFor={`organizationName-${index}`}
+                        className="text-gray-800 font-semibold text-sm"
+                      >
+                        Organization Name{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={guarantor.organizationName}
+                        onValueChange={(value) =>
+                          updateGuarantorField(index, "organizationName", value)
+                        }
+                      >
+                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          {organizationOptions.length > 0 ? (
+                            organizationOptions.map((option, optionIndex) => {
+                              const key =
+                                option.lgal_constitution_pk_code ||
+                                option.legal_const_pk_code ||
+                                option.id ||
+                                `org-${optionIndex}`;
+                              const value = String(
+                                option.lgal_constitution_pk_code ||
+                                  option.legal_const_pk_code ||
+                                  option.id ||
+                                  optionIndex,
+                              );
+                              const label =
+                                option.lgal_constitution ||
+                                option.legal_const_name ||
+                                option.name ||
+                                "Unknown";
+
+                              return (
+                                <SelectItem key={key} value={value}>
+                                  {label}
+                                </SelectItem>
+                              );
+                            })
+                          ) : (
+                            <SelectItem value="loading" disabled>
+                              Loading...
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label
+                        htmlFor={`orgLocation-${index}`}
+                        className="text-gray-800 font-semibold text-sm"
+                      >
+                        Organization Location{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id={`orgLocation-${index}`}
+                        placeholder="Enter Full Name"
+                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                        value={guarantor.orgLocation || ""}
+                        onChange={(e) =>
+                          updateGuarantorField(
+                            index,
+                            "orgLocation",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label
+                        htmlFor={`joiningDate-${index}`}
+                        className="text-gray-800 font-semibold text-sm"
+                      >
+                        Service Joining Date{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="date"
+                        id={`joiningDate-${index}`}
+                        max={today}
+                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                        value={guarantor.joiningDate || ""}
+                        onChange={(e) =>
+                          updateGuarantorField(
+                            index,
+                            "joiningDate",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2.5">
+                      <Label
+                        htmlFor={`serviceNature-${index}`}
+                        className="text-gray-800 font-semibold text-sm"
+                      >
+                        Nature of Service{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={guarantor.serviceNature}
+                        onValueChange={(value) =>
+                          updateGuarantorField(index, "serviceNature", value)
+                        }
+                      >
+                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          <SelectItem value="permanent">Permanent</SelectItem>
+                          <SelectItem value="contract">Contract</SelectItem>
+                          <SelectItem value="temporary">Temporary</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label
+                        htmlFor={`annualSalary-${index}`}
+                        className="text-gray-800 font-semibold text-sm"
+                      >
+                        Gross Annual Salary Income{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="number"
+                        id={`annualSalary-${index}`}
+                        placeholder="Enter Annual Salary"
+                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                        value={guarantor.annualSalary || ""}
+                        onChange={(e) =>
+                          updateGuarantorField(
+                            index,
+                            "annualSalary",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Contract End Date - Only visible when Nature of Service is Contract */}
+                  {guarantor.serviceNature === "contract" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2.5">
+                        <Label
+                          htmlFor={`contractEndDate-${index}`}
+                          className="text-gray-800 font-semibold text-sm"
+                        >
+                          Contract End Date{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          type="date"
+                          id={`contractEndDate-${index}`}
+                          min={today}
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          value={guarantor.contractEndDate || ""}
+                          onChange={(e) =>
+                            updateGuarantorField(
+                              index,
+                              "contractEndDate",
+                              e.target.value,
+                            )
+                          }
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}

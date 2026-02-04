@@ -275,7 +275,7 @@ export function BusinessRepaymentSourceForm({
               Is Repayment Guarantor Applicable? <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={isGuarantorApplicable}
+              value={isGuarantorApplicable || ""}
               onValueChange={setIsGuarantorApplicable}
             >
               <SelectTrigger className="border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">

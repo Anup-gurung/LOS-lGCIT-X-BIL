@@ -32,21 +32,18 @@ function AccordionSection({
   const [open, setOpen] = useState(defaultOpen)
 
   return (
-    <div className="border border-dark-blue-200  shadow-sm overflow-hidden rounded-lg">
+    <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        // className="w-full flex justify-between items-center px-4 py-3 font-semibold bg-gray-100"
-        className={`w-full flex justify-between items-center px-4 py-3 font-semibold transition
-          ${headerClassName}`}
-
+        className={`w-full flex justify-between items-center px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-base sm:text-lg md:text-xl font-bold transition-colors
+          ${headerClassName || 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
       >
         {title}
-        <span>{open ? "−" : "+"}</span>
+        <span className="text-xl sm:text-2xl font-bold">{open ? "−" : "+"}</span>
       </button>
 
-      {/* {open && <div className="p-4">{children}</div>} */}
-            {open && <div className="px-8 pb-8 space-y-4 bg-white">{children}</div>}
+      {open && <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 bg-white">{children}</div>}
 
     </div>
   )
@@ -64,12 +61,12 @@ function Field({ label, value, capitalizeFirst }: FieldProps) {
       : value
     : ""
   return (
-    <div className="space-y-1">
-      <Label className="text-sm text-gray-600">{label}</Label>
+    <div className="space-y-1.5 sm:space-y-2.5">
+      <Label className="text-xs sm:text-sm font-semibold text-gray-800">{label}</Label>
       <input
         disabled
         value={displayValue}
-        className="w-full h-11 rounded border px-3 bg-gray-100 text-sm"
+        className="w-full h-10 sm:h-12 rounded-lg border border-gray-300 px-3 sm:px-4 bg-gray-50 text-sm sm:text-base text-gray-700"
       />
     </div>
   )
@@ -248,13 +245,12 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
   /* -------------------- UI ----------------------- */
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8 md:space-y-10 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12">
 
       <AccordionSection title="Loan Details"
-  headerClassName="bg-blue-900 text-white hover:bg-blue-800 text-sm"
   defaultOpen={true}
 >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           <Field label="Loan Type" value={laonData.loanType} capitalizeFirst={true} />
           <Field label="Loan Sector" value={laonData.loanSector} capitalizeFirst={true} />
           <Field label="Loan Sub-Sector" value={laonData.loanSubSector} capitalizeFirst={true} />
@@ -265,12 +261,10 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
       </AccordionSection>
 
       <AccordionSection title="Personal Details" 
-      headerClassName="bg-blue-900 text-white hover:bg-blue-800 text-sm"
       defaultOpen>
-        <div >
-          <h3 className="py-4 px-6 text-sm font-bold pt-10">Applicant Details</h3>
-          <hr />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+        <div>
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Applicant Details</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
 
            <Field label="Salutation" value={personalData.salutation} capitalizeFirst={true} />
           <Field label="Applicant Name" value={personalData.applicantName} capitalizeFirst={true} />
@@ -287,11 +281,10 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
           </div>          
           {personalData.maritalStatus === "married" && (
             <>
-            <div>
-             <h3 className="py-4 px-6 text-sm font-bold pt-15">Marital Status Details</h3>
-            <hr />
-            </div >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <div className="mt-6 sm:mt-8">
+             <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Marital Status Details</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               <Field label = "Marital Status" value={personalData.maritalStatus} capitalizeFirst={true} />
               <Field label="Spouse Name" value={personalData.spouseName} capitalizeFirst={true} />
               <Field label="Spouse CID" value={personalData.spouseCid} />
@@ -322,10 +315,9 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
           </div>
 
           </div>
-          <div>
-          <h3 className="py-4 px-6 text-sm font-bold pt-15">Permanent Address</h3>
-          <hr />
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4">
+          <div className="mt-6 sm:mt-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Permanent Address</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <Field label="Country" value={personalData.permCountry} capitalizeFirst={true} />
           <Field label="Dzongkhag/State" value={personalData.permDzongkhag} capitalizeFirst={true} />
           <Field label="Gewog/Province" value={personalData.permGewog} capitalizeFirst={true} />
@@ -338,10 +330,9 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
           </div>
           </div>
 
-          <div>
-          <h3 className="py-4 px-6 text-sm font-bold pt-15">Current Address</h3>
-          <hr />
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4">
+          <div className="mt-6 sm:mt-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 sm:pb-3 mb-4 sm:mb-6">Current Address</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <Field label="Country of Residence" value={personalData.currCountry} capitalizeFirst={true} />
           <Field label="Dzongkhag/State" value={personalData.currDzongkhag} capitalizeFirst={true} />
           <Field label="Gewog/Province" value={personalData.currGewog} capitalizeFirst={true} />
@@ -501,9 +492,8 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
       </AccordionSection>
 
       <AccordionSection title="Co-Borrower Details"
-      headerClassName="bg-blue-900 text-white hover:bg-blue-800 text-sm"
       defaultOpen>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <Field label="Salutation" value={coBorrowerData.salutation} capitalizeFirst={true} />
           <Field label="Co-Borrower Name" value={coBorrowerData.name} capitalizeFirst/>
           <Field label="Nationality" value={coBorrowerData.nationality} capitalizeFirst={true} />
@@ -536,9 +526,8 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
       </AccordionSection>
 
       <AccordionSection title="Security Details"
-      headerClassName="bg-blue-900 text-white hover:bg-blue-800 text-sm"
       defaultOpen>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           <Field label="Security Type" value={securityData.securityType} capitalizeFirst={true} />
           <Field label="Location" value={securityData.propertyLocation} capitalizeFirst={true} />
           <Field label="Estimated Value" value={securityData.estimatedValue} />
@@ -546,16 +535,15 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
       </AccordionSection>
 
       <AccordionSection title="Repayment Source"
-      headerClassName="bg-blue-900 text-white hover:bg-blue-800 text-sm"
       defaultOpen>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           <Field label="Source" value={repaymentData.source} capitalizeFirst={true} />
           <Field label="Monthly Income" value={repaymentData.monthlyIncome} />
         </div>
       </AccordionSection>
 
       {error && (
-        <div className="text-red-600 font-medium">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-600 font-medium">
           ❌ {error}
         </div>
       )}
@@ -570,13 +558,13 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
         </Button>
       </div> */}
 
-              <div className="flex justify-between gap-6 pt-4">
+              <div className="flex flex-col sm:flex-row justify-between gap-4 sm:gap-6 pt-6 sm:pt-8">
                 <Button
                   type="button"
                   onClick={onBack}
-                  variant="secondary"
+                  variant="outline"
                   size="lg"
-                  className="min-w-40 px-10 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                  className="w-full sm:w-auto min-w-[160px] h-12 sm:h-14 px-8 sm:px-12 rounded-lg font-semibold text-base border-2 border-gray-300 hover:bg-gray-50 transition-all"
                 >
                   Back
                 </Button>
@@ -584,7 +572,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
                   type="submit"
                   disabled={loading}
                   size="lg"
-                  className="min-w-40 px-10 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all bg-[#003DA5] hover:bg-[#002D7A]"
+                  className="w-full sm:w-auto min-w-[160px] h-12 sm:h-14 px-8 sm:px-12 rounded-lg font-semibold text-base bg-gray-800 hover:bg-gray-900 transition-all disabled:opacity-50"
                 >
                 {loading ? "Submitting..." : "Confirm & Submit"}
                 </Button>

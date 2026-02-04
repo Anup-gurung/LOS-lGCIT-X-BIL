@@ -524,17 +524,28 @@ export function RepaymentSourceForm({
     });
   }, []);
 
+  // FIXED: handleRemoveRelatedPep function
   const handleRemoveRelatedPep = (gIndex: number, pIndex: number) => {
     setGuarantors((prev) => {
       const up = [...prev];
-      if (up[gIndex].relatedPeps && up[gIndex].relatedPeps.length > 1) {
-        up[gIndex].relatedPeps = up[gIndex].relatedPeps.filter(
-          (_: any, i: number) => i !== pIndex,
-        );
-      } else {
-        // If only one entry, reset to empty array
-        up[gIndex].relatedPeps = [];
+
+      // Check if relatedPeps exists and has entries
+      if (!up[gIndex].relatedPeps || up[gIndex].relatedPeps.length === 0) {
+        return up;
       }
+
+      // Create a copy of the relatedPeps array
+      const updatedRelatedPeps = [...up[gIndex].relatedPeps];
+
+      // Remove the specific entry
+      updatedRelatedPeps.splice(pIndex, 1);
+
+      // Update the guarantor with the new array
+      up[gIndex] = {
+        ...up[gIndex],
+        relatedPeps: updatedRelatedPeps,
+      };
+
       return up;
     });
   };
@@ -547,28 +558,65 @@ export function RepaymentSourceForm({
   ) => {
     setGuarantors((prev) => {
       const up = [...prev];
+
+      // Ensure relatedPeps array exists
+      if (!up[gIndex].relatedPeps) {
+        up[gIndex].relatedPeps = [];
+      }
+
       const peps = [...up[gIndex].relatedPeps];
 
+      // Ensure the entry exists at the index
       if (!peps[pIndex]) {
-        // Initialize if doesn't exist
         peps[pIndex] = createEmptyRelatedPep();
       }
 
+      // Create updated entry
       peps[pIndex] = { ...peps[pIndex], [field]: value };
 
+      // Update the guarantor
+      up[gIndex] = {
+        ...up[gIndex],
+        relatedPeps: peps,
+      };
+
+      // Handle category change
       if (field === "category") {
         peps[pIndex].subCategory = "";
-        fetchPepSubCategoryByCategory(value).then((res) => {
-          setGuarantors((curr) => {
-            const cUp = [...curr];
-            if (!cUp[gIndex].relatedPepOptionsMap)
-              cUp[gIndex].relatedPepOptionsMap = {};
-            cUp[gIndex].relatedPepOptionsMap[pIndex] = res || [];
-            return cUp;
+
+        // Update subCategory in the local state immediately
+        const updatedPeps = [...peps];
+        updatedPeps[pIndex] = { ...updatedPeps[pIndex], subCategory: "" };
+        up[gIndex].relatedPeps = updatedPeps;
+
+        // Fetch subcategories
+        fetchPepSubCategoryByCategory(value)
+          .then((res) => {
+            setGuarantors((curr) => {
+              const cUp = [...curr];
+              if (!cUp[gIndex]) return cUp;
+
+              // Ensure relatedPepOptionsMap exists
+              if (!cUp[gIndex].relatedPepOptionsMap) {
+                cUp[gIndex].relatedPepOptionsMap = {};
+              }
+
+              cUp[gIndex] = {
+                ...cUp[gIndex],
+                relatedPepOptionsMap: {
+                  ...cUp[gIndex].relatedPepOptionsMap,
+                  [pIndex]: res || [],
+                },
+              };
+
+              return cUp;
+            });
+          })
+          .catch((err) => {
+            console.error("Failed to fetch PEP subcategories:", err);
           });
-        });
       }
-      up[gIndex].relatedPeps = peps;
+
       return up;
     });
   };
@@ -1299,11 +1347,11 @@ export function RepaymentSourceForm({
                       id={`bankAccount-${index}`}
                       placeholder="Enter saving account number"
                       className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-                      value={guarantor.bankAccount || ""}
+                      value={guarantor.bankAccountNumber || ""}
                       onChange={(e) =>
                         updateGuarantorField(
                           index,
-                          "bankAccount",
+                          "bankAccountNumber",
                           e.target.value,
                         )
                       }
@@ -1822,9 +1870,13 @@ export function RepaymentSourceForm({
                     </Label>
                     <Input
                       className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      value={guarantor.contact || ""}
+                      value={guarantor.currAlternateContact || ""}
                       onChange={(e) =>
-                        updateGuarantorField(index, "contact", e.target.value)
+                        updateGuarantorField(
+                          index,
+                          "currAlternateContact",
+                          e.target.value,
+                        )
                       }
                     />
                   </div>

@@ -310,8 +310,6 @@ export function SecurityDetailsForm({
             security.securityType === "building") &&
           security.dzongkhag
         ) {
-          // Basic optimization: if options are empty or we want to ensure freshness
-          // Note: In a real app, you might want to check if the loaded options match the selected dzongkhag ID
           if (!security.gewogOptions || security.gewogOptions.length === 0) {
             try {
               const options = await fetchGewogsByDzongkhag(security.dzongkhag);
@@ -335,7 +333,7 @@ export function SecurityDetailsForm({
       }
     };
     loadSecurityGewogs();
-  }, [securities.map((s) => s.dzongkhag).join(",")]); // Trigger when any dzongkhag changes
+  }, [securities.map((s) => s.dzongkhag).join(",")]);
 
   // Load permanent gewogs for all guarantors
   useEffect(() => {
@@ -428,9 +426,6 @@ export function SecurityDetailsForm({
             const options = await fetchPepSubCategoryByCategory(
               guarantor.pepCategory,
             );
-            if (!options || options.length === 0) {
-              throw new Error("Empty PEP sub-category list");
-            }
             updatedGuarantors[i] = {
               ...updatedGuarantors[i],
               pepSubCategoryOptions: options,
@@ -523,7 +518,6 @@ export function SecurityDetailsForm({
 
       if (index === "main") {
         setErrors({ ...errors, [fieldName]: "" });
-        // NOTE: Currently main security files aren't implemented, but this supports it if needed
       } else {
         setGuarantors((prev) => {
           const updated = [...prev];
@@ -867,7 +861,6 @@ export function SecurityDetailsForm({
     }
   };
 
-  // The critical fix: Update ONLY the specific security index
   const updateSecurityField = (index: number, field: string, value: any) => {
     setSecurities((prev) => {
       const updated = [...prev];
@@ -2571,7 +2564,7 @@ export function SecurityDetailsForm({
           </h2>
 
           {/* SELF PEP Question */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 border-b pb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 border-b pb-6">
             <div className="space-y-1.5 sm:space-y-2.5">
               <Label
                 htmlFor={`isPep-${index}`}
@@ -2606,7 +2599,7 @@ export function SecurityDetailsForm({
                 <div className="space-y-1.5 sm:space-y-2.5">
                   <Label
                     htmlFor={`pepCategory-${index}`}
-                    className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[44px] flex items-end pb-1"
+                    className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[40px] flex items-end pb-1"
                   >
                     PEP Category <span className="text-red-500">*</span>
                   </Label>
@@ -2664,7 +2657,7 @@ export function SecurityDetailsForm({
                 <div className="space-y-1.5 sm:space-y-2.5">
                   <Label
                     htmlFor={`pepSubCategory-${index}`}
-                    className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[44px] flex items-end pb-1"
+                    className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[40px] flex items-end pb-1"
                   >
                     PEP Sub Category <span className="text-red-500">*</span>
                   </Label>
@@ -2725,11 +2718,11 @@ export function SecurityDetailsForm({
                 </div>
 
                 <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[44px] flex items-end pb-1">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[40px] flex items-end pb-1">
                     Upload Identification Proof{" "}
                     <span className="text-red-500">*</span>
                   </Label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 h-10 sm:h-12">
                     <input
                       type="file"
                       id={`selfPepProof-${index}`}
@@ -2831,9 +2824,9 @@ export function SecurityDetailsForm({
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mt-2">
                     <div className="space-y-1.5 sm:space-y-2.5">
-                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[40px] flex items-end pb-1">
                         Relationship <span className="text-destructive">*</span>
                       </Label>
                       <Select
@@ -2860,7 +2853,7 @@ export function SecurityDetailsForm({
                     </div>
 
                     <div className="space-y-1.5 sm:space-y-2.5">
-                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[40px] flex items-end pb-1">
                         Identification No.{" "}
                         <span className="text-red-500">*</span>
                       </Label>
@@ -2880,7 +2873,7 @@ export function SecurityDetailsForm({
                     </div>
 
                     <div className="space-y-1.5 sm:space-y-2.5">
-                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[40px] flex items-end pb-1">
                         PEP Category <span className="text-destructive">*</span>
                       </Label>
                       <Select
@@ -2932,7 +2925,7 @@ export function SecurityDetailsForm({
                     </div>
 
                     <div className="space-y-1.5 sm:space-y-2.5">
-                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[40px] flex items-end pb-1">
                         PEP Sub Category
                         <span className="text-destructive">*</span>
                       </Label>
@@ -2991,10 +2984,10 @@ export function SecurityDetailsForm({
                     </div>
 
                     <div className="space-y-1.5 sm:space-y-2.5">
-                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[40px] flex items-end pb-1">
                         Upload Proof <span className="text-red-500">*</span>
                       </Label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 h-10 sm:h-12">
                         <input
                           type="file"
                           id={`uploadId-${index}-${pepIndex}`}
@@ -3012,7 +3005,7 @@ export function SecurityDetailsForm({
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="w-full bg-white"
+                          className="w-full bg-white h-full"
                           onClick={() =>
                             document
                               .getElementById(`uploadId-${index}-${pepIndex}`)

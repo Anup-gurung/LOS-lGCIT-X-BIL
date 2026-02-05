@@ -309,7 +309,14 @@ export default function ExistingUserVerification() {
                       // Also clear NDI data to prevent conflicts
                       sessionStorage.removeItem('ndi_verified_data');
                       sessionStorage.removeItem('ndi_mapped_personal_details');
+                      
+                      console.log('📦 Storing mapped data in sessionStorage["verifiedCustomerData"]...');
                       sessionStorage.setItem('verifiedCustomerData', JSON.stringify(mappedData));
+                      
+                      // Verify it was stored
+                      const stored = sessionStorage.getItem('verifiedCustomerData');
+                      console.log('✅ Data stored. Verification:', stored ? '✓ EXISTS' : '✗ MISSING');
+                      console.log('📊 Stored data size:', stored ? stored.length : 0, 'bytes');
                       
                       console.log('Verify - Data stored in sessionStorage');
                       console.log('Verify - User:', mappedData.applicantName || mappedData.fullName);

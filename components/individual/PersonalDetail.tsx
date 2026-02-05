@@ -38,6 +38,7 @@ import {
   fetchPepSubCategoryByCategory,
 } from "@/services/api";
 import { getNdiDataFromSession } from "@/lib/mapNdiData";
+import { getVerifiedCustomerDataFromSession } from "@/lib/mapCustomerData";
 import { PlusCircle, Trash2 } from "lucide-react";
 
 interface PersonalDetailsFormProps {
@@ -62,25 +63,41 @@ export function PersonalDetailsForm({
   formData,
 }: PersonalDetailsFormProps) {
   const [data, setData] = useState(() => {
-    // First, try to get NDI verified data from session
-    const ndiData = getNdiDataFromSession();
-
-    let initialData = {};
-
-    // If NDI data exists, merge it with formData (formData takes precedence)
-    if (ndiData) {
-      const formInitial = formData?.personalDetails || formData || {};
-      initialData = { ...ndiData, ...formInitial };
-    } else {
-      // Otherwise, use formData if available
-      initialData = formData?.personalDetails || formData || {};
+    console.log('========== PersonalDetail INIT ==========');
+    
+    // PRIORITY 1: Check for verified customer data (existing users)
+    const verifiedData = getVerifiedCustomerDataFromSession();
+    if (verifiedData && Object.keys(verifiedData).length > 0) {
+      console.log('✅ INIT: Loading verified customer data:', verifiedData);
+      let initialData = { ...verifiedData };
+      
+      if (!(initialData as any).relatedPeps) {
+        (initialData as any).relatedPeps = [createEmptyRelatedPep()];
+      }
+      console.log('========== Init Complete ==========\n');
+      return initialData as any;
     }
 
+    // PRIORITY 2: Check for NDI verified data (new users)
+    const ndiData = getNdiDataFromSession();
+    if (ndiData && Object.keys(ndiData).length > 0) {
+      console.log('✅ INIT: Loading NDI data:', ndiData);
+      let initialData = { ...ndiData };
+      
+      if (!(initialData as any).relatedPeps) {
+        (initialData as any).relatedPeps = [createEmptyRelatedPep()];
+      }
+      console.log('========== Init Complete ==========\n');
+      return initialData as any;
+    }
+
+    // PRIORITY 3: Use formData from page
+    console.log('⚠️ INIT: No verified/NDI data, using formData:', formData);
+    let initialData = formData?.personalDetails || formData || {};
+
     // --- MIGRATION LOGIC FOR RELATED PEPS ---
-    // Ensure relatedPeps array exists. If old data exists (flat fields), move it into the array.
     if (!(initialData as any).relatedPeps) {
       if ((initialData as any).pepRelated === "yes") {
-        // If user was previously saved as related to PEP, map old flat fields to first array item
         (initialData as any).relatedPeps = [
           {
             relationship: (initialData as any).pepRelationship || "",
@@ -91,11 +108,11 @@ export function PersonalDetailsForm({
           },
         ];
       } else {
-        // Initialize with one empty row
         (initialData as any).relatedPeps = [createEmptyRelatedPep()];
       }
     }
 
+    console.log('========== Init Complete ==========\n');
     return initialData as any;
   });
 
@@ -164,10 +181,98 @@ export function PersonalDetailsForm({
 
   const isMarried = getIsMarried();
 
-  // Load NDI verified data from session on mount
+  /**
+   * Helper to check if a country value represents Bhutan
+   * Handles both pk_code values and label values like "Bhutan"
+   */
+  const isBhutanCountry = (countryValue: string, options: any[]): boolean => {
+    if (!countryValue) return false;
+    
+    // Check if the value itself is "Bhutan" (case-insensitive)
+    if (String(countryValue).toLowerCase().includes('bhutan')) {
+      return true;
+    }
+    
+    // Check if the pk_code matches a Bhutan option
+    const matchedOption = options.find(
+      (c) => String(c.country_pk_code || c.id || c.code) === countryValue
+    );
+    
+    if (matchedOption) {
+      const label = (matchedOption.country || matchedOption.name || '').toLowerCase();
+      return label.includes('bhutan');
+    }
+    
+    return false;
+  };
+
+  /**
+   * Helper to find pk_code from label by searching through available options
+   * This allows us to match stored label values to dropdown pk_codes
+   */
+  const findPkCodeByLabel = (label: string, options: any[], labelFields: string[]): string => {
+    if (!label) return '';
+    
+    const labelLower = String(label).toLowerCase().trim();
+    
+    for (const option of options) {
+      // Try each possible label field
+      for (const field of labelFields) {
+        const optionLabel = String(option[field] || '').toLowerCase().trim();
+        if (optionLabel === labelLower || optionLabel.includes(labelLower) || labelLower.includes(optionLabel)) {
+          // Found a match, return the pk_code by checking common pk_code field names
+          return String(
+            option.bank_pk_code ||
+            option.country_pk_code ||
+            option.nationality_pk_code || 
+            option.identity_type_pk_code || 
+            option.marital_status_pk_code || 
+            option.occupation_pk_code ||
+            option.pk_code ||
+            option.id || 
+            option.code || 
+            ''
+          );
+        }
+      }
+    }
+    
+    // No match found, return the label as-is (it might already be a pk_code)
+    return label;
+  };
+
+  // Load NDI verified data or existing customer verified data from session on mount
   useEffect(() => {
+    // Check for existing customer verified data first
+    const verifiedData = getVerifiedCustomerDataFromSession();
+    if (verifiedData && Object.keys(verifiedData).length > 0) {
+      console.log('========== PersonalDetail - LOADING VERIFIED CUSTOMER DATA ==========');
+      console.log('Verified data:', verifiedData);
+      console.log('Key fields:');
+      console.log('  applicantName:', verifiedData.applicantName);
+      console.log('  salutation:', verifiedData.salutation);
+      console.log('  gender:', verifiedData.gender);
+      console.log('  maritalStatus:', verifiedData.maritalStatus);
+      console.log('  nationality:', verifiedData.nationality);
+      console.log('  identificationType:', verifiedData.identificationType);
+      console.log('  currEmail:', verifiedData.currEmail);
+      console.log('  currContact:', verifiedData.currContact);
+      console.log('  bankName:', verifiedData.bankName);
+      console.log('====================================================================\n');
+      
+      setData((prevData: any) => ({
+        ...verifiedData,
+        ...prevData,
+        // Ensure relatedPeps is preserved
+        relatedPeps: prevData.relatedPeps || [createEmptyRelatedPep()],
+      }));
+      return; // Don't check NDI data if verified customer data exists
+    }
+    
+    // If no verified customer data, check for NDI data
     const ndiData = getNdiDataFromSession();
     if (ndiData && Object.keys(ndiData).length > 0) {
+      console.log('PersonalDetail - Loading NDI data:', ndiData);
       setData((prevData: any) => ({
         ...ndiData,
         ...prevData,
@@ -580,7 +685,7 @@ export function PersonalDetailsForm({
               Identification Type <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.identificationType}
+              value={findPkCodeByLabel(data.identificationType, identificationTypeOptions, ['identity_type', 'identification_type', 'name', 'label']) || data.identificationType}
               onValueChange={(value) =>
                 setData({ ...data, identificationType: value })
               }
@@ -694,7 +799,7 @@ export function PersonalDetailsForm({
               Nationality <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.nationality}
+              value={findPkCodeByLabel(data.nationality, nationalityOptions, ['nationality', 'name', 'label'])}
               onValueChange={(value) =>
                 setData({ ...data, nationality: value })
               }
@@ -859,7 +964,7 @@ export function PersonalDetailsForm({
               Marital Status <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.maritalStatus}
+              value={findPkCodeByLabel(data.maritalStatus, maritalStatusOptions, ['marital_status', 'name', 'label']) || data.maritalStatus}
               onValueChange={(value) =>
                 setData({ ...data, maritalStatus: value })
               }
@@ -1026,7 +1131,7 @@ export function PersonalDetailsForm({
               Name of Bank <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.bankName}
+              value={findPkCodeByLabel(data.bankName, banksOptions, ['bank_name', 'name', 'label']) || data.bankName}
               onValueChange={(value) => setData({ ...data, bankName: value })}
             >
               <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
@@ -1128,6 +1233,7 @@ export function PersonalDetailsForm({
       </div>
 
       {/* Permanent Address */}
+      {/* making sure that bhutanese addresses pops up first */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           Permanent Address
@@ -1142,7 +1248,7 @@ export function PersonalDetailsForm({
               Country <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.permCountry}
+              value={findPkCodeByLabel(data.permCountry, countryOptions, ['country', 'name', 'label']) || data.permCountry}
               onValueChange={(value) =>
                 setData({ ...data, permCountry: value })
               }
@@ -1190,24 +1296,13 @@ export function PersonalDetailsForm({
               htmlFor="permDzongkhag"
               className="text-gray-800 font-semibold text-sm"
             >
-              {data.permCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    data.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              )
+              {isBhutanCountry(data.permCountry, countryOptions)
                 ? "Dzongkhag"
                 : "State"}{" "}
               <span className="text-red-500">*</span>
             </Label>
             {data.permCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  data.permCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) ? (
+            !isBhutanCountry(data.permCountry, countryOptions) ? (
               <Input
                 id="permDzongkhag"
                 placeholder="Enter State"
@@ -1223,17 +1318,7 @@ export function PersonalDetailsForm({
                 onValueChange={(value) =>
                   setData({ ...data, permDzongkhag: value })
                 }
-                disabled={
-                  data.permCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.permCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  ) === undefined
-                }
+                disabled={!isBhutanCountry(data.permCountry, countryOptions)}
               >
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
@@ -1279,24 +1364,13 @@ export function PersonalDetailsForm({
               htmlFor="permGewog"
               className="text-gray-800 font-semibold text-sm"
             >
-              {data.permCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    data.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              )
+              {isBhutanCountry(data.permCountry, countryOptions)
                 ? "Gewog"
                 : "Province"}{" "}
               <span className="text-red-500">*</span>
             </Label>
             {data.permCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  data.permCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) ? (
+            !isBhutanCountry(data.permCountry, countryOptions) ? (
               <Input
                 id="permGewog"
                 placeholder="Enter Province"
@@ -1308,33 +1382,11 @@ export function PersonalDetailsForm({
               />
             ) : (
               <Select
-                value={
-                  data.permCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.permCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                    ? data.permGewog
-                    : ""
-                }
+                value={isBhutanCountry(data.permCountry, countryOptions) ? data.permGewog : ""}
                 onValueChange={(value) =>
                   setData({ ...data, permGewog: value })
                 }
-                disabled={
-                  !data.permCountry ||
-                  !countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.permCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                }
+                disabled={!isBhutanCountry(data.permCountry, countryOptions)}
               >
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
@@ -1382,13 +1434,7 @@ export function PersonalDetailsForm({
               htmlFor="permVillage"
               className="text-gray-800 font-semibold text-sm"
             >
-              {data.permCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    data.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              )
+              {isBhutanCountry(data.permCountry, countryOptions)
                 ? "Village/Street"
                 : "Street"}{" "}
               <span className="text-red-500">*</span>
@@ -1396,15 +1442,7 @@ export function PersonalDetailsForm({
             <Input
               id="permVillage"
               placeholder={
-                data.permCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      data.permCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
+                isBhutanCountry(data.permCountry, countryOptions)
                   ? "Enter Village/Street"
                   : "Enter Street"
               }
@@ -1419,13 +1457,7 @@ export function PersonalDetailsForm({
         </div>
 
         {/* Conditional grid - show Thram and House only for Bhutan */}
-        {data.permCountry &&
-          countryOptions.find(
-            (c) =>
-              String(c.country_pk_code || c.id || c.code) ===
-                data.permCountry &&
-              (c.country || c.name || "").toLowerCase().includes("bhutan"),
-          ) && (
+        {isBhutanCountry(data.permCountry, countryOptions) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2.5">
                 <Label
@@ -1438,32 +1470,9 @@ export function PersonalDetailsForm({
                   id="permThram"
                   placeholder="Enter Thram No"
                   className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  value={
-                    data.permCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          data.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                      ? data.permThram || ""
-                      : ""
-                  }
+                  value={data.permThram || ""}
                   onChange={(e) =>
                     setData({ ...data, permThram: e.target.value })
-                  }
-                  disabled={
-                    !data.permCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          data.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
                   }
                 />
               </div>
@@ -1479,32 +1488,9 @@ export function PersonalDetailsForm({
                   id="permHouse"
                   placeholder="Enter House No"
                   className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  value={
-                    data.permCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          data.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                      ? data.permHouse || ""
-                      : ""
-                  }
+                  value={data.permHouse || ""}
                   onChange={(e) =>
                     setData({ ...data, permHouse: e.target.value })
-                  }
-                  disabled={
-                    !data.permCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          data.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
                   }
                 />
               </div>
@@ -1513,12 +1499,7 @@ export function PersonalDetailsForm({
 
         {/* Document Upload for Non-Bhutan Countries */}
         {data.permCountry &&
-          !countryOptions.find(
-            (c) =>
-              String(c.country_pk_code || c.id || c.code) ===
-                data.permCountry &&
-              (c.country || c.name || "").toLowerCase().includes("bhutan"),
-          ) && (
+          !isBhutanCountry(data.permCountry, countryOptions) && (
             <div className="space-y-2.5 border-t pt-4">
               <Label
                 htmlFor="permAddressProof"
@@ -1583,7 +1564,7 @@ export function PersonalDetailsForm({
               Country of Resident <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.currCountry}
+              value={findPkCodeByLabel(data.currCountry, countryOptions, ['country', 'name', 'label']) || data.currCountry}
               onValueChange={(value) =>
                 setData({ ...data, currCountry: value })
               }
@@ -1631,24 +1612,13 @@ export function PersonalDetailsForm({
               htmlFor="currDzongkhag"
               className="text-gray-800 font-semibold text-sm"
             >
-              {data.currCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    data.currCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              )
+              {isBhutanCountry(data.currCountry, countryOptions)
                 ? "Dzongkhag"
                 : "State"}{" "}
               <span className="text-red-500">*</span>
             </Label>
             {data.currCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  data.currCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) ? (
+            !isBhutanCountry(data.currCountry, countryOptions) ? (
               <Input
                 id="currDzongkhag"
                 placeholder="Enter State"
@@ -1660,33 +1630,11 @@ export function PersonalDetailsForm({
               />
             ) : (
               <Select
-                value={
-                  data.currCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                    ? data.currDzongkhag
-                    : ""
-                }
+                value={data.currDzongkhag || ""}
                 onValueChange={(value) =>
                   setData({ ...data, currDzongkhag: value })
                 }
-                disabled={
-                  !data.currCountry ||
-                  !countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                }
+                disabled={!isBhutanCountry(data.currCountry, countryOptions)}
               >
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
@@ -1732,24 +1680,13 @@ export function PersonalDetailsForm({
               htmlFor="currGewog"
               className="text-gray-800 font-semibold text-sm"
             >
-              {data.currCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    data.currCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              )
+              {isBhutanCountry(data.currCountry, countryOptions)
                 ? "Gewog"
                 : "Province"}{" "}
               <span className="text-red-500">*</span>
             </Label>
             {data.currCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  data.currCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) ? (
+            !isBhutanCountry(data.currCountry, countryOptions) ? (
               <Input
                 id="currGewog"
                 placeholder="Enter Province"
@@ -1761,33 +1698,11 @@ export function PersonalDetailsForm({
               />
             ) : (
               <Select
-                value={
-                  data.currCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                    ? data.currGewog
-                    : ""
-                }
+                value={isBhutanCountry(data.currCountry, countryOptions) ? data.currGewog : ""}
                 onValueChange={(value) =>
                   setData({ ...data, currGewog: value })
                 }
-                disabled={
-                  !data.currCountry ||
-                  !countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                }
+                disabled={!isBhutanCountry(data.currCountry, countryOptions)}
               >
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
@@ -1835,13 +1750,7 @@ export function PersonalDetailsForm({
               htmlFor="currVillage"
               className="text-gray-800 font-semibold text-sm"
             >
-              {data.currCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    data.currCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              )
+              {isBhutanCountry(data.currCountry, countryOptions)
                 ? "Village/Street"
                 : "Street"}{" "}
               <span className="text-red-500">*</span>
@@ -1849,15 +1758,7 @@ export function PersonalDetailsForm({
             <Input
               id="currVillage"
               placeholder={
-                data.currCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      data.currCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
+                isBhutanCountry(data.currCountry, countryOptions)
                   ? "Enter Village/Street"
                   : "Enter Street"
               }
@@ -1872,13 +1773,7 @@ export function PersonalDetailsForm({
         </div>
 
         {/* Conditional grid layout based on country */}
-        {data.currCountry &&
-          countryOptions.find(
-            (c) =>
-              String(c.country_pk_code || c.id || c.code) ===
-                data.currCountry &&
-              (c.country || c.name || "").toLowerCase().includes("bhutan"),
-          ) && (
+        {isBhutanCountry(data.currCountry, countryOptions) && (
             // Updated Grid to accommodate Alternate Contact
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               <div className="space-y-2.5">
@@ -1959,12 +1854,7 @@ export function PersonalDetailsForm({
           )}
 
         {data.currCountry &&
-          !countryOptions.find(
-            (c) =>
-              String(c.country_pk_code || c.id || c.code) ===
-                data.currCountry &&
-              (c.country || c.name || "").toLowerCase().includes("bhutan"),
-          ) && (
+          !isBhutanCountry(data.currCountry, countryOptions) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2.5">
                 <Label
@@ -2025,12 +1915,7 @@ export function PersonalDetailsForm({
 
         {/* Document Upload for Non-Bhutan Countries */}
         {data.currCountry &&
-          !countryOptions.find(
-            (c) =>
-              String(c.country_pk_code || c.id || c.code) ===
-                data.currCountry &&
-              (c.country || c.name || "").toLowerCase().includes("bhutan"),
-          ) && (
+          !isBhutanCountry(data.currCountry, countryOptions) && (
             <div className="space-y-2.5 border-t pt-4">
               <Label
                 htmlFor="currAddressProof"

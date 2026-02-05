@@ -61,8 +61,18 @@ export default function OtpVerify({ onClose, generatedOtp = "", contactMethod = 
 
   useEffect(() => {
     if (isVerified) {
+      console.log('✅ OTP Verified! Checking sessionStorage before navigation...');
+      const verifiedData = sessionStorage.getItem('verifiedCustomerData');
+      console.log('📦 verifiedCustomerData exists:', !!verifiedData);
+      if (verifiedData) {
+        const parsed = JSON.parse(verifiedData);
+        console.log('   Keys:', Object.keys(parsed).length);
+        console.log('   Applicant:', parsed.applicantName || parsed.fullName);
+      }
+      
       // Navigate to loan application page at Personal Details step after animation completes (2 seconds)
       const timer = setTimeout(() => {
+        console.log('🔄 Navigating to /loan-application?step=1...');
         // Add timestamp to force component reload
         router.push("/loan-application?step=1&t=" + Date.now());
       }, 2000);

@@ -1233,6 +1233,7 @@ export function PersonalDetailsForm({
       </div>
 
       {/* Permanent Address */}
+      {/* making sure that bhutanese addresses pops up first */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           Permanent Address

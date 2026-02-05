@@ -182,6 +182,31 @@ export function PersonalDetailsForm({
   const isMarried = getIsMarried();
 
   /**
+   * Helper to check if a country value represents Bhutan
+   * Handles both pk_code values and label values like "Bhutan"
+   */
+  const isBhutanCountry = (countryValue: string, options: any[]): boolean => {
+    if (!countryValue) return false;
+    
+    // Check if the value itself is "Bhutan" (case-insensitive)
+    if (String(countryValue).toLowerCase().includes('bhutan')) {
+      return true;
+    }
+    
+    // Check if the pk_code matches a Bhutan option
+    const matchedOption = options.find(
+      (c) => String(c.country_pk_code || c.id || c.code) === countryValue
+    );
+    
+    if (matchedOption) {
+      const label = (matchedOption.country || matchedOption.name || '').toLowerCase();
+      return label.includes('bhutan');
+    }
+    
+    return false;
+  };
+
+  /**
    * Helper to find pk_code from label by searching through available options
    * This allows us to match stored label values to dropdown pk_codes
    */
@@ -1270,24 +1295,13 @@ export function PersonalDetailsForm({
               htmlFor="permDzongkhag"
               className="text-gray-800 font-semibold text-sm"
             >
-              {data.permCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    data.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              )
+              {isBhutanCountry(data.permCountry, countryOptions)
                 ? "Dzongkhag"
                 : "State"}{" "}
               <span className="text-red-500">*</span>
             </Label>
             {data.permCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  data.permCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) ? (
+            !isBhutanCountry(data.permCountry, countryOptions) ? (
               <Input
                 id="permDzongkhag"
                 placeholder="Enter State"
@@ -1303,17 +1317,7 @@ export function PersonalDetailsForm({
                 onValueChange={(value) =>
                   setData({ ...data, permDzongkhag: value })
                 }
-                disabled={
-                  data.permCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.permCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  ) === undefined
-                }
+                disabled={!isBhutanCountry(data.permCountry, countryOptions)}
               >
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
@@ -1359,24 +1363,13 @@ export function PersonalDetailsForm({
               htmlFor="permGewog"
               className="text-gray-800 font-semibold text-sm"
             >
-              {data.permCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    data.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              )
+              {isBhutanCountry(data.permCountry, countryOptions)
                 ? "Gewog"
                 : "Province"}{" "}
               <span className="text-red-500">*</span>
             </Label>
             {data.permCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  data.permCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) ? (
+            !isBhutanCountry(data.permCountry, countryOptions) ? (
               <Input
                 id="permGewog"
                 placeholder="Enter Province"
@@ -1388,33 +1381,11 @@ export function PersonalDetailsForm({
               />
             ) : (
               <Select
-                value={
-                  data.permCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.permCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                    ? data.permGewog
-                    : ""
-                }
+                value={isBhutanCountry(data.permCountry, countryOptions) ? data.permGewog : ""}
                 onValueChange={(value) =>
                   setData({ ...data, permGewog: value })
                 }
-                disabled={
-                  !data.permCountry ||
-                  !countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.permCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                }
+                disabled={!isBhutanCountry(data.permCountry, countryOptions)}
               >
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
@@ -1462,13 +1433,7 @@ export function PersonalDetailsForm({
               htmlFor="permVillage"
               className="text-gray-800 font-semibold text-sm"
             >
-              {data.permCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    data.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              )
+              {isBhutanCountry(data.permCountry, countryOptions)
                 ? "Village/Street"
                 : "Street"}{" "}
               <span className="text-red-500">*</span>
@@ -1476,15 +1441,7 @@ export function PersonalDetailsForm({
             <Input
               id="permVillage"
               placeholder={
-                data.permCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      data.permCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
+                isBhutanCountry(data.permCountry, countryOptions)
                   ? "Enter Village/Street"
                   : "Enter Street"
               }
@@ -1499,13 +1456,7 @@ export function PersonalDetailsForm({
         </div>
 
         {/* Conditional grid - show Thram and House only for Bhutan */}
-        {data.permCountry &&
-          countryOptions.find(
-            (c) =>
-              String(c.country_pk_code || c.id || c.code) ===
-                data.permCountry &&
-              (c.country || c.name || "").toLowerCase().includes("bhutan"),
-          ) && (
+        {isBhutanCountry(data.permCountry, countryOptions) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2.5">
                 <Label
@@ -1518,32 +1469,9 @@ export function PersonalDetailsForm({
                   id="permThram"
                   placeholder="Enter Thram No"
                   className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  value={
-                    data.permCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          data.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                      ? data.permThram || ""
-                      : ""
-                  }
+                  value={data.permThram || ""}
                   onChange={(e) =>
                     setData({ ...data, permThram: e.target.value })
-                  }
-                  disabled={
-                    !data.permCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          data.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
                   }
                 />
               </div>
@@ -1559,32 +1487,9 @@ export function PersonalDetailsForm({
                   id="permHouse"
                   placeholder="Enter House No"
                   className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  value={
-                    data.permCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          data.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                      ? data.permHouse || ""
-                      : ""
-                  }
+                  value={data.permHouse || ""}
                   onChange={(e) =>
                     setData({ ...data, permHouse: e.target.value })
-                  }
-                  disabled={
-                    !data.permCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          data.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
                   }
                 />
               </div>
@@ -1593,12 +1498,7 @@ export function PersonalDetailsForm({
 
         {/* Document Upload for Non-Bhutan Countries */}
         {data.permCountry &&
-          !countryOptions.find(
-            (c) =>
-              String(c.country_pk_code || c.id || c.code) ===
-                data.permCountry &&
-              (c.country || c.name || "").toLowerCase().includes("bhutan"),
-          ) && (
+          !isBhutanCountry(data.permCountry, countryOptions) && (
             <div className="space-y-2.5 border-t pt-4">
               <Label
                 htmlFor="permAddressProof"
@@ -1711,24 +1611,13 @@ export function PersonalDetailsForm({
               htmlFor="currDzongkhag"
               className="text-gray-800 font-semibold text-sm"
             >
-              {data.currCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    data.currCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              )
+              {isBhutanCountry(data.currCountry, countryOptions)
                 ? "Dzongkhag"
                 : "State"}{" "}
               <span className="text-red-500">*</span>
             </Label>
             {data.currCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  data.currCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) ? (
+            !isBhutanCountry(data.currCountry, countryOptions) ? (
               <Input
                 id="currDzongkhag"
                 placeholder="Enter State"
@@ -1740,33 +1629,11 @@ export function PersonalDetailsForm({
               />
             ) : (
               <Select
-                value={
-                  data.currCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                    ? data.currDzongkhag
-                    : ""
-                }
+                value={data.currDzongkhag || ""}
                 onValueChange={(value) =>
                   setData({ ...data, currDzongkhag: value })
                 }
-                disabled={
-                  !data.currCountry ||
-                  !countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                }
+                disabled={!isBhutanCountry(data.currCountry, countryOptions)}
               >
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
@@ -1812,24 +1679,13 @@ export function PersonalDetailsForm({
               htmlFor="currGewog"
               className="text-gray-800 font-semibold text-sm"
             >
-              {data.currCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    data.currCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              )
+              {isBhutanCountry(data.currCountry, countryOptions)
                 ? "Gewog"
                 : "Province"}{" "}
               <span className="text-red-500">*</span>
             </Label>
             {data.currCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  data.currCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) ? (
+            !isBhutanCountry(data.currCountry, countryOptions) ? (
               <Input
                 id="currGewog"
                 placeholder="Enter Province"
@@ -1841,33 +1697,11 @@ export function PersonalDetailsForm({
               />
             ) : (
               <Select
-                value={
-                  data.currCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                    ? data.currGewog
-                    : ""
-                }
+                value={isBhutanCountry(data.currCountry, countryOptions) ? data.currGewog : ""}
                 onValueChange={(value) =>
                   setData({ ...data, currGewog: value })
                 }
-                disabled={
-                  !data.currCountry ||
-                  !countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        data.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                }
+                disabled={!isBhutanCountry(data.currCountry, countryOptions)}
               >
                 <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
@@ -1915,13 +1749,7 @@ export function PersonalDetailsForm({
               htmlFor="currVillage"
               className="text-gray-800 font-semibold text-sm"
             >
-              {data.currCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    data.currCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              )
+              {isBhutanCountry(data.currCountry, countryOptions)
                 ? "Village/Street"
                 : "Street"}{" "}
               <span className="text-red-500">*</span>
@@ -1929,15 +1757,7 @@ export function PersonalDetailsForm({
             <Input
               id="currVillage"
               placeholder={
-                data.currCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      data.currCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
+                isBhutanCountry(data.currCountry, countryOptions)
                   ? "Enter Village/Street"
                   : "Enter Street"
               }
@@ -1952,13 +1772,7 @@ export function PersonalDetailsForm({
         </div>
 
         {/* Conditional grid layout based on country */}
-        {data.currCountry &&
-          countryOptions.find(
-            (c) =>
-              String(c.country_pk_code || c.id || c.code) ===
-                data.currCountry &&
-              (c.country || c.name || "").toLowerCase().includes("bhutan"),
-          ) && (
+        {isBhutanCountry(data.currCountry, countryOptions) && (
             // Updated Grid to accommodate Alternate Contact
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               <div className="space-y-2.5">
@@ -2039,12 +1853,7 @@ export function PersonalDetailsForm({
           )}
 
         {data.currCountry &&
-          !countryOptions.find(
-            (c) =>
-              String(c.country_pk_code || c.id || c.code) ===
-                data.currCountry &&
-              (c.country || c.name || "").toLowerCase().includes("bhutan"),
-          ) && (
+          !isBhutanCountry(data.currCountry, countryOptions) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2.5">
                 <Label
@@ -2105,12 +1914,7 @@ export function PersonalDetailsForm({
 
         {/* Document Upload for Non-Bhutan Countries */}
         {data.currCountry &&
-          !countryOptions.find(
-            (c) =>
-              String(c.country_pk_code || c.id || c.code) ===
-                data.currCountry &&
-              (c.country || c.name || "").toLowerCase().includes("bhutan"),
-          ) && (
+          !isBhutanCountry(data.currCountry, countryOptions) && (
             <div className="space-y-2.5 border-t pt-4">
               <Label
                 htmlFor="currAddressProof"

@@ -78,6 +78,8 @@ export interface CustomerApiResponse {
 }
 
 export interface MappedFormData {
+  currContact(arg0: string, currContact: any): unknown;
+  currEmail(arg0: string, currEmail: any): unknown;
   // Personal Information
   salutation?: string;
   fullName?: string;
@@ -118,8 +120,11 @@ export interface MappedFormData {
   permGewog?: string; // Form alias
   permanentStreet?: string;
   permStreet?: string; // Form alias
+  permVillage?: string; // Form uses permVillage for Village/Street
   thramNo?: string;
+  permThram?: string; // Form uses permThram
   houseNo?: string;
+  permHouse?: string; // Form uses permHouse
   
   // Current/Resident Address
   currentCountry?: string;
@@ -130,8 +135,10 @@ export interface MappedFormData {
   currGewog?: string; // Form alias
   currentStreet?: string;
   currStreet?: string; // Form alias
+  currVillage?: string; // Form uses currVillage for Village/Street
   currentBuildingNo?: string;
   currBuildingNo?: string; // Form alias
+  currFlat?: string; // Form uses currFlat for Flat/Building No
   
   // Employment Information
   occupation?: string;
@@ -322,7 +329,15 @@ export function mapCustomerDataToForm(response: CustomerApiResponse): MappedForm
   
   if (!customerData) {
     console.warn('mapCustomerDataToForm - No customer data found');
-    return { isVerified: false, verifiedFields: [] };
+    return {
+  isVerified: false, verifiedFields: [],
+  currContact: function (arg0: string, currContact: any): unknown {
+    throw new Error("Function not implemented.");
+  },
+  currEmail: function (arg0: string, currEmail: any): unknown {
+    throw new Error("Function not implemented.");
+  }
+};
   }
 
   const { personal, address, contact, employment, pep } = customerData as any;
@@ -367,7 +382,7 @@ export function mapCustomerDataToForm(response: CustomerApiResponse): MappedForm
     tpnNumber: extractField(personal, 'party_tpn_number', 'tpn_number', 'tpn'),
     tpn: extractField(personal, 'party_tpn_number', 'tpn_number', 'tpn'), // Form uses tpn
     partyId: extractField(personal, 'party_id', 'id'),
-    
+
     // Contact Information
     phone: extractField(contact, 'pty_ctc_contact_no', 'contact_no', 'phone'),
     contactNo: extractField(contact, 'pty_ctc_contact_no', 'contact_no', 'phone'), // Form uses contactNo
@@ -375,7 +390,8 @@ export function mapCustomerDataToForm(response: CustomerApiResponse): MappedForm
     emailId: extractField(contact, 'pty_ctc_email_id', 'email_id', 'email'), // Form uses emailId
     alternatePhone: extractField(contact, 'pty_ctc_alternate_contact_no', 'alternate_contact_no', 'alternateContactNo'),
     alternateContactNo: extractField(contact, 'pty_ctc_alternate_contact_no', 'alternate_contact_no', 'alternateContactNo'), // Form uses alternateContactNo
-    
+
+
     // Permanent Address
     permanentCountry: extractField(address?.Permanent_address, 'pty_adr_permanent_country', 'permanent_country', 'country'),
     permCountry: extractField(address?.Permanent_address, 'pty_adr_permanent_country', 'permanent_country', 'country'), // Form uses permCountry
@@ -385,9 +401,12 @@ export function mapCustomerDataToForm(response: CustomerApiResponse): MappedForm
     permGewog: extractField(address?.Permanent_address, 'pty_adr_permanent_gewog', 'permanent_gewog', 'gewog'), // Form uses permGewog
     permanentStreet: extractField(address?.Permanent_address, 'pty_adr_permanent_street', 'permanent_street', 'street'),
     permStreet: extractField(address?.Permanent_address, 'pty_adr_permanent_street', 'permanent_street', 'street'), // Form uses permStreet
+    permVillage: extractField(address?.Permanent_address, 'pty_adr_permanent_street', 'permanent_street', 'street'), // Form uses permVillage for Village/Street
     thramNo: extractField(address?.Permanent_address, 'pty_adr_thram_no', 'thram_no', 'thramNo'),
+    permThram: extractField(address?.Permanent_address, 'pty_adr_thram_no', 'thram_no', 'thramNo'), // Form uses permThram
     houseNo: extractField(address?.Permanent_address, 'pty_adr_house_no', 'house_no', 'houseNo'),
-    
+    permHouse: extractField(address?.Permanent_address, 'pty_adr_house_no', 'house_no', 'houseNo'), // Form uses permHouse
+
     // Current/Resident Address
     currentCountry: extractField(address?.resident_address, 'pty_adr_resident_country', 'resident_country', 'country'),
     currCountry: extractField(address?.resident_address, 'pty_adr_resident_country', 'resident_country', 'country'), // Form uses currCountry
@@ -397,9 +416,12 @@ export function mapCustomerDataToForm(response: CustomerApiResponse): MappedForm
     currGewog: extractField(address?.resident_address, 'pty_adr_resident_gewog', 'resident_gewog', 'gewog'), // Form uses currGewog
     currentStreet: extractField(address?.resident_address, 'pty_adr_resident_street', 'resident_street', 'street'),
     currStreet: extractField(address?.resident_address, 'pty_adr_resident_street', 'resident_street', 'street'), // Form uses currStreet
+    currVillage: extractField(address?.resident_address, 'pty_adr_resident_street', 'resident_street', 'street'), // Form uses currVillage for Village/Street
     currentBuildingNo: extractField(address?.resident_address, 'pty_adr_resident_building_no', 'resident_building_no', 'buildingNo'),
     currBuildingNo: extractField(address?.resident_address, 'pty_adr_resident_building_no', 'resident_building_no', 'buildingNo'), // Form uses currBuildingNo
-    
+    currFlat: extractField(address?.resident_address, 'pty_adr_resident_building_no', 'resident_building_no', 'buildingNo'), // Form uses currFlat for Flat/Building No
+
+
     // Employment Information
     occupation: employment?.pty_empl_occupation || '',
     employerType: employment?.pty_empl_employer_type || '',
@@ -415,7 +437,7 @@ export function mapCustomerDataToForm(response: CustomerApiResponse): MappedForm
     designation: extractField(employment, 'pty_empl_designation', 'designation'),
     grade: extractField(employment, 'pty_empl_grade', 'grade'),
     annualIncome: extractField(employment, 'pty_empl_annual_income', 'annual_income', 'annualIncome'),
-    
+
     // PEP Information
     pepDeclaration: extractField(pep, 'pep_declaration_type', 'declaration_type'),
     pepPerson: extractField(pep, 'pep_category', 'category') === 'Not Applicable' ? 'no' : 'yes', // Form uses pepPerson (yes/no)
@@ -423,9 +445,16 @@ export function mapCustomerDataToForm(response: CustomerApiResponse): MappedForm
     pepSubCategory: extractField(pep, 'pep_sub_category', 'sub_category'),
     relatedToAnyPep: extractField(pep, 'related_to_any_pep', 'relatedToAnyPep'),
     pepRelated: extractField(pep, 'related_to_any_pep', 'relatedToAnyPep') === 'Yes' ? 'yes' : 'no', // Form uses pepRelated (yes/no)
-    
+
+
     // Metadata
     isVerified: true,
+    currContact: function (arg0: string, currContact: any): unknown {
+      throw new Error("Function not implemented.");
+    },
+    currEmail: function (arg0: string, currEmail: any): unknown {
+      throw new Error("Function not implemented.");
+    }
   };
 
   // Diagnostic logging for missing fields

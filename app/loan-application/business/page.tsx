@@ -20,7 +20,7 @@ import { Percent, Calendar, Menu, X } from "lucide-react";
 // Actual Component Imports
 import { BusinessRepaymentSourceForm } from "@/components/business/BusinessRepaymentSource";
 import { BusinessDetailsForm } from "@/components/business/BusinessDetails";
-import { Confirmation } from "@/components/confirmation";
+import { BusinessConfirmation } from "@/components/BusinessConfirmation";
 import { CoborrowerBusiness } from "@/components/business/CoborrowerBusiness";
 import { SecurityDetailBusiness } from "@/components/business/SecurityDetailBusiness";
 import { loanInfoContent } from "@/components/text";
@@ -595,7 +595,7 @@ function BusinessLoanApplicationContent() {
 
         {currentStep === 5 && (
           <div className="max-w-7xl mx-auto">
-            <Confirmation
+            <BusinessConfirmation
               onNext={handleConfirmationNext}
               onBack={() => setCurrentStep(4)}
               formData={formData}

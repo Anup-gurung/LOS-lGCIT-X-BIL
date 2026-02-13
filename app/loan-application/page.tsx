@@ -70,6 +70,19 @@ function LoanApplicationContent() {
   const [apiTenure, setApiTenure] = useState<number>(0);
   const [apiInterestRate, setApiInterestRate] = useState<number>(0);
 
+  // Allowed loan sectors as per requirement
+  const allowedLoanSectors = [
+    "Housing Sector",
+    "Transport Loans",
+    "Personal Loans",
+    "Staff Incentive Loans",
+    "Loan Against Term Deposits",
+    "Loans for Shares and Securities",
+    "Education Loans",
+    "Medical Loans",
+    "Agriculture and Livestock",
+  ];
+
   useEffect(() => {
     // Load loan data from API
     const loadLoanData = async () => {
@@ -78,7 +91,11 @@ function LoanApplicationContent() {
         // Handle nested response: result.data.data.loanSector
         const data = result?.data?.data || result?.data || result;
         if (data && data.loanSector && Array.isArray(data.loanSector)) {
-          setLoanSectorOptions(data.loanSector);
+          // Filter loan sectors to only include allowed ones
+          const filteredSectors = data.loanSector.filter((sector: any) =>
+            allowedLoanSectors.includes(sector.loan_sector),
+          );
+          setLoanSectorOptions(filteredSectors);
         }
         if (data && data.loanType && Array.isArray(data.loanType)) {
           setLoanTypeOptions(data.loanType);

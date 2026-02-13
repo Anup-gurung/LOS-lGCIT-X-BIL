@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Header } from "@/components/header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,17 +15,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Percent, Calendar, Menu, X } from "lucide-react";
+import DocumentPopup from "@/components/DocumentPopup";
 
-// Actual Component Imports
+// Actual step components
 import { BusinessRepaymentSourceForm } from "@/components/business/BusinessRepaymentSource";
 import { BusinessDetailsForm } from "@/components/business/BusinessDetails";
 import { BusinessConfirmation } from "@/components/BusinessConfirmation";
 import { CoborrowerBusiness } from "@/components/business/CoborrowerBusiness";
 import { SecurityDetailBusiness } from "@/components/business/SecurityDetailBusiness";
+
+import { fetchLoanData } from "@/services/api";
 import { loanInfoContent } from "@/components/text";
 
-// UPDATED STEP ORDER
 const businessSteps = [
   "Loan Details",
   "Business Details",
@@ -35,13 +38,11 @@ const businessSteps = [
   "Confirmation",
 ];
 
-const Loading = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p className="text-gray-500 text-lg">Loading...</p>
-    </div>
-  );
-};
+const Loading = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <p className="text-gray-500 text-lg">Loading...</p>
+  </div>
+);
 
 function BusinessLoanApplicationContent() {
   const searchParams = useSearchParams();
@@ -50,108 +51,95 @@ function BusinessLoanApplicationContent() {
     stepParam ? parseInt(stepParam) : 0,
   );
 
-  // Loan Details State
+  // Allowed loan sectors as per requirement
+  const ALLOWED_SECTORS = [
+    "Forestry and Logging",
+    "Mining and Quarrying",
+    "Production & Manufacturing",
+    "Trade and Commerce",
+    "Hotel and Tourism Sector",
+    "Loans to Contractors",
+    "Loans to Government",
+    "Loans to Financial Service Providers",
+    "Loan Against Term Deposits",
+    "Loans for Shares and Securities",
+    "Agriculture and Livestock",
+    "Service Sector",
+    "Transport Loans",
+    "Housing Sector",
+  ];
+
+  // ---------- Slider states (fallback for EMI – kept for consistency) ----------
+  const [loanAmount, setLoanAmount] = useState([500000]);
+  const [interestRate, setInterestRate] = useState([8.0]);
+  const [tenure, setTenure] = useState([12]);
+
+  // ---------- Loan Details State ----------
   const [totalLoanInput, setTotalLoanInput] = useState("");
   const [loanPurpose, setLoanPurpose] = useState("");
   const [showStepsMenu, setShowStepsMenu] = useState(false);
+  const [showDocumentPopup, setShowDocumentPopup] = useState(false);
   const [formData, setFormData] = useState<any>({});
 
-  // Dropdown Options State
+  // Dropdown options
   const [loanSectorOptions, setLoanSectorOptions] = useState<any[]>([]);
   const [loanSubSectorOptions, setLoanSubSectorOptions] = useState<any[]>([]);
-  const [selectedSector, setSelectedSector] = useState("");
-  const [selectedSubSector, setSelectedSubSector] = useState("");
   const [loanTypeOptions, setLoanTypeOptions] = useState<any[]>([]);
-  const [selectedLoanType, setSelectedLoanType] = useState("");
   const [subSectorCategoryOptions, setSubSectorCategoryOptions] = useState<
     any[]
   >([]);
+
+  // Selected values
+  const [selectedLoanType, setSelectedLoanType] = useState("");
+  const [selectedSector, setSelectedSector] = useState("");
+  const [selectedSubSector, setSelectedSubSector] = useState("");
   const [selectedSubSectorCategory, setSelectedSubSectorCategory] =
     useState("");
+
+  // Derived values from selected sub‑sector
   const [apiTenure, setApiTenure] = useState<number>(0);
   const [apiInterestRate, setApiInterestRate] = useState<number>(0);
 
+  // ---------- Fetch REAL loan data from API ----------
   useEffect(() => {
-    // Dummy data - replace with API calls if needed
-    const dummyLoanTypes = [
-      { pk_id: 1, loan_type: "Term Loan" },
-      { pk_id: 2, loan_type: "Working Capital Loan" },
-      { pk_id: 3, loan_type: "Overdraft" },
-    ];
-
-    const dummyLoanSectors = [
-      {
-        loan_sector_id: 1,
-        loan_sector: "Agriculture",
-        loanSubSector: [
-          {
-            sub_sector_id: 101,
-            sub_sector: "Crop Production",
-            loan_tenure: "60",
-            interest_rate: "8.5",
-            loanSubSectorCategory: [
-              { sub_sector_cat_id: 1001, sub_cat_sector: "Rice Cultivation" },
-              { sub_sector_cat_id: 1002, sub_cat_sector: "Vegetable Farming" },
-            ],
-          },
-          {
-            sub_sector_id: 102,
-            sub_sector: "Livestock",
-            loan_tenure: "48",
-            interest_rate: "9.0",
-            loanSubSectorCategory: [
-              { sub_sector_cat_id: 1003, sub_cat_sector: "Dairy Farming" },
-              { sub_sector_cat_id: 1004, sub_cat_sector: "Poultry" },
-            ],
-          },
-        ],
-      },
-      {
-        loan_sector_id: 2,
-        loan_sector: "Manufacturing",
-        loanSubSector: [
-          {
-            sub_sector_id: 201,
-            sub_sector: "Food Processing",
-            loan_tenure: "84",
-            interest_rate: "10.0",
-            loanSubSectorCategory: [
-              { sub_sector_cat_id: 2001, sub_cat_sector: "Dairy Products" },
-              { sub_sector_cat_id: 2002, sub_cat_sector: "Bakery" },
-            ],
-          },
-          {
-            sub_sector_id: 202,
-            sub_sector: "Textiles",
-            loan_tenure: "72",
-            interest_rate: "10.5",
-            loanSubSectorCategory: [
-              { sub_sector_cat_id: 2003, sub_cat_sector: "Garments" },
-              { sub_sector_cat_id: 2004, sub_cat_sector: "Weaving" },
-            ],
-          },
-        ],
-      },
-    ];
-
-    setLoanTypeOptions(dummyLoanTypes);
-    setLoanSectorOptions(dummyLoanSectors);
+    const loadLoanData = async () => {
+      try {
+        const result = await fetchLoanData();
+        const data = result?.data?.data || result?.data || result;
+        if (data?.loanSector && Array.isArray(data.loanSector)) {
+          // Filter loan sectors to only those in ALLOWED_SECTORS list
+          const filteredSectors = data.loanSector.filter((sector: any) =>
+            ALLOWED_SECTORS.some(
+              (allowed) =>
+                allowed.toLowerCase().trim() ===
+                sector.loan_sector?.toLowerCase().trim(),
+            ),
+          );
+          setLoanSectorOptions(filteredSectors);
+        }
+        if (data?.loanType && Array.isArray(data.loanType)) {
+          setLoanTypeOptions(data.loanType);
+        }
+      } catch (error) {
+        console.error("Failed to load loan data", error);
+      }
+    };
+    loadLoanData();
   }, []);
 
+  // ---------- Cascading Dropdown Effects ----------
+  // Sector → Sub‑sector
   useEffect(() => {
     if (selectedSector) {
       const sector = loanSectorOptions.find(
         (s) => s.loan_sector_id === parseInt(selectedSector),
       );
-      if (
-        sector &&
-        sector.loanSubSector &&
-        Array.isArray(sector.loanSubSector)
-      ) {
+      if (sector?.loanSubSector && Array.isArray(sector.loanSubSector)) {
         setLoanSubSectorOptions(sector.loanSubSector);
       } else {
         setLoanSubSectorOptions([]);
       }
+      // Reset dependent fields
       setSelectedSubSector("");
       setSelectedSubSectorCategory("");
       setApiTenure(0);
@@ -165,16 +153,13 @@ function BusinessLoanApplicationContent() {
     }
   }, [selectedSector, loanSectorOptions]);
 
+  // Sub‑sector → Category + Tenure + Interest rate
   useEffect(() => {
     if (selectedSubSector) {
       const subSectorIndex = parseInt(selectedSubSector.split("-")[1]);
       const subSector = loanSubSectorOptions[subSectorIndex];
 
-      if (
-        subSector &&
-        subSector.loanSubSectorCategory &&
-        Array.isArray(subSector.loanSubSectorCategory)
-      ) {
+      if (subSector?.loanSubSectorCategory) {
         setSubSectorCategoryOptions(subSector.loanSubSectorCategory);
       } else {
         setSubSectorCategoryOptions([]);
@@ -196,13 +181,9 @@ function BusinessLoanApplicationContent() {
     }
   }, [selectedSubSector, loanSubSectorOptions]);
 
-  // --- NAVIGATION HANDLERS ---
-
+  // ---------- Navigation Handlers ----------
   const handleLoanDetailsNext = () => {
-    if (!isFormValid()) {
-      alert("Please fill in all required fields");
-      return;
-    }
+    if (!isFormValid()) return;
 
     const loanData = {
       loanType: selectedLoanType,
@@ -210,12 +191,12 @@ function BusinessLoanApplicationContent() {
       loanSubSector: selectedSubSector,
       loanSubSectorCategory: selectedSubSectorCategory,
       loanAmount: totalLoanInput,
-      loanPurpose: loanPurpose,
+      loanPurpose,
       tenure: apiTenure,
       interestRate: apiInterestRate,
     };
     setFormData({ ...formData, ...loanData });
-    setCurrentStep(1);
+    setShowDocumentPopup(true);
   };
 
   const handleBusinessDetailsNext = (data: any) => {
@@ -243,42 +224,23 @@ function BusinessLoanApplicationContent() {
     alert("Business Loan Application submitted successfully!");
   };
 
-  // --- UTILS ---
-
-  const calculateEMI = () => {
-    if (
-      !totalLoanInput ||
-      totalLoanInput === "" ||
-      parseFloat(totalLoanInput) <= 0
-    ) {
-      return "0.00";
-    }
-
-    const P = parseFloat(totalLoanInput);
-    const r = apiInterestRate / 12 / 100;
-    const n = apiTenure;
-
-    if (r === 0) return (P / (n || 1)).toFixed(2);
-
-    const emi = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-    return isNaN(emi) || !isFinite(emi) ? "0.00" : emi.toFixed(2);
-  };
-
+  // ---------- Utilities ----------
+  // Validation: four dropdowns + positive loan amount (purpose is optional)
   const isFormValid = () => {
     return (
-      selectedSector !== "" &&
       selectedLoanType !== "" &&
+      selectedSector !== "" &&
       selectedSubSector !== "" &&
       selectedSubSectorCategory !== "" &&
       totalLoanInput !== "" &&
-      parseFloat(totalLoanInput) > 0 &&
-      loanPurpose !== ""
+      parseFloat(totalLoanInput) > 0
     );
   };
 
   const selectedSectorId = selectedSector || "";
   const loanInfo = loanInfoContent[selectedSectorId] || loanInfoContent.default;
 
+  // ---------- Render ----------
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-16 sm:pt-20 md:pt-24">
       <Header />
@@ -360,143 +322,185 @@ function BusinessLoanApplicationContent() {
           </div>
         </div>
 
-        {/* --- FORM CONTENT SWITCH --- */}
-
+        {/* ---------- Step 0 : Loan Details ---------- */}
         {currentStep === 0 && (
           <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 md:gap-10 max-w-7xl mx-auto">
+            {/* Left Column – Dropdowns & Loan Info */}
             <Card className="shadow-lg sm:shadow-xl border-0 bg-white rounded-lg sm:rounded-2xl overflow-hidden">
               <CardContent className="p-4 sm:p-6 md:p-10 space-y-4 sm:space-y-6 md:space-y-8">
-                <div className="space-y-4 sm:space-y-6">
-                  {/* Loan Type */}
-                  <div className="space-y-2">
-                    <Label className="text-gray-800 font-semibold text-sm sm:text-base">
-                      Loan Type: <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      value={selectedLoanType}
-                      onValueChange={setSelectedLoanType}
-                    >
-                      <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300">
-                        <SelectValue placeholder="[Select]" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {loanTypeOptions.map((option, index) => (
+                {/* Loan Type */}
+                <div className="space-y-2">
+                  <Label className="text-gray-800 font-semibold text-sm sm:text-base">
+                    Loan Type: <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={selectedLoanType}
+                    onValueChange={setSelectedLoanType}
+                  >
+                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loanTypeOptions.length > 0 ? (
+                        loanTypeOptions.map((option, index) => (
                           <SelectItem
-                            key={index}
+                            key={`loantype-${index}`}
                             value={`${option.pk_id}-${index}`}
                           >
                             {option.loan_type}
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                        ))
+                      ) : (
+                        <SelectItem value="loading" disabled>
+                          Loading...
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  {/* Loan Sector */}
-                  <div className="space-y-2">
-                    <Label className="text-gray-800 font-semibold text-sm sm:text-base">
-                      Loan Sector <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      value={selectedSector}
-                      onValueChange={setSelectedSector}
-                    >
-                      <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300">
-                        <SelectValue placeholder="[Select]" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {loanSectorOptions.map((option) => (
+                {/* Loan Sector */}
+                <div className="space-y-2">
+                  <Label className="text-gray-800 font-semibold text-sm sm:text-base">
+                    Loan Sector <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={selectedSector}
+                    onValueChange={setSelectedSector}
+                  >
+                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loanSectorOptions.length > 0 ? (
+                        loanSectorOptions.map((option) => (
                           <SelectItem
                             key={option.loan_sector_id}
                             value={String(option.loan_sector_id)}
                           >
                             {option.loan_sector}
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                        ))
+                      ) : (
+                        <SelectItem value="loading" disabled>
+                          Loading...
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  {/* Sub Sector */}
-                  <div className="space-y-2">
-                    <Label className="text-gray-800 font-semibold text-sm sm:text-base">
-                      Loan Sub-Sector <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      value={selectedSubSector}
-                      onValueChange={setSelectedSubSector}
-                    >
-                      <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300">
-                        <SelectValue placeholder="[Select]" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {loanSubSectorOptions.map((option, index) => (
+                {/* Loan Sub‑Sector */}
+                <div className="space-y-2">
+                  <Label className="text-gray-800 font-semibold text-sm sm:text-base">
+                    Loan Sub-Sector <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={selectedSubSector}
+                    onValueChange={setSelectedSubSector}
+                    disabled={!selectedSector}
+                  >
+                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loanSubSectorOptions.length > 0 ? (
+                        loanSubSectorOptions.map((option, index) => (
                           <SelectItem
-                            key={index}
+                            key={`subsector-${index}`}
                             value={`${option.sub_sector_id}-${index}`}
                           >
                             {option.sub_sector}
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                        ))
+                      ) : (
+                        <SelectItem value="loading" disabled>
+                          {selectedSector
+                            ? "No sub‑sectors available"
+                            : "Select sector first"}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  {/* Category */}
-                  <div className="space-y-2">
-                    <Label className="text-gray-800 font-semibold text-sm sm:text-base">
-                      Loan Sub-Sector Category{" "}
-                      <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      value={selectedSubSectorCategory}
-                      onValueChange={setSelectedSubSectorCategory}
-                    >
-                      <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300">
-                        <SelectValue placeholder="[Select]" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {subSectorCategoryOptions.map((option, index) => (
+                {/* Loan Sub‑Sector Category */}
+                <div className="space-y-2">
+                  <Label className="text-gray-800 font-semibold text-sm sm:text-base">
+                    Loan Sub-Sector Category{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={selectedSubSectorCategory}
+                    onValueChange={setSelectedSubSectorCategory}
+                    disabled={!selectedSubSector}
+                  >
+                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subSectorCategoryOptions.length > 0 ? (
+                        subSectorCategoryOptions.map((option, index) => (
                           <SelectItem
-                            key={index}
+                            key={`category-${index}`}
                             value={`${option.sub_sector_cat_id}-${index}`}
                           >
                             {option.sub_cat_sector}
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                        ))
+                      ) : (
+                        <SelectItem value="loading" disabled>
+                          {selectedSubSector
+                            ? "No categories available"
+                            : "Select sub‑sector first"}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* Tenure and Rate Cards */}
+                {/* Loan Info Box – Sector‑specific content */}
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 sm:p-6 md:p-8 rounded-lg sm:rounded-2xl space-y-3 sm:space-y-5 border border-blue-200 shadow-sm mt-4">
                   <div className="space-y-1">
                     <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                       {loanInfo.title}
                     </h3>
-                    <p className="text-xs sm:text-sm italic text-gray-700">
+                    <p className="text-xs sm:text-sm italic text-gray-700 font-medium">
                       {loanInfo.tagline}
                     </p>
                   </div>
+
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-gray-900 text-sm sm:text-base">
+                      {loanInfo.highlightTitle}
+                    </h4>
+                    <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
+                      {loanInfo.description}
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3 sm:gap-5 pt-3">
-                    <div className="bg-[#FF9800] text-white p-3 sm:p-4 rounded-lg shadow-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Calendar className="h-4 w-4" />
-                        <span className="text-xs font-semibold">Tenure</span>
+                    <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] text-white p-3 sm:p-4 md:p-6 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                      <div className="flex items-center gap-1.5 sm:gap-2.5 mb-2 sm:mb-3">
+                        <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="text-xs sm:text-sm font-semibold">
+                          Loan Tenure
+                        </span>
                       </div>
-                      <p className="text-xl sm:text-3xl font-bold">
+                      <p className="text-xl sm:text-3xl md:text-4xl font-bold">
                         {apiTenure > 0
                           ? `${Math.round(apiTenure / 12)} Years`
                           : "0 Years"}
                       </p>
                     </div>
-                    <div className="bg-[#FF9800] text-white p-3 sm:p-4 rounded-lg shadow-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Percent className="h-4 w-4" />
-                        <span className="text-xs font-semibold">Interest</span>
+                    <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] text-white p-3 sm:p-4 md:p-6 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                      <div className="flex items-center gap-1.5 sm:gap-2.5 mb-2 sm:mb-3">
+                        <Percent className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="text-xs sm:text-sm font-semibold">
+                          Interest Rate
+                        </span>
                       </div>
-                      <p className="text-xl sm:text-3xl font-bold">
+                      <p className="text-xl sm:text-3xl md:text-4xl font-bold">
                         {apiInterestRate > 0 ? `${apiInterestRate}%` : "0%"}
                       </p>
                     </div>
@@ -505,8 +509,9 @@ function BusinessLoanApplicationContent() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-lg border-0 bg-white rounded-lg sm:rounded-2xl overflow-hidden">
-              <CardContent className="p-4 sm:p-6 md:p-10 space-y-6">
+            {/* Right Column – Loan Amount, Purpose */}
+            <Card className="shadow-lg sm:shadow-xl border-0 bg-white rounded-lg sm:rounded-2xl overflow-hidden">
+              <CardContent className="p-4 sm:p-6 md:p-10 space-y-4 sm:space-y-6 md:space-y-8">
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-gray-800 font-semibold text-sm sm:text-base">
@@ -516,7 +521,7 @@ function BusinessLoanApplicationContent() {
                     <Input
                       type="number"
                       placeholder="Enter Total Loan Amount"
-                      className="h-10 sm:h-12 border-gray-300"
+                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                       value={totalLoanInput}
                       onChange={(e) => setTotalLoanInput(e.target.value)}
                     />
@@ -524,35 +529,23 @@ function BusinessLoanApplicationContent() {
 
                   <div className="space-y-2">
                     <Label className="text-gray-800 font-semibold text-sm sm:text-base">
-                      Purpose <span className="text-red-500">*</span>
+                      Purpose
                     </Label>
                     <Textarea
-                      placeholder="Write your purpose"
+                      placeholder="Write your purpose (optional)"
                       rows={4}
-                      className="border-gray-300 resize-none"
+                      className="border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] resize-none"
                       value={loanPurpose}
                       onChange={(e) => setLoanPurpose(e.target.value)}
                     />
                   </div>
                 </div>
-
-                {selectedLoanType && selectedLoanType.split("-")[0] === "1" && (
-                  <div className="border-t border-gray-200 pt-6 mt-6">
-                    <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] p-6 rounded-xl text-center shadow-xl">
-                      <p className="text-sm text-white/95 mb-2 font-semibold">
-                        Your Monthly EMI
-                      </p>
-                      <p className="text-3xl sm:text-5xl font-bold text-white">
-                        Nu. {calculateEMI()}
-                      </p>
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>
         )}
 
+        {/* ---------- Other Steps ---------- */}
         {currentStep === 1 && (
           <div className="max-w-7xl mx-auto">
             <BusinessDetailsForm
@@ -562,7 +555,6 @@ function BusinessLoanApplicationContent() {
             />
           </div>
         )}
-
         {currentStep === 2 && (
           <div className="max-w-7xl mx-auto">
             <CoborrowerBusiness
@@ -572,7 +564,6 @@ function BusinessLoanApplicationContent() {
             />
           </div>
         )}
-
         {currentStep === 3 && (
           <div className="max-w-7xl mx-auto">
             <SecurityDetailBusiness
@@ -582,7 +573,6 @@ function BusinessLoanApplicationContent() {
             />
           </div>
         )}
-
         {currentStep === 4 && (
           <div className="max-w-7xl mx-auto">
             <BusinessRepaymentSourceForm
@@ -592,7 +582,6 @@ function BusinessLoanApplicationContent() {
             />
           </div>
         )}
-
         {currentStep === 5 && (
           <div className="max-w-7xl mx-auto">
             <BusinessConfirmation
@@ -603,27 +592,42 @@ function BusinessLoanApplicationContent() {
           </div>
         )}
 
-        {/* Navigation Buttons for Step 0 */}
-        {currentStep === 0 && (
-          <div className="flex justify-center gap-4 mt-8 md:mt-12">
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={() => (window.location.href = "/")}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-10 py-6 rounded-xl font-semibold shadow-lg"
-            >
-              Back
-            </Button>
-            <Button
-              size="lg"
-              className="bg-[#003DA5] hover:bg-[#002D7A] text-white px-10 py-6 rounded-xl font-semibold shadow-lg"
-              onClick={handleLoanDetailsNext}
-            >
-              Next
-            </Button>
-          </div>
-        )}
+        {/* ---------- Global Navigation Buttons (exactly like individual page) ---------- */}
+        {currentStep !== 1 &&
+          currentStep !== 2 &&
+          currentStep !== 3 &&
+          currentStep !== 4 && (
+            <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-6 sm:mt-8 md:mt-12 mb-4 sm:mb-6">
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+                disabled={currentStep === 0}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-6 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Back
+              </Button>
+              <Button
+                size="lg"
+                className="bg-[#003DA5] hover:bg-[#002D7A] text-white px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-6 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleLoanDetailsNext}
+                disabled={!isFormValid()}
+              >
+                Next
+              </Button>
+            </div>
+          )}
       </div>
+
+      {/* Document Popup – exactly like individual page */}
+      <DocumentPopup
+        open={showDocumentPopup}
+        onOpenChange={setShowDocumentPopup}
+        onProceed={() => {
+          setShowDocumentPopup(false);
+          setCurrentStep(1);
+        }}
+      />
     </div>
   );
 }

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Percent, Calendar, Menu, X } from "lucide-react";
-import DocumentPopup from "@/components/DocumentPopup";
+import DocumentPopupBusiness from "@/components/DocumentPopupBusiness";
 
 // Actual step components
 import { BusinessRepaymentSourceForm } from "@/components/business/BusinessRepaymentSource";
@@ -620,7 +620,7 @@ function BusinessLoanApplicationContent() {
       </div>
 
       {/* Document Popup – exactly like individual page */}
-      <DocumentPopup
+      <DocumentPopupBusiness
         open={showDocumentPopup}
         onOpenChange={setShowDocumentPopup}
         onProceed={() => {

@@ -19,6 +19,13 @@ export default function ExistingUserVerification() {
   const [isLoading, setIsLoading] = useState(false);
   const [customerData, setCustomerData] = useState<any>(null);
   const [generatedOtp, setGeneratedOtp] = useState<string>("");
+  const [errors, setErrors] = useState<{
+    idType?: string;
+    idNumber?: string;
+    contactPreference?: string;
+    email?: string;
+    phone?: string;
+  }>({});
 
   // Function to generate 6-digit OTP
   const generateOtp = () => {
@@ -132,9 +139,11 @@ export default function ExistingUserVerification() {
                   onChange={(e) => {
                     console.log('ID Type selected:', e.target.value);
                     setIdType(e.target.value);
+                    setErrors((prev) => ({ ...prev, idType: undefined }));
                   }}
-                  required
+                  // required
                 >
+
                   <option value="" disabled>Select</option>
                   {identificationTypeOptions.length === 0 ? (
                     <option value="" disabled>Loading...</option>
@@ -151,6 +160,9 @@ export default function ExistingUserVerification() {
                     })
                   )}
                 </select>
+                  {errors.idType && (
+                      <p className="text-xs text-red-500 mt-1">{errors.idType}</p>
+                    )}
               </div>
 
               {/* ID Number */}
@@ -163,8 +175,17 @@ export default function ExistingUserVerification() {
                   placeholder="Enter Identification No"
                   className="w-full mt-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   value={idNumber}
-                  onChange={(e) => setIdNumber(e.target.value)}
+                  onChange={(e) => {
+                    setIdNumber(e.target.value);
+                    setErrors((prev) => ({ ...prev, idNumber: undefined }));
+                  }}
+
+
                 />
+                {errors.idNumber && (
+                  <p className="text-xs text-red-500 mt-1">{errors.idNumber}</p>
+                )}
+ 
               </div>
 
               {/* Contact Preference (Radio) */}
@@ -182,9 +203,13 @@ export default function ExistingUserVerification() {
                       onChange={() => {
                         setContactPreference("email");
                         setPhone("");
+                        setErrors((prev) => ({ ...prev, contactPreference: undefined }));
                       }}
                       className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-600"
                     />
+                                        
+
+
                     <span className="text-sm text-gray-700">Receive via Email</span>
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -199,11 +224,16 @@ export default function ExistingUserVerification() {
                       }}
                       className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-600"
                     />
-                    <span className="text-sm text-gray-700">Receive via SMS
-</span>
+
+
+                    <span className="text-sm text-gray-700">Receive via SMS</span>
                   </label>
                 </div>
               </div>
+              {errors.contactPreference && (
+                    <p className="text-xs text-red-500 mt-2">{errors.contactPreference}</p>
+                  )}
+
 
               {/* Email */}
               {contactPreference === "email" && (
@@ -216,11 +246,16 @@ export default function ExistingUserVerification() {
                     placeholder="Enter your registered email address"
                     className="w-full mt-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      setErrors((prev) => ({ ...prev, email: undefined }))
+                    }}
+
                   />
-                  {email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (
-                    <p className="text-xs text-red-500 mt-1">Please enter a valid email address</p>
+                  {errors.email && (
+                    <p className="text-xs text-red-500 mt-1">{errors.email}</p>
                   )}
+
                 </div>
               )}
 
@@ -235,11 +270,15 @@ export default function ExistingUserVerification() {
                     placeholder="Enter your registered phone"
                     className="w-full mt-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value)
+                    setErrors((prev) => ({ ...prev, phone: undefined }))
+                  }}
                   />
-                  {phone && !/^[0-9]{8,15}$/.test(phone) && (
-                    <p className="text-xs text-red-500 mt-1">Please enter a valid phone number (8-15 digits)</p>
+                  {errors.phone && (
+                    <p className="text-xs text-red-500 mt-1">{errors.phone}</p>
                   )}
+
                 </div>
               )}
             </div>
@@ -247,22 +286,65 @@ export default function ExistingUserVerification() {
             <div className="mt-8 flex justify-center">
               <button 
                 onClick={async () => {
-                  if (!idType || !idNumber) {
-                    alert('Please fill in Identification Type and Number');
-                    return;
+
+                  const newErrors: any = {};
+
+                  // ID Type
+                  if (!idType) {
+                    newErrors.idType = "Please select an identification type";
                   }
+
+                  // ID Number
+                  if (!idNumber.trim()) {
+                    newErrors.idNumber = "Please enter your identification number";
+                  }
+
+                  // Contact Preference
                   if (!contactPreference) {
-                    alert('Please select a contact method (Email or Phone)');
+                    newErrors.contactPreference = "Please select how you want to receive the OTP";
+                  }
+
+                  // Email validation
+                  if (contactPreference === "email") {
+                    if (!email) {
+                      newErrors.email = "Email address is required";
+                    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                      newErrors.email = "Please enter a valid email address";
+                    }
+                  }
+
+                  // Phone validation
+                  if (contactPreference === "phone") {
+                    if (!phone) {
+                      newErrors.phone = "Phone number is required";
+                    } else if (!/^[0-9]{8,15}$/.test(phone)) {
+                      newErrors.phone = "Phone number must be 8–15 digits";
+                    }
+                  }
+
+                  setErrors(newErrors);
+
+                  // Stop if there are errors
+                  if (Object.keys(newErrors).length > 0) {
                     return;
                   }
-                  if (contactPreference === "email" && (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
-                    alert('Please provide a valid email address');
-                    return;
-                  }
-                  if (contactPreference === "phone" && (!phone || !/^[0-9]{8,15}$/.test(phone))) {
-                    alert('Please provide a valid phone number');
-                    return;
-                  }
+
+                  // if (!idType || !idNumber) {
+                  //   alert('Please fill in Identification Type and Number');
+                  //   return;
+                  // }
+                  // if (!contactPreference) {
+                  //   alert('Please select a contact method (Email or Phone)');
+                  //   return;
+                  // }
+                  // if (contactPreference === "email" && (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+                  //   alert('Please provide a valid email address');
+                  //   return;
+                  // }
+                  // if (contactPreference === "phone" && (!phone || !/^[0-9]{8,15}$/.test(phone))) {
+                  //   alert('Please provide a valid phone number');
+                  //   return;
+                  // }
                   
                   // Call Next.js API proxy to verify customer
                   setIsLoading(true);
@@ -287,7 +369,7 @@ export default function ExistingUserVerification() {
                     });
                     
                     const result = await response.json();
-                    
+                    console.log(result)
                     if (!response.ok) {
                       alert(result.error || 'Failed to verify customer');
                       return;

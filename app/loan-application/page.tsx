@@ -69,6 +69,7 @@ function LoanApplicationContent() {
     useState("");
   const [apiTenure, setApiTenure] = useState<number>(0);
   const [apiInterestRate, setApiInterestRate] = useState<number>(0);
+  const [purpose, setPurpose] = useState("");
 
   useEffect(() => {
     // Load loan data from API
@@ -238,7 +239,8 @@ function LoanApplicationContent() {
       selectedSubSector !== "" &&
       selectedSubSectorCategory !== "" &&
       totalLoanInput !== "" &&
-      parseFloat(totalLoanInput) > 0
+      parseFloat(totalLoanInput) > 0 &&
+      purpose.trim() !== ""
     );
   };
 
@@ -628,7 +630,10 @@ function LoanApplicationContent() {
                       placeholder="Write your purpose"
                       rows={4}
                       className="border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] resize-none text-sm sm:text-base"
+                      value={purpose}
+                      onChange={(e) => setPurpose(e.target.value)}
                     />
+
                   </div>
                 </div>
 
@@ -680,7 +685,10 @@ function LoanApplicationContent() {
       <DocumentPopup
         open={showDocumentPopup}
         onOpenChange={setShowDocumentPopup}
-        onProceed={() => setCurrentStep(1)}
+        onProceed={() => {
+          setFormData({ ...formData, purpose });
+          setCurrentStep(1);
+        }}      
       />
     </div>
   );

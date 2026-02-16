@@ -217,8 +217,8 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
         console.log(k, v)
       }
 
-      /* 🔹 API Call */
-      const res = await fetch("https://bil.example.com/api/loan-applications", {
+      /* 🔹 API Call */ 
+      const res = await fetch("http://119.2.100.178/api/cdms/onboard-customer", {
         method: "POST",
         body: fd,
       })

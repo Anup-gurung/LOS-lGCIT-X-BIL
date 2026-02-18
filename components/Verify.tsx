@@ -59,33 +59,63 @@ export default function ExistingUserVerification() {
     }
   };
 
-  useEffect(() => {
-    const loadIdentificationType = async () => {
-      try {
-        console.log('Loading identification types...');
-        const options = await fetchIdentificationType();
-        console.log('Identification types loaded:', options);
-        
-        if (!options || options.length === 0) {
-          throw new Error('No identification types returned');
-        }
-        
-        setIdentificationTypeOptions(options);
-      } catch (error) {
-        console.error('Failed to load identification types:', error);
-        // Fallback options if API fails
-        const fallbackOptions = [
-          { identity_type_pk_code: '1', identity_type: 'CID' },
-          { identity_type_pk_code: '2', identity_type: 'Work Permit' },
-          { identity_type_pk_code: '3', identity_type: 'Passport' }
-        ];
-        console.log('Using fallback options:', fallbackOptions);
-        setIdentificationTypeOptions(fallbackOptions);
-      }
-    };
+useEffect(() => {
+  const loadIdentificationType = async () => {
+    try {
+      console.log('Loading identification types...');
+      const options = await fetchIdentificationType();
 
-    loadIdentificationType();
-  }, []);
+      // Filter for Individual Loan types only
+      const individualLoanOptions = options.filter(
+        (opt: any) => opt.identity_p_type_link_code === "I"
+      );
+
+      console.log('Filtered Individual Loan types:', individualLoanOptions);
+
+      if (!individualLoanOptions || individualLoanOptions.length === 0) {
+        throw new Error('No identification types returned');
+      }
+
+      setIdentificationTypeOptions(individualLoanOptions);
+    } catch (error) {
+      console.error('Failed to load identification types:', error);
+
+      // Fallback options if API fails (still filter for Individual Loan)
+      const fallbackOptions = [
+        { identity_type_pk_code: '90001', identity_type: 'CID', identity_p_type_link_code: 'I' },
+        { identity_type_pk_code: '90002', identity_type: 'Work Permit', identity_p_type_link_code: 'I' },
+        { identity_type_pk_code: '90003', identity_type: 'Passport', identity_p_type_link_code: 'I' },
+      ];
+      console.log('Using fallback options:', fallbackOptions);
+      setIdentificationTypeOptions(fallbackOptions);
+    }
+  };
+
+  loadIdentificationType();
+}, []);
+const idTypeValidationRules: Record<string, { regex: RegExp; errorMsg: string }> = {
+  "90001": { // Citizenship Identity card
+    regex: /^\d{11}$/,
+    errorMsg: "CID must be exactly 11 digits"
+  },
+  "90002": { // Special Resident Permit
+    regex: /^[A-Z0-9-]{6,20}$/,
+    errorMsg: "SRP must be alphanumeric (6–20 chars)"
+  },
+  "90003": { // Work Permit
+    regex: /^[A-Z]{2,3}-?\d{4,10}$/,
+    errorMsg: "Work Permit must be alphanumeric, e.g., WP-2024-12345"
+  },
+  "90004": { // Immigration Card
+    regex: /^[A-Z0-9-]{6,20}$/,
+    errorMsg: "Immigration Card must be alphanumeric (6–20 chars)"
+  },
+  "90005": { // Passport
+    regex: /^[A-Z]\d{7}$/,
+    errorMsg: "Passport must start with a letter followed by 7 digits, e.g., N1234567"
+  },
+};
+
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24">
@@ -172,7 +202,20 @@ export default function ExistingUserVerification() {
                 </label>
                 <input
                   type="text"
-                  placeholder="Enter Identification No"
+                  placeholder={
+                    idType === "90001"
+                      ? "Enter 11-digit CID"
+                      : idType === "90002"
+                      ? "Enter SRP (e.g., SRP-2023-00123)"
+                      : idType === "90003"
+                      ? "Enter Work Permit (e.g., WP-2024-12345)"
+                      : idType === "90004"
+                      ? "Enter Immigration Card"
+                      : idType === "90005"
+                      ? "Enter Passport (e.g., N1234567)"
+                      : "Please enter Identification Number"
+                  }
+
                   className="w-full mt-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   value={idNumber}
                   onChange={(e) => {
@@ -294,10 +337,15 @@ export default function ExistingUserVerification() {
                     newErrors.idType = "Please select an identification type";
                   }
 
-                  // ID Number
-                  if (!idNumber.trim()) {
-                    newErrors.idNumber = "Please enter your identification number";
-                  }
+                  // ID Number Validation
+                 if (!idNumber.trim()) {
+                      newErrors.idNumber = "Please enter your identification number";
+                    } else if (idType && idTypeValidationRules[idType]) {
+                      const rule = idTypeValidationRules[idType];
+                      if (!rule.regex.test(idNumber.trim())) {
+                        newErrors.idNumber = rule.errorMsg;
+                      }
+                    }
 
                   // Contact Preference
                   if (!contactPreference) {

@@ -40,6 +40,18 @@ import {
 import { getNdiDataFromSession } from "@/lib/mapNdiData";
 import { getVerifiedCustomerDataFromSession } from "@/lib/mapCustomerData";
 import { PlusCircle, Trash2 } from "lucide-react";
+// const [errors, setErrors] = useState<Record<string, string>>({});
+const isRequired = (value: any) =>
+  !value || value.toString().trim() === "";
+
+const isValidEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+const isValidNumber = (value: string) =>
+  /^\d+$/.test(value);
+
+const isValidDate = (date: string) =>
+  !isNaN(Date.parse(date));
 
 interface PersonalDetailsFormProps {
   onNext: (data: any) => void;
@@ -620,6 +632,230 @@ export function PersonalDetailsForm({
       setData({ ...data, relatedPeps: updatedPeps });
     }
   };
+  const isEmpty = (val: any) =>
+  val === undefined || val === null || String(val).trim() === "";
+
+const isEmail = (val: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+
+const isNumeric = (val: string) =>
+  /^\d+$/.test(val);
+
+// const validateForm = () => {
+//   const newErrors: Record<string, string> = {};
+
+//   if (isRequired(data.applicantName)) {
+//     newErrors.applicantName = "Full Name is required";
+//   }
+
+//   if (isRequired(data.email)) {
+//     newErrors.email = "Email is required";
+//   } else if (!isValidEmail(data.email)) {
+//     newErrors.email = "Invalid email format";
+//   }
+
+//   if (isRequired(data.mobileNo)) {
+//     newErrors.mobileNo = "Mobile number is required";
+//   } else if (!isValidNumber(data.mobileNo)) {
+//     newErrors.mobileNo = "Mobile number must contain digits only";
+//   }
+
+//   if (isRequired(data.identificationType)) {
+//     newErrors.identificationType = "Identification Type is required";
+//   }
+
+//   setErrors(newErrors);
+
+//   return Object.keys(newErrors).length === 0;
+// };
+
+const validateForm = () => {
+  let newErrors: Record<string, string> = {};
+
+  // ============================
+  // BASIC PERSONAL INFO
+  // ============================
+  if (isRequired(data.applicantName))
+    newErrors.applicantName = "Applicant name is required";
+
+  if (isEmpty(data.identificationType))
+    newErrors.identificationType = "Identification type is required";
+
+  if (isEmpty(data.identificationNo))
+    newErrors.identificationNo = "Identification number is required";
+
+  if (isEmpty(data.salutation))
+    newErrors.salutation = "Salutation is required";
+
+  if (isEmpty(data.nationality))
+    newErrors.nationality = "Nationality is required";
+
+  if (isEmpty(data.gender))
+    newErrors.gender = "Gender is required";
+
+  if (isEmpty(data.dateOfBirth))
+    newErrors.dateOfBirth = "Date of birth is required";
+
+  if (isEmpty(data.tpnNo))
+    newErrors.tpnNo = "TPN Number is required";
+
+  // ============================
+  // MARITAL STATUS
+  // ============================
+  if (isEmpty(data.maritalStatus))
+    newErrors.maritalStatus = "Please select a marital status"
+
+  if (isMarried) {
+    if (isEmpty(data.spouseName))
+      newErrors.spouseName = "Spouse name is required";
+
+    if (isEmpty(data.spouseCid))
+      newErrors.spouseCid = "Spouse CID/ID is required";
+  }
+  if (isEmpty(data.FamilyTree))
+    newErrors.FamiltyTree = "No files uploaded"
+
+  // ============================
+  // Bank Details
+  // ============================
+  // if(isEmpty(data.BankName))
+  //   newErrors.BankName = "Please select a Bank"
+  // if(isEmpty(data.BankAccountNo))
+  //   newErrors.BankAccountNo = "Enter Bank Saving Account Number"
+
+  // ============================
+  // PERMANENT ADDRESS
+  // ============================
+  if (!isBhutanCountry(data.permCountry, countryOptions)) {
+    if (isEmpty(data.permState))
+      newErrors.permState = "State is required";
+
+    if (isEmpty(data.permProvince))
+      newErrors.permProvince = "Province is required";
+
+    if (isEmpty(data.permStreet))
+      newErrors.permStreet = "Street is required";
+  } else {
+    if (isEmpty(data.permDzongkhag))
+      newErrors.permDzongkhag = "Dzongkhag is required";
+
+    if (isEmpty(data.permGewog))
+      newErrors.permGewog = "Gewog is required";
+
+    if (isEmpty(data.permVillage))
+      newErrors.permVillage = "Village/Street is required";
+  }
+
+  if (isEmpty(data.permAddressProof))
+    newErrors.permAddressProof = "Address proof is required";
+
+  // ============================
+  // CURRENT ADDRESS
+  // ============================
+  if (!isBhutanCountry(data.currCountry, countryOptions)) {
+    if (isEmpty(data.currState))
+      newErrors.currState = "State is required";
+
+    if (isEmpty(data.currProvince))
+      newErrors.currProvince = "Province is required";
+  } else {
+    if (isEmpty(data.currDzongkhag))
+      newErrors.currDzongkhag = "Dzongkhag is required";
+
+    if (isEmpty(data.currGewog))
+      newErrors.currGewog = "Gewog is required";
+  }
+
+  if (isEmpty(data.currEmail))
+    newErrors.currEmail = "Email is required";
+  else if (!isEmail(data.currEmail))
+    newErrors.currEmail = "Invalid email format";
+
+  if (isEmpty(data.currContact))
+    newErrors.currContact = "Contact number is required";
+  else if (!isNumeric(data.currContact))
+    newErrors.currContact = "Contact must be numeric";
+
+  // ============================
+  // BANK DETAILS
+  // ============================
+  if (isEmpty(data.bankName))
+    newErrors.bankName = "Bank is required";
+
+  if (isEmpty(data.bankSavingAccountNo))
+    newErrors.bankSavingAccountNo = "Account number is required";
+  else if (!isNumeric(data.bankSavingAccountNo))
+    newErrors.bankSavingAccountNo = "Account number must be numeric";
+
+  if (isEmpty(data.passportPhoto))
+    newErrors.passportPhoto = "Passport-size photo is required";
+
+  // ============================
+  // EMPLOYMENT
+  // ============================
+  if (data.employmentStatus === "Employed") {
+    if (isEmpty(data.employeeId))
+      newErrors.employeeId = "Employee ID is required";
+
+    if (isEmpty(data.occupation))
+      newErrors.occupation = "Occupation is required";
+
+    if (isEmpty(data.organizationName))
+      newErrors.organizationName = "Organization name is required";
+
+    if (isEmpty(data.serviceJoiningDate))
+      newErrors.serviceJoiningDate = "Joining date is required";
+
+    if (data.natureOfService === "Contract" && isEmpty(data.contractEndDate))
+      newErrors.contractEndDate = "Contract end date is required";
+
+    if (isEmpty(data.grossAnnualIncome))
+      newErrors.grossAnnualIncome = "Gross annual income is required";
+    else if (!isNumeric(data.grossAnnualIncome))
+      newErrors.grossAnnualIncome = "Income must be numeric";
+  }
+
+  // ============================
+  // SELF PEP
+  // ============================
+  if (data.pepPerson === "yes") {
+    if (isEmpty(data.pepCategory))
+      newErrors.pepCategory = "PEP category is required";
+
+    if (isEmpty(data.pepSubCategory))
+      newErrors.pepSubCategory = "PEP sub category is required";
+
+    if (isEmpty(data.pepIdentificationProof))
+      newErrors.pepIdentificationProof = "Identification proof required";
+  }
+
+  // ============================
+  // RELATED PEP
+  // ============================
+  if (data.pepRelated === "yes") {
+    relatedPeps.forEach((pep: any, index: number) => {
+      if (isEmpty(pep.relationship))
+        newErrors[`relatedPeps.${index}.relationship`] =
+          "Relationship is required";
+
+      if (isEmpty(pep.identificationNo))
+        newErrors[`relatedPeps.${index}.identificationNo`] =
+          "Identification number is required";
+
+      if (isEmpty(pep.category))
+        newErrors[`relatedPeps.${index}.category`] =
+          "Category is required";
+
+      if (isEmpty(pep.subCategory))
+        newErrors[`relatedPeps.${index}.subCategory`] =
+          "Sub category is required";
+    });
+  }
+
+  setErrors(newErrors);
+
+  return Object.keys(newErrors).length === 0;
+};
 
   const validateDates = () => {
     const newErrors: Record<string, string> = {};
@@ -649,12 +885,26 @@ export function PersonalDetailsForm({
     return Object.keys(newErrors).length === 0;
   };
 
+  // const handleSubmit = (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   if (validateDates()) {
+  //     setShowCoBorrowerDialog(true);
+  //   }
+  // };
+
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validateDates()) {
-      setShowCoBorrowerDialog(true);
-    }
-  };
+     alert("Handle SUbmit")
+  e.preventDefault();
+ 
+
+  // const isValidDates = validateDates();
+  const isValid = validateForm();
+
+    if (isValid) {
+    setShowCoBorrowerDialog(true);
+  }
+};
+
 
   const handleCoBorrowerResponse = (hasCoBorrower: boolean) => {
     setShowCoBorrowerDialog(false);
@@ -686,11 +936,27 @@ export function PersonalDetailsForm({
             </Label>
             <Select
               value={findPkCodeByLabel(data.identificationType, identificationTypeOptions, ['identity_type', 'identification_type', 'name', 'label']) || data.identificationType}
-              onValueChange={(value) =>
-                setData({ ...data, identificationType: value })
-              }
+              onValueChange={(value) => {
+                setData({ ...data, identificationType: value });
+
+                if (!isRequired(value)) {
+                  setErrors((prev) => {
+                    const updated = { ...prev };
+                    delete updated.identificationType;
+                    return updated;
+                  });
+                }
+              }}
             >
-              <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+            <SelectTrigger
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                ${
+                  errors.identificationType
+                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                }`}
+            >
+
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -726,6 +992,11 @@ export function PersonalDetailsForm({
                 )}
               </SelectContent>
             </Select>
+            {errors.identificationType && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.identificationType}
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5 sm:space-y-2.5">
@@ -738,13 +1009,23 @@ export function PersonalDetailsForm({
             <Input
               id="identificationNo"
               placeholder="Enter identification No"
-              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-              value={data.identificationNo || ""}
+              // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+              value={data.applicantName || ""}
               onChange={(e) =>
-                setData({ ...data, identificationNo: e.target.value })
+                setData({ ...data, applicantName: e.target.value })
               }
-              required
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+              ${
+                errors.applicantName
+                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              }`}
+              // required
             />
+            {errors.identificationNo && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.identificationNo}
+              </p>)}
           </div>
 
           <div className="space-y-1.5 sm:space-y-2.5">
@@ -758,7 +1039,16 @@ export function PersonalDetailsForm({
               value={data.salutation}
               onValueChange={(value) => setData({ ...data, salutation: value })}
             >
-              <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+              <SelectTrigger 
+              // className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                ${
+                  errors.salutation
+                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                }`}
+              >
+           
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -768,6 +1058,10 @@ export function PersonalDetailsForm({
                 <SelectItem value="dr">Dr.</SelectItem>
               </SelectContent>
             </Select>
+                {errors.salutation && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.salutation}
+              </p>)}
           </div>
 
           <div className="space-y-1.5 sm:space-y-2.5">
@@ -780,13 +1074,40 @@ export function PersonalDetailsForm({
             <Input
               id="applicantName"
               placeholder="Enter Your Full Name"
-              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-              value={data.applicantName || ""}
-              onChange={(e) =>
-                setData({ ...data, applicantName: e.target.value })
-              }
-              required
+              // className={`h-10 sm:h-12 border-gray-300 
+              //   focus:border-[#FF9800] focus:ring-[#FF9800] 
+              //   text-sm sm:text-base 
+              //   ${errors.applicantName ? "border-red-500" : ""}`}              
+              onChange={(e) => {
+      const value = e.target.value;
+
+      setData({ ...data, applicantName: value });
+
+      // Auto clear error when valid
+      if (!isRequired(value)) {
+        setErrors((prev) => {
+          const updated = { ...prev };
+          delete updated.applicantName;
+          return updated;
+        });
+      }
+    }}
+
+    className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+     ${
+      errors.applicantName
+          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+    }`}
+              // required
+                // className={`form-input ${errors.applicantName ? "border-red-500" : ""}`}
+
             />
+   {errors.applicantName && (
+    <p className="text-xs text-red-500 mt-1">
+      {errors.applicantName}
+    </p>
+  )}
           </div>
         </div>
 
@@ -804,7 +1125,15 @@ export function PersonalDetailsForm({
                 setData({ ...data, nationality: value })
               }
             >
-              <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+              <SelectTrigger 
+              // className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                ${
+                  errors.nationality
+                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                }`}
+              >
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -840,6 +1169,11 @@ export function PersonalDetailsForm({
                 )}
               </SelectContent>
             </Select>
+               {errors.nationality && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.nationality}
+                </p>
+              )}
           </div>
           <div className="space-y-2.5">
             <Label
@@ -852,7 +1186,15 @@ export function PersonalDetailsForm({
               value={data.gender}
               onValueChange={(value) => setData({ ...data, gender: value })}
             >
-              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+              <SelectTrigger 
+              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                ${
+                  errors.gender
+                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                }`}
+              >
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -861,6 +1203,11 @@ export function PersonalDetailsForm({
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
+              {errors.gender && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.gender}
+                </p>
+              )}
           </div>
           <div className="space-y-1.5 sm:space-y-2.5">
             <Label
@@ -873,13 +1220,20 @@ export function PersonalDetailsForm({
               type="date"
               id="identificationIssueDate"
               max={today}
-              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+              // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
               value={data.identificationIssueDate || ""}
               onChange={(e) => {
                 setData({ ...data, identificationIssueDate: e.target.value });
                 setErrors({ ...errors, identificationIssueDate: "" });
               }}
-              required
+              // required
+             className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                ${
+                  errors.identificationIssueDate
+                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                }`}
+              
             />
             {errors.identificationIssueDate && (
               <p className="text-xs text-red-500 mt-1">
@@ -904,7 +1258,7 @@ export function PersonalDetailsForm({
                 setData({ ...data, identificationExpiryDate: e.target.value });
                 setErrors({ ...errors, identificationExpiryDate: "" });
               }}
-              required
+              // required
             />
             {errors.identificationExpiryDate && (
               <p className="text-xs text-red-500 mt-1">
@@ -932,7 +1286,7 @@ export function PersonalDetailsForm({
                 setData({ ...data, dateOfBirth: e.target.value });
                 setErrors({ ...errors, dateOfBirth: "" });
               }}
-              required
+              // required
             />
             {errors.dateOfBirth && (
               <p className="text-xs text-red-500 mt-1">{errors.dateOfBirth}</p>
@@ -952,7 +1306,7 @@ export function PersonalDetailsForm({
               className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               value={data.tpn || ""}
               onChange={(e) => setData({ ...data, tpn: e.target.value })}
-              required
+              // required
             />
           </div>
 
@@ -1035,7 +1389,8 @@ export function PersonalDetailsForm({
                   onChange={(e) =>
                     setData({ ...data, spouseIdentificationNo: e.target.value })
                   }
-                  required
+                  // required
+                  
                 />
               </div>
 
@@ -1054,7 +1409,7 @@ export function PersonalDetailsForm({
                   onChange={(e) =>
                     setData({ ...data, spouseName: e.target.value })
                   }
-                  required
+                  // required
                 />
               </div>
 
@@ -1073,7 +1428,7 @@ export function PersonalDetailsForm({
                   onChange={(e) =>
                     setData({ ...data, spouseContact: e.target.value })
                   }
-                  required
+                  // required
                 />
               </div>
             </div>
@@ -2783,7 +3138,7 @@ export function PersonalDetailsForm({
                   onChange={(e) =>
                     setData({ ...data, contractEndDate: e.target.value })
                   }
-                  required
+                  // required
                 />
               </div>
             </div>

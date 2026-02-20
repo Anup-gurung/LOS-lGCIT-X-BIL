@@ -255,6 +255,8 @@ const ComprehensiveOwnerDetails = ({
     );
   };
 
+  //handlfile function
+
   const handleFileChange = (fieldName: string, file: File | null) => {
     if (file) {
       const allowedTypes = [

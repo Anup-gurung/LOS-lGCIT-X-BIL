@@ -980,27 +980,56 @@ export function SecurityDetailBusiness({
   const updateGuarantorField = (index: number, field: string, value: any) => {
     setGuarantors((prev) => {
       const updated = [...prev];
-      updated[index] = {
-        ...updated[index],
+      const currentGuarantor = updated[index];
+
+      // Start with the updated field value
+      let updatedGuarantor = {
+        ...currentGuarantor,
         [field]: value,
-        // Clear dependent fields when parent field changes
-        ...(field === "isPep" && value === "yes" ? { relatedToPep: "" } : {}),
-        ...(field === "isPep" && value === "no"
-          ? {
-              pepCategory: "",
-              pepSubCategory: "",
-              pepUpload: "",
-            }
-          : {}),
-        ...(field === "relatedToPep" && value === "no"
-          ? { relatedPeps: [] }
-          : {}),
-        // Clear errors for this field
-        errors: {
-          ...updated[index].errors,
-          [field]: "",
-        },
       };
+
+      // Handle dependent field clearing based on changes
+      if (field === "isPep") {
+        if (value === "yes") {
+          // Clear related fields that are no longer applicable
+          updatedGuarantor = {
+            ...updatedGuarantor,
+            relatedToPep: "",
+            relatedPeps: [], // Clear any related PEPs when self is PEP
+          };
+        } else if (value === "no") {
+          // Clear self PEP fields
+          updatedGuarantor = {
+            ...updatedGuarantor,
+            pepCategory: "",
+            pepSubCategory: "",
+            pepUpload: "",
+          };
+        }
+      }
+
+      if (field === "relatedToPep") {
+        if (value === "yes") {
+          // If switching to yes, ensure there's at least one related PEP entry
+          if (
+            !updatedGuarantor.relatedPeps ||
+            updatedGuarantor.relatedPeps.length === 0
+          ) {
+            updatedGuarantor.relatedPeps = [createEmptyRelatedPep()];
+          }
+        } else if (value === "no") {
+          // Clear all related PEPs when switching to no
+          updatedGuarantor.relatedPeps = [];
+        }
+      }
+
+      // Clear error for this field
+      updatedGuarantor.errors = {
+        ...updatedGuarantor.errors,
+        [field]: "",
+      };
+
+      updated[index] = updatedGuarantor;
       return updated;
     });
   };

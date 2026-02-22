@@ -650,7 +650,6 @@ function LoanApplicationContent() {
                       value={purpose}
                       onChange={(e) => setPurpose(e.target.value)}
                     />
-
                   </div>
                 </div>
 
@@ -676,7 +675,8 @@ function LoanApplicationContent() {
         {currentStep !== 1 &&
           currentStep !== 2 &&
           currentStep !== 3 &&
-          currentStep !== 4 && (
+          currentStep !== 4 &&
+          currentStep !== 5 && (
             <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-6 sm:mt-8 md:mt-12 mb-4 sm:mb-6">
               <Button
                 variant="secondary"
@@ -705,7 +705,7 @@ function LoanApplicationContent() {
         onProceed={() => {
           setFormData({ ...formData, purpose });
           setCurrentStep(1);
-        }}      
+        }}
       />
     </div>
   );

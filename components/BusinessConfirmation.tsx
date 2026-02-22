@@ -1746,9 +1746,8 @@ export function BusinessConfirmation({
         <Button
           type="button"
           onClick={onBack}
-          variant="outline"
           size="lg"
-          className="w-full sm:w-auto min-w-[160px] h-12 sm:h-14 px-8 sm:px-12 rounded-lg font-semibold text-base border-2 border-gray-300 hover:bg-gray-50 transition-all"
+          className="bg-gray-500 hover:bg-gray-600 text-white px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-6 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Back
         </Button>
@@ -1756,7 +1755,7 @@ export function BusinessConfirmation({
           type="submit"
           disabled={loading}
           size="lg"
-          className="w-full sm:w-auto min-w-[160px] h-12 sm:h-14 px-8 sm:px-12 rounded-lg font-semibold text-base bg-gray-800 hover:bg-gray-900 transition-all disabled:opacity-50"
+          className="bg-[#003DA5] hover:bg-[#002D7A] text-white px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-6 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Submitting..." : "Confirm & Submit"}
         </Button>

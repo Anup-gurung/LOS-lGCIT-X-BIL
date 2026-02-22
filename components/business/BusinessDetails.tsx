@@ -1353,7 +1353,8 @@ const ComprehensiveOwnerDetails = ({
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-2">
+                    {/* Fields grid: 2 columns on small, 4 on large */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-2.5">
                         <Label className="text-gray-800 font-semibold text-sm">
                           Relationship{" "}

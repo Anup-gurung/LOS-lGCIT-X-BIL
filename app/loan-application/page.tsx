@@ -69,6 +69,7 @@ function LoanApplicationContent() {
     useState("");
   const [apiTenure, setApiTenure] = useState<number>(0);
   const [apiInterestRate, setApiInterestRate] = useState<number>(0);
+  const [purpose, setPurpose] = useState("");
 
   // Allowed loan sectors as per requirement
   const allowedLoanSectors = [
@@ -255,7 +256,8 @@ function LoanApplicationContent() {
       selectedSubSector !== "" &&
       selectedSubSectorCategory !== "" &&
       totalLoanInput !== "" &&
-      parseFloat(totalLoanInput) > 0
+      parseFloat(totalLoanInput) > 0 &&
+      purpose.trim() !== ""
     );
   };
 
@@ -645,6 +647,8 @@ function LoanApplicationContent() {
                       placeholder="Write your purpose"
                       rows={4}
                       className="border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] resize-none text-sm sm:text-base"
+                      value={purpose}
+                      onChange={(e) => setPurpose(e.target.value)}
                     />
                   </div>
                 </div>
@@ -671,7 +675,8 @@ function LoanApplicationContent() {
         {currentStep !== 1 &&
           currentStep !== 2 &&
           currentStep !== 3 &&
-          currentStep !== 4 && (
+          currentStep !== 4 &&
+          currentStep !== 5 && (
             <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-6 sm:mt-8 md:mt-12 mb-4 sm:mb-6">
               <Button
                 variant="secondary"
@@ -697,7 +702,10 @@ function LoanApplicationContent() {
       <DocumentPopup
         open={showDocumentPopup}
         onOpenChange={setShowDocumentPopup}
-        onProceed={() => setCurrentStep(1)}
+        onProceed={() => {
+          setFormData({ ...formData, purpose });
+          setCurrentStep(1);
+        }}
       />
     </div>
   );

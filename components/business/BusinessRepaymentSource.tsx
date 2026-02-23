@@ -14,6 +14,14 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Upload, Plus, Trash2 } from "lucide-react";
+
+// Import for lookup functionality
+import {
+  mapCustomerDataToForm,
+  getVerifiedCustomerDataFromSession,
+} from "@/lib/mapCustomerData";
+import DocumentPopup from "@/components/BILSearchStatus"; // Adjust path as needed
+
 import {
   fetchNationality,
   fetchIdentificationType,
@@ -136,6 +144,11 @@ const createEmptyGuarantor = () => ({
   currGewogOptions: [] as any[],
   pepSubCategoryOptions: [] as any[],
   relatedPepOptionsMap: {} as Record<number, any[]>,
+
+  // Lookup state
+  showLookupPopup: false,
+  lookupStatus: "searching" as "searching" | "found" | "not_found",
+  fetchedCustomerData: null,
 });
 
 export function BusinessRepaymentSourceForm({
@@ -339,6 +352,178 @@ export function BusinessRepaymentSourceForm({
     };
     loadPepSub();
   }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
+
+  // --- Identity Lookup Handlers ---
+  const handleIdentityCheck = async (index: number) => {
+    const guarantor = guarantors[index];
+    const idType = guarantor.idType;
+    const idNo = guarantor.idNumber;
+
+    if (!idType || !idNo || idNo.trim() === "") return;
+
+    setGuarantors((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        showLookupPopup: true,
+        lookupStatus: "searching",
+      };
+      return updated;
+    });
+
+    try {
+      const payload = {
+        type: "I",
+        identification_type_pk_code: idType,
+        identity_no: idNo,
+      };
+
+      const response = await fetch("/api/customer-onboarded-details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result?.success && result?.data) {
+        const mappedData = mapCustomerDataToForm(result);
+        setGuarantors((prev) => {
+          const updated = [...prev];
+          updated[index] = {
+            ...updated[index],
+            fetchedCustomerData: mappedData,
+            lookupStatus: "found",
+          };
+          return updated;
+        });
+      } else {
+        setGuarantors((prev) => {
+          const updated = [...prev];
+          updated[index] = {
+            ...updated[index],
+            lookupStatus: "not_found",
+            fetchedCustomerData: null,
+          };
+          return updated;
+        });
+      }
+    } catch (error) {
+      console.error("Identity lookup failed", error);
+      setGuarantors((prev) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          lookupStatus: "not_found",
+          fetchedCustomerData: null,
+        };
+        return updated;
+      });
+    }
+  };
+
+  const handleLookupProceed = (index: number) => {
+    const guarantor = guarantors[index];
+    if (guarantor.lookupStatus === "found" && guarantor.fetchedCustomerData) {
+      const fetched = guarantor.fetchedCustomerData;
+
+      // Map fetched data to guarantor field names
+      const sanitized = {
+        // Personal Information
+        idType: guarantor.idType, // Keep original selection
+        idNumber: guarantor.idNumber, // Keep original number
+        salutation: fetched.salutation || "",
+        guarantorName: fetched.name || "",
+        nationality: fetched.nationality ? String(fetched.nationality) : "",
+        gender: fetched.gender || "",
+        idIssueDate: formatDateForInput(fetched.identificationIssueDate),
+        idExpiryDate: formatDateForInput(fetched.identificationExpiryDate),
+        dateOfBirth: formatDateForInput(fetched.dateOfBirth),
+        tpnNo: fetched.tpn || "",
+        maritalStatus: fetched.maritalStatus
+          ? String(fetched.maritalStatus)
+          : "",
+        spouseCid: fetched.spouseIdentificationNo || "",
+        spouseName: fetched.spouseName || "",
+        spouseContact: fetched.spouseContact || "",
+        familyTree: fetched.familyTree || "",
+        bankName: fetched.bankName || "",
+        bankAccountNumber: fetched.bankAccount || "",
+
+        // Permanent Address
+        permCountry: fetched.permCountry ? String(fetched.permCountry) : "",
+        permDzongkhag: fetched.permDzongkhag
+          ? String(fetched.permDzongkhag)
+          : "",
+        permGewog: fetched.permGewog ? String(fetched.permGewog) : "",
+        permVillage: fetched.permVillage || "",
+        permThram: fetched.permThram || "",
+        permHouse: fetched.permHouse || "",
+        permCity: "", // Not in fetched
+        permPostal: "", // Not in fetched
+
+        // Current Address
+        currCountry: fetched.currCountry ? String(fetched.currCountry) : "",
+        currDzongkhag: fetched.currDzongkhag
+          ? String(fetched.currDzongkhag)
+          : "",
+        currGewog: fetched.currGewog ? String(fetched.currGewog) : "",
+        currVillage: fetched.currVillage || "",
+        currHouse: fetched.currFlat || "",
+        currCity: "", // Not in fetched
+        currPostal: "", // Not in fetched
+        email: fetched.currEmail || "",
+        contact: fetched.currContact || "",
+        currAlternateContact: fetched.currAlternateContact || "",
+
+        // PEP Declaration
+        isPep: fetched.pepPerson || "",
+        pepCategory: fetched.pepCategory || "",
+        pepSubCategory: fetched.pepSubCategory || "",
+        pepUpload: fetched.identificationProof || "",
+        relatedToPep: fetched.pepRelated || "",
+        relatedPeps: fetched.relatedPeps || [],
+
+        // Employment Details
+        employmentStatus: fetched.employmentStatus || "",
+        employeeId: fetched.employeeId || "",
+        occupation: fetched.occupation || "",
+        employerType: fetched.employerType || "",
+        designation: fetched.designation || "",
+        grade: fetched.grade || "",
+        organizationName: fetched.organizationName || "",
+        orgLocation: fetched.orgLocation || "",
+        joiningDate: formatDateForInput(fetched.joiningDate),
+        serviceNature: fetched.serviceNature || "",
+        annualSalary: fetched.annualSalary || "",
+        contractEndDate: formatDateForInput(fetched.contractEndDate),
+      };
+
+      setGuarantors((prev) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...prev[index],
+          ...sanitized,
+          // Preserve original dynamic options and other fields
+          permGewogOptions: prev[index].permGewogOptions,
+          currGewogOptions: prev[index].currGewogOptions,
+          pepSubCategoryOptions: prev[index].pepSubCategoryOptions,
+          relatedPepOptionsMap: prev[index].relatedPepOptionsMap,
+          showLookupPopup: false,
+        };
+        return updated;
+      });
+    } else {
+      setGuarantors((prev) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          showLookupPopup: false,
+        };
+        return updated;
+      });
+    }
+  };
 
   // Handlers
   const handleBusinessIncomeFileChange = (
@@ -718,6 +903,27 @@ export function BusinessRepaymentSourceForm({
                     )}
                   </div>
 
+                  {/* Identity Lookup Popup */}
+                  {guarantor.showLookupPopup && (
+                    <DocumentPopup
+                      open={guarantor.showLookupPopup}
+                      onOpenChange={(open) => {
+                        if (!open) {
+                          setGuarantors((prev) => {
+                            const updated = [...prev];
+                            updated[index] = {
+                              ...updated[index],
+                              showLookupPopup: false,
+                            };
+                            return updated;
+                          });
+                        }
+                      }}
+                      searchStatus={guarantor.lookupStatus}
+                      onProceed={() => handleLookupProceed(index)}
+                    />
+                  )}
+
                   {/* A. PERSONAL DETAILS */}
                   <div className="mb-8">
                     <h4 className="text-lg font-bold text-[#003DA5] mb-4 bg-gray-50 p-2 rounded">
@@ -768,6 +974,7 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
+                          onBlur={() => handleIdentityCheck(index)} // Trigger lookup on blur
                           className={commonInputClass}
                           placeholder="Enter ID"
                         />

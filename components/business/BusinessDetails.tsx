@@ -24,6 +24,14 @@ import {
   Users,
   UserCheck,
 } from "lucide-react";
+
+// Import for lookup functionality
+import {
+  mapCustomerDataToForm,
+  getVerifiedCustomerDataFromSession,
+} from "@/lib/mapCustomerData";
+import DocumentPopup from "@/components/BILSearchStatus"; // Adjust path as needed
+
 import {
   fetchCountry,
   fetchDzongkhag,
@@ -114,6 +122,13 @@ const ComprehensiveOwnerDetails = ({
 
   const [isExpanded, setIsExpanded] = useState(true);
 
+  // --- Lookup state ---
+  const [showLookupPopup, setShowLookupPopup] = useState(false);
+  const [lookupStatus, setLookupStatus] = useState<
+    "searching" | "found" | "not_found"
+  >("searching");
+  const [fetchedCustomerData, setFetchedCustomerData] = useState<any>(null);
+
   // Date Constraints
   const today = new Date().toISOString().split("T")[0];
 
@@ -127,6 +142,98 @@ const ComprehensiveOwnerDetails = ({
     if (!updatedPeps[index]) updatedPeps[index] = createEmptyRelatedPep();
     updatedPeps[index] = { ...updatedPeps[index], [field]: value };
     updateField("relatedPeps", updatedPeps);
+  };
+
+  // --- Identity Lookup Handlers ---
+  const handleIdentityCheck = async () => {
+    const idType = data.identificationType;
+    const idNo = data.identificationNo;
+
+    if (!idType || !idNo || idNo.trim() === "") return;
+
+    setShowLookupPopup(true);
+    setLookupStatus("searching");
+
+    try {
+      const payload = {
+        type: "I",
+        identification_type_pk_code: idType,
+        identity_no: idNo,
+      };
+
+      const response = await fetch("/api/customer-onboarded-details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result?.success && result?.data) {
+        const mappedData = mapCustomerDataToForm(result);
+        setFetchedCustomerData(mappedData);
+        setLookupStatus("found");
+      } else {
+        setLookupStatus("not_found");
+        setFetchedCustomerData(null);
+      }
+    } catch (error) {
+      console.error("Identity lookup failed", error);
+      setLookupStatus("not_found");
+      setFetchedCustomerData(null);
+    }
+  };
+
+  const handleLookupProceed = () => {
+    if (lookupStatus === "found" && fetchedCustomerData) {
+      // Prepare sanitized data (ensure dates are in YYYY-MM-DD)
+      const sanitized = {
+        ...fetchedCustomerData,
+        identificationIssueDate: formatDateForInput(
+          fetchedCustomerData.identificationIssueDate,
+        ),
+        identificationExpiryDate: formatDateForInput(
+          fetchedCustomerData.identificationExpiryDate,
+        ),
+        dateOfBirth: formatDateForInput(fetchedCustomerData.dateOfBirth),
+        nationality: fetchedCustomerData.nationality
+          ? String(fetchedCustomerData.nationality)
+          : "",
+        permCountry: fetchedCustomerData.permCountry
+          ? String(fetchedCustomerData.permCountry)
+          : "",
+        permDzongkhag: fetchedCustomerData.permDzongkhag
+          ? String(fetchedCustomerData.permDzongkhag)
+          : "",
+        permGewog: fetchedCustomerData.permGewog
+          ? String(fetchedCustomerData.permGewog)
+          : "",
+        currCountry: fetchedCustomerData.currCountry
+          ? String(fetchedCustomerData.currCountry)
+          : "",
+        currDzongkhag: fetchedCustomerData.currDzongkhag
+          ? String(fetchedCustomerData.currDzongkhag)
+          : "",
+        currGewog: fetchedCustomerData.currGewog
+          ? String(fetchedCustomerData.currGewog)
+          : "",
+        maritalStatus: fetchedCustomerData.maritalStatus
+          ? String(fetchedCustomerData.maritalStatus)
+          : "",
+        occupation: fetchedCustomerData.occupation
+          ? String(fetchedCustomerData.occupation)
+          : "",
+      };
+
+      // Merge with existing data, but keep identification type and number as originally entered
+      onUpdate({
+        ...data,
+        ...sanitized,
+        identificationType: data.identificationType,
+        identificationNo: data.identificationNo,
+      });
+    }
+    setShowLookupPopup(false);
   };
 
   // --- Initial Data Loading ---
@@ -255,6 +362,7 @@ const ComprehensiveOwnerDetails = ({
     );
   };
 
+  // File change handler
   const handleFileChange = (fieldName: string, file: File | null) => {
     if (file) {
       const allowedTypes = [
@@ -320,6 +428,16 @@ const ComprehensiveOwnerDetails = ({
 
       {isExpanded && (
         <div className="space-y-8">
+          {/* Popup for identity lookup */}
+          {showLookupPopup && (
+            <DocumentPopup
+              open={showLookupPopup}
+              onOpenChange={setShowLookupPopup}
+              searchStatus={lookupStatus}
+              onProceed={handleLookupProceed}
+            />
+          )}
+
           {/* 1. Personal Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="space-y-2">
@@ -355,6 +473,7 @@ const ComprehensiveOwnerDetails = ({
                 onChange={(e) =>
                   updateField("identificationNo", e.target.value)
                 }
+                onBlur={handleIdentityCheck} // trigger lookup on blur
               />
             </div>
             <div className="space-y-2">
@@ -1234,7 +1353,8 @@ const ComprehensiveOwnerDetails = ({
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-2">
+                    {/* Fields grid: 2 columns on small, 4 on large */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-2.5">
                         <Label className="text-gray-800 font-semibold text-sm">
                           Relationship{" "}

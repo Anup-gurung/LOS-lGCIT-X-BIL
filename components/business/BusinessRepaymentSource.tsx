@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,9 +18,9 @@ import { Upload, Plus, Trash2 } from "lucide-react";
 // Import for lookup functionality
 import {
   mapCustomerDataToForm,
-  getVerifiedCustomerDataFromSession,
+  // getVerifiedCustomerDataFromSession, // Unused import removed
 } from "@/lib/mapCustomerData";
-import DocumentPopup from "@/components/BILSearchStatus"; // Adjust path as needed
+import DocumentPopup from "@/components/BILSearchStatus";
 
 import {
   fetchNationality,
@@ -35,6 +35,93 @@ import {
   fetchPepSubCategoryByCategory,
   fetchBanks,
 } from "@/services/api";
+
+// ================== Validation Helpers ==================
+const isRequired = (value: any) => !value || value.toString().trim() === "";
+const isValidEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const isValidCID = (value: string) => /^\d{11}$/.test(value);
+const isValidTPN = (value: string) => /^\d{11}$/.test(value);
+const isValidMobile = (value: string) => /^(16|17|77)\d{6}$/.test(value);
+const isValidFixedLine = (value: string) => /^[2-8]\d{6,7}$/.test(value);
+// const isValidPhoneNumber = (value: string) => // Unused
+//   isValidMobile(value) || isValidFixedLine(value);
+const isLegalAge = (dateOfBirth: string): boolean => {
+  if (!dateOfBirth) return false;
+  const dob = new Date(dateOfBirth);
+  if (isNaN(dob.getTime())) return false;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  return age >= 18;
+};
+// ================== END Validation Helpers ==================
+
+// --- Uniform Styling (Orange Focus, Red Error) ---
+const getFieldStyle = (hasError: boolean) => {
+  const baseStyle =
+    "h-12 w-full bg-white border rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus-visible:outline-none focus:ring-1 focus-visible:ring-1 focus:ring-[#FF9800] focus-visible:ring-[#FF9800] transition-colors";
+  if (hasError) {
+    return `${baseStyle} border-red-500 focus:border-red-500 focus-visible:border-red-500`;
+  }
+  return `${baseStyle} border-gray-300 focus:border-[#FF9800] focus-visible:border-[#FF9800]`;
+};
+
+const fileUploadStyle = (hasError: boolean) =>
+  `h-12 w-full bg-white border rounded-lg flex items-center px-3 justify-between cursor-pointer hover:bg-gray-50 transition-colors text-sm ${
+    hasError ? "border-red-500" : "border-gray-300"
+  }`;
+
+// ================== Restricted Input Component ==================
+type AllowedPattern = "numeric" | "alpha" | "alphanumeric" | "text";
+
+const RestrictedInput = ({
+  allowed = "text",
+  maxLength,
+  value,
+  onChange,
+  className,
+  ...props
+}: {
+  allowed?: AllowedPattern;
+  maxLength?: number;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  className?: string;
+  [key: string]: any;
+}) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let newValue = e.target.value;
+
+    if (allowed === "numeric") {
+      newValue = newValue.replace(/[^0-9]/g, "");
+    } else if (allowed === "alpha") {
+      newValue = newValue.replace(/[^a-zA-Z\s\-']/g, "");
+    } else if (allowed === "alphanumeric") {
+      newValue = newValue.replace(/[^a-zA-Z0-9\s\-_]/g, "");
+    }
+
+    if (maxLength && newValue.length > maxLength) {
+      newValue = newValue.slice(0, maxLength);
+    }
+
+    if (onChange) {
+      onChange({ ...e, target: { ...e.target, value: newValue } });
+    }
+  };
+
+  return (
+    <Input
+      value={value}
+      onChange={handleChange}
+      className={className}
+      maxLength={maxLength}
+      {...props}
+    />
+  );
+};
+// ================== END Restricted Input ==================
 
 interface BusinessRepaymentSourceFormProps {
   onNext: (data: any) => void;
@@ -53,7 +140,6 @@ const formatDateForInput = (dateString: string | null | undefined) => {
   }
 };
 
-// Helper to create empty related PEP entry
 const createEmptyRelatedPep = () => ({
   relationship: "",
   identificationNo: "",
@@ -62,9 +148,7 @@ const createEmptyRelatedPep = () => ({
   identificationProof: "",
 });
 
-// Initialize empty guarantor with comprehensive fields
 const createEmptyGuarantor = () => ({
-  // Personal Information
   idType: "",
   idNumber: "",
   salutation: "",
@@ -84,7 +168,6 @@ const createEmptyGuarantor = () => ({
   bankName: "",
   bankAccountNumber: "",
 
-  // Permanent Address
   permCountry: "",
   permDzongkhag: "",
   permGewog: "",
@@ -95,7 +178,6 @@ const createEmptyGuarantor = () => ({
   permPostal: "",
   permAddressProof: "",
 
-  // Current Address
   currCountry: "",
   currDzongkhag: "",
   currGewog: "",
@@ -108,15 +190,13 @@ const createEmptyGuarantor = () => ({
   currAlternateContact: "",
   currAddressProof: "",
 
-  // PEP Declaration
   isPep: "",
   pepCategory: "",
   pepSubCategory: "",
   pepUpload: "",
   relatedToPep: "",
-  relatedPeps: [], // Initialize as empty array
+  relatedPeps: [] as any[],
 
-  // Employment Details
   employmentStatus: "",
   employeeId: "",
   occupation: "",
@@ -130,22 +210,18 @@ const createEmptyGuarantor = () => ({
   annualSalary: "",
   contractEndDate: "",
 
-  // Repayment Source
   repaymentSourceType: "",
   amount: "",
   proofFile: null as File | null,
   proofFileName: "",
 
-  // Internal State
   errors: {} as Record<string, string>,
 
-  // Dynamic Dropdown Options
   permGewogOptions: [] as any[],
   currGewogOptions: [] as any[],
   pepSubCategoryOptions: [] as any[],
   relatedPepOptionsMap: {} as Record<number, any[]>,
 
-  // Lookup state
   showLookupPopup: false,
   lookupStatus: "searching" as "searching" | "found" | "not_found",
   fetchedCustomerData: null,
@@ -156,12 +232,18 @@ export function BusinessRepaymentSourceForm({
   onBack,
   formData,
 }: BusinessRepaymentSourceFormProps) {
+  // Business Income State
   const [businessIncomeData, setBusinessIncomeData] = useState({
     repaymentSourceType: "Business Income",
     amount: formData?.businessIncome?.amount || "",
     proofFile: formData?.businessIncome?.proofFile || null,
     proofFileName: formData?.businessIncome?.proofFileName || "",
   });
+
+  // NEW: State for business income specific errors
+  const [businessErrors, setBusinessErrors] = useState<Record<string, string>>(
+    {},
+  );
 
   const [isGuarantorApplicable, setIsGuarantorApplicable] = useState(
     formData?.isGuarantorApplicable || "No",
@@ -176,7 +258,6 @@ export function BusinessRepaymentSourceForm({
       : [createEmptyGuarantor()],
   );
 
-  // Shared Dropdown Options
   const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
   const [identificationTypeOptions, setIdentificationTypeOptions] = useState<
     any[]
@@ -189,13 +270,11 @@ export function BusinessRepaymentSourceForm({
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
 
-  // Constants
   const today = new Date().toISOString().split("T")[0];
-  const fifteenYearsAgo = new Date();
-  fifteenYearsAgo.setFullYear(fifteenYearsAgo.getFullYear() - 15);
-  const maxDobDate = fifteenYearsAgo.toISOString().split("T")[0];
+  const eighteenYearsAgo = new Date();
+  eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
+  const maxDobDate = eighteenYearsAgo.toISOString().split("T")[0];
 
-  // Helper functions
   const isBhutan = (id: string) => {
     if (!id) return false;
     const c = countryOptions.find(
@@ -226,7 +305,60 @@ export function BusinessRepaymentSourceForm({
     return false;
   };
 
-  // Load shared dropdown data
+  // --- FIELD VALIDATION (individual) ---
+  const validateField = (fieldName: string, value: any): string => {
+    if (!value || value.toString().trim() === "") return "";
+
+    switch (fieldName) {
+      case "idNumber":
+      case "spouseCid":
+        if (!isValidCID(value)) return "CID must be 11 digits";
+        break;
+      case "tpnNo":
+        if (!isValidTPN(value)) return "TPN must be 11 digits";
+        break;
+      case "contact":
+      case "spouseContact":
+      case "currAlternateContact":
+        if (!isValidMobile(value))
+          return "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
+        break;
+      case "email":
+        if (!isValidEmail(value)) return "Invalid email format";
+        break;
+      case "dateOfBirth":
+        if (!isLegalAge(value))
+          return "Guarantor must be at least 18 years old";
+        break;
+    }
+    return "";
+  };
+
+  // --- REAL-TIME VALIDATION ON BLUR (clears error when valid) ---
+  const handleBlurField = (index: number, field: string, value: any) => {
+    const errorMsg = validateField(field, value);
+    setGuarantors((prev) => {
+      const updated = [...prev];
+      const currentErrors = updated[index].errors || {};
+      if (errorMsg) {
+        updated[index] = {
+          ...updated[index],
+          errors: { ...currentErrors, [field]: errorMsg },
+        };
+      } else {
+        // Clear the error for this field if it exists
+        const newErrors = { ...currentErrors };
+        delete newErrors[field];
+        updated[index] = {
+          ...updated[index],
+          errors: newErrors,
+        };
+      }
+      return updated;
+    });
+  };
+
+  // Load dropdown data
   useEffect(() => {
     const loadAllData = async () => {
       try {
@@ -353,7 +485,7 @@ export function BusinessRepaymentSourceForm({
     loadPepSub();
   }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
 
-  // --- Identity Lookup Handlers ---
+  // Identity Lookup Handlers
   const handleIdentityCheck = async (index: number) => {
     const guarantor = guarantors[index];
     const idType = guarantor.idType;
@@ -427,11 +559,9 @@ export function BusinessRepaymentSourceForm({
     if (guarantor.lookupStatus === "found" && guarantor.fetchedCustomerData) {
       const fetched = guarantor.fetchedCustomerData;
 
-      // Map fetched data to guarantor field names
       const sanitized = {
-        // Personal Information
-        idType: guarantor.idType, // Keep original selection
-        idNumber: guarantor.idNumber, // Keep original number
+        idType: guarantor.idType,
+        idNumber: guarantor.idNumber,
         salutation: fetched.salutation || "",
         guarantorName: fetched.name || "",
         nationality: fetched.nationality ? String(fetched.nationality) : "",
@@ -450,7 +580,6 @@ export function BusinessRepaymentSourceForm({
         bankName: fetched.bankName || "",
         bankAccountNumber: fetched.bankAccount || "",
 
-        // Permanent Address
         permCountry: fetched.permCountry ? String(fetched.permCountry) : "",
         permDzongkhag: fetched.permDzongkhag
           ? String(fetched.permDzongkhag)
@@ -459,10 +588,9 @@ export function BusinessRepaymentSourceForm({
         permVillage: fetched.permVillage || "",
         permThram: fetched.permThram || "",
         permHouse: fetched.permHouse || "",
-        permCity: "", // Not in fetched
-        permPostal: "", // Not in fetched
+        permCity: "",
+        permPostal: "",
 
-        // Current Address
         currCountry: fetched.currCountry ? String(fetched.currCountry) : "",
         currDzongkhag: fetched.currDzongkhag
           ? String(fetched.currDzongkhag)
@@ -470,13 +598,12 @@ export function BusinessRepaymentSourceForm({
         currGewog: fetched.currGewog ? String(fetched.currGewog) : "",
         currVillage: fetched.currVillage || "",
         currHouse: fetched.currFlat || "",
-        currCity: "", // Not in fetched
-        currPostal: "", // Not in fetched
+        currCity: "",
+        currPostal: "",
         email: fetched.currEmail || "",
         contact: fetched.currContact || "",
         currAlternateContact: fetched.currAlternateContact || "",
 
-        // PEP Declaration
         isPep: fetched.pepPerson || "",
         pepCategory: fetched.pepCategory || "",
         pepSubCategory: fetched.pepSubCategory || "",
@@ -484,7 +611,6 @@ export function BusinessRepaymentSourceForm({
         relatedToPep: fetched.pepRelated || "",
         relatedPeps: fetched.relatedPeps || [],
 
-        // Employment Details
         employmentStatus: fetched.employmentStatus || "",
         employeeId: fetched.employeeId || "",
         occupation: fetched.occupation || "",
@@ -504,7 +630,6 @@ export function BusinessRepaymentSourceForm({
         updated[index] = {
           ...prev[index],
           ...sanitized,
-          // Preserve original dynamic options and other fields
           permGewogOptions: prev[index].permGewogOptions,
           currGewogOptions: prev[index].currGewogOptions,
           pepSubCategoryOptions: prev[index].pepSubCategoryOptions,
@@ -536,6 +661,12 @@ export function BusinessRepaymentSourceForm({
         proofFile: file,
         proofFileName: file.name,
       });
+      // Clear specific error if fixed
+      if (businessErrors.proofFile) {
+        const newErrors = { ...businessErrors };
+        delete newErrors.proofFile;
+        setBusinessErrors(newErrors);
+      }
     }
   };
 
@@ -555,7 +686,6 @@ export function BusinessRepaymentSourceForm({
       updated[index] = {
         ...updated[index],
         [field]: value,
-        // Clear dependent fields logic
         ...(field === "isPep" && value === "yes" ? { relatedToPep: "" } : {}),
         ...(field === "isPep" && value === "no"
           ? { pepCategory: "", pepSubCategory: "", pepUpload: "" }
@@ -604,9 +734,51 @@ export function BusinessRepaymentSourceForm({
     file: File | null,
   ) => {
     if (file) {
+      const allowedTypes = [
+        "application/pdf",
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+      ];
+      const maxSize = 5 * 1024 * 1024;
+
+      if (!allowedTypes.includes(file.type)) {
+        setGuarantors((prev) => {
+          const updated = [...prev];
+          updated[index] = {
+            ...updated[index],
+            errors: {
+              ...updated[index].errors,
+              [fieldName]: "Only PDF, JPG, JPEG, and PNG files are allowed",
+            },
+          };
+          return updated;
+        });
+        return;
+      }
+
+      if (file.size > maxSize) {
+        setGuarantors((prev) => {
+          const updated = [...prev];
+          updated[index] = {
+            ...updated[index],
+            errors: {
+              ...updated[index].errors,
+              [fieldName]: "File size must be less than 5MB",
+            },
+          };
+          return updated;
+        });
+        return;
+      }
+
       setGuarantors((prev) => {
         const updated = [...prev];
-        updated[index] = { ...updated[index], [fieldName]: file.name };
+        updated[index] = {
+          ...updated[index],
+          [fieldName]: file.name,
+          errors: { ...updated[index].errors, [fieldName]: "" },
+        };
         return updated;
       });
     }
@@ -618,30 +790,67 @@ export function BusinessRepaymentSourceForm({
   ) => {
     const file = e.target.files?.[0];
     if (file) {
-      updateGuarantorField(index, "proofFile", file);
-      updateGuarantorField(index, "proofFileName", file.name);
+      const allowedTypes = [
+        "application/pdf",
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+      ];
+      const maxSize = 5 * 1024 * 1024;
+
+      if (!allowedTypes.includes(file.type)) {
+        setGuarantors((prev) => {
+          const updated = [...prev];
+          updated[index] = {
+            ...updated[index],
+            errors: {
+              ...updated[index].errors,
+              proofFile: "Only PDF, JPG, JPEG, and PNG files are allowed",
+            },
+          };
+          return updated;
+        });
+        return;
+      }
+
+      if (file.size > maxSize) {
+        setGuarantors((prev) => {
+          const updated = [...prev];
+          updated[index] = {
+            ...updated[index],
+            errors: {
+              ...updated[index].errors,
+              proofFile: "File size must be less than 5MB",
+            },
+          };
+          return updated;
+        });
+        return;
+      }
+
+      setGuarantors((prev) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          proofFile: file,
+          proofFileName: file.name,
+          errors: { ...updated[index].errors, proofFile: "" },
+        };
+        return updated;
+      });
     }
   };
 
-  // FIXED: Correctly handles adding a single new item safely
   const handleAddRelatedPep = (index: number) => {
     setGuarantors((prev) => {
       const updatedGuarantors = [...prev];
-      // Create a shallow copy of the guarantor to modify
       const currentGuarantor = { ...updatedGuarantors[index] };
-      // Create a copy of the relatedPeps array (or new if undefined)
       const currentRelatedPeps = currentGuarantor.relatedPeps
         ? [...currentGuarantor.relatedPeps]
         : [];
-
-      // Add exactly one empty PEP object
       currentRelatedPeps.push(createEmptyRelatedPep());
-
-      // Reassign to the guarantor
       currentGuarantor.relatedPeps = currentRelatedPeps;
-      // Reassign to the main array
       updatedGuarantors[index] = currentGuarantor;
-
       return updatedGuarantors;
     });
   };
@@ -695,6 +904,17 @@ export function BusinessRepaymentSourceForm({
     file: File | null,
   ) => {
     if (file) {
+      const allowedTypes = [
+        "application/pdf",
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+      ];
+      const maxSize = 5 * 1024 * 1024;
+
+      if (!allowedTypes.includes(file.type)) return;
+      if (file.size > maxSize) return;
+
       setGuarantors((prev) => {
         const updated = [...prev];
         const relatedPeps = [...updated[gIndex].relatedPeps];
@@ -708,37 +928,532 @@ export function BusinessRepaymentSourceForm({
     }
   };
 
-  const handleNext = () => {
-    if (!businessIncomeData.amount || !businessIncomeData.proofFile) {
-      alert("Please fill in all required business income fields");
-      return;
-    }
+  // Enhanced validation for all guarantors (used on submit)
+  const validateAllGuarantors = (): boolean => {
+    let isValid = true;
+    const updatedGuarantors = [...guarantors];
 
+    guarantors.forEach((guarantor, index) => {
+      // Start with existing errors (to preserve file upload errors)
+      const updatedErrors = { ...guarantor.errors };
+
+      // Helper to set or clear a validation error
+      const validateFieldAndSetError = (
+        field: string,
+        condition: boolean,
+        message: string,
+      ) => {
+        if (condition) {
+          updatedErrors[field] = message;
+        } else {
+          delete updatedErrors[field];
+        }
+      };
+
+      // Personal Information
+      validateFieldAndSetError(
+        "idType",
+        isRequired(guarantor.idType),
+        "idType is required",
+      );
+      validateFieldAndSetError(
+        "idNumber",
+        isRequired(guarantor.idNumber),
+        "idNumber is required",
+      );
+      if (guarantor.idNumber && !isValidCID(guarantor.idNumber)) {
+        updatedErrors.idNumber = "CID must be 11 digits";
+      } else if (!isRequired(guarantor.idNumber)) {
+        delete updatedErrors.idNumber;
+      }
+
+      validateFieldAndSetError(
+        "salutation",
+        isRequired(guarantor.salutation),
+        "salutation is required",
+      );
+      validateFieldAndSetError(
+        "guarantorName",
+        isRequired(guarantor.guarantorName),
+        "guarantorName is required",
+      );
+      validateFieldAndSetError(
+        "nationality",
+        isRequired(guarantor.nationality),
+        "nationality is required",
+      );
+      validateFieldAndSetError(
+        "gender",
+        isRequired(guarantor.gender),
+        "gender is required",
+      );
+      validateFieldAndSetError(
+        "idIssueDate",
+        isRequired(guarantor.idIssueDate),
+        "idIssueDate is required",
+      );
+      validateFieldAndSetError(
+        "idExpiryDate",
+        isRequired(guarantor.idExpiryDate),
+        "idExpiryDate is required",
+      );
+      validateFieldAndSetError(
+        "dateOfBirth",
+        isRequired(guarantor.dateOfBirth),
+        "dateOfBirth is required",
+      );
+      if (guarantor.dateOfBirth && !isLegalAge(guarantor.dateOfBirth)) {
+        updatedErrors.dateOfBirth = "Guarantor must be at least 18 years old";
+      } else if (!isRequired(guarantor.dateOfBirth)) {
+        delete updatedErrors.dateOfBirth;
+      }
+
+      validateFieldAndSetError(
+        "maritalStatus",
+        isRequired(guarantor.maritalStatus),
+        "maritalStatus is required",
+      );
+      validateFieldAndSetError(
+        "bankName",
+        isRequired(guarantor.bankName),
+        "bankName is required",
+      );
+      validateFieldAndSetError(
+        "bankAccountNumber",
+        isRequired(guarantor.bankAccountNumber),
+        "bankAccountNumber is required",
+      );
+
+      // TPN (optional)
+      if (guarantor.tpnNo && !isValidTPN(guarantor.tpnNo)) {
+        updatedErrors.tpnNo = "TPN must be 11 digits";
+      } else {
+        delete updatedErrors.tpnNo;
+      }
+
+      // Spouse fields if married
+      if (getIsMarried(guarantor)) {
+        validateFieldAndSetError(
+          "spouseCid",
+          isRequired(guarantor.spouseCid),
+          "spouseCid is required",
+        );
+        if (guarantor.spouseCid && !isValidCID(guarantor.spouseCid)) {
+          updatedErrors.spouseCid = "CID must be 11 digits";
+        } else if (!isRequired(guarantor.spouseCid)) {
+          delete updatedErrors.spouseCid;
+        }
+
+        validateFieldAndSetError(
+          "spouseName",
+          isRequired(guarantor.spouseName),
+          "spouseName is required",
+        );
+        validateFieldAndSetError(
+          "spouseContact",
+          isRequired(guarantor.spouseContact),
+          "spouseContact is required",
+        );
+        if (
+          guarantor.spouseContact &&
+          !isValidMobile(guarantor.spouseContact)
+        ) {
+          updatedErrors.spouseContact =
+            "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
+        } else if (!isRequired(guarantor.spouseContact)) {
+          delete updatedErrors.spouseContact;
+        }
+      } else {
+        delete updatedErrors.spouseCid;
+        delete updatedErrors.spouseName;
+        delete updatedErrors.spouseContact;
+      }
+
+      // Permanent Address
+      validateFieldAndSetError(
+        "permCountry",
+        isRequired(guarantor.permCountry),
+        "permCountry is required",
+      );
+
+      const isBhutanPerm =
+        guarantor.permCountry && isBhutan(guarantor.permCountry);
+
+      if (isBhutanPerm) {
+        validateFieldAndSetError(
+          "permDzongkhag",
+          isRequired(guarantor.permDzongkhag),
+          "Dzongkhag is required",
+        );
+        validateFieldAndSetError(
+          "permGewog",
+          isRequired(guarantor.permGewog),
+          "Gewog is required",
+        );
+        validateFieldAndSetError(
+          "permVillage",
+          isRequired(guarantor.permVillage),
+          "Village/Street is required",
+        );
+        // Thram, House optional
+        delete updatedErrors.permCity;
+        delete updatedErrors.permPostal;
+        delete updatedErrors.permAddressProof;
+      } else if (guarantor.permCountry) {
+        validateFieldAndSetError(
+          "permDzongkhag",
+          isRequired(guarantor.permDzongkhag),
+          "State is required",
+        );
+        validateFieldAndSetError(
+          "permGewog",
+          isRequired(guarantor.permGewog),
+          "Province is required",
+        );
+        validateFieldAndSetError(
+          "permVillage",
+          isRequired(guarantor.permVillage),
+          "Street name is required",
+        );
+        validateFieldAndSetError(
+          "permCity",
+          isRequired(guarantor.permCity),
+          "City is required",
+        );
+        validateFieldAndSetError(
+          "permAddressProof",
+          !guarantor.permAddressProof,
+          "Address proof is required",
+        );
+        // Postal optional
+      }
+
+      // Current Address
+      validateFieldAndSetError(
+        "currCountry",
+        isRequired(guarantor.currCountry),
+        "currCountry is required",
+      );
+
+      const isBhutanCurr =
+        guarantor.currCountry && isBhutan(guarantor.currCountry);
+
+      if (isBhutanCurr) {
+        validateFieldAndSetError(
+          "currDzongkhag",
+          isRequired(guarantor.currDzongkhag),
+          "Dzongkhag is required",
+        );
+        validateFieldAndSetError(
+          "currGewog",
+          isRequired(guarantor.currGewog),
+          "Gewog is required",
+        );
+        validateFieldAndSetError(
+          "currVillage",
+          isRequired(guarantor.currVillage),
+          "Village/Street is required",
+        );
+        // currHouse optional
+        delete updatedErrors.currCity;
+        delete updatedErrors.currPostal;
+        delete updatedErrors.currAddressProof;
+      } else if (guarantor.currCountry) {
+        validateFieldAndSetError(
+          "currDzongkhag",
+          isRequired(guarantor.currDzongkhag),
+          "State is required",
+        );
+        validateFieldAndSetError(
+          "currGewog",
+          isRequired(guarantor.currGewog),
+          "Province is required",
+        );
+        validateFieldAndSetError(
+          "currVillage",
+          isRequired(guarantor.currVillage),
+          "Street name is required",
+        );
+        validateFieldAndSetError(
+          "currCity",
+          isRequired(guarantor.currCity),
+          "City is required",
+        );
+        validateFieldAndSetError(
+          "currAddressProof",
+          !guarantor.currAddressProof,
+          "Address proof is required",
+        );
+      }
+
+      validateFieldAndSetError(
+        "email",
+        isRequired(guarantor.email),
+        "Email is required",
+      );
+      if (guarantor.email && !isValidEmail(guarantor.email)) {
+        updatedErrors.email = "Invalid email format";
+      } else if (!isRequired(guarantor.email)) {
+        delete updatedErrors.email;
+      }
+
+      validateFieldAndSetError(
+        "contact",
+        isRequired(guarantor.contact),
+        "Contact number is required",
+      );
+      if (guarantor.contact && !isValidMobile(guarantor.contact)) {
+        updatedErrors.contact =
+          "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
+      } else if (!isRequired(guarantor.contact)) {
+        delete updatedErrors.contact;
+      }
+
+      if (
+        guarantor.currAlternateContact &&
+        !isValidMobile(guarantor.currAlternateContact)
+      ) {
+        updatedErrors.currAlternateContact =
+          "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
+      } else {
+        delete updatedErrors.currAlternateContact;
+      }
+
+      // PEP Declaration
+      validateFieldAndSetError(
+        "isPep",
+        isRequired(guarantor.isPep),
+        "PEP status is required",
+      );
+      if (guarantor.isPep === "yes") {
+        validateFieldAndSetError(
+          "pepCategory",
+          isRequired(guarantor.pepCategory),
+          "PEP category is required",
+        );
+        validateFieldAndSetError(
+          "pepSubCategory",
+          isRequired(guarantor.pepSubCategory),
+          "PEP sub-category is required",
+        );
+        validateFieldAndSetError(
+          "pepUpload",
+          !guarantor.pepUpload,
+          "Identification proof is required",
+        );
+      } else {
+        delete updatedErrors.pepCategory;
+        delete updatedErrors.pepSubCategory;
+        delete updatedErrors.pepUpload;
+      }
+
+      if (guarantor.isPep === "no") {
+        validateFieldAndSetError(
+          "relatedToPep",
+          isRequired(guarantor.relatedToPep),
+          "Please indicate if related to a PEP",
+        );
+        if (guarantor.relatedToPep === "yes") {
+          (guarantor.relatedPeps || []).forEach((pep: any, pepIdx: number) => {
+            validateFieldAndSetError(
+              `relatedPeps.${pepIdx}.relationship`,
+              isRequired(pep.relationship),
+              "Relationship is required",
+            );
+            validateFieldAndSetError(
+              `relatedPeps.${pepIdx}.identificationNo`,
+              isRequired(pep.identificationNo),
+              "Identification number is required",
+            );
+            if (pep.identificationNo && !isValidCID(pep.identificationNo)) {
+              updatedErrors[`relatedPeps.${pepIdx}.identificationNo`] =
+                "Must be 11 digits";
+            } else if (!isRequired(pep.identificationNo)) {
+              delete updatedErrors[`relatedPeps.${pepIdx}.identificationNo`];
+            }
+            validateFieldAndSetError(
+              `relatedPeps.${pepIdx}.category`,
+              isRequired(pep.category),
+              "PEP category is required",
+            );
+            validateFieldAndSetError(
+              `relatedPeps.${pepIdx}.subCategory`,
+              isRequired(pep.subCategory),
+              "PEP sub-category is required",
+            );
+            validateFieldAndSetError(
+              `relatedPeps.${pepIdx}.identificationProof`,
+              !pep.identificationProof,
+              "Identification proof is required",
+            );
+          });
+        } else {
+          // Clear any related PEP errors
+          Object.keys(updatedErrors).forEach((key) => {
+            if (key.startsWith("relatedPeps.")) {
+              delete updatedErrors[key];
+            }
+          });
+        }
+      } else {
+        delete updatedErrors.relatedToPep;
+        Object.keys(updatedErrors).forEach((key) => {
+          if (key.startsWith("relatedPeps.")) {
+            delete updatedErrors[key];
+          }
+        });
+      }
+
+      // Repayment Source
+      validateFieldAndSetError(
+        "repaymentSourceType",
+        isRequired(guarantor.repaymentSourceType),
+        "Repayment source type is required",
+      );
+      validateFieldAndSetError(
+        "amount",
+        isRequired(guarantor.amount),
+        "Amount is required",
+      );
+      validateFieldAndSetError(
+        "proofFile",
+        !guarantor.proofFile,
+        "Proof file is required",
+      );
+
+      // Employment (if employed)
+      if (guarantor.employmentStatus === "employed") {
+        validateFieldAndSetError(
+          "employeeId",
+          isRequired(guarantor.employeeId),
+          "employeeId is required",
+        );
+        validateFieldAndSetError(
+          "occupation",
+          isRequired(guarantor.occupation),
+          "occupation is required",
+        );
+        validateFieldAndSetError(
+          "employerType",
+          isRequired(guarantor.employerType),
+          "employerType is required",
+        );
+        validateFieldAndSetError(
+          "designation",
+          isRequired(guarantor.designation),
+          "designation is required",
+        );
+        validateFieldAndSetError(
+          "grade",
+          isRequired(guarantor.grade),
+          "grade is required",
+        );
+        validateFieldAndSetError(
+          "organizationName",
+          isRequired(guarantor.organizationName),
+          "organizationName is required",
+        );
+        validateFieldAndSetError(
+          "orgLocation",
+          isRequired(guarantor.orgLocation),
+          "orgLocation is required",
+        );
+        validateFieldAndSetError(
+          "joiningDate",
+          isRequired(guarantor.joiningDate),
+          "joiningDate is required",
+        );
+        validateFieldAndSetError(
+          "annualSalary",
+          isRequired(guarantor.annualSalary),
+          "annualSalary is required",
+        );
+        validateFieldAndSetError(
+          "serviceNature",
+          isRequired(guarantor.serviceNature),
+          "serviceNature is required",
+        );
+        if (guarantor.serviceNature === "contract") {
+          validateFieldAndSetError(
+            "contractEndDate",
+            isRequired(guarantor.contractEndDate),
+            "contractEndDate is required",
+          );
+        } else {
+          delete updatedErrors.contractEndDate;
+        }
+      } else {
+        // Clear employment errors if not employed
+        const employmentFields = [
+          "employeeId",
+          "occupation",
+          "employerType",
+          "designation",
+          "grade",
+          "organizationName",
+          "orgLocation",
+          "joiningDate",
+          "annualSalary",
+          "serviceNature",
+          "contractEndDate",
+        ];
+        employmentFields.forEach((f) => delete updatedErrors[f]);
+      }
+
+      // Check if there are any errors for this guarantor
+      if (Object.keys(updatedErrors).length > 0) {
+        isValid = false;
+        updatedGuarantors[index] = {
+          ...updatedGuarantors[index],
+          errors: updatedErrors,
+        };
+      } else {
+        // No errors, clear the errors object
+        updatedGuarantors[index] = {
+          ...updatedGuarantors[index],
+          errors: {},
+        };
+      }
+    });
+
+    // Update state to reflect errors
+    setGuarantors(updatedGuarantors);
+
+    return isValid;
+  };
+
+  const handleNext = () => {
+    let isValid = true;
+
+    // 1. Validate Business Income
+    const newBusinessErrors: Record<string, string> = {};
+    if (!businessIncomeData.amount) {
+      newBusinessErrors.amount = "Amount is required";
+      isValid = false;
+    }
+    if (!businessIncomeData.proofFile) {
+      newBusinessErrors.proofFile = "Proof file is required";
+      isValid = false;
+    }
+    setBusinessErrors(newBusinessErrors);
+
+    // 2. Validate Guarantors (if applicable)
     if (isGuarantorApplicable === "Yes") {
       if (guarantors.length === 0) {
         alert("Please add at least one guarantor");
         return;
       }
 
-      for (const guarantor of guarantors) {
-        if (
-          !guarantor.idType ||
-          !guarantor.idNumber ||
-          !guarantor.guarantorName ||
-          !guarantor.nationality ||
-          !guarantor.dateOfBirth ||
-          !guarantor.contact ||
-          !guarantor.email ||
-          !guarantor.repaymentSourceType ||
-          !guarantor.amount ||
-          !guarantor.proofFile
-        ) {
-          alert(
-            `Please fill in all required fields for Guarantor ${guarantors.indexOf(guarantor) + 1}`,
-          );
-          return;
-        }
+      const guarantorsValid = validateAllGuarantors();
+      if (!guarantorsValid) {
+        isValid = false;
       }
+    }
+
+    if (!isValid) {
+      // Errors are now in state, so the UI will update to show red borders/text
+      alert("Please fix the errors highlighted in red before proceeding.");
+      return;
     }
 
     onNext({
@@ -747,15 +1462,6 @@ export function BusinessRepaymentSourceForm({
       guarantors: isGuarantorApplicable === "Yes" ? guarantors : [],
     });
   };
-
-  // --- UNIFORM STYLES ---
-  const commonInputClass =
-    "h-12 w-full border border-gray-300 rounded-md focus:border-[#FF9800] focus:ring-[#FF9800] bg-white text-gray-900 px-3";
-  const selectTriggerClass =
-    "h-12 w-full border border-gray-300 rounded-md focus:border-[#FF9800] focus:ring-[#FF9800] bg-white text-gray-900 px-3 [&>span]:truncate [&>span]:max-w-full";
-  const labelClass = "text-gray-800 font-semibold text-sm mb-2 block";
-  const buttonClass =
-    "h-12 px-4 border border-gray-300 rounded-md hover:border-[#FF9800] hover:text-[#FF9800] bg-white text-gray-700 flex items-center justify-center transition-colors";
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20">
@@ -767,13 +1473,13 @@ export function BusinessRepaymentSourceForm({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
-            <Label className={labelClass}>
+            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
               Repayment Source Type <span className="text-red-500">*</span>
             </Label>
             <Input
               value={businessIncomeData.repaymentSourceType}
               disabled
-              className={`${commonInputClass} bg-gray-100 cursor-not-allowed`}
+              className="h-12 w-full bg-gray-100 border border-gray-300 rounded-lg text-sm cursor-not-allowed"
             />
             <p className="text-xs text-gray-500 mt-1">
               Business loans must use Business Income as repayment source
@@ -781,44 +1487,49 @@ export function BusinessRepaymentSourceForm({
           </div>
 
           <div>
-            <Label className={labelClass}>
+            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
               Amount (Nu.) <span className="text-red-500">*</span>
             </Label>
             <Input
               type="number"
               placeholder="Enter amount"
               value={businessIncomeData.amount}
-              onChange={(e) =>
+              onChange={(e) => {
                 setBusinessIncomeData({
                   ...businessIncomeData,
                   amount: e.target.value,
-                })
-              }
-              className={commonInputClass}
+                });
+                if (businessErrors.amount) {
+                  const newErrs = { ...businessErrors };
+                  delete newErrs.amount;
+                  setBusinessErrors(newErrs);
+                }
+              }}
+              className={getFieldStyle(!!businessErrors.amount)}
             />
+            {businessErrors.amount && (
+              <p className="text-xs text-red-500 mt-1">
+                {businessErrors.amount}
+              </p>
+            )}
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <Label className={labelClass}>
+            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
               Upload Repayment Proof <span className="text-red-500">*</span>
             </Label>
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  document.getElementById("business-income-proof")?.click()
-                }
-                className={`${buttonClass} min-w-[140px]`}
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                Choose File
-              </Button>
-              <div className="flex-1 h-12 flex items-center px-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-500 truncate">
-                {businessIncomeData.proofFileName || "No file selected"}
-              </div>
+            <div
+              className={fileUploadStyle(!!businessErrors.proofFile)}
+              onClick={() =>
+                document.getElementById("business-income-proof")?.click()
+              }
+            >
+              <span className="text-gray-500 truncate">
+                {businessIncomeData.proofFileName || "No file chosen"}
+              </span>
+              <Upload className="h-4 w-4 text-[#003DA5]" />
             </div>
             <input
               id="business-income-proof"
@@ -827,6 +1538,11 @@ export function BusinessRepaymentSourceForm({
               onChange={handleBusinessIncomeFileChange}
               className="hidden"
             />
+            {businessErrors.proofFile && (
+              <p className="text-xs text-red-500 mt-1">
+                {businessErrors.proofFile}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -840,7 +1556,7 @@ export function BusinessRepaymentSourceForm({
         {/* Global Guarantor Question */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div>
-            <Label className={labelClass}>
+            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
               Is Repayment Guarantor Applicable?{" "}
               <span className="text-red-500">*</span>
             </Label>
@@ -848,7 +1564,7 @@ export function BusinessRepaymentSourceForm({
               value={isGuarantorApplicable || ""}
               onValueChange={setIsGuarantorApplicable}
             >
-              <SelectTrigger className={selectTriggerClass}>
+              <SelectTrigger className="h-12 w-full border border-gray-300 rounded-lg focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent>
@@ -879,6 +1595,7 @@ export function BusinessRepaymentSourceForm({
               const isPermBhutan = isBhutan(guarantor.permCountry);
               const isCurrBhutan = isBhutan(guarantor.currCountry);
               const isMarried = getIsMarried(guarantor);
+              const errors = guarantor.errors || {};
 
               return (
                 <div
@@ -932,7 +1649,7 @@ export function BusinessRepaymentSourceForm({
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Identification Type{" "}
                           <span className="text-red-500">*</span>
                         </Label>
@@ -942,7 +1659,9 @@ export function BusinessRepaymentSourceForm({
                             updateGuarantorField(index, "idType", val)
                           }
                         >
-                          <SelectTrigger className={selectTriggerClass}>
+                          <SelectTrigger
+                            className={getFieldStyle(!!errors.idType)}
+                          >
                             <SelectValue placeholder="[Select]" />
                           </SelectTrigger>
                           <SelectContent>
@@ -958,14 +1677,21 @@ export function BusinessRepaymentSourceForm({
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.idType && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.idType}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Identification No.{" "}
                           <span className="text-red-500">*</span>
                         </Label>
-                        <Input
+                        <RestrictedInput
+                          allowed="numeric"
+                          maxLength={11}
                           value={guarantor.idNumber || ""}
                           onChange={(e) =>
                             updateGuarantorField(
@@ -974,14 +1700,19 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
-                          onBlur={() => handleIdentityCheck(index)} // Trigger lookup on blur
-                          className={commonInputClass}
+                          onBlur={() => handleIdentityCheck(index)}
+                          className={getFieldStyle(!!errors.idNumber)}
                           placeholder="Enter ID"
                         />
+                        {errors.idNumber && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.idNumber}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Salutation <span className="text-red-500">*</span>
                         </Label>
                         <Select
@@ -990,7 +1721,9 @@ export function BusinessRepaymentSourceForm({
                             updateGuarantorField(index, "salutation", val)
                           }
                         >
-                          <SelectTrigger className={selectTriggerClass}>
+                          <SelectTrigger
+                            className={getFieldStyle(!!errors.salutation)}
+                          >
                             <SelectValue placeholder="[Select]" />
                           </SelectTrigger>
                           <SelectContent>
@@ -999,13 +1732,19 @@ export function BusinessRepaymentSourceForm({
                             <SelectItem value="ms">Ms.</SelectItem>
                           </SelectContent>
                         </Select>
+                        {errors.salutation && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.salutation}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Guarantor Name <span className="text-red-500">*</span>
                         </Label>
-                        <Input
+                        <RestrictedInput
+                          allowed="alpha"
                           value={guarantor.guarantorName || ""}
                           onChange={(e) =>
                             updateGuarantorField(
@@ -1014,13 +1753,25 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
-                          className={commonInputClass}
+                          onBlur={(e) =>
+                            handleBlurField(
+                              index,
+                              "guarantorName",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(!!errors.guarantorName)}
                           placeholder="Full Name"
                         />
+                        {errors.guarantorName && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.guarantorName}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Nationality <span className="text-red-500">*</span>
                         </Label>
                         <Select
@@ -1029,7 +1780,9 @@ export function BusinessRepaymentSourceForm({
                             updateGuarantorField(index, "nationality", val)
                           }
                         >
-                          <SelectTrigger className={selectTriggerClass}>
+                          <SelectTrigger
+                            className={getFieldStyle(!!errors.nationality)}
+                          >
                             <SelectValue placeholder="[Select]" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1045,10 +1798,15 @@ export function BusinessRepaymentSourceForm({
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.nationality && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.nationality}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Gender <span className="text-red-500">*</span>
                         </Label>
                         <Select
@@ -1057,7 +1815,9 @@ export function BusinessRepaymentSourceForm({
                             updateGuarantorField(index, "gender", val)
                           }
                         >
-                          <SelectTrigger className={selectTriggerClass}>
+                          <SelectTrigger
+                            className={getFieldStyle(!!errors.gender)}
+                          >
                             <SelectValue placeholder="[Select]" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1065,10 +1825,15 @@ export function BusinessRepaymentSourceForm({
                             <SelectItem value="female">Female</SelectItem>
                           </SelectContent>
                         </Select>
+                        {errors.gender && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.gender}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           ID Issue Date <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -1081,12 +1846,17 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
-                          className={commonInputClass}
+                          className={getFieldStyle(!!errors.idIssueDate)}
                         />
+                        {errors.idIssueDate && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.idIssueDate}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           ID Expiry Date <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -1099,24 +1869,41 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
-                          className={commonInputClass}
+                          className={getFieldStyle(!!errors.idExpiryDate)}
                         />
+                        {errors.idExpiryDate && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.idExpiryDate}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>TPN No.</Label>
-                        <Input
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                          TPN No.
+                        </Label>
+                        <RestrictedInput
+                          allowed="numeric"
+                          maxLength={11}
                           value={guarantor.tpnNo || ""}
                           onChange={(e) =>
                             updateGuarantorField(index, "tpnNo", e.target.value)
                           }
-                          className={commonInputClass}
+                          onBlur={(e) =>
+                            handleBlurField(index, "tpnNo", e.target.value)
+                          }
+                          className={getFieldStyle(!!errors.tpnNo)}
                           placeholder="Enter TPN"
                         />
+                        {errors.tpnNo && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.tpnNo}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Date of Birth <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -1130,12 +1917,24 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
-                          className={commonInputClass}
+                          onBlur={(e) =>
+                            handleBlurField(
+                              index,
+                              "dateOfBirth",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(!!errors.dateOfBirth)}
                         />
+                        {errors.dateOfBirth && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.dateOfBirth}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Marital Status <span className="text-red-500">*</span>
                         </Label>
                         <Select
@@ -1144,7 +1943,9 @@ export function BusinessRepaymentSourceForm({
                             updateGuarantorField(index, "maritalStatus", val)
                           }
                         >
-                          <SelectTrigger className={selectTriggerClass}>
+                          <SelectTrigger
+                            className={getFieldStyle(!!errors.maritalStatus)}
+                          >
                             <SelectValue placeholder="[Select]" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1160,27 +1961,29 @@ export function BusinessRepaymentSourceForm({
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.maritalStatus && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.maritalStatus}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>Upload Family Tree</Label>
-                        <div className="flex items-center gap-3">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() =>
-                              document
-                                .getElementById(`familyTree-${index}`)
-                                ?.click()
-                            }
-                            className={`${buttonClass} min-w-[120px]`}
-                          >
-                            <Upload className="mr-2 h-4 w-4" />
-                            Upload
-                          </Button>
-                          <div className="flex-1 h-12 flex items-center px-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-500 truncate">
-                            {guarantor.familyTree || "No file"}
-                          </div>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                          Upload Family Tree
+                        </Label>
+                        <div
+                          className={fileUploadStyle(!!errors.familyTree)}
+                          onClick={() =>
+                            document
+                              .getElementById(`familyTree-${index}`)
+                              ?.click()
+                          }
+                        >
+                          <span className="text-gray-500 truncate">
+                            {guarantor.familyTree || "No file chosen"}
+                          </span>
+                          <Upload className="h-4 w-4 text-[#003DA5]" />
                         </div>
                         <input
                           id={`familyTree-${index}`}
@@ -1195,6 +1998,11 @@ export function BusinessRepaymentSourceForm({
                           }
                           className="hidden"
                         />
+                        {errors.familyTree && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.familyTree}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -1205,8 +2013,11 @@ export function BusinessRepaymentSourceForm({
                         </h5>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                           <div>
-                            <Label className={labelClass}>Spouse Name</Label>
-                            <Input
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                              Spouse Name
+                            </Label>
+                            <RestrictedInput
+                              allowed="alpha"
                               value={guarantor.spouseName || ""}
                               onChange={(e) =>
                                 updateGuarantorField(
@@ -1215,12 +2026,28 @@ export function BusinessRepaymentSourceForm({
                                   e.target.value,
                                 )
                               }
-                              className={commonInputClass}
+                              onBlur={(e) =>
+                                handleBlurField(
+                                  index,
+                                  "spouseName",
+                                  e.target.value,
+                                )
+                              }
+                              className={getFieldStyle(!!errors.spouseName)}
                             />
+                            {errors.spouseName && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.spouseName}
+                              </p>
+                            )}
                           </div>
                           <div>
-                            <Label className={labelClass}>Spouse CID No.</Label>
-                            <Input
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                              Spouse CID No.
+                            </Label>
+                            <RestrictedInput
+                              allowed="numeric"
+                              maxLength={11}
                               value={guarantor.spouseCid || ""}
                               onChange={(e) =>
                                 updateGuarantorField(
@@ -1229,12 +2056,28 @@ export function BusinessRepaymentSourceForm({
                                   e.target.value,
                                 )
                               }
-                              className={commonInputClass}
+                              onBlur={(e) =>
+                                handleBlurField(
+                                  index,
+                                  "spouseCid",
+                                  e.target.value,
+                                )
+                              }
+                              className={getFieldStyle(!!errors.spouseCid)}
                             />
+                            {errors.spouseCid && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.spouseCid}
+                              </p>
+                            )}
                           </div>
                           <div>
-                            <Label className={labelClass}>Spouse Contact</Label>
-                            <Input
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                              Spouse Contact
+                            </Label>
+                            <RestrictedInput
+                              allowed="numeric"
+                              maxLength={8}
                               value={guarantor.spouseContact || ""}
                               onChange={(e) =>
                                 updateGuarantorField(
@@ -1243,8 +2086,20 @@ export function BusinessRepaymentSourceForm({
                                   e.target.value,
                                 )
                               }
-                              className={commonInputClass}
+                              onBlur={(e) =>
+                                handleBlurField(
+                                  index,
+                                  "spouseContact",
+                                  e.target.value,
+                                )
+                              }
+                              className={getFieldStyle(!!errors.spouseContact)}
                             />
+                            {errors.spouseContact && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.spouseContact}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1252,7 +2107,7 @@ export function BusinessRepaymentSourceForm({
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Bank Name <span className="text-red-500">*</span>
                         </Label>
                         <Select
@@ -1261,7 +2116,9 @@ export function BusinessRepaymentSourceForm({
                             updateGuarantorField(index, "bankName", value)
                           }
                         >
-                          <SelectTrigger className={selectTriggerClass}>
+                          <SelectTrigger
+                            className={getFieldStyle(!!errors.bankName)}
+                          >
                             <SelectValue placeholder="[Select Bank]" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1277,14 +2134,20 @@ export function BusinessRepaymentSourceForm({
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.bankName && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.bankName}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Bank Account No.{" "}
                           <span className="text-red-500">*</span>
                         </Label>
-                        <Input
+                        <RestrictedInput
+                          allowed="alphanumeric"
                           value={guarantor.bankAccountNumber || ""}
                           onChange={(e) =>
                             updateGuarantorField(
@@ -1293,31 +2156,38 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
-                          className={commonInputClass}
+                          onBlur={(e) =>
+                            handleBlurField(
+                              index,
+                              "bankAccountNumber",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(!!errors.bankAccountNumber)}
                         />
+                        {errors.bankAccountNumber && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.bankAccountNumber}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Passport Size Photo
                         </Label>
-                        <div className="flex items-center gap-3">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() =>
-                              document
-                                .getElementById(`passport-${index}`)
-                                ?.click()
-                            }
-                            className={`${buttonClass} min-w-[120px]`}
-                          >
-                            <Upload className="mr-2 h-4 w-4" />
-                            Upload
-                          </Button>
-                          <div className="flex-1 h-12 flex items-center px-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-500 truncate">
-                            {guarantor.passportPhoto || "No file"}
-                          </div>
+                        <div
+                          className={fileUploadStyle(!!errors.passportPhoto)}
+                          onClick={() =>
+                            document
+                              .getElementById(`passport-${index}`)
+                              ?.click()
+                          }
+                        >
+                          <span className="text-gray-500 truncate">
+                            {guarantor.passportPhoto || "No file chosen"}
+                          </span>
+                          <Upload className="h-4 w-4 text-[#003DA5]" />
                         </div>
                         <input
                           id={`passport-${index}`}
@@ -1332,6 +2202,11 @@ export function BusinessRepaymentSourceForm({
                           }
                           className="hidden"
                         />
+                        {errors.passportPhoto && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.passportPhoto}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1343,7 +2218,7 @@ export function BusinessRepaymentSourceForm({
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Repayment Source Type{" "}
                           <span className="text-red-500">*</span>
                         </Label>
@@ -1357,7 +2232,11 @@ export function BusinessRepaymentSourceForm({
                             )
                           }
                         >
-                          <SelectTrigger className={selectTriggerClass}>
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              !!errors.repaymentSourceType,
+                            )}
+                          >
                             <SelectValue placeholder="Select Type" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1390,10 +2269,15 @@ export function BusinessRepaymentSourceForm({
                             </SelectItem>
                           </SelectContent>
                         </Select>
+                        {errors.repaymentSourceType && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.repaymentSourceType}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Amount (Nu.) <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -1406,32 +2290,32 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
-                          className={commonInputClass}
+                          className={getFieldStyle(!!errors.amount)}
                           placeholder="0.00"
                         />
+                        {errors.amount && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.amount}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Upload Proof <span className="text-red-500">*</span>
                         </Label>
-                        <div className="flex items-center gap-3">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() =>
-                              document
-                                .getElementById(`guarantor-proof-${index}`)
-                                ?.click()
-                            }
-                            className={`${buttonClass} min-w-[120px]`}
-                          >
-                            <Upload className="mr-2 h-4 w-4" />
-                            Upload
-                          </Button>
-                          <div className="flex-1 h-12 flex items-center px-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-500 truncate">
-                            {guarantor.proofFileName || "No file"}
-                          </div>
+                        <div
+                          className={fileUploadStyle(!!errors.proofFile)}
+                          onClick={() =>
+                            document
+                              .getElementById(`guarantor-proof-${index}`)
+                              ?.click()
+                          }
+                        >
+                          <span className="text-gray-500 truncate">
+                            {guarantor.proofFileName || "No file chosen"}
+                          </span>
+                          <Upload className="h-4 w-4 text-[#003DA5]" />
                         </div>
                         <input
                           id={`guarantor-proof-${index}`}
@@ -1440,6 +2324,11 @@ export function BusinessRepaymentSourceForm({
                           onChange={(e) => handleGuarantorProofChange(index, e)}
                           className="hidden"
                         />
+                        {errors.proofFile && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.proofFile}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1451,7 +2340,7 @@ export function BusinessRepaymentSourceForm({
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Country <span className="text-red-500">*</span>
                         </Label>
                         <Select
@@ -1460,7 +2349,9 @@ export function BusinessRepaymentSourceForm({
                             updateGuarantorField(index, "permCountry", val)
                           }
                         >
-                          <SelectTrigger className={selectTriggerClass}>
+                          <SelectTrigger
+                            className={getFieldStyle(!!errors.permCountry)}
+                          >
                             <SelectValue placeholder="[Select]" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1474,10 +2365,15 @@ export function BusinessRepaymentSourceForm({
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.permCountry && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.permCountry}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           {isPermBhutan ? "Dzongkhag" : "State"}{" "}
                           <span className="text-red-500">*</span>
                         </Label>
@@ -1488,7 +2384,9 @@ export function BusinessRepaymentSourceForm({
                               updateGuarantorField(index, "permDzongkhag", val)
                             }
                           >
-                            <SelectTrigger className={selectTriggerClass}>
+                            <SelectTrigger
+                              className={getFieldStyle(!!errors.permDzongkhag)}
+                            >
                               <SelectValue placeholder="[Select]" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1505,7 +2403,8 @@ export function BusinessRepaymentSourceForm({
                             </SelectContent>
                           </Select>
                         ) : (
-                          <Input
+                          <RestrictedInput
+                            allowed="alpha"
                             value={guarantor.permDzongkhag || ""}
                             onChange={(e) =>
                               updateGuarantorField(
@@ -1514,13 +2413,25 @@ export function BusinessRepaymentSourceForm({
                                 e.target.value,
                               )
                             }
-                            className={commonInputClass}
+                            onBlur={(e) =>
+                              handleBlurField(
+                                index,
+                                "permDzongkhag",
+                                e.target.value,
+                              )
+                            }
+                            className={getFieldStyle(!!errors.permDzongkhag)}
                           />
+                        )}
+                        {errors.permDzongkhag && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.permDzongkhag}
+                          </p>
                         )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           {isPermBhutan ? "Gewog" : "Province"}{" "}
                           <span className="text-red-500">*</span>
                         </Label>
@@ -1532,7 +2443,9 @@ export function BusinessRepaymentSourceForm({
                             }
                             disabled={!guarantor.permDzongkhag}
                           >
-                            <SelectTrigger className={selectTriggerClass}>
+                            <SelectTrigger
+                              className={getFieldStyle(!!errors.permGewog)}
+                            >
                               <SelectValue placeholder="[Select]" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1549,7 +2462,8 @@ export function BusinessRepaymentSourceForm({
                             </SelectContent>
                           </Select>
                         ) : (
-                          <Input
+                          <RestrictedInput
+                            allowed="alpha"
                             value={guarantor.permGewog || ""}
                             onChange={(e) =>
                               updateGuarantorField(
@@ -1558,17 +2472,30 @@ export function BusinessRepaymentSourceForm({
                                 e.target.value,
                               )
                             }
-                            className={commonInputClass}
+                            onBlur={(e) =>
+                              handleBlurField(
+                                index,
+                                "permGewog",
+                                e.target.value,
+                              )
+                            }
+                            className={getFieldStyle(!!errors.permGewog)}
                           />
+                        )}
+                        {errors.permGewog && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.permGewog}
+                          </p>
                         )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           {isPermBhutan ? "Village/Street" : "Street"}{" "}
                           <span className="text-red-500">*</span>
                         </Label>
-                        <Input
+                        <RestrictedInput
+                          allowed="alphanumeric"
                           value={guarantor.permVillage || ""}
                           onChange={(e) =>
                             updateGuarantorField(
@@ -1577,15 +2504,30 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
-                          className={commonInputClass}
+                          onBlur={(e) =>
+                            handleBlurField(
+                              index,
+                              "permVillage",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(!!errors.permVillage)}
                         />
+                        {errors.permVillage && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.permVillage}
+                          </p>
+                        )}
                       </div>
 
                       {isPermBhutan ? (
                         <>
                           <div>
-                            <Label className={labelClass}>Thram No.</Label>
-                            <Input
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                              Thram No.
+                            </Label>
+                            <RestrictedInput
+                              allowed="alphanumeric"
                               value={guarantor.permThram || ""}
                               onChange={(e) =>
                                 updateGuarantorField(
@@ -1594,12 +2536,27 @@ export function BusinessRepaymentSourceForm({
                                   e.target.value,
                                 )
                               }
-                              className={commonInputClass}
+                              onBlur={(e) =>
+                                handleBlurField(
+                                  index,
+                                  "permThram",
+                                  e.target.value,
+                                )
+                              }
+                              className={getFieldStyle(!!errors.permThram)}
                             />
+                            {errors.permThram && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.permThram}
+                              </p>
+                            )}
                           </div>
                           <div>
-                            <Label className={labelClass}>House No.</Label>
-                            <Input
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                              House No.
+                            </Label>
+                            <RestrictedInput
+                              allowed="alphanumeric"
                               value={guarantor.permHouse || ""}
                               onChange={(e) =>
                                 updateGuarantorField(
@@ -1608,17 +2565,30 @@ export function BusinessRepaymentSourceForm({
                                   e.target.value,
                                 )
                               }
-                              className={commonInputClass}
+                              onBlur={(e) =>
+                                handleBlurField(
+                                  index,
+                                  "permHouse",
+                                  e.target.value,
+                                )
+                              }
+                              className={getFieldStyle(!!errors.permHouse)}
                             />
+                            {errors.permHouse && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.permHouse}
+                              </p>
+                            )}
                           </div>
                         </>
                       ) : (
                         <>
                           <div>
-                            <Label className={labelClass}>
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                               City <span className="text-red-500">*</span>
                             </Label>
-                            <Input
+                            <RestrictedInput
+                              allowed="alpha"
                               value={guarantor.permCity || ""}
                               onChange={(e) =>
                                 updateGuarantorField(
@@ -1627,12 +2597,27 @@ export function BusinessRepaymentSourceForm({
                                   e.target.value,
                                 )
                               }
-                              className={commonInputClass}
+                              onBlur={(e) =>
+                                handleBlurField(
+                                  index,
+                                  "permCity",
+                                  e.target.value,
+                                )
+                              }
+                              className={getFieldStyle(!!errors.permCity)}
                             />
+                            {errors.permCity && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.permCity}
+                              </p>
+                            )}
                           </div>
                           <div>
-                            <Label className={labelClass}>Postal/ZIP</Label>
-                            <Input
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                              Postal/ZIP
+                            </Label>
+                            <RestrictedInput
+                              allowed="alphanumeric"
                               value={guarantor.permPostal || ""}
                               onChange={(e) =>
                                 updateGuarantorField(
@@ -1641,28 +2626,39 @@ export function BusinessRepaymentSourceForm({
                                   e.target.value,
                                 )
                               }
-                              className={commonInputClass}
+                              onBlur={(e) =>
+                                handleBlurField(
+                                  index,
+                                  "permPostal",
+                                  e.target.value,
+                                )
+                              }
+                              className={getFieldStyle(!!errors.permPostal)}
                             />
+                            {errors.permPostal && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.permPostal}
+                              </p>
+                            )}
                           </div>
                           <div>
-                            <Label className={labelClass}>Address Proof</Label>
-                            <div className="flex items-center gap-3">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                  document
-                                    .getElementById(`perm-proof-${index}`)
-                                    ?.click()
-                                }
-                                className={`${buttonClass} min-w-[120px]`}
-                              >
-                                <Upload className="mr-2 h-4 w-4" />
-                                Upload
-                              </Button>
-                              <div className="flex-1 h-12 flex items-center px-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-500 truncate">
-                                {guarantor.permAddressProof || "No file"}
-                              </div>
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                              Address Proof
+                            </Label>
+                            <div
+                              className={fileUploadStyle(
+                                !!errors.permAddressProof,
+                              )}
+                              onClick={() =>
+                                document
+                                  .getElementById(`perm-proof-${index}`)
+                                  ?.click()
+                              }
+                            >
+                              <span className="text-gray-500 truncate">
+                                {guarantor.permAddressProof || "No file chosen"}
+                              </span>
+                              <Upload className="h-4 w-4 text-[#003DA5]" />
                             </div>
                             <input
                               id={`perm-proof-${index}`}
@@ -1677,6 +2673,11 @@ export function BusinessRepaymentSourceForm({
                               }
                               className="hidden"
                             />
+                            {errors.permAddressProof && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.permAddressProof}
+                              </p>
+                            )}
                           </div>
                         </>
                       )}
@@ -1690,7 +2691,7 @@ export function BusinessRepaymentSourceForm({
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Country <span className="text-red-500">*</span>
                         </Label>
                         <Select
@@ -1699,7 +2700,9 @@ export function BusinessRepaymentSourceForm({
                             updateGuarantorField(index, "currCountry", val)
                           }
                         >
-                          <SelectTrigger className={selectTriggerClass}>
+                          <SelectTrigger
+                            className={getFieldStyle(!!errors.currCountry)}
+                          >
                             <SelectValue placeholder="[Select]" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1713,10 +2716,15 @@ export function BusinessRepaymentSourceForm({
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.currCountry && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.currCountry}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           {isCurrBhutan ? "Dzongkhag" : "State"}{" "}
                           <span className="text-red-500">*</span>
                         </Label>
@@ -1727,7 +2735,9 @@ export function BusinessRepaymentSourceForm({
                               updateGuarantorField(index, "currDzongkhag", val)
                             }
                           >
-                            <SelectTrigger className={selectTriggerClass}>
+                            <SelectTrigger
+                              className={getFieldStyle(!!errors.currDzongkhag)}
+                            >
                               <SelectValue placeholder="[Select]" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1744,7 +2754,8 @@ export function BusinessRepaymentSourceForm({
                             </SelectContent>
                           </Select>
                         ) : (
-                          <Input
+                          <RestrictedInput
+                            allowed="alpha"
                             value={guarantor.currDzongkhag || ""}
                             onChange={(e) =>
                               updateGuarantorField(
@@ -1753,13 +2764,25 @@ export function BusinessRepaymentSourceForm({
                                 e.target.value,
                               )
                             }
-                            className={commonInputClass}
+                            onBlur={(e) =>
+                              handleBlurField(
+                                index,
+                                "currDzongkhag",
+                                e.target.value,
+                              )
+                            }
+                            className={getFieldStyle(!!errors.currDzongkhag)}
                           />
+                        )}
+                        {errors.currDzongkhag && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.currDzongkhag}
+                          </p>
                         )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           {isCurrBhutan ? "Gewog" : "Province"}{" "}
                           <span className="text-red-500">*</span>
                         </Label>
@@ -1771,7 +2794,9 @@ export function BusinessRepaymentSourceForm({
                             }
                             disabled={!guarantor.currDzongkhag}
                           >
-                            <SelectTrigger className={selectTriggerClass}>
+                            <SelectTrigger
+                              className={getFieldStyle(!!errors.currGewog)}
+                            >
                               <SelectValue placeholder="[Select]" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1788,7 +2813,8 @@ export function BusinessRepaymentSourceForm({
                             </SelectContent>
                           </Select>
                         ) : (
-                          <Input
+                          <RestrictedInput
+                            allowed="alpha"
                             value={guarantor.currGewog || ""}
                             onChange={(e) =>
                               updateGuarantorField(
@@ -1797,17 +2823,30 @@ export function BusinessRepaymentSourceForm({
                                 e.target.value,
                               )
                             }
-                            className={commonInputClass}
+                            onBlur={(e) =>
+                              handleBlurField(
+                                index,
+                                "currGewog",
+                                e.target.value,
+                              )
+                            }
+                            className={getFieldStyle(!!errors.currGewog)}
                           />
+                        )}
+                        {errors.currGewog && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.currGewog}
+                          </p>
                         )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           {isCurrBhutan ? "Village/Street" : "Street"}{" "}
                           <span className="text-red-500">*</span>
                         </Label>
-                        <Input
+                        <RestrictedInput
+                          allowed="alphanumeric"
                           value={guarantor.currVillage || ""}
                           onChange={(e) =>
                             updateGuarantorField(
@@ -1816,15 +2855,28 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
-                          className={commonInputClass}
+                          onBlur={(e) =>
+                            handleBlurField(
+                              index,
+                              "currVillage",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(!!errors.currVillage)}
                         />
+                        {errors.currVillage && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.currVillage}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           House/Building/Flat No.
                         </Label>
-                        <Input
+                        <RestrictedInput
+                          allowed="alphanumeric"
                           value={guarantor.currHouse || ""}
                           onChange={(e) =>
                             updateGuarantorField(
@@ -1833,17 +2885,26 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
-                          className={commonInputClass}
+                          onBlur={(e) =>
+                            handleBlurField(index, "currHouse", e.target.value)
+                          }
+                          className={getFieldStyle(!!errors.currHouse)}
                         />
+                        {errors.currHouse && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.currHouse}
+                          </p>
+                        )}
                       </div>
 
                       {!isCurrBhutan && (
                         <>
                           <div>
-                            <Label className={labelClass}>
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                               City <span className="text-red-500">*</span>
                             </Label>
-                            <Input
+                            <RestrictedInput
+                              allowed="alpha"
                               value={guarantor.currCity || ""}
                               onChange={(e) =>
                                 updateGuarantorField(
@@ -1852,12 +2913,27 @@ export function BusinessRepaymentSourceForm({
                                   e.target.value,
                                 )
                               }
-                              className={commonInputClass}
+                              onBlur={(e) =>
+                                handleBlurField(
+                                  index,
+                                  "currCity",
+                                  e.target.value,
+                                )
+                              }
+                              className={getFieldStyle(!!errors.currCity)}
                             />
+                            {errors.currCity && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.currCity}
+                              </p>
+                            )}
                           </div>
                           <div>
-                            <Label className={labelClass}>Postal/ZIP</Label>
-                            <Input
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                              Postal/ZIP
+                            </Label>
+                            <RestrictedInput
+                              allowed="alphanumeric"
                               value={guarantor.currPostal || ""}
                               onChange={(e) =>
                                 updateGuarantorField(
@@ -1866,14 +2942,26 @@ export function BusinessRepaymentSourceForm({
                                   e.target.value,
                                 )
                               }
-                              className={commonInputClass}
+                              onBlur={(e) =>
+                                handleBlurField(
+                                  index,
+                                  "currPostal",
+                                  e.target.value,
+                                )
+                              }
+                              className={getFieldStyle(!!errors.currPostal)}
                             />
+                            {errors.currPostal && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.currPostal}
+                              </p>
+                            )}
                           </div>
                         </>
                       )}
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Email <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -1882,15 +2970,25 @@ export function BusinessRepaymentSourceForm({
                           onChange={(e) =>
                             updateGuarantorField(index, "email", e.target.value)
                           }
-                          className={commonInputClass}
+                          onBlur={(e) =>
+                            handleBlurField(index, "email", e.target.value)
+                          }
+                          className={getFieldStyle(!!errors.email)}
                         />
+                        {errors.email && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.email}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Contact No. <span className="text-red-500">*</span>
                         </Label>
-                        <Input
+                        <RestrictedInput
+                          allowed="numeric"
+                          maxLength={8}
                           value={guarantor.contact || ""}
                           onChange={(e) =>
                             updateGuarantorField(
@@ -1899,13 +2997,25 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
-                          className={commonInputClass}
+                          onBlur={(e) =>
+                            handleBlurField(index, "contact", e.target.value)
+                          }
+                          className={getFieldStyle(!!errors.contact)}
                         />
+                        {errors.contact && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.contact}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <Label className={labelClass}>Alternate Contact</Label>
-                        <Input
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                          Alternate Contact
+                        </Label>
+                        <RestrictedInput
+                          allowed="numeric"
+                          maxLength={8}
                           value={guarantor.currAlternateContact || ""}
                           onChange={(e) =>
                             updateGuarantorField(
@@ -1914,30 +3024,43 @@ export function BusinessRepaymentSourceForm({
                               e.target.value,
                             )
                           }
-                          className={commonInputClass}
+                          onBlur={(e) =>
+                            handleBlurField(
+                              index,
+                              "currAlternateContact",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            !!errors.currAlternateContact,
+                          )}
                         />
+                        {errors.currAlternateContact && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.currAlternateContact}
+                          </p>
+                        )}
                       </div>
 
                       {!isCurrBhutan && (
                         <div>
-                          <Label className={labelClass}>Address Proof</Label>
-                          <div className="flex items-center gap-3">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() =>
-                                document
-                                  .getElementById(`curr-proof-${index}`)
-                                  ?.click()
-                              }
-                              className={`${buttonClass} min-w-[120px]`}
-                            >
-                              <Upload className="mr-2 h-4 w-4" />
-                              Upload
-                            </Button>
-                            <div className="flex-1 h-12 flex items-center px-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-500 truncate">
-                              {guarantor.currAddressProof || "No file"}
-                            </div>
+                          <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                            Address Proof
+                          </Label>
+                          <div
+                            className={fileUploadStyle(
+                              !!errors.currAddressProof,
+                            )}
+                            onClick={() =>
+                              document
+                                .getElementById(`curr-proof-${index}`)
+                                ?.click()
+                            }
+                          >
+                            <span className="text-gray-500 truncate">
+                              {guarantor.currAddressProof || "No file chosen"}
+                            </span>
+                            <Upload className="h-4 w-4 text-[#003DA5]" />
                           </div>
                           <input
                             id={`curr-proof-${index}`}
@@ -1952,6 +3075,11 @@ export function BusinessRepaymentSourceForm({
                             }
                             className="hidden"
                           />
+                          {errors.currAddressProof && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.currAddressProof}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1964,7 +3092,7 @@ export function BusinessRepaymentSourceForm({
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                       <div>
-                        <Label className={labelClass}>
+                        <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Politically Exposed Person?{" "}
                           <span className="text-red-500">*</span>
                         </Label>
@@ -1974,7 +3102,9 @@ export function BusinessRepaymentSourceForm({
                             updateGuarantorField(index, "isPep", val)
                           }
                         >
-                          <SelectTrigger className={selectTriggerClass}>
+                          <SelectTrigger
+                            className={getFieldStyle(!!errors.isPep)}
+                          >
                             <SelectValue placeholder="[Select]" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1982,12 +3112,17 @@ export function BusinessRepaymentSourceForm({
                             <SelectItem value="no">No</SelectItem>
                           </SelectContent>
                         </Select>
+                        {errors.isPep && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.isPep}
+                          </p>
+                        )}
                       </div>
 
                       {guarantor.isPep === "yes" && (
                         <>
                           <div>
-                            <Label className={labelClass}>
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                               PEP Category{" "}
                               <span className="text-red-500">*</span>
                             </Label>
@@ -1997,7 +3132,9 @@ export function BusinessRepaymentSourceForm({
                                 updateGuarantorField(index, "pepCategory", val)
                               }
                             >
-                              <SelectTrigger className={selectTriggerClass}>
+                              <SelectTrigger
+                                className={getFieldStyle(!!errors.pepCategory)}
+                              >
                                 <SelectValue placeholder="[Select]" />
                               </SelectTrigger>
                               <SelectContent>
@@ -2013,10 +3150,15 @@ export function BusinessRepaymentSourceForm({
                                 ))}
                               </SelectContent>
                             </Select>
+                            {errors.pepCategory && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.pepCategory}
+                              </p>
+                            )}
                           </div>
 
                           <div>
-                            <Label className={labelClass}>
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                               Sub Category{" "}
                               <span className="text-red-500">*</span>
                             </Label>
@@ -2031,7 +3173,11 @@ export function BusinessRepaymentSourceForm({
                               }
                               disabled={!guarantor.pepCategory}
                             >
-                              <SelectTrigger className={selectTriggerClass}>
+                              <SelectTrigger
+                                className={getFieldStyle(
+                                  !!errors.pepSubCategory,
+                                )}
+                              >
                                 <SelectValue placeholder="[Select]" />
                               </SelectTrigger>
                               <SelectContent>
@@ -2049,27 +3195,29 @@ export function BusinessRepaymentSourceForm({
                                 )}
                               </SelectContent>
                             </Select>
+                            {errors.pepSubCategory && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.pepSubCategory}
+                              </p>
+                            )}
                           </div>
 
                           <div>
-                            <Label className={labelClass}>Upload ID</Label>
-                            <div className="flex items-center gap-3">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                  document
-                                    .getElementById(`pep-self-${index}`)
-                                    ?.click()
-                                }
-                                className={`${buttonClass} min-w-[120px]`}
-                              >
-                                <Upload className="mr-2 h-4 w-4" />
-                                Upload
-                              </Button>
-                              <div className="flex-1 h-12 flex items-center px-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-500 truncate">
-                                {guarantor.pepUpload || "No file"}
-                              </div>
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                              Upload ID
+                            </Label>
+                            <div
+                              className={fileUploadStyle(!!errors.pepUpload)}
+                              onClick={() =>
+                                document
+                                  .getElementById(`pep-self-${index}`)
+                                  ?.click()
+                              }
+                            >
+                              <span className="text-gray-500 truncate">
+                                {guarantor.pepUpload || "No file chosen"}
+                              </span>
+                              <Upload className="h-4 w-4 text-[#003DA5]" />
                             </div>
                             <input
                               id={`pep-self-${index}`}
@@ -2084,6 +3232,11 @@ export function BusinessRepaymentSourceForm({
                               }
                               className="hidden"
                             />
+                            {errors.pepUpload && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.pepUpload}
+                              </p>
+                            )}
                           </div>
                         </>
                       )}
@@ -2094,7 +3247,7 @@ export function BusinessRepaymentSourceForm({
                         <div className="mb-6">
                           <div className="grid grid-cols-1 md:grid-cols-3">
                             <div>
-                              <Label className={labelClass}>
+                              <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                                 Related to any PEP?{" "}
                                 <span className="text-red-500">*</span>
                               </Label>
@@ -2108,7 +3261,11 @@ export function BusinessRepaymentSourceForm({
                                   )
                                 }
                               >
-                                <SelectTrigger className={selectTriggerClass}>
+                                <SelectTrigger
+                                  className={getFieldStyle(
+                                    !!errors.relatedToPep,
+                                  )}
+                                >
                                   <SelectValue placeholder="[Select]" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -2116,6 +3273,11 @@ export function BusinessRepaymentSourceForm({
                                   <SelectItem value="no">No</SelectItem>
                                 </SelectContent>
                               </Select>
+                              {errors.relatedToPep && (
+                                <p className="text-xs text-red-500 mt-1">
+                                  {errors.relatedToPep}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -2147,10 +3309,9 @@ export function BusinessRepaymentSourceForm({
                                     )}
                                   </div>
 
-                                  {/* FIXED: Uniform Grid Layout */}
                                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="space-y-2">
-                                      <Label className={labelClass}>
+                                      <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                                         Relationship
                                       </Label>
                                       <Select
@@ -2165,7 +3326,11 @@ export function BusinessRepaymentSourceForm({
                                         }
                                       >
                                         <SelectTrigger
-                                          className={selectTriggerClass}
+                                          className={getFieldStyle(
+                                            !!errors[
+                                              `relatedPeps.${pIndex}.relationship`
+                                            ],
+                                          )}
                                         >
                                           <SelectValue placeholder="Select" />
                                         </SelectTrigger>
@@ -2184,14 +3349,31 @@ export function BusinessRepaymentSourceForm({
                                           </SelectItem>
                                         </SelectContent>
                                       </Select>
+                                      {errors[
+                                        `relatedPeps.${pIndex}.relationship`
+                                      ] && (
+                                        <p className="text-xs text-red-500 mt-1">
+                                          {
+                                            errors[
+                                              `relatedPeps.${pIndex}.relationship`
+                                            ]
+                                          }
+                                        </p>
+                                      )}
                                     </div>
 
                                     <div className="space-y-2">
-                                      <Label className={labelClass}>
+                                      <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                                         ID Number
                                       </Label>
-                                      <Input
-                                        className={commonInputClass}
+                                      <RestrictedInput
+                                        allowed="numeric"
+                                        maxLength={11}
+                                        className={getFieldStyle(
+                                          !!errors[
+                                            `relatedPeps.${pIndex}.identificationNo`
+                                          ],
+                                        )}
                                         value={pep.identificationNo || ""}
                                         onChange={(e) =>
                                           handleRelatedPepChange(
@@ -2202,10 +3384,21 @@ export function BusinessRepaymentSourceForm({
                                           )
                                         }
                                       />
+                                      {errors[
+                                        `relatedPeps.${pIndex}.identificationNo`
+                                      ] && (
+                                        <p className="text-xs text-red-500 mt-1">
+                                          {
+                                            errors[
+                                              `relatedPeps.${pIndex}.identificationNo`
+                                            ]
+                                          }
+                                        </p>
+                                      )}
                                     </div>
 
                                     <div className="space-y-2">
-                                      <Label className={labelClass}>
+                                      <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                                         Category
                                       </Label>
                                       <Select
@@ -2220,7 +3413,11 @@ export function BusinessRepaymentSourceForm({
                                         }
                                       >
                                         <SelectTrigger
-                                          className={selectTriggerClass}
+                                          className={getFieldStyle(
+                                            !!errors[
+                                              `relatedPeps.${pIndex}.category`
+                                            ],
+                                          )}
                                         >
                                           <SelectValue placeholder="Select" />
                                         </SelectTrigger>
@@ -2238,10 +3435,21 @@ export function BusinessRepaymentSourceForm({
                                           ))}
                                         </SelectContent>
                                       </Select>
+                                      {errors[
+                                        `relatedPeps.${pIndex}.category`
+                                      ] && (
+                                        <p className="text-xs text-red-500 mt-1">
+                                          {
+                                            errors[
+                                              `relatedPeps.${pIndex}.category`
+                                            ]
+                                          }
+                                        </p>
+                                      )}
                                     </div>
 
                                     <div className="space-y-2">
-                                      <Label className={labelClass}>
+                                      <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                                         Sub Category
                                       </Label>
                                       <Select
@@ -2257,7 +3465,11 @@ export function BusinessRepaymentSourceForm({
                                         disabled={!pep.category}
                                       >
                                         <SelectTrigger
-                                          className={selectTriggerClass}
+                                          className={getFieldStyle(
+                                            !!errors[
+                                              `relatedPeps.${pIndex}.subCategory`
+                                            ],
+                                          )}
                                         >
                                           <SelectValue placeholder="Select" />
                                         </SelectTrigger>
@@ -2277,32 +3489,42 @@ export function BusinessRepaymentSourceForm({
                                           ))}
                                         </SelectContent>
                                       </Select>
+                                      {errors[
+                                        `relatedPeps.${pIndex}.subCategory`
+                                      ] && (
+                                        <p className="text-xs text-red-500 mt-1">
+                                          {
+                                            errors[
+                                              `relatedPeps.${pIndex}.subCategory`
+                                            ]
+                                          }
+                                        </p>
+                                      )}
                                     </div>
 
-                                    {/* FIXED: Upload Field matches grid and height */}
                                     <div className="space-y-2">
-                                      <Label className={labelClass}>
+                                      <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                                         Upload ID Proof
                                       </Label>
-                                      <div className="flex items-center gap-3 h-12">
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          onClick={() =>
-                                            document
-                                              .getElementById(
-                                                `pep-related-proof-${index}-${pIndex}`,
-                                              )
-                                              ?.click()
-                                          }
-                                          className={`${buttonClass} min-w-[120px]`}
-                                        >
-                                          <Upload className="mr-2 h-4 w-4" />
-                                          Upload
-                                        </Button>
-                                        <div className="flex-1 h-12 flex items-center px-3 bg-white border border-gray-300 rounded-md text-sm text-gray-500 truncate">
-                                          {pep.identificationProof || "No file"}
-                                        </div>
+                                      <div
+                                        className={fileUploadStyle(
+                                          !!errors[
+                                            `relatedPeps.${pIndex}.identificationProof`
+                                          ],
+                                        )}
+                                        onClick={() =>
+                                          document
+                                            .getElementById(
+                                              `pep-related-proof-${index}-${pIndex}`,
+                                            )
+                                            ?.click()
+                                        }
+                                      >
+                                        <span className="text-gray-500 truncate">
+                                          {pep.identificationProof ||
+                                            "No file chosen"}
+                                        </span>
+                                        <Upload className="h-4 w-4 text-[#003DA5]" />
                                       </div>
                                       <input
                                         id={`pep-related-proof-${index}-${pIndex}`}
@@ -2317,6 +3539,17 @@ export function BusinessRepaymentSourceForm({
                                         }
                                         className="hidden"
                                       />
+                                      {errors[
+                                        `relatedPeps.${pIndex}.identificationProof`
+                                      ] && (
+                                        <p className="text-xs text-red-500 mt-1">
+                                          {
+                                            errors[
+                                              `relatedPeps.${pIndex}.identificationProof`
+                                            ]
+                                          }
+                                        </p>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -2344,7 +3577,7 @@ export function BusinessRepaymentSourceForm({
                       F. Employment Status
                     </h4>
                     <div className="mb-6">
-                      <Label className={labelClass}>
+                      <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                         Current Status <span className="text-red-500">*</span>
                       </Label>
                       <RadioGroup
@@ -2375,13 +3608,21 @@ export function BusinessRepaymentSourceForm({
                           ),
                         )}
                       </RadioGroup>
+                      {errors.employmentStatus && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.employmentStatus}
+                        </p>
+                      )}
                     </div>
 
                     {guarantor.employmentStatus === "employed" && (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                          <Label className={labelClass}>Employee ID</Label>
-                          <Input
+                          <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                            Employee ID
+                          </Label>
+                          <RestrictedInput
+                            allowed="alphanumeric"
                             value={guarantor.employeeId || ""}
                             onChange={(e) =>
                               updateGuarantorField(
@@ -2390,19 +3631,35 @@ export function BusinessRepaymentSourceForm({
                                 e.target.value,
                               )
                             }
-                            className={commonInputClass}
+                            onBlur={(e) =>
+                              handleBlurField(
+                                index,
+                                "employeeId",
+                                e.target.value,
+                              )
+                            }
+                            className={getFieldStyle(!!errors.employeeId)}
                           />
+                          {errors.employeeId && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.employeeId}
+                            </p>
+                          )}
                         </div>
 
                         <div>
-                          <Label className={labelClass}>Occupation</Label>
+                          <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                            Occupation
+                          </Label>
                           <Select
                             value={guarantor.occupation}
                             onValueChange={(value) =>
                               updateGuarantorField(index, "occupation", value)
                             }
                           >
-                            <SelectTrigger className={selectTriggerClass}>
+                            <SelectTrigger
+                              className={getFieldStyle(!!errors.occupation)}
+                            >
                               <SelectValue placeholder="[Select]" />
                             </SelectTrigger>
                             <SelectContent>
@@ -2418,17 +3675,26 @@ export function BusinessRepaymentSourceForm({
                               ))}
                             </SelectContent>
                           </Select>
+                          {errors.occupation && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.occupation}
+                            </p>
+                          )}
                         </div>
 
                         <div>
-                          <Label className={labelClass}>Employer Type</Label>
+                          <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                            Employer Type
+                          </Label>
                           <Select
                             value={guarantor.employerType}
                             onValueChange={(value) =>
                               updateGuarantorField(index, "employerType", value)
                             }
                           >
-                            <SelectTrigger className={selectTriggerClass}>
+                            <SelectTrigger
+                              className={getFieldStyle(!!errors.employerType)}
+                            >
                               <SelectValue placeholder="[Select]" />
                             </SelectTrigger>
                             <SelectContent>
@@ -2441,11 +3707,19 @@ export function BusinessRepaymentSourceForm({
                               </SelectItem>
                             </SelectContent>
                           </Select>
+                          {errors.employerType && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.employerType}
+                            </p>
+                          )}
                         </div>
 
                         <div>
-                          <Label className={labelClass}>Designation</Label>
-                          <Input
+                          <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                            Designation
+                          </Label>
+                          <RestrictedInput
+                            allowed="alpha"
                             value={guarantor.designation || ""}
                             onChange={(e) =>
                               updateGuarantorField(
@@ -2454,19 +3728,35 @@ export function BusinessRepaymentSourceForm({
                                 e.target.value,
                               )
                             }
-                            className={commonInputClass}
+                            onBlur={(e) =>
+                              handleBlurField(
+                                index,
+                                "designation",
+                                e.target.value,
+                              )
+                            }
+                            className={getFieldStyle(!!errors.designation)}
                           />
+                          {errors.designation && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.designation}
+                            </p>
+                          )}
                         </div>
 
                         <div>
-                          <Label className={labelClass}>Grade</Label>
+                          <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                            Grade
+                          </Label>
                           <Select
                             value={guarantor.grade}
                             onValueChange={(value) =>
                               updateGuarantorField(index, "grade", value)
                             }
                           >
-                            <SelectTrigger className={selectTriggerClass}>
+                            <SelectTrigger
+                              className={getFieldStyle(!!errors.grade)}
+                            >
                               <SelectValue placeholder="[Select]" />
                             </SelectTrigger>
                             <SelectContent>
@@ -2475,10 +3765,17 @@ export function BusinessRepaymentSourceForm({
                               <SelectItem value="p3">P3</SelectItem>
                             </SelectContent>
                           </Select>
+                          {errors.grade && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.grade}
+                            </p>
+                          )}
                         </div>
 
                         <div>
-                          <Label className={labelClass}>Organization</Label>
+                          <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                            Organization
+                          </Label>
                           <Select
                             value={guarantor.organizationName}
                             onValueChange={(value) =>
@@ -2489,7 +3786,11 @@ export function BusinessRepaymentSourceForm({
                               )
                             }
                           >
-                            <SelectTrigger className={selectTriggerClass}>
+                            <SelectTrigger
+                              className={getFieldStyle(
+                                !!errors.organizationName,
+                              )}
+                            >
                               <SelectValue placeholder="[Select]" />
                             </SelectTrigger>
                             <SelectContent>
@@ -2507,11 +3808,19 @@ export function BusinessRepaymentSourceForm({
                               ))}
                             </SelectContent>
                           </Select>
+                          {errors.organizationName && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.organizationName}
+                            </p>
+                          )}
                         </div>
 
                         <div>
-                          <Label className={labelClass}>Org. Location</Label>
-                          <Input
+                          <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                            Org. Location
+                          </Label>
+                          <RestrictedInput
+                            allowed="alphanumeric"
                             value={guarantor.orgLocation || ""}
                             onChange={(e) =>
                               updateGuarantorField(
@@ -2520,12 +3829,26 @@ export function BusinessRepaymentSourceForm({
                                 e.target.value,
                               )
                             }
-                            className={commonInputClass}
+                            onBlur={(e) =>
+                              handleBlurField(
+                                index,
+                                "orgLocation",
+                                e.target.value,
+                              )
+                            }
+                            className={getFieldStyle(!!errors.orgLocation)}
                           />
+                          {errors.orgLocation && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.orgLocation}
+                            </p>
+                          )}
                         </div>
 
                         <div>
-                          <Label className={labelClass}>Joining Date</Label>
+                          <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                            Joining Date
+                          </Label>
                           <Input
                             type="date"
                             max={today}
@@ -2537,12 +3860,17 @@ export function BusinessRepaymentSourceForm({
                                 e.target.value,
                               )
                             }
-                            className={commonInputClass}
+                            className={getFieldStyle(!!errors.joiningDate)}
                           />
+                          {errors.joiningDate && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.joiningDate}
+                            </p>
+                          )}
                         </div>
 
                         <div>
-                          <Label className={labelClass}>
+                          <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                             Nature of Service
                           </Label>
                           <Select
@@ -2555,7 +3883,9 @@ export function BusinessRepaymentSourceForm({
                               )
                             }
                           >
-                            <SelectTrigger className={selectTriggerClass}>
+                            <SelectTrigger
+                              className={getFieldStyle(!!errors.serviceNature)}
+                            >
                               <SelectValue placeholder="[Select]" />
                             </SelectTrigger>
                             <SelectContent>
@@ -2568,10 +3898,17 @@ export function BusinessRepaymentSourceForm({
                               </SelectItem>
                             </SelectContent>
                           </Select>
+                          {errors.serviceNature && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.serviceNature}
+                            </p>
+                          )}
                         </div>
 
                         <div>
-                          <Label className={labelClass}>Annual Salary</Label>
+                          <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                            Annual Salary
+                          </Label>
                           <Input
                             type="number"
                             value={guarantor.annualSalary || ""}
@@ -2582,13 +3919,18 @@ export function BusinessRepaymentSourceForm({
                                 e.target.value,
                               )
                             }
-                            className={commonInputClass}
+                            className={getFieldStyle(!!errors.annualSalary)}
                           />
+                          {errors.annualSalary && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.annualSalary}
+                            </p>
+                          )}
                         </div>
 
                         {guarantor.serviceNature === "contract" && (
                           <div>
-                            <Label className={labelClass}>
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                               Contract End Date
                             </Label>
                             <Input
@@ -2602,8 +3944,15 @@ export function BusinessRepaymentSourceForm({
                                   e.target.value,
                                 )
                               }
-                              className={commonInputClass}
+                              className={getFieldStyle(
+                                !!errors.contractEndDate,
+                              )}
                             />
+                            {errors.contractEndDate && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.contractEndDate}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>

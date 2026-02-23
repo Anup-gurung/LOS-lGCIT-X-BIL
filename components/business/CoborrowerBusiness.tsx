@@ -13,9 +13,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Trash2, PlusCircle } from "lucide-react";
+import { Trash2, PlusCircle, Upload } from "lucide-react";
 
-// Import mapping utility and the Popup component
+// Import mapping utility and the Popup component (keep original search features)
 import {
   mapCustomerDataToForm,
   getVerifiedCustomerDataFromSession,
@@ -36,18 +36,106 @@ import {
   fetchPepSubCategoryByCategory,
 } from "@/services/api";
 
-interface CoBorrowerDetailsFormProps {
-  onNext: (data: any) => void;
-  onBack: () => void;
-  formData: any;
-}
+// ================== Validation Helpers ==================
+const isRequired = (value: any) => !value || value.toString().trim() === "";
+const isValidEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const isValidCID = (value: string) => /^\d{11}$/.test(value);
+const isValidTPN = (value: string) => /^\d{11}$/.test(value);
+const isValidMobile = (value: string) => /^(16|17|77)\d{6}$/.test(value); // Only 8-digit mobile numbers starting with 16,17,77
+const isValidFixedLine = (value: string) => /^[2-8]\d{6,7}$/.test(value);
+const isValidPhoneNumber = (value: string) =>
+  isValidMobile(value) || isValidFixedLine(value);
+const isLegalAge = (dateOfBirth: string): boolean => {
+  if (!dateOfBirth) return false;
+  const dob = new Date(dateOfBirth);
+  if (isNaN(dob.getTime())) return false;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age >= 18;
+};
+// ================== END Validation Helpers ==================
+
+// --- Uniform Styling (Orange Focus, Red Error) ---
+const getFieldStyle = (hasError: boolean) => {
+  const baseStyle =
+    "h-12 w-full bg-white border rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus-visible:outline-none focus:ring-1 focus-visible:ring-1 focus:ring-[#FF9800] focus-visible:ring-[#FF9800] transition-colors";
+  if (hasError) {
+    return `${baseStyle} border-red-500 focus:border-red-500 focus-visible:border-red-500`;
+  }
+  return `${baseStyle} border-gray-300 focus:border-[#FF9800] focus-visible:border-[#FF9800]`;
+};
+
+const fileUploadStyle = (hasError: boolean) =>
+  `h-12 w-full bg-white border rounded-lg flex items-center px-3 justify-between cursor-pointer hover:bg-gray-50 transition-colors text-sm ${
+    hasError ? "border-red-500" : "border-gray-300"
+  }`;
+
+// ================== Restricted Input Component ==================
+type AllowedPattern = "numeric" | "alpha" | "alphanumeric" | "text";
+
+const RestrictedInput = ({
+  allowed = "text",
+  maxLength,
+  value,
+  onChange,
+  className,
+  ...props
+}: {
+  allowed?: AllowedPattern;
+  maxLength?: number;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  className?: string;
+  [key: string]: any;
+}) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let newValue = e.target.value;
+
+    // Filter based on allowed pattern
+    if (allowed === "numeric") {
+      newValue = newValue.replace(/[^0-9]/g, "");
+    } else if (allowed === "alpha") {
+      // Allow letters, spaces, hyphens, apostrophes (for names)
+      newValue = newValue.replace(/[^a-zA-Z\s\-']/g, "");
+    } else if (allowed === "alphanumeric") {
+      // Allow letters, numbers, spaces, hyphens, underscores
+      newValue = newValue.replace(/[^a-zA-Z0-9\s\-_]/g, "");
+    }
+
+    // Apply maxLength
+    if (maxLength && newValue.length > maxLength) {
+      newValue = newValue.slice(0, maxLength);
+    }
+
+    // Call original onChange with filtered value
+    if (onChange) {
+      onChange({ ...e, target: { ...e.target, value: newValue } });
+    }
+  };
+
+  return (
+    <Input
+      value={value}
+      onChange={handleChange}
+      className={className}
+      maxLength={maxLength} // also pass to native input for browser hint
+      {...props}
+    />
+  );
+};
+// ================== END Restricted Input ==================
 
 // Helper to format dates to YYYY-MM-DD for input fields
 const formatDateForInput = (dateString: string | null | undefined) => {
   if (!dateString) return "";
   try {
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString; // Return original if invalid
+    if (isNaN(date.getTime())) return dateString;
     return date.toISOString().split("T")[0];
   } catch (e) {
     return "";
@@ -147,6 +235,12 @@ const createEmptyCoBorrower = () => ({
   errors: {},
 });
 
+interface CoBorrowerDetailsFormProps {
+  onNext: (data: any) => void;
+  onBack: () => void;
+  formData: any;
+}
+
 export function CoborrowerBusiness({
   onNext,
   onBack,
@@ -176,9 +270,9 @@ export function CoborrowerBusiness({
 
   // Calculate date constraints
   const today = new Date().toISOString().split("T")[0];
-  const fifteenYearsAgo = new Date();
-  fifteenYearsAgo.setFullYear(fifteenYearsAgo.getFullYear() - 15);
-  const maxDobDate = fifteenYearsAgo.toISOString().split("T")[0];
+  const eighteenYearsAgo = new Date();
+  eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
+  const maxDobDate = eighteenYearsAgo.toISOString().split("T")[0];
 
   // --- HELPER: Determine if Married for a specific co-borrower ---
   const getIsMarried = (coBorrower: any) => {
@@ -477,66 +571,305 @@ export function CoborrowerBusiness({
     loadPepSubCategories();
   }, [coBorrowers.map((cb) => `${cb.pepPerson}-${cb.pepCategory}`).join(",")]);
 
+  // Enhanced field validation
+  const validateField = (
+    fieldName: string,
+    value: any,
+    fullData?: any,
+  ): string => {
+    if (!value || value.toString().trim() === "") return "";
+
+    switch (fieldName) {
+      case "identificationNo":
+      case "spouseIdentificationNo":
+        if (!isValidCID(value)) return "CID must be 11 digits";
+        break;
+      case "tpn":
+        if (!isValidTPN(value)) return "TPN must be 11 digits";
+        break;
+      case "currContact":
+      case "spouseContact":
+      case "currAlternateContact":
+        // Updated to only allow Bhutanese mobile numbers (8 digits starting with 16/17/77)
+        if (!isValidMobile(value))
+          return "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
+        break;
+      case "currEmail":
+        if (!isValidEmail(value)) return "Invalid email format";
+        break;
+      case "dateOfBirth":
+        if (!isLegalAge(value))
+          return "Applicant must be at least 18 years old";
+        break;
+    }
+    return "";
+  };
+
+  // Validate all fields for a co-borrower (used on submit)
+  const validateCoBorrower = (
+    coBorrower: any,
+    index: number,
+  ): Record<string, string> => {
+    const newErrors: Record<string, string> = {};
+
+    // Personal Information
+    const personalFields = [
+      "identificationType",
+      "identificationNo",
+      "salutation",
+      "name",
+      "nationality",
+      "gender",
+      "identificationIssueDate",
+      "identificationExpiryDate",
+      "dateOfBirth",
+      "tpn",
+      "relationship",
+      "maritalStatus",
+    ];
+    personalFields.forEach((field) => {
+      if (isRequired(coBorrower[field]))
+        newErrors[field] = `${field} is required`;
+    });
+
+    // Specific format validations
+    if (coBorrower.identificationNo && !isValidCID(coBorrower.identificationNo))
+      newErrors.identificationNo = "CID must be 11 digits";
+
+    if (coBorrower.tpn && !isValidTPN(coBorrower.tpn))
+      newErrors.tpn = "TPN must be 11 digits";
+
+    if (coBorrower.dateOfBirth && !isLegalAge(coBorrower.dateOfBirth))
+      newErrors.dateOfBirth = "Applicant must be at least 18 years old";
+
+    // Spouse fields if married
+    if (getIsMarried(coBorrower)) {
+      if (isRequired(coBorrower.spouseIdentificationNo))
+        newErrors.spouseIdentificationNo = "Spouse CID is required";
+      else if (
+        coBorrower.spouseIdentificationNo &&
+        !isValidCID(coBorrower.spouseIdentificationNo)
+      )
+        newErrors.spouseIdentificationNo = "CID must be 11 digits";
+
+      if (isRequired(coBorrower.spouseName))
+        newErrors.spouseName = "Spouse name is required";
+
+      if (isRequired(coBorrower.spouseContact))
+        newErrors.spouseContact = "Spouse contact is required";
+      else if (
+        coBorrower.spouseContact &&
+        !isValidMobile(coBorrower.spouseContact)
+      )
+        newErrors.spouseContact =
+          "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
+    }
+
+    // Bank details
+    if (isRequired(coBorrower.bankName))
+      newErrors.bankName = "Bank name is required";
+    if (isRequired(coBorrower.bankAccount))
+      newErrors.bankAccount = "Bank account is required";
+
+    // Passport photo
+    if (!coBorrower.passportPhoto)
+      newErrors.passportPhoto = "Passport photo is required";
+
+    // Family tree
+    if (!coBorrower.familyTree)
+      newErrors.familyTree = "Family tree document is required";
+
+    // Permanent Address
+    if (isRequired(coBorrower.permCountry))
+      newErrors.permCountry = "Country is required";
+
+    const isBhutanPerm = countryOptions.find(
+      (c) =>
+        String(c.country_pk_code || c.id || c.code) ===
+          coBorrower.permCountry &&
+        (c.country || c.name || "").toLowerCase().includes("bhutan"),
+    );
+
+    if (isBhutanPerm) {
+      if (isRequired(coBorrower.permDzongkhag))
+        newErrors.permDzongkhag = "Dzongkhag is required";
+      if (isRequired(coBorrower.permGewog))
+        newErrors.permGewog = "Gewog is required";
+      if (isRequired(coBorrower.permVillage))
+        newErrors.permVillage = "Village/Street is required";
+      if (isRequired(coBorrower.permThram))
+        newErrors.permThram = "Thram number is required";
+      if (isRequired(coBorrower.permHouse))
+        newErrors.permHouse = "House number is required";
+    } else {
+      if (isRequired(coBorrower.permDzongkhag))
+        newErrors.permDzongkhag = "State is required";
+      if (isRequired(coBorrower.permGewog))
+        newErrors.permGewog = "Province is required";
+      if (isRequired(coBorrower.permVillage))
+        newErrors.permVillage = "Street name is required";
+      if (!coBorrower.permAddressProof)
+        newErrors.permAddressProof = "Address proof is required";
+    }
+
+    // Current Address
+    if (isRequired(coBorrower.currCountry))
+      newErrors.currCountry = "Country is required";
+
+    const isBhutanCurr = countryOptions.find(
+      (c) =>
+        String(c.country_pk_code || c.id || c.code) ===
+          coBorrower.currCountry &&
+        (c.country || c.name || "").toLowerCase().includes("bhutan"),
+    );
+
+    if (isBhutanCurr) {
+      if (isRequired(coBorrower.currDzongkhag))
+        newErrors.currDzongkhag = "Dzongkhag is required";
+      if (isRequired(coBorrower.currGewog))
+        newErrors.currGewog = "Gewog is required";
+      if (isRequired(coBorrower.currVillage))
+        newErrors.currVillage = "Village/Street is required";
+      if (isRequired(coBorrower.currFlat))
+        newErrors.currFlat = "Flat/House number is required";
+    } else {
+      if (isRequired(coBorrower.currDzongkhag))
+        newErrors.currDzongkhag = "State is required";
+      if (isRequired(coBorrower.currGewog))
+        newErrors.currGewog = "Province is required";
+      if (isRequired(coBorrower.currVillage))
+        newErrors.currVillage = "Street name is required";
+      if (!coBorrower.currAddressProof)
+        newErrors.currAddressProof = "Address proof is required";
+    }
+
+    if (isRequired(coBorrower.currEmail))
+      newErrors.currEmail = "Email is required";
+    else if (coBorrower.currEmail && !isValidEmail(coBorrower.currEmail))
+      newErrors.currEmail = "Invalid email format";
+
+    if (isRequired(coBorrower.currContact))
+      newErrors.currContact = "Contact number is required";
+    else if (coBorrower.currContact && !isValidMobile(coBorrower.currContact))
+      newErrors.currContact =
+        "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
+
+    if (
+      coBorrower.currAlternateContact &&
+      !isValidMobile(coBorrower.currAlternateContact)
+    )
+      newErrors.currAlternateContact =
+        "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
+
+    // PEP Declaration
+    if (isRequired(coBorrower.pepPerson))
+      newErrors.pepPerson = "PEP status is required";
+    if (coBorrower.pepPerson === "yes") {
+      if (isRequired(coBorrower.pepCategory))
+        newErrors.pepCategory = "PEP category is required";
+      if (isRequired(coBorrower.pepSubCategory))
+        newErrors.pepSubCategory = "PEP sub-category is required";
+      if (!coBorrower.identificationProof)
+        newErrors.identificationProof = "Identification proof is required";
+    } else if (coBorrower.pepPerson === "no") {
+      if (isRequired(coBorrower.pepRelated))
+        newErrors.pepRelated = "Please indicate if related to a PEP";
+      if (coBorrower.pepRelated === "yes") {
+        (coBorrower.relatedPeps || []).forEach((pep: any, pepIdx: number) => {
+          if (isRequired(pep.relationship))
+            newErrors[`relatedPeps.${pepIdx}.relationship`] =
+              "Relationship is required";
+          if (isRequired(pep.identificationNo))
+            newErrors[`relatedPeps.${pepIdx}.identificationNo`] =
+              "Identification number is required";
+          else if (pep.identificationNo && !isValidCID(pep.identificationNo))
+            newErrors[`relatedPeps.${pepIdx}.identificationNo`] =
+              "Must be 11 digits";
+          if (isRequired(pep.category))
+            newErrors[`relatedPeps.${pepIdx}.category`] =
+              "PEP category is required";
+          if (isRequired(pep.subCategory))
+            newErrors[`relatedPeps.${pepIdx}.subCategory`] =
+              "PEP sub-category is required";
+          if (!pep.identificationProof)
+            newErrors[`relatedPeps.${pepIdx}.identificationProof`] =
+              "Identification proof is required";
+        });
+      }
+    }
+
+    // Related to BIL
+    if (isRequired(coBorrower.relatedToBil))
+      newErrors.relatedToBil = "Please select an option";
+
+    // Employment
+    if (isRequired(coBorrower.employmentStatus))
+      newErrors.employmentStatus = "Employment status is required";
+    if (coBorrower.employmentStatus === "employed") {
+      const empFields = [
+        "employeeId",
+        "occupation",
+        "employerType",
+        "designation",
+        "grade",
+        "organizationName",
+        "orgLocation",
+        "joiningDate",
+        "annualSalary",
+        "serviceNature",
+      ];
+      empFields.forEach((field) => {
+        if (isRequired(coBorrower[field]))
+          newErrors[field] = `${field} is required`;
+      });
+      if (coBorrower.serviceNature === "contract") {
+        if (isRequired(coBorrower.contractEndDate))
+          newErrors.contractEndDate = "Contract end date is required";
+      }
+    }
+
+    return newErrors;
+  };
+
   const handleFileChange = (
     index: number,
     fieldName: string,
     file: File | null,
   ) => {
-    if (file) {
-      const allowedTypes = [
-        "application/pdf",
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-      ];
-      const maxSize = 5 * 1024 * 1024; // 5MB
+    setCoBorrowers((prev) => {
+      const updated = [...prev];
+      const errors = { ...updated[index].errors };
 
-      if (!allowedTypes.includes(file.type)) {
-        setCoBorrowers((prev) => {
-          const updated = [...prev];
+      if (file) {
+        const allowedTypes = [
+          "application/pdf",
+          "image/jpeg",
+          "image/jpg",
+          "image/png",
+        ];
+        const maxSize = 5 * 1024 * 1024; // 5MB
+
+        if (!allowedTypes.includes(file.type)) {
+          errors[fieldName] = "Only PDF, JPG, JPEG, and PNG files are allowed";
+        } else if (file.size > maxSize) {
+          errors[fieldName] = "File size must be less than 5MB";
+        } else {
+          errors[fieldName] = "";
           updated[index] = {
             ...updated[index],
-            errors: {
-              ...updated[index].errors,
-              [fieldName]: "Only PDF, JPG, JPEG, and PNG files are allowed",
-            },
+            [fieldName]: file.name,
           };
-          return updated;
-        });
-        return;
+        }
+      } else {
+        errors[fieldName] = "File is required";
       }
 
-      if (file.size > maxSize) {
-        setCoBorrowers((prev) => {
-          const updated = [...prev];
-          updated[index] = {
-            ...updated[index],
-            errors: {
-              ...updated[index].errors,
-              [fieldName]: "File size must be less than 5MB",
-            },
-          };
-          return updated;
-        });
-        return;
-      }
-
-      setCoBorrowers((prev) => {
-        const updated = [...prev];
-        updated[index] = {
-          ...updated[index],
-          [fieldName]: file.name,
-          errors: {
-            ...updated[index].errors,
-            [fieldName]: "",
-          },
-        };
-        return updated;
-      });
-    }
+      updated[index] = { ...updated[index], errors };
+      return updated;
+    });
   };
 
-  // --- AUTOMATIC LOOKUP LOGIC ---
+  // --- AUTOMATIC LOOKUP LOGIC (ORIGINAL SEARCH FEATURE) ---
   const handleIdentityCheck = async (index: number) => {
     const coBorrower = coBorrowers[index];
     const idType = coBorrower.identificationType;
@@ -608,172 +941,6 @@ export function CoborrowerBusiness({
     }
   };
 
-  // --- HANDLERS FOR MULTIPLE PEP DECLARATIONS ---
-  const handleAddRelatedPep = (index: number) => {
-    setCoBorrowers((prev) => {
-      const updated = [...prev];
-      updated[index] = {
-        ...updated[index],
-        relatedPeps: [
-          ...(updated[index].relatedPeps || []),
-          createEmptyRelatedPep(),
-        ],
-      };
-      return updated;
-    });
-  };
-
-  const handleRemoveRelatedPep = (index: number, pepIndex: number) => {
-    setCoBorrowers((prev) => {
-      const updated = [...prev];
-      const updatedPeps = (updated[index].relatedPeps || []).filter(
-        (_: any, i: number) => i !== pepIndex,
-      );
-
-      // Cleanup options map
-      const newOptionsMap: Record<number, any[]> = {
-        ...updated[index].relatedPepOptionsMap,
-      };
-      Object.keys(newOptionsMap).forEach((key) => {
-        const keyNum = parseInt(key);
-        if (keyNum > pepIndex) {
-          newOptionsMap[keyNum - 1] = newOptionsMap[keyNum];
-          delete newOptionsMap[keyNum];
-        }
-      });
-
-      updated[index] = {
-        ...updated[index],
-        relatedPeps: updatedPeps,
-        relatedPepOptionsMap: newOptionsMap,
-      };
-      return updated;
-    });
-  };
-
-  const handleRelatedPepChange = async (
-    coBorrowerIndex: number,
-    pepIndex: number,
-    field: string,
-    value: string,
-  ) => {
-    setCoBorrowers((prev) => {
-      const updated = [...prev];
-      const updatedPeps = [...(updated[coBorrowerIndex].relatedPeps || [])];
-      if (!updatedPeps[pepIndex]) {
-        updatedPeps[pepIndex] = createEmptyRelatedPep();
-      }
-
-      updatedPeps[pepIndex] = { ...updatedPeps[pepIndex], [field]: value };
-
-      // Special logic for Category change -> Fetch Sub Categories
-      if (field === "category") {
-        updatedPeps[pepIndex].subCategory = ""; // Clear sub category
-        fetchPepSubCategoryByCategory(value)
-          .then((options) => {
-            setCoBorrowers((current) => {
-              const currentUpdated = [...current];
-              currentUpdated[coBorrowerIndex] = {
-                ...currentUpdated[coBorrowerIndex],
-                relatedPepOptionsMap: {
-                  ...currentUpdated[coBorrowerIndex].relatedPepOptionsMap,
-                  [pepIndex]: options || [],
-                },
-              };
-              return currentUpdated;
-            });
-          })
-          .catch((e) => {
-            console.error("Failed to fetch PEP sub-categories:", e);
-            setCoBorrowers((current) => {
-              const currentUpdated = [...current];
-              currentUpdated[coBorrowerIndex] = {
-                ...currentUpdated[coBorrowerIndex],
-                relatedPepOptionsMap: {
-                  ...currentUpdated[coBorrowerIndex].relatedPepOptionsMap,
-                  [pepIndex]: [],
-                },
-              };
-              return currentUpdated;
-            });
-          });
-      }
-
-      updated[coBorrowerIndex] = {
-        ...updated[coBorrowerIndex],
-        relatedPeps: updatedPeps,
-      };
-      return updated;
-    });
-  };
-
-  const handleRelatedPepFileChange = (
-    coBorrowerIndex: number,
-    pepIndex: number,
-    file: File | null,
-  ) => {
-    if (file) {
-      const allowedTypes = [
-        "application/pdf",
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-      ];
-      const maxSize = 5 * 1024 * 1024;
-
-      if (!allowedTypes.includes(file.type)) return;
-      if (file.size > maxSize) return;
-
-      setCoBorrowers((prev) => {
-        const updated = [...prev];
-        const updatedPeps = [...(updated[coBorrowerIndex].relatedPeps || [])];
-        if (!updatedPeps[pepIndex]) {
-          updatedPeps[pepIndex] = createEmptyRelatedPep();
-        }
-
-        updatedPeps[pepIndex] = {
-          ...updatedPeps[pepIndex],
-          identificationProof: file.name,
-        };
-        updated[coBorrowerIndex] = {
-          ...updated[coBorrowerIndex],
-          relatedPeps: updatedPeps,
-        };
-        return updated;
-      });
-    }
-  };
-
-  const validateDates = (coBorrower: any) => {
-    const newErrors: Record<string, string> = {};
-
-    if (
-      coBorrower.identificationIssueDate &&
-      coBorrower.identificationIssueDate > today
-    ) {
-      newErrors.identificationIssueDate = "Issue date cannot be in the future";
-    }
-    if (
-      coBorrower.identificationExpiryDate &&
-      coBorrower.identificationExpiryDate < today
-    ) {
-      newErrors.identificationExpiryDate = "Expiry date cannot be in the past";
-    }
-    if (coBorrower.dateOfBirth && coBorrower.dateOfBirth > maxDobDate) {
-      newErrors.dateOfBirth = "You must be at least 15 years old";
-    }
-    if (
-      coBorrower.identificationIssueDate &&
-      coBorrower.identificationExpiryDate &&
-      coBorrower.identificationIssueDate >= coBorrower.identificationExpiryDate
-    ) {
-      newErrors.identificationExpiryDate =
-        "Expiry date must be after issue date";
-    }
-
-    return newErrors;
-  };
-
   const handleLookupProceed = (index: number) => {
     const coBorrower = coBorrowers[index];
     if (coBorrower.lookupStatus === "found" && coBorrower.fetchedCustomerData) {
@@ -842,6 +1009,156 @@ export function CoborrowerBusiness({
     }
   };
 
+  // --- HANDLERS FOR MULTIPLE PEP DECLARATIONS ---
+  const handleAddRelatedPep = (index: number) => {
+    setCoBorrowers((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        relatedPeps: [
+          ...(updated[index].relatedPeps || []),
+          createEmptyRelatedPep(),
+        ],
+      };
+      return updated;
+    });
+  };
+
+  const handleRemoveRelatedPep = (index: number, pepIndex: number) => {
+    setCoBorrowers((prev) => {
+      const updated = [...prev];
+      const updatedPeps = (updated[index].relatedPeps || []).filter(
+        (_: any, i: number) => i !== pepIndex,
+      );
+
+      // Cleanup options map and errors
+      const newOptionsMap: Record<number, any[]> = {
+        ...updated[index].relatedPepOptionsMap,
+      };
+      Object.keys(newOptionsMap).forEach((key) => {
+        const keyNum = parseInt(key);
+        if (keyNum > pepIndex) {
+          newOptionsMap[keyNum - 1] = newOptionsMap[keyNum];
+          delete newOptionsMap[keyNum];
+        }
+      });
+
+      const errors = { ...updated[index].errors };
+      // Remove errors for removed pep
+      Object.keys(errors).forEach((key) => {
+        if (key.startsWith(`relatedPeps.${pepIndex}`)) {
+          delete errors[key];
+        }
+      });
+
+      updated[index] = {
+        ...updated[index],
+        relatedPeps: updatedPeps,
+        relatedPepOptionsMap: newOptionsMap,
+        errors,
+      };
+      return updated;
+    });
+  };
+
+  const handleRelatedPepChange = async (
+    coBorrowerIndex: number,
+    pepIndex: number,
+    field: string,
+    value: string,
+  ) => {
+    setCoBorrowers((prev) => {
+      const updated = [...prev];
+      const updatedPeps = [...(updated[coBorrowerIndex].relatedPeps || [])];
+      if (!updatedPeps[pepIndex]) {
+        updatedPeps[pepIndex] = createEmptyRelatedPep();
+      }
+
+      updatedPeps[pepIndex] = { ...updatedPeps[pepIndex], [field]: value };
+
+      // Clear error for this field
+      const errors = { ...updated[coBorrowerIndex].errors };
+      const errorKey = `relatedPeps.${pepIndex}.${field}`;
+      delete errors[errorKey];
+
+      // Special logic for Category change -> Fetch Sub Categories
+      if (field === "category") {
+        updatedPeps[pepIndex].subCategory = ""; // Clear sub category
+        fetchPepSubCategoryByCategory(value)
+          .then((options) => {
+            setCoBorrowers((current) => {
+              const currentUpdated = [...current];
+              currentUpdated[coBorrowerIndex] = {
+                ...currentUpdated[coBorrowerIndex],
+                relatedPepOptionsMap: {
+                  ...currentUpdated[coBorrowerIndex].relatedPepOptionsMap,
+                  [pepIndex]: options || [],
+                },
+              };
+              return currentUpdated;
+            });
+          })
+          .catch((e) => {
+            console.error("Failed to fetch PEP sub-categories:", e);
+            setCoBorrowers((current) => {
+              const currentUpdated = [...current];
+              currentUpdated[coBorrowerIndex] = {
+                ...currentUpdated[coBorrowerIndex],
+                relatedPepOptionsMap: {
+                  ...currentUpdated[coBorrowerIndex].relatedPepOptionsMap,
+                  [pepIndex]: [],
+                },
+              };
+              return currentUpdated;
+            });
+          });
+      }
+
+      updated[coBorrowerIndex] = {
+        ...updated[coBorrowerIndex],
+        relatedPeps: updatedPeps,
+        errors,
+      };
+      return updated;
+    });
+  };
+
+  const handleRelatedPepFileChange = (
+    coBorrowerIndex: number,
+    pepIndex: number,
+    file: File | null,
+  ) => {
+    if (file) {
+      const allowedTypes = [
+        "application/pdf",
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+      ];
+      const maxSize = 5 * 1024 * 1024;
+
+      if (!allowedTypes.includes(file.type) || file.size > maxSize) return;
+
+      setCoBorrowers((prev) => {
+        const updated = [...prev];
+        const updatedPeps = [...(updated[coBorrowerIndex].relatedPeps || [])];
+        if (!updatedPeps[pepIndex]) {
+          updatedPeps[pepIndex] = createEmptyRelatedPep();
+        }
+
+        updatedPeps[pepIndex] = {
+          ...updatedPeps[pepIndex],
+          identificationProof: file.name,
+        };
+        updated[coBorrowerIndex] = {
+          ...updated[coBorrowerIndex],
+          relatedPeps: updatedPeps,
+        };
+        return updated;
+      });
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -855,11 +1172,11 @@ export function CoborrowerBusiness({
     }
 
     // Validate all co-borrowers
-    const validatedCoBorrowers = coBorrowers.map((coBorrower) => {
-      const dateErrors = validateDates(coBorrower);
+    const validatedCoBorrowers = coBorrowers.map((coBorrower, idx) => {
+      const fieldErrors = validateCoBorrower(coBorrower, idx);
       return {
         ...coBorrower,
-        errors: { ...coBorrower.errors, ...dateErrors },
+        errors: fieldErrors,
         isMarried: getIsMarried(coBorrower),
       };
     });
@@ -868,14 +1185,18 @@ export function CoborrowerBusiness({
 
     // Check if there are any errors
     const hasErrors = validatedCoBorrowers.some((coBorrower) =>
-      Object.values(coBorrower.errors || {}).some((error) => error),
+      Object.values(coBorrower.errors || {}).some(
+        (error) => error && error !== "",
+      ),
     );
 
     if (!hasErrors) {
       onNext({
         isCoBorrowerApplicable: "yes",
-        coBorrowers: validatedCoBorrowers,
+        coBorrowers: validatedCoBorrowers.map(({ errors, ...rest }) => rest),
       });
+    } else {
+      alert("Please fix the errors before proceeding.");
     }
   };
 
@@ -885,10 +1206,8 @@ export function CoborrowerBusiness({
 
   const removeCoBorrower = (index: number) => {
     if (index === 0 && coBorrowers.length === 1) {
-      // Don't remove the first co-borrower if it's the only one
       return;
     }
-
     const updatedCoBorrowers = coBorrowers.filter((_, i) => i !== index);
     setCoBorrowers(updatedCoBorrowers);
   };
@@ -899,7 +1218,6 @@ export function CoborrowerBusiness({
       updated[index] = {
         ...updated[index],
         [field]: value,
-        // Clear dependent fields when parent field changes
         ...(field === "pepPerson" && value === "yes" ? { pepRelated: "" } : {}),
         ...(field === "pepPerson" && value === "no"
           ? {
@@ -920,8 +1238,27 @@ export function CoborrowerBusiness({
             }
           : {}),
       };
+      // Clear error for this field
+      const errors = { ...updated[index].errors };
+      delete errors[field];
+      updated[index].errors = errors;
       return updated;
     });
+  };
+
+  // Real-time validation on blur
+  const handleBlurField = (index: number, field: string, value: any) => {
+    const errorMsg = validateField(field, value);
+    if (errorMsg) {
+      setCoBorrowers((prev) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          errors: { ...updated[index].errors, [field]: errorMsg },
+        };
+        return updated;
+      });
+    }
   };
 
   // Render a single co-borrower form section
@@ -929,6 +1266,20 @@ export function CoborrowerBusiness({
     const isMarried = getIsMarried(coBorrower);
     const relatedPeps = coBorrower.relatedPeps || [createEmptyRelatedPep()];
     const errors = coBorrower.errors || {};
+
+    const isBhutanPerm = countryOptions.find(
+      (c) =>
+        String(c.country_pk_code || c.id || c.code) ===
+          coBorrower.permCountry &&
+        (c.country || c.name || "").toLowerCase().includes("bhutan"),
+    );
+
+    const isBhutanCurr = countryOptions.find(
+      (c) =>
+        String(c.country_pk_code || c.id || c.code) ===
+          coBorrower.currCountry &&
+        (c.country || c.name || "").toLowerCase().includes("bhutan"),
+    );
 
     return (
       <div
@@ -956,7 +1307,7 @@ export function CoborrowerBusiness({
           )}
         </div>
 
-        {/* Search Status Popup for this co-borrower */}
+        {/* Search Status Popup for this co-borrower (ORIGINAL SEARCH FEATURE) */}
         {coBorrower.showLookupPopup && (
           <DocumentPopup
             open={coBorrower.showLookupPopup}
@@ -992,44 +1343,49 @@ export function CoborrowerBusiness({
               >
                 Identification Type <span className="text-destructive">*</span>
               </Label>
-              <div className="w-full h-12" style={{ minHeight: "48px" }}>
-                <Select
-                  value={coBorrower.identificationType}
-                  onValueChange={(value) => {
-                    updateCoBorrowerField(index, "identificationType", value);
-                  }}
+              <Select
+                value={coBorrower.identificationType}
+                onValueChange={(value) => {
+                  updateCoBorrowerField(index, "identificationType", value);
+                }}
+              >
+                <SelectTrigger
+                  className={getFieldStyle(!!errors.identificationType)}
                 >
-                  <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {identificationTypeOptions.length > 0 ? (
-                      identificationTypeOptions.map((option, optionIndex) => {
-                        const key =
-                          option.identity_type_pk_code ||
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent>
+                  {identificationTypeOptions.length > 0 ? (
+                    identificationTypeOptions.map((option, optionIndex) => {
+                      const key =
+                        option.identity_type_pk_code ||
+                        option.id ||
+                        `id-${optionIndex}`;
+                      const value = String(
+                        option.identity_type_pk_code ||
                           option.id ||
-                          `id-${optionIndex}`;
-                        const value = String(
-                          option.identity_type_pk_code ||
-                            option.id ||
-                            optionIndex,
-                        );
-                        const label =
-                          option.identity_type || option.name || "Unknown";
-                        return (
-                          <SelectItem key={key} value={value}>
-                            {label}
-                          </SelectItem>
-                        );
-                      })
-                    ) : (
-                      <SelectItem value="loading" disabled>
-                        Loading...
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+                          optionIndex,
+                      );
+                      const label =
+                        option.identity_type || option.name || "Unknown";
+                      return (
+                        <SelectItem key={key} value={value}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })
+                  ) : (
+                    <SelectItem value="loading" disabled>
+                      Loading...
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.identificationType && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.identificationType}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2.5">
@@ -1039,10 +1395,12 @@ export function CoborrowerBusiness({
               >
                 Identification No. <span className="text-destructive">*</span>
               </Label>
-              <Input
+              <RestrictedInput
+                allowed="numeric"
+                maxLength={11}
                 id={`co-identificationNo-${index}`}
                 placeholder="Enter identification No"
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className={getFieldStyle(!!errors.identificationNo)}
                 value={coBorrower.identificationNo || ""}
                 onChange={(e) =>
                   updateCoBorrowerField(
@@ -1051,9 +1409,13 @@ export function CoborrowerBusiness({
                     e.target.value,
                   )
                 }
-                onBlur={() => handleIdentityCheck(index)}
-                required
+                onBlur={() => handleIdentityCheck(index)} // ORIGINAL SEARCH TRIGGER
               />
+              {errors.identificationNo && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.identificationNo}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1066,24 +1428,25 @@ export function CoborrowerBusiness({
               >
                 Salutation <span className="text-destructive">*</span>
               </Label>
-              <div className="w-full h-12" style={{ minHeight: "48px" }}>
-                <Select
-                  value={coBorrower.salutation}
-                  onValueChange={(value) =>
-                    updateCoBorrowerField(index, "salutation", value)
-                  }
-                >
-                  <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mr">Mr.</SelectItem>
-                    <SelectItem value="mrs">Mrs.</SelectItem>
-                    <SelectItem value="ms">Ms.</SelectItem>
-                    <SelectItem value="dr">Dr.</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select
+                value={coBorrower.salutation}
+                onValueChange={(value) =>
+                  updateCoBorrowerField(index, "salutation", value)
+                }
+              >
+                <SelectTrigger className={getFieldStyle(!!errors.salutation)}>
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mr">Mr.</SelectItem>
+                  <SelectItem value="mrs">Mrs.</SelectItem>
+                  <SelectItem value="ms">Ms.</SelectItem>
+                  <SelectItem value="dr">Dr.</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.salutation && (
+                <p className="text-xs text-red-500 mt-1">{errors.salutation}</p>
+              )}
             </div>
 
             <div className="space-y-2.5">
@@ -1093,16 +1456,20 @@ export function CoborrowerBusiness({
               >
                 Co-Borrower Name <span className="text-destructive">*</span>
               </Label>
-              <Input
+              <RestrictedInput
+                allowed="alpha"
                 id={`co-name-${index}`}
                 placeholder="Enter Full Name"
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className={getFieldStyle(!!errors.name)}
                 value={coBorrower.name || ""}
                 onChange={(e) =>
                   updateCoBorrowerField(index, "name", e.target.value)
                 }
-                required
+                onBlur={(e) => handleBlurField(index, "name", e.target.value)}
               />
+              {errors.name && (
+                <p className="text-xs text-red-500 mt-1">{errors.name}</p>
+              )}
             </div>
 
             <div className="space-y-2.5">
@@ -1112,46 +1479,47 @@ export function CoborrowerBusiness({
               >
                 Nationality <span className="text-destructive">*</span>
               </Label>
-              <div className="w-full h-12" style={{ minHeight: "48px" }}>
-                <Select
-                  value={
-                    coBorrower.nationality ? String(coBorrower.nationality) : ""
-                  }
-                  onValueChange={(value) =>
-                    updateCoBorrowerField(index, "nationality", value)
-                  }
-                >
-                  <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nationalityOptions.length > 0 ? (
-                      nationalityOptions.map((option, optionIndex) => {
-                        const key =
-                          option.nationality_pk_code ||
-                          option.id ||
-                          `nationality-${optionIndex}`;
-                        const value = String(
-                          option.nationality_pk_code ||
-                            option.id ||
-                            optionIndex,
-                        );
-                        const label =
-                          option.nationality || option.name || "Unknown";
-                        return (
-                          <SelectItem key={key} value={value}>
-                            {label}
-                          </SelectItem>
-                        );
-                      })
-                    ) : (
-                      <SelectItem value="loading" disabled>
-                        Loading...
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select
+                value={
+                  coBorrower.nationality ? String(coBorrower.nationality) : ""
+                }
+                onValueChange={(value) =>
+                  updateCoBorrowerField(index, "nationality", value)
+                }
+              >
+                <SelectTrigger className={getFieldStyle(!!errors.nationality)}>
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent>
+                  {nationalityOptions.length > 0 ? (
+                    nationalityOptions.map((option, optionIndex) => {
+                      const key =
+                        option.nationality_pk_code ||
+                        option.id ||
+                        `nationality-${optionIndex}`;
+                      const value = String(
+                        option.nationality_pk_code || option.id || optionIndex,
+                      );
+                      const label =
+                        option.nationality || option.name || "Unknown";
+                      return (
+                        <SelectItem key={key} value={value}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })
+                  ) : (
+                    <SelectItem value="loading" disabled>
+                      Loading...
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.nationality && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.nationality}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2.5">
@@ -1161,23 +1529,24 @@ export function CoborrowerBusiness({
               >
                 Gender <span className="text-destructive">*</span>
               </Label>
-              <div className="w-full h-12" style={{ minHeight: "48px" }}>
-                <Select
-                  value={coBorrower.gender}
-                  onValueChange={(value) =>
-                    updateCoBorrowerField(index, "gender", value)
-                  }
-                >
-                  <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select
+                value={coBorrower.gender}
+                onValueChange={(value) =>
+                  updateCoBorrowerField(index, "gender", value)
+                }
+              >
+                <SelectTrigger className={getFieldStyle(!!errors.gender)}>
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.gender && (
+                <p className="text-xs text-red-500 mt-1">{errors.gender}</p>
+              )}
             </div>
           </div>
 
@@ -1194,7 +1563,7 @@ export function CoborrowerBusiness({
               <Input
                 type="date"
                 id={`co-identificationIssueDate-${index}`}
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className={getFieldStyle(!!errors.identificationIssueDate)}
                 value={formatDateForInput(coBorrower.identificationIssueDate)}
                 onChange={(e) =>
                   updateCoBorrowerField(
@@ -1203,7 +1572,6 @@ export function CoborrowerBusiness({
                     e.target.value,
                   )
                 }
-                required
               />
               {errors.identificationIssueDate && (
                 <p className="text-xs text-red-500 mt-1">
@@ -1223,7 +1591,7 @@ export function CoborrowerBusiness({
               <Input
                 type="date"
                 id={`co-identificationExpiryDate-${index}`}
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className={getFieldStyle(!!errors.identificationExpiryDate)}
                 value={formatDateForInput(coBorrower.identificationExpiryDate)}
                 onChange={(e) =>
                   updateCoBorrowerField(
@@ -1232,7 +1600,6 @@ export function CoborrowerBusiness({
                     e.target.value,
                   )
                 }
-                required
               />
               {errors.identificationExpiryDate && (
                 <p className="text-xs text-red-500 mt-1">
@@ -1251,12 +1618,12 @@ export function CoborrowerBusiness({
               <Input
                 type="date"
                 id={`co-dateOfBirth-${index}`}
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className={getFieldStyle(!!errors.dateOfBirth)}
                 value={formatDateForInput(coBorrower.dateOfBirth)}
                 onChange={(e) =>
                   updateCoBorrowerField(index, "dateOfBirth", e.target.value)
                 }
-                required
+                max={maxDobDate}
               />
               {errors.dateOfBirth && (
                 <p className="text-xs text-red-500 mt-1">
@@ -1272,16 +1639,21 @@ export function CoborrowerBusiness({
               >
                 TPN No <span className="text-destructive">*</span>
               </Label>
-              <Input
+              <RestrictedInput
+                allowed="numeric"
+                maxLength={11}
                 id={`co-tpn-${index}`}
                 placeholder="Enter TPN"
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className={getFieldStyle(!!errors.tpn)}
                 value={coBorrower.tpn || ""}
                 onChange={(e) =>
                   updateCoBorrowerField(index, "tpn", e.target.value)
                 }
-                required
+                onBlur={(e) => handleBlurField(index, "tpn", e.target.value)}
               />
+              {errors.tpn && (
+                <p className="text-xs text-red-500 mt-1">{errors.tpn}</p>
+              )}
             </div>
           </div>
 
@@ -1295,25 +1667,28 @@ export function CoborrowerBusiness({
                 Relationship to Borrower{" "}
                 <span className="text-destructive">*</span>
               </Label>
-              <div className="w-full h-12" style={{ minHeight: "48px" }}>
-                <Select
-                  value={coBorrower.relationship}
-                  onValueChange={(value) =>
-                    updateCoBorrowerField(index, "relationship", value)
-                  }
-                >
-                  <SelectTrigger className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="spouse">Spouse</SelectItem>
-                    <SelectItem value="parent">Parent</SelectItem>
-                    <SelectItem value="sibling">Sibling</SelectItem>
-                    <SelectItem value="child">Child</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select
+                value={coBorrower.relationship}
+                onValueChange={(value) =>
+                  updateCoBorrowerField(index, "relationship", value)
+                }
+              >
+                <SelectTrigger className={getFieldStyle(!!errors.relationship)}>
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="spouse">Spouse</SelectItem>
+                  <SelectItem value="parent">Parent</SelectItem>
+                  <SelectItem value="sibling">Sibling</SelectItem>
+                  <SelectItem value="child">Child</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.relationship && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.relationship}
+                </p>
+              )}
             </div>
             <div className="space-y-2.5">
               <Label
@@ -1328,7 +1703,9 @@ export function CoborrowerBusiness({
                   updateCoBorrowerField(index, "maritalStatus", value)
                 }
               >
-                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                <SelectTrigger
+                  className={getFieldStyle(!!errors.maritalStatus)}
+                >
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -1368,6 +1745,11 @@ export function CoborrowerBusiness({
                   )}
                 </SelectContent>
               </Select>
+              {errors.maritalStatus && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.maritalStatus}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1386,10 +1768,12 @@ export function CoborrowerBusiness({
                   >
                     Spouse CID/ID No. <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <RestrictedInput
+                    allowed="numeric"
+                    maxLength={11}
                     id={`spouseIdentificationNo-${index}`}
                     placeholder="Enter Spouse CID/ID"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                    className={getFieldStyle(!!errors.spouseIdentificationNo)}
                     value={coBorrower.spouseIdentificationNo || ""}
                     onChange={(e) =>
                       updateCoBorrowerField(
@@ -1398,8 +1782,19 @@ export function CoborrowerBusiness({
                         e.target.value,
                       )
                     }
-                    required
+                    onBlur={(e) =>
+                      handleBlurField(
+                        index,
+                        "spouseIdentificationNo",
+                        e.target.value,
+                      )
+                    }
                   />
+                  {errors.spouseIdentificationNo && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spouseIdentificationNo}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5 sm:space-y-2.5">
@@ -1409,16 +1804,24 @@ export function CoborrowerBusiness({
                   >
                     Spouse Name <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <RestrictedInput
+                    allowed="alpha"
                     id={`spouseName-${index}`}
                     placeholder="Enter Spouse Full Name"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                    className={getFieldStyle(!!errors.spouseName)}
                     value={coBorrower.spouseName || ""}
                     onChange={(e) =>
                       updateCoBorrowerField(index, "spouseName", e.target.value)
                     }
-                    required
+                    onBlur={(e) =>
+                      handleBlurField(index, "spouseName", e.target.value)
+                    }
                   />
+                  {errors.spouseName && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spouseName}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5 sm:space-y-2.5">
@@ -1428,10 +1831,12 @@ export function CoborrowerBusiness({
                   >
                     Spouse Contact No. <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <RestrictedInput
+                    allowed="numeric"
+                    maxLength={8}
                     id={`spouseContact-${index}`}
                     placeholder="Enter Contact Number"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                    className={getFieldStyle(!!errors.spouseContact)}
                     value={coBorrower.spouseContact || ""}
                     onChange={(e) =>
                       updateCoBorrowerField(
@@ -1440,8 +1845,15 @@ export function CoborrowerBusiness({
                         e.target.value,
                       )
                     }
-                    required
+                    onBlur={(e) =>
+                      handleBlurField(index, "spouseContact", e.target.value)
+                    }
                   />
+                  {errors.spouseContact && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spouseContact}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1455,37 +1867,30 @@ export function CoborrowerBusiness({
               >
                 Upload Family Tree <span className="text-red-500">*</span>
               </Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="file"
-                  id={`uploadFamilyTree-${index}`}
-                  className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) =>
-                    handleFileChange(
-                      index,
-                      "familyTree",
-                      e.target.files?.[0] || null,
-                    )
-                  }
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-28 bg-transparent"
-                  onClick={() =>
-                    document
-                      .getElementById(`uploadFamilyTree-${index}`)
-                      ?.click()
-                  }
-                >
-                  Choose File
-                </Button>
-                <span className="text-sm text-muted-foreground">
+              <div
+                className={fileUploadStyle(!!errors.familyTree)}
+                onClick={() =>
+                  document.getElementById(`uploadFamilyTree-${index}`)?.click()
+                }
+              >
+                <span className="text-gray-500 truncate">
                   {coBorrower.familyTree || "No file chosen"}
                 </span>
+                <Upload className="h-4 w-4 text-[#003DA5]" />
               </div>
+              <input
+                type="file"
+                id={`uploadFamilyTree-${index}`}
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) =>
+                  handleFileChange(
+                    index,
+                    "familyTree",
+                    e.target.files?.[0] || null,
+                  )
+                }
+              />
               {errors.familyTree && (
                 <p className="text-xs text-red-500 mt-1">{errors.familyTree}</p>
               )}
@@ -1509,7 +1914,7 @@ export function CoborrowerBusiness({
                   updateCoBorrowerField(index, "bankName", value)
                 }
               >
-                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                <SelectTrigger className={getFieldStyle(!!errors.bankName)}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -1549,6 +1954,9 @@ export function CoborrowerBusiness({
                   )}
                 </SelectContent>
               </Select>
+              {errors.bankName && (
+                <p className="text-xs text-red-500 mt-1">{errors.bankName}</p>
+              )}
             </div>
             <div className="space-y-2.5">
               <Label
@@ -1557,15 +1965,24 @@ export function CoborrowerBusiness({
               >
                 Bank Saving Account No <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <RestrictedInput
+                allowed="alphanumeric"
                 id={`bankAccount-${index}`}
                 placeholder="Enter saving account number"
-                className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                className={getFieldStyle(!!errors.bankAccount)}
                 value={coBorrower.bankAccount || ""}
                 onChange={(e) =>
                   updateCoBorrowerField(index, "bankAccount", e.target.value)
                 }
+                onBlur={(e) =>
+                  handleBlurField(index, "bankAccount", e.target.value)
+                }
               />
+              {errors.bankAccount && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.bankAccount}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1577,35 +1994,30 @@ export function CoborrowerBusiness({
               Upload Passport-size Photograph{" "}
               <span className="text-red-500">*</span>
             </Label>
-            <div className="flex items-center gap-2">
-              <input
-                type="file"
-                id={`uploadPassport-${index}`}
-                className="hidden"
-                accept=".jpg,.jpeg,.png"
-                onChange={(e) =>
-                  handleFileChange(
-                    index,
-                    "passportPhoto",
-                    e.target.files?.[0] || null,
-                  )
-                }
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-28 bg-transparent"
-                onClick={() =>
-                  document.getElementById(`uploadPassport-${index}`)?.click()
-                }
-              >
-                Choose File
-              </Button>
-              <span className="text-sm text-muted-foreground">
+            <div
+              className={fileUploadStyle(!!errors.passportPhoto)}
+              onClick={() =>
+                document.getElementById(`uploadPassport-${index}`)?.click()
+              }
+            >
+              <span className="text-gray-500 truncate">
                 {coBorrower.passportPhoto || "No file chosen"}
               </span>
+              <Upload className="h-4 w-4 text-[#003DA5]" />
             </div>
+            <input
+              type="file"
+              id={`uploadPassport-${index}`}
+              className="hidden"
+              accept=".jpg,.jpeg,.png"
+              onChange={(e) =>
+                handleFileChange(
+                  index,
+                  "passportPhoto",
+                  e.target.files?.[0] || null,
+                )
+              }
+            />
             {errors.passportPhoto && (
               <p className="text-xs text-red-500 mt-1">
                 {errors.passportPhoto}
@@ -1635,7 +2047,7 @@ export function CoborrowerBusiness({
                   updateCoBorrowerField(index, "permCountry", value)
                 }
               >
-                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                <SelectTrigger className={getFieldStyle(!!errors.permCountry)}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -1671,6 +2083,11 @@ export function CoborrowerBusiness({
                   )}
                 </SelectContent>
               </Select>
+              {errors.permCountry && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.permCountry}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2.5">
@@ -1678,30 +2095,15 @@ export function CoborrowerBusiness({
                 htmlFor={`permDzongkhag-${index}`}
                 className="text-gray-800 font-semibold text-sm"
               >
-                {coBorrower.permCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      coBorrower.permCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
-                  ? "Dzongkhag"
-                  : "State"}{" "}
+                {isBhutanPerm ? "Dzongkhag" : "State"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              {coBorrower.permCountry &&
-              !countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    coBorrower.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) ? (
-                <Input
+              {!isBhutanPerm ? (
+                <RestrictedInput
+                  allowed="alpha"
                   id={`permDzongkhag-${index}`}
                   placeholder="Enter State"
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className={getFieldStyle(!!errors.permDzongkhag)}
                   value={coBorrower.permDzongkhag || ""}
                   onChange={(e) =>
                     updateCoBorrowerField(
@@ -1710,6 +2112,9 @@ export function CoborrowerBusiness({
                       e.target.value,
                     )
                   }
+                  onBlur={(e) =>
+                    handleBlurField(index, "permDzongkhag", e.target.value)
+                  }
                 />
               ) : (
                 <Select
@@ -1717,19 +2122,11 @@ export function CoborrowerBusiness({
                   onValueChange={(value) =>
                     updateCoBorrowerField(index, "permDzongkhag", value)
                   }
-                  disabled={
-                    coBorrower.permCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    ) === undefined
-                  }
+                  disabled={!coBorrower.permCountry}
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors.permDzongkhag)}
+                  >
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -1766,6 +2163,11 @@ export function CoborrowerBusiness({
                   </SelectContent>
                 </Select>
               )}
+              {errors.permDzongkhag && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.permDzongkhag}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2.5">
@@ -1773,66 +2175,32 @@ export function CoborrowerBusiness({
                 htmlFor={`permGewog-${index}`}
                 className="text-gray-800 font-semibold text-sm"
               >
-                {coBorrower.permCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      coBorrower.permCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
-                  ? "Gewog"
-                  : "Province"}{" "}
+                {isBhutanPerm ? "Gewog" : "Province"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              {coBorrower.permCountry &&
-              !countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    coBorrower.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) ? (
-                <Input
+              {!isBhutanPerm ? (
+                <RestrictedInput
+                  allowed="alpha"
                   id={`permGewog-${index}`}
                   placeholder="Enter Province"
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className={getFieldStyle(!!errors.permGewog)}
                   value={coBorrower.permGewog || ""}
                   onChange={(e) =>
                     updateCoBorrowerField(index, "permGewog", e.target.value)
                   }
+                  onBlur={(e) =>
+                    handleBlurField(index, "permGewog", e.target.value)
+                  }
                 />
               ) : (
                 <Select
-                  value={
-                    coBorrower.permCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                      ? coBorrower.permGewog
-                      : ""
-                  }
+                  value={coBorrower.permGewog}
                   onValueChange={(value) =>
                     updateCoBorrowerField(index, "permGewog", value)
                   }
-                  disabled={
-                    !coBorrower.permCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                  }
+                  disabled={!coBorrower.permDzongkhag}
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger className={getFieldStyle(!!errors.permGewog)}>
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -1873,6 +2241,9 @@ export function CoborrowerBusiness({
                   </SelectContent>
                 </Select>
               )}
+              {errors.permGewog && (
+                <p className="text-xs text-red-500 mt-1">{errors.permGewog}</p>
+              )}
             </div>
 
             <div className="space-y-2.5">
@@ -1880,171 +2251,137 @@ export function CoborrowerBusiness({
                 htmlFor={`permVillage-${index}`}
                 className="text-gray-800 font-semibold text-sm"
               >
-                {coBorrower.permCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      coBorrower.permCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
-                  ? "Village/Street"
-                  : "Street"}{" "}
+                {isBhutanPerm ? "Village/Street" : "Street"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <RestrictedInput
+                allowed="alphanumeric"
                 id={`permVillage-${index}`}
                 placeholder={
-                  coBorrower.permCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        coBorrower.permCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                    ? "Enter Village/Street"
-                    : "Enter Street"
+                  isBhutanPerm ? "Enter Village/Street" : "Enter Street"
                 }
-                className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                className={getFieldStyle(!!errors.permVillage)}
                 value={coBorrower.permVillage || ""}
                 onChange={(e) =>
                   updateCoBorrowerField(index, "permVillage", e.target.value)
                 }
                 disabled={!coBorrower.permCountry}
+                onBlur={(e) =>
+                  handleBlurField(index, "permVillage", e.target.value)
+                }
               />
+              {errors.permVillage && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.permVillage}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Conditional grid - show Thram and House only for Bhutan */}
-          {coBorrower.permCountry &&
-            countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  coBorrower.permCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`permThram-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Thram No. <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`permThram-${index}`}
-                    placeholder="Enter Thram No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.permThram || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(index, "permThram", e.target.value)
-                    }
-                    disabled={
-                      !coBorrower.permCountry ||
-                      !countryOptions.find(
-                        (c) =>
-                          String(c.country_pk_code || c.id || c.code) ===
-                            coBorrower.permCountry &&
-                          (c.country || c.name || "")
-                            .toLowerCase()
-                            .includes("bhutan"),
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`permHouse-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    House No. <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`permHouse-${index}`}
-                    placeholder="Enter House No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.permHouse || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(index, "permHouse", e.target.value)
-                    }
-                    disabled={
-                      !coBorrower.permCountry ||
-                      !countryOptions.find(
-                        (c) =>
-                          String(c.country_pk_code || c.id || c.code) ===
-                            coBorrower.permCountry &&
-                          (c.country || c.name || "")
-                            .toLowerCase()
-                            .includes("bhutan"),
-                      )
-                    }
-                  />
-                </div>
-              </div>
-            )}
-
-          {/* Document Upload for Non-Bhutan Countries */}
-          {coBorrower.permCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  coBorrower.permCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) && (
-              <div className="space-y-2.5 border-t pt-4">
+          {isBhutanPerm && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2.5">
                 <Label
-                  htmlFor={`permAddressProof-${index}`}
+                  htmlFor={`permThram-${index}`}
                   className="text-gray-800 font-semibold text-sm"
                 >
-                  Upload Address Proof Document{" "}
-                  <span className="text-red-500">*</span>
+                  Thram No. <span className="text-red-500">*</span>
                 </Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    id={`permAddressProof-${index}`}
-                    className="hidden"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) =>
-                      handleFileChange(
-                        index,
-                        "permAddressProof",
-                        e.target.files?.[0] || null,
-                      )
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-28 bg-transparent"
-                    onClick={() =>
-                      document
-                        .getElementById(`permAddressProof-${index}`)
-                        ?.click()
-                    }
-                  >
-                    Choose File
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    {coBorrower.permAddressProof || "No file chosen"}
-                  </span>
-                </div>
-                {errors.permAddressProof && (
+                <RestrictedInput
+                  allowed="alphanumeric"
+                  id={`permThram-${index}`}
+                  placeholder="Enter Thram No"
+                  className={getFieldStyle(!!errors.permThram)}
+                  value={coBorrower.permThram || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(index, "permThram", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleBlurField(index, "permThram", e.target.value)
+                  }
+                />
+                {errors.permThram && (
                   <p className="text-xs text-red-500 mt-1">
-                    {errors.permAddressProof}
+                    {errors.permThram}
                   </p>
                 )}
-                <p className="text-xs text-gray-500">
-                  Please upload a valid address proof document for non-Bhutan
-                  residence. Allowed: PDF, JPG, PNG (Max 5MB)
-                </p>
               </div>
-            )}
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`permHouse-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  House No. <span className="text-red-500">*</span>
+                </Label>
+                <RestrictedInput
+                  allowed="alphanumeric"
+                  id={`permHouse-${index}`}
+                  placeholder="Enter House No"
+                  className={getFieldStyle(!!errors.permHouse)}
+                  value={coBorrower.permHouse || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(index, "permHouse", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleBlurField(index, "permHouse", e.target.value)
+                  }
+                />
+                {errors.permHouse && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.permHouse}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Document Upload for Non-Bhutan Countries */}
+          {!isBhutanPerm && coBorrower.permCountry && (
+            <div className="space-y-2.5 border-t pt-4">
+              <Label
+                htmlFor={`permAddressProof-${index}`}
+                className="text-gray-800 font-semibold text-sm"
+              >
+                Upload Address Proof Document{" "}
+                <span className="text-red-500">*</span>
+              </Label>
+              <div
+                className={fileUploadStyle(!!errors.permAddressProof)}
+                onClick={() =>
+                  document.getElementById(`permAddressProof-${index}`)?.click()
+                }
+              >
+                <span className="text-gray-500 truncate">
+                  {coBorrower.permAddressProof || "No file chosen"}
+                </span>
+                <Upload className="h-4 w-4 text-[#003DA5]" />
+              </div>
+              <input
+                type="file"
+                id={`permAddressProof-${index}`}
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) =>
+                  handleFileChange(
+                    index,
+                    "permAddressProof",
+                    e.target.files?.[0] || null,
+                  )
+                }
+              />
+              {errors.permAddressProof && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.permAddressProof}
+                </p>
+              )}
+              <p className="text-xs text-gray-500">
+                Please upload a valid address proof document for non-Bhutan
+                residence. Allowed: PDF, JPG, PNG (Max 5MB)
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Current/Residential Address */}
@@ -2067,7 +2404,7 @@ export function CoborrowerBusiness({
                   updateCoBorrowerField(index, "currCountry", value)
                 }
               >
-                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                <SelectTrigger className={getFieldStyle(!!errors.currCountry)}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -2103,6 +2440,11 @@ export function CoborrowerBusiness({
                   )}
                 </SelectContent>
               </Select>
+              {errors.currCountry && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.currCountry}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2.5">
@@ -2110,30 +2452,15 @@ export function CoborrowerBusiness({
                 htmlFor={`currDzongkhag-${index}`}
                 className="text-gray-800 font-semibold text-sm"
               >
-                {coBorrower.currCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      coBorrower.currCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
-                  ? "Dzongkhag"
-                  : "State"}{" "}
+                {isBhutanCurr ? "Dzongkhag" : "State"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              {coBorrower.currCountry &&
-              !countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    coBorrower.currCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) ? (
-                <Input
+              {!isBhutanCurr ? (
+                <RestrictedInput
+                  allowed="alpha"
                   id={`currDzongkhag-${index}`}
                   placeholder="Enter State"
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className={getFieldStyle(!!errors.currDzongkhag)}
                   value={coBorrower.currDzongkhag || ""}
                   onChange={(e) =>
                     updateCoBorrowerField(
@@ -2142,38 +2469,21 @@ export function CoborrowerBusiness({
                       e.target.value,
                     )
                   }
+                  onBlur={(e) =>
+                    handleBlurField(index, "currDzongkhag", e.target.value)
+                  }
                 />
               ) : (
                 <Select
-                  value={
-                    coBorrower.currCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.currCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                      ? coBorrower.currDzongkhag
-                      : ""
-                  }
+                  value={coBorrower.currDzongkhag}
                   onValueChange={(value) =>
                     updateCoBorrowerField(index, "currDzongkhag", value)
                   }
-                  disabled={
-                    !coBorrower.currCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.currCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                  }
+                  disabled={!coBorrower.currCountry}
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors.currDzongkhag)}
+                  >
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -2210,6 +2520,11 @@ export function CoborrowerBusiness({
                   </SelectContent>
                 </Select>
               )}
+              {errors.currDzongkhag && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.currDzongkhag}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2.5">
@@ -2217,66 +2532,32 @@ export function CoborrowerBusiness({
                 htmlFor={`currGewog-${index}`}
                 className="text-gray-800 font-semibold text-sm"
               >
-                {coBorrower.currCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      coBorrower.currCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
-                  ? "Gewog"
-                  : "Province"}{" "}
+                {isBhutanCurr ? "Gewog" : "Province"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              {coBorrower.currCountry &&
-              !countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    coBorrower.currCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) ? (
-                <Input
+              {!isBhutanCurr ? (
+                <RestrictedInput
+                  allowed="alpha"
                   id={`currGewog-${index}`}
                   placeholder="Enter Province"
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className={getFieldStyle(!!errors.currGewog)}
                   value={coBorrower.currGewog || ""}
                   onChange={(e) =>
                     updateCoBorrowerField(index, "currGewog", e.target.value)
                   }
+                  onBlur={(e) =>
+                    handleBlurField(index, "currGewog", e.target.value)
+                  }
                 />
               ) : (
                 <Select
-                  value={
-                    coBorrower.currCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.currCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                      ? coBorrower.currGewog
-                      : ""
-                  }
+                  value={coBorrower.currGewog}
                   onValueChange={(value) =>
                     updateCoBorrowerField(index, "currGewog", value)
                   }
-                  disabled={
-                    !coBorrower.currCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.currCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                  }
+                  disabled={!coBorrower.currDzongkhag}
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger className={getFieldStyle(!!errors.currGewog)}>
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -2317,6 +2598,9 @@ export function CoborrowerBusiness({
                   </SelectContent>
                 </Select>
               )}
+              {errors.currGewog && (
+                <p className="text-xs text-red-500 mt-1">{errors.currGewog}</p>
+              )}
             </div>
 
             <div className="space-y-2.5">
@@ -2324,229 +2608,279 @@ export function CoborrowerBusiness({
                 htmlFor={`currVillage-${index}`}
                 className="text-gray-800 font-semibold text-sm"
               >
-                {coBorrower.currCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      coBorrower.currCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
-                  ? "Village/Street"
-                  : "Street"}{" "}
+                {isBhutanCurr ? "Village/Street" : "Street"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <RestrictedInput
+                allowed="alphanumeric"
                 id={`currVillage-${index}`}
                 placeholder={
-                  coBorrower.currCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        coBorrower.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                    ? "Enter Village/Street"
-                    : "Enter Street"
+                  isBhutanCurr ? "Enter Village/Street" : "Enter Street"
                 }
-                className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                className={getFieldStyle(!!errors.currVillage)}
                 value={coBorrower.currVillage || ""}
                 onChange={(e) =>
                   updateCoBorrowerField(index, "currVillage", e.target.value)
                 }
                 disabled={!coBorrower.currCountry}
+                onBlur={(e) =>
+                  handleBlurField(index, "currVillage", e.target.value)
+                }
               />
+              {errors.currVillage && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.currVillage}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Conditional grid layout based on country */}
-          {coBorrower.currCountry &&
-            countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  coBorrower.currCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) && (
-              // Updated Grid to accommodate Alternate Contact
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`currFlat-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    House/Building/ Flat No{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`currFlat-${index}`}
-                    placeholder="Enter Flat No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.currFlat || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(index, "currFlat", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`currEmail-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Email Address <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`currEmail-${index}`}
-                    type="email"
-                    placeholder="Enter Your Email"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.currEmail || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(index, "currEmail", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`currContact-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Contact Number <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`currContact-${index}`}
-                    placeholder="Enter Contact No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.currContact || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(
-                        index,
-                        "currContact",
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                {/* NEW Alternate Contact Field for Bhutan */}
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`currAlternateContact-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Alternate Contact No
-                  </Label>
-                  <Input
-                    id={`currAlternateContact-${index}`}
-                    placeholder="Enter Contact No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.currAlternateContact || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(
-                        index,
-                        "currAlternateContact",
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-              </div>
-            )}
-
-          {coBorrower.currCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  coBorrower.currCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`currEmail-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Email Address <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`currEmail-${index}`}
-                    type="email"
-                    placeholder="Enter Your Email"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.currEmail || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(index, "currEmail", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`currContact-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Contact Number <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`currContact-${index}`}
-                    placeholder="Enter Contact No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.currContact || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(
-                        index,
-                        "currContact",
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`currAlternateContact-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Alternate Contact No
-                  </Label>
-                  <Input
-                    id={`currAlternateContact-${index}`}
-                    placeholder="Enter Contact No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.currAlternateContact || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(
-                        index,
-                        "currAlternateContact",
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-              </div>
-            )}
-
-          {/* Document Upload for Non-Bhutan Countries */}
-          {coBorrower.currCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  coBorrower.currCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) && (
-              <div className="space-y-2.5 border-t pt-4">
+          {isBhutanCurr ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <div className="space-y-2.5">
                 <Label
-                  htmlFor={`currAddressProof-${index}`}
+                  htmlFor={`currFlat-${index}`}
                   className="text-gray-800 font-semibold text-sm"
                 >
-                  Upload Address Proof Document{" "}
+                  House/Building/ Flat No{" "}
                   <span className="text-red-500">*</span>
                 </Label>
-                <div className="flex items-center gap-2">
+                <RestrictedInput
+                  allowed="alphanumeric"
+                  id={`currFlat-${index}`}
+                  placeholder="Enter Flat No"
+                  className={getFieldStyle(!!errors.currFlat)}
+                  value={coBorrower.currFlat || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(index, "currFlat", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleBlurField(index, "currFlat", e.target.value)
+                  }
+                />
+                {errors.currFlat && (
+                  <p className="text-xs text-red-500 mt-1">{errors.currFlat}</p>
+                )}
+              </div>
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`currEmail-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Email Address <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="email"
+                  id={`currEmail-${index}`}
+                  placeholder="Enter Your Email"
+                  className={getFieldStyle(!!errors.currEmail)}
+                  value={coBorrower.currEmail || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(index, "currEmail", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleBlurField(index, "currEmail", e.target.value)
+                  }
+                />
+                {errors.currEmail && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.currEmail}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`currContact-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Contact Number <span className="text-red-500">*</span>
+                </Label>
+                <RestrictedInput
+                  allowed="numeric"
+                  maxLength={8}
+                  id={`currContact-${index}`}
+                  placeholder="Enter Contact No"
+                  className={getFieldStyle(!!errors.currContact)}
+                  value={coBorrower.currContact || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(index, "currContact", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleBlurField(index, "currContact", e.target.value)
+                  }
+                />
+                {errors.currContact && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.currContact}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`currAlternateContact-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Alternate Contact No
+                </Label>
+                <RestrictedInput
+                  allowed="numeric"
+                  maxLength={8}
+                  id={`currAlternateContact-${index}`}
+                  placeholder="Enter Contact No"
+                  className={getFieldStyle(!!errors.currAlternateContact)}
+                  value={coBorrower.currAlternateContact || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(
+                      index,
+                      "currAlternateContact",
+                      e.target.value,
+                    )
+                  }
+                  onBlur={(e) =>
+                    handleBlurField(
+                      index,
+                      "currAlternateContact",
+                      e.target.value,
+                    )
+                  }
+                />
+                {errors.currAlternateContact && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.currAlternateContact}
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : (
+            coBorrower.currCountry && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor={`currEmail-${index}`}
+                      className="text-gray-800 font-semibold text-sm"
+                    >
+                      Email Address <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="email"
+                      id={`currEmail-${index}`}
+                      placeholder="Enter Your Email"
+                      className={getFieldStyle(!!errors.currEmail)}
+                      value={coBorrower.currEmail || ""}
+                      onChange={(e) =>
+                        updateCoBorrowerField(
+                          index,
+                          "currEmail",
+                          e.target.value,
+                        )
+                      }
+                      onBlur={(e) =>
+                        handleBlurField(index, "currEmail", e.target.value)
+                      }
+                    />
+                    {errors.currEmail && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.currEmail}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor={`currContact-${index}`}
+                      className="text-gray-800 font-semibold text-sm"
+                    >
+                      Contact Number <span className="text-red-500">*</span>
+                    </Label>
+                    <RestrictedInput
+                      allowed="numeric"
+                      maxLength={8}
+                      id={`currContact-${index}`}
+                      placeholder="Enter Contact No"
+                      className={getFieldStyle(!!errors.currContact)}
+                      value={coBorrower.currContact || ""}
+                      onChange={(e) =>
+                        updateCoBorrowerField(
+                          index,
+                          "currContact",
+                          e.target.value,
+                        )
+                      }
+                      onBlur={(e) =>
+                        handleBlurField(index, "currContact", e.target.value)
+                      }
+                    />
+                    {errors.currContact && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.currContact}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor={`currAlternateContact-${index}`}
+                      className="text-gray-800 font-semibold text-sm"
+                    >
+                      Alternate Contact No
+                    </Label>
+                    <RestrictedInput
+                      allowed="numeric"
+                      maxLength={8}
+                      id={`currAlternateContact-${index}`}
+                      placeholder="Enter Contact No"
+                      className={getFieldStyle(!!errors.currAlternateContact)}
+                      value={coBorrower.currAlternateContact || ""}
+                      onChange={(e) =>
+                        updateCoBorrowerField(
+                          index,
+                          "currAlternateContact",
+                          e.target.value,
+                        )
+                      }
+                      onBlur={(e) =>
+                        handleBlurField(
+                          index,
+                          "currAlternateContact",
+                          e.target.value,
+                        )
+                      }
+                    />
+                    {errors.currAlternateContact && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.currAlternateContact}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Document Upload for Non-Bhutan Countries */}
+                <div className="space-y-2.5 border-t pt-4">
+                  <Label
+                    htmlFor={`currAddressProof-${index}`}
+                    className="text-gray-800 font-semibold text-sm"
+                  >
+                    Upload Address Proof Document{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <div
+                    className={fileUploadStyle(!!errors.currAddressProof)}
+                    onClick={() =>
+                      document
+                        .getElementById(`currAddressProof-${index}`)
+                        ?.click()
+                    }
+                  >
+                    <span className="text-gray-500 truncate">
+                      {coBorrower.currAddressProof || "No file chosen"}
+                    </span>
+                    <Upload className="h-4 w-4 text-[#003DA5]" />
+                  </div>
                   <input
                     type="file"
                     id={`currAddressProof-${index}`}
@@ -2560,37 +2894,22 @@ export function CoborrowerBusiness({
                       )
                     }
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-28 bg-transparent"
-                    onClick={() =>
-                      document
-                        .getElementById(`currAddressProof-${index}`)
-                        ?.click()
-                    }
-                  >
-                    Choose File
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    {coBorrower.currAddressProof || "No file chosen"}
-                  </span>
-                </div>
-                {errors.currAddressProof && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.currAddressProof}
+                  {errors.currAddressProof && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.currAddressProof}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Please upload a valid address proof document for non-Bhutan
+                    residence. Allowed: PDF, JPG, PNG (Max 5MB)
                   </p>
-                )}
-                <p className="text-xs text-gray-500">
-                  Please upload a valid address proof document for non-Bhutan
-                  residence. Allowed: PDF, JPG, PNG (Max 5MB)
-                </p>
-              </div>
-            )}
+                </div>
+              </>
+            )
+          )}
         </div>
 
-        {/* PEP Declaration - UPDATED SECTION */}
+        {/* PEP Declaration */}
         <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm mt-6">
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
             PEP Declaration
@@ -2612,7 +2931,7 @@ export function CoborrowerBusiness({
                   updateCoBorrowerField(index, "pepPerson", value)
                 }
               >
-                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                <SelectTrigger className={getFieldStyle(!!errors.pepPerson)}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -2620,6 +2939,9 @@ export function CoborrowerBusiness({
                   <SelectItem value="no">No</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.pepPerson && (
+                <p className="text-xs text-red-500 mt-1">{errors.pepPerson}</p>
+              )}
             </div>
 
             {coBorrower.pepPerson === "yes" && (
@@ -2637,7 +2959,9 @@ export function CoborrowerBusiness({
                       updateCoBorrowerField(index, "pepCategory", value)
                     }
                   >
-                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectTrigger
+                      className={getFieldStyle(!!errors.pepCategory)}
+                    >
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent sideOffset={4}>
@@ -2673,6 +2997,11 @@ export function CoborrowerBusiness({
                       )}
                     </SelectContent>
                   </Select>
+                  {errors.pepCategory && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.pepCategory}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2.5">
@@ -2689,7 +3018,9 @@ export function CoborrowerBusiness({
                     }
                     disabled={!coBorrower.pepCategory}
                   >
-                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectTrigger
+                      className={getFieldStyle(!!errors.pepSubCategory)}
+                    >
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent sideOffset={4}>
@@ -2729,6 +3060,11 @@ export function CoborrowerBusiness({
                       )}
                     </SelectContent>
                   </Select>
+                  {errors.pepSubCategory && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.pepSubCategory}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2.5">
@@ -2736,37 +3072,30 @@ export function CoborrowerBusiness({
                     Upload Identification Proof{" "}
                     <span className="text-red-500">*</span>
                   </Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="file"
-                      id={`selfPepProof-${index}`}
-                      className="hidden"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) =>
-                        handleFileChange(
-                          index,
-                          "identificationProof",
-                          e.target.files?.[0] || null,
-                        )
-                      }
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-28 bg-transparent"
-                      onClick={() =>
-                        document
-                          .getElementById(`selfPepProof-${index}`)
-                          ?.click()
-                      }
-                    >
-                      Choose File
-                    </Button>
-                    <span className="text-sm text-muted-foreground truncate max-w-[150px]">
+                  <div
+                    className={fileUploadStyle(!!errors.identificationProof)}
+                    onClick={() =>
+                      document.getElementById(`selfPepProof-${index}`)?.click()
+                    }
+                  >
+                    <span className="text-gray-500 truncate">
                       {coBorrower.identificationProof || "No file chosen"}
                     </span>
+                    <Upload className="h-4 w-4 text-[#003DA5]" />
                   </div>
+                  <input
+                    type="file"
+                    id={`selfPepProof-${index}`}
+                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) =>
+                      handleFileChange(
+                        index,
+                        "identificationProof",
+                        e.target.files?.[0] || null,
+                      )
+                    }
+                  />
                   {errors.identificationProof && (
                     <p className="text-xs text-red-500 mt-1">
                       {errors.identificationProof}
@@ -2794,7 +3123,7 @@ export function CoborrowerBusiness({
                     updateCoBorrowerField(index, "pepRelated", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger className={getFieldStyle(!!errors.pepRelated)}>
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -2802,6 +3131,11 @@ export function CoborrowerBusiness({
                     <SelectItem value="no">No</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.pepRelated && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.pepRelated}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -2856,7 +3190,11 @@ export function CoborrowerBusiness({
                           )
                         }
                       >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectTrigger
+                          className={getFieldStyle(
+                            !!errors[`relatedPeps.${pepIndex}.relationship`],
+                          )}
+                        >
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
@@ -2866,17 +3204,26 @@ export function CoborrowerBusiness({
                           <SelectItem value="child">Child</SelectItem>
                         </SelectContent>
                       </Select>
+                      {errors[`relatedPeps.${pepIndex}.relationship`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${pepIndex}.relationship`]}
+                        </p>
+                      )}
                     </div>
 
-                    {/* 2. Identification No Field - FIXED spacing */}
+                    {/* 2. Identification No Field */}
                     <div className="space-y-2.5 w-full">
                       <Label className="text-gray-800 font-semibold text-sm block h-5">
                         Identification No.{" "}
                         <span className="text-red-500">*</span>
                       </Label>
-                      <Input
+                      <RestrictedInput
+                        allowed="numeric"
+                        maxLength={11}
                         placeholder="Enter ID No"
-                        className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                        className={getFieldStyle(
+                          !!errors[`relatedPeps.${pepIndex}.identificationNo`],
+                        )}
                         value={pep.identificationNo || ""}
                         onChange={(e) =>
                           handleRelatedPepChange(
@@ -2887,6 +3234,11 @@ export function CoborrowerBusiness({
                           )
                         }
                       />
+                      {errors[`relatedPeps.${pepIndex}.identificationNo`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${pepIndex}.identificationNo`]}
+                        </p>
+                      )}
                     </div>
 
                     {/* 3. PEP Category Field */}
@@ -2905,7 +3257,11 @@ export function CoborrowerBusiness({
                           )
                         }
                       >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectTrigger
+                          className={getFieldStyle(
+                            !!errors[`relatedPeps.${pepIndex}.category`],
+                          )}
+                        >
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
@@ -2940,6 +3296,11 @@ export function CoborrowerBusiness({
                           )}
                         </SelectContent>
                       </Select>
+                      {errors[`relatedPeps.${pepIndex}.category`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${pepIndex}.category`]}
+                        </p>
+                      )}
                     </div>
 
                     {/* 4. PEP Sub Category Field */}
@@ -2960,7 +3321,11 @@ export function CoborrowerBusiness({
                         }
                         disabled={!pep.category}
                       >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectTrigger
+                          className={getFieldStyle(
+                            !!errors[`relatedPeps.${pepIndex}.subCategory`],
+                          )}
+                        >
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
@@ -3000,6 +3365,11 @@ export function CoborrowerBusiness({
                           )}
                         </SelectContent>
                       </Select>
+                      {errors[`relatedPeps.${pepIndex}.subCategory`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${pepIndex}.subCategory`]}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -3008,37 +3378,39 @@ export function CoborrowerBusiness({
                       Upload Identification Proof{" "}
                       <span className="text-red-500">*</span>
                     </Label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        id={`uploadId-${index}-${pepIndex}`}
-                        className="hidden"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) =>
-                          handleRelatedPepFileChange(
-                            index,
-                            pepIndex,
-                            e.target.files?.[0] || null,
-                          )
-                        }
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-28 bg-white"
-                        onClick={() =>
-                          document
-                            .getElementById(`uploadId-${index}-${pepIndex}`)
-                            ?.click()
-                        }
-                      >
-                        Choose File
-                      </Button>
-                      <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                    <div
+                      className={fileUploadStyle(
+                        !!errors[`relatedPeps.${pepIndex}.identificationProof`],
+                      )}
+                      onClick={() =>
+                        document
+                          .getElementById(`uploadId-${index}-${pepIndex}`)
+                          ?.click()
+                      }
+                    >
+                      <span className="text-gray-500 truncate">
                         {pep.identificationProof || "No file chosen"}
                       </span>
+                      <Upload className="h-4 w-4 text-[#003DA5]" />
                     </div>
+                    <input
+                      type="file"
+                      id={`uploadId-${index}-${pepIndex}`}
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) =>
+                        handleRelatedPepFileChange(
+                          index,
+                          pepIndex,
+                          e.target.files?.[0] || null,
+                        )
+                      }
+                    />
+                    {errors[`relatedPeps.${pepIndex}.identificationProof`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${pepIndex}.identificationProof`]}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -3075,7 +3447,7 @@ export function CoborrowerBusiness({
                 updateCoBorrowerField(index, "relatedToBil", value)
               }
             >
-              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+              <SelectTrigger className={getFieldStyle(!!errors.relatedToBil)}>
                 <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -3083,6 +3455,9 @@ export function CoborrowerBusiness({
                 <SelectItem value="no">No</SelectItem>
               </SelectContent>
             </Select>
+            {errors.relatedToBil && (
+              <p className="text-xs text-red-500 mt-1">{errors.relatedToBil}</p>
+            )}
           </div>
         </div>
 
@@ -3134,6 +3509,11 @@ export function CoborrowerBusiness({
                 </Label>
               </div>
             </RadioGroup>
+            {errors.employmentStatus && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.employmentStatus}
+              </p>
+            )}
           </div>
         </div>
 
@@ -3152,15 +3532,24 @@ export function CoborrowerBusiness({
                 >
                   Employee ID <span className="text-red-500">*</span>
                 </Label>
-                <Input
+                <RestrictedInput
+                  allowed="alphanumeric"
                   id={`employeeId-${index}`}
                   placeholder="Enter ID"
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className={getFieldStyle(!!errors.employeeId)}
                   value={coBorrower.employeeId || ""}
                   onChange={(e) =>
                     updateCoBorrowerField(index, "employeeId", e.target.value)
                   }
+                  onBlur={(e) =>
+                    handleBlurField(index, "employeeId", e.target.value)
+                  }
                 />
+                {errors.employeeId && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.employeeId}
+                  </p>
+                )}
               </div>
               <div className="space-y-2.5">
                 <Label
@@ -3175,7 +3564,7 @@ export function CoborrowerBusiness({
                     updateCoBorrowerField(index, "occupation", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger className={getFieldStyle(!!errors.occupation)}>
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3211,6 +3600,11 @@ export function CoborrowerBusiness({
                     )}
                   </SelectContent>
                 </Select>
+                {errors.occupation && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.occupation}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3226,7 +3620,9 @@ export function CoborrowerBusiness({
                     updateCoBorrowerField(index, "employerType", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors.employerType)}
+                  >
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3235,6 +3631,11 @@ export function CoborrowerBusiness({
                     <SelectItem value="corporate">Corporate</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.employerType && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.employerType}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3250,7 +3651,9 @@ export function CoborrowerBusiness({
                     updateCoBorrowerField(index, "designation", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors.designation)}
+                  >
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3259,6 +3662,11 @@ export function CoborrowerBusiness({
                     <SelectItem value="assistant">Assistant</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.designation && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.designation}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3274,7 +3682,7 @@ export function CoborrowerBusiness({
                     updateCoBorrowerField(index, "grade", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger className={getFieldStyle(!!errors.grade)}>
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3283,6 +3691,9 @@ export function CoborrowerBusiness({
                     <SelectItem value="p3">P3</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.grade && (
+                  <p className="text-xs text-red-500 mt-1">{errors.grade}</p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3298,7 +3709,9 @@ export function CoborrowerBusiness({
                     updateCoBorrowerField(index, "organizationName", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors.organizationName)}
+                  >
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3334,6 +3747,11 @@ export function CoborrowerBusiness({
                     )}
                   </SelectContent>
                 </Select>
+                {errors.organizationName && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.organizationName}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3343,15 +3761,24 @@ export function CoborrowerBusiness({
                 >
                   Organization Location <span className="text-red-500">*</span>
                 </Label>
-                <Input
+                <RestrictedInput
+                  allowed="alphanumeric"
                   id={`orgLocation-${index}`}
                   placeholder="Enter Full Name"
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className={getFieldStyle(!!errors.orgLocation)}
                   value={coBorrower.orgLocation || ""}
                   onChange={(e) =>
                     updateCoBorrowerField(index, "orgLocation", e.target.value)
                   }
+                  onBlur={(e) =>
+                    handleBlurField(index, "orgLocation", e.target.value)
+                  }
                 />
+                {errors.orgLocation && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.orgLocation}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3365,12 +3792,17 @@ export function CoborrowerBusiness({
                   type="date"
                   id={`joiningDate-${index}`}
                   max={today}
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className={getFieldStyle(!!errors.joiningDate)}
                   value={coBorrower.joiningDate || ""}
                   onChange={(e) =>
                     updateCoBorrowerField(index, "joiningDate", e.target.value)
                   }
                 />
+                {errors.joiningDate && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.joiningDate}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -3388,7 +3820,9 @@ export function CoborrowerBusiness({
                     updateCoBorrowerField(index, "serviceNature", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors.serviceNature)}
+                  >
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3397,6 +3831,11 @@ export function CoborrowerBusiness({
                     <SelectItem value="temporary">Temporary</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.serviceNature && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.serviceNature}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3411,12 +3850,17 @@ export function CoborrowerBusiness({
                   type="number"
                   id={`annualSalary-${index}`}
                   placeholder="Enter Annual Salary"
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className={getFieldStyle(!!errors.annualSalary)}
                   value={coBorrower.annualSalary || ""}
                   onChange={(e) =>
                     updateCoBorrowerField(index, "annualSalary", e.target.value)
                   }
                 />
+                {errors.annualSalary && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.annualSalary}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -3434,13 +3878,21 @@ export function CoborrowerBusiness({
                     type="date"
                     id={`contractEndDate-${index}`}
                     min={today}
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    className={getFieldStyle(!!errors.contractEndDate)}
                     value={coBorrower.contractEndDate || ""}
                     onChange={(e) =>
-                      updateCoBorrowerField("contractEndDate", e.target.value)
+                      updateCoBorrowerField(
+                        index,
+                        "contractEndDate",
+                        e.target.value,
+                      )
                     }
-                    required
                   />
+                  {errors.contractEndDate && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.contractEndDate}
+                    </p>
+                  )}
                 </div>
               </div>
             )}

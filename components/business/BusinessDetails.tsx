@@ -26,11 +26,8 @@ import {
 } from "lucide-react";
 
 // Import for lookup functionality
-import {
-  mapCustomerDataToForm,
-  getVerifiedCustomerDataFromSession,
-} from "@/lib/mapCustomerData";
-import DocumentPopup from "@/components/BILSearchStatus"; // Adjust path as needed
+import { mapCustomerDataToForm } from "@/lib/mapCustomerData";
+import DocumentPopup from "@/components/BILSearchStatus";
 
 import {
   fetchCountry,
@@ -46,20 +43,33 @@ import {
   fetchPepSubCategoryByCategory,
 } from "@/services/api";
 
-// --- Types & Interfaces ---
-
-interface BusinessDetailsFormProps {
-  onNext: (data: any) => void;
-  onBack: () => void;
-  formData: any;
-}
-
-// --- Constants for Uniform Styling ---
-const uniformStyle =
-  "h-11 w-full bg-white border border-gray-300 focus-visible:ring-1 focus-visible:ring-[#003DA5] focus-visible:border-[#003DA5] rounded-lg text-sm placeholder:text-gray-400";
-
-const fileUploadStyle =
-  "h-11 w-full bg-white border border-gray-300 rounded-lg flex items-center px-3 justify-between cursor-pointer hover:bg-gray-50 transition-colors text-sm";
+// ================== Validation Helpers ==================
+const isRequired = (value: any) => !value || value.toString().trim() === "";
+const isValidEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const isValidCID = (value: string) => /^\d{11}$/.test(value);
+const isValidTPN = (value: string) => /^\d{11}$/.test(value);
+const isValidMobile = (value: string) => /^(16|17|77)\d{6}$/.test(value);
+const isValidFixedLine = (value: string) => /^[2-8]\d{6,7}$/.test(value);
+const isValidPhoneNumber = (value: string) =>
+  isValidMobile(value) || isValidFixedLine(value);
+const isValidShareholding = (value: string) => {
+  const num = Number(value);
+  return !isNaN(num) && num >= 0 && num <= 100;
+};
+const isLegalAge = (dateOfBirth: string): boolean => {
+  if (!dateOfBirth) return false;
+  const dob = new Date(dateOfBirth);
+  if (isNaN(dob.getTime())) return false;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age >= 18;
+};
+// ================== END Validation Helpers ==================
 
 // --- Helper Functions ---
 const formatDateForInput = (dateString: string | null | undefined) => {
@@ -82,29 +92,134 @@ const createEmptyRelatedPep = () => ({
   identificationProofName: "",
 });
 
-// --- COMPONENT: Comprehensive Owner/Partner/Trustee Details ---
+// --- Uniform Styling (Orange Focus, Red Error) ---
+const getFieldStyle = (hasError: boolean) => {
+  const baseStyle =
+    "h-11 w-full bg-white border rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus-visible:outline-none focus:ring-1 focus-visible:ring-1 focus:ring-[#FF9800] focus-visible:ring-[#FF9800] transition-colors";
+  if (hasError) {
+    return `${baseStyle} border-red-500 focus:border-red-500 focus-visible:border-red-500`;
+  }
+  return `${baseStyle} border-gray-300 focus:border-[#FF9800] focus-visible:border-[#FF9800]`;
+};
 
+const fileUploadStyle = (hasError: boolean) =>
+  `h-11 w-full bg-white border rounded-lg flex items-center px-3 justify-between cursor-pointer hover:bg-gray-50 transition-colors text-sm ${
+    hasError ? "border-red-500" : "border-gray-300"
+  }`;
+
+// --- Helper to check if a marital status value means "married" using options ---
+const isMarriedStatusFromOptions = (
+  statusValue: string,
+  maritalStatusOptions: any[],
+): boolean => {
+  if (!statusValue) return false;
+  if (String(statusValue).toLowerCase() === "married") return true;
+  const selectedOption = maritalStatusOptions.find((opt) => {
+    const optValue = String(
+      opt.id || opt.marital_status_pk_code || opt.value || "",
+    );
+    return optValue === String(statusValue);
+  });
+  if (selectedOption) {
+    const label = (
+      selectedOption.marital_status ||
+      selectedOption.name ||
+      selectedOption.label ||
+      ""
+    ).toLowerCase();
+    return label.includes("married") && !label.includes("unmarried");
+  }
+  return false;
+};
+
+// ================== Restricted Input Component ==================
+type AllowedPattern = "numeric" | "alpha" | "alphanumeric" | "text";
+
+const RestrictedInput = ({
+  allowed = "text",
+  maxLength,
+  value,
+  onChange,
+  className,
+  ...props
+}: {
+  allowed?: AllowedPattern;
+  maxLength?: number;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  className?: string;
+  [key: string]: any;
+}) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let newValue = e.target.value;
+
+    // Filter based on allowed pattern
+    if (allowed === "numeric") {
+      newValue = newValue.replace(/[^0-9]/g, "");
+    } else if (allowed === "alpha") {
+      // Allow letters, spaces, hyphens, apostrophes (for names)
+      newValue = newValue.replace(/[^a-zA-Z\s\-']/g, "");
+    } else if (allowed === "alphanumeric") {
+      // Allow letters, numbers, spaces, hyphens, underscores
+      newValue = newValue.replace(/[^a-zA-Z0-9\s\-_]/g, "");
+    }
+
+    // Apply maxLength
+    if (maxLength && newValue.length > maxLength) {
+      newValue = newValue.slice(0, maxLength);
+    }
+
+    // Call original onChange with filtered value
+    if (onChange) {
+      onChange({ ...e, target: { ...e.target, value: newValue } });
+    }
+  };
+
+  return (
+    <Input
+      value={value}
+      onChange={handleChange}
+      className={className}
+      maxLength={maxLength} // also pass to native input for browser hint
+      {...props}
+    />
+  );
+};
+// ================== END Restricted Input ==================
+
+// --- COMPONENT: Comprehensive Owner/Partner/Trustee Details ---
 const ComprehensiveOwnerDetails = ({
   data,
   onUpdate,
   countryOptions,
   dzongkhagOptions,
   identificationTypeOptions,
+  maritalStatusOptions, // new prop
   title = "Personal Information",
-  isPartner = false, // When true, shows Shareholding % field
+  isPartner = false,
   onRemove,
+  errors = {},
+  basePath = "",
+  onClearError,
+  onSetError,
+  onValidateField,
 }: {
   data: any;
   onUpdate: (newData: any) => void;
   countryOptions: any[];
   dzongkhagOptions: any[];
   identificationTypeOptions: any[];
+  maritalStatusOptions: any[]; // added
   title?: string;
   isPartner?: boolean;
   onRemove?: () => void;
+  errors?: Record<string, string>;
+  basePath?: string;
+  onClearError?: (fieldPath: string) => void;
+  onSetError?: (fieldPath: string, error: string) => void;
+  onValidateField?: (fieldPath: string, value: any, fullData?: any) => string;
 }) => {
-  // Local Options State
-  const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([]);
+  // Local Options State (remaining ones)
   const [banksOptions, setBanksOptions] = useState<any[]>([]);
   const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
@@ -118,7 +233,6 @@ const ComprehensiveOwnerDetails = ({
   const [relatedPepOptionsMap, setRelatedPepOptionsMap] = useState<
     Record<number, any[]>
   >({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -129,12 +243,26 @@ const ComprehensiveOwnerDetails = ({
   >("searching");
   const [fetchedCustomerData, setFetchedCustomerData] = useState<any>(null);
 
-  // Date Constraints
   const today = new Date().toISOString().split("T")[0];
 
-  // Helper to update parent state
+  const getErrorKey = (field: string) =>
+    basePath ? `${basePath}.${field}` : field;
+  const fieldError = (field: string) => errors[getErrorKey(field)];
+
+  // Helper to update parent state AND validate the field in real time
   const updateField = (field: string, value: any) => {
     onUpdate({ ...data, [field]: value });
+    if (onValidateField && onSetError && onClearError) {
+      const errorMsg = onValidateField(getErrorKey(field), value, {
+        ...data,
+        [field]: value,
+      });
+      if (errorMsg) {
+        onSetError(getErrorKey(field), errorMsg);
+      } else {
+        onClearError(getErrorKey(field));
+      }
+    }
   };
 
   const updateRelatedPep = (index: number, field: string, value: any) => {
@@ -225,7 +353,6 @@ const ComprehensiveOwnerDetails = ({
           : "",
       };
 
-      // Merge with existing data, but keep identification type and number as originally entered
       onUpdate({
         ...data,
         ...sanitized,
@@ -236,19 +363,17 @@ const ComprehensiveOwnerDetails = ({
     setShowLookupPopup(false);
   };
 
-  // --- Initial Data Loading ---
+  // --- Initial Data Loading (remaining options) ---
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [marital, banks, national, occ, org, pepCat] = await Promise.all([
-          fetchMaritalStatus().catch(() => []),
+        const [banks, national, occ, org, pepCat] = await Promise.all([
           fetchBanks().catch(() => []),
           fetchNationality().catch(() => []),
           fetchOccupations().catch(() => []),
           fetchLegalConstitution().catch(() => []),
           fetchPepCategory().catch(() => []),
         ]);
-        setMaritalStatusOptions(marital?.data?.data || marital || []);
         setBanksOptions(banks?.data?.data || banks || []);
         setNationalityOptions(national?.data?.data || national || []);
         setOccupationOptions(occ?.data?.data || occ || []);
@@ -287,7 +412,6 @@ const ComprehensiveOwnerDetails = ({
     }
   }, [data.pepPerson, data.pepCategory]);
 
-  // --- Logic: Related PEP Subcategories ---
   const handleRelatedPepCategoryChange = async (
     index: number,
     value: string,
@@ -328,27 +452,8 @@ const ComprehensiveOwnerDetails = ({
     }
   };
 
-  // --- Helper Check for Marriage Status ---
   const isMarried = () => {
-    const statusValue = data.maritalStatus;
-    if (!statusValue) return false;
-    if (String(statusValue).toLowerCase() === "married") return true;
-    const selectedOption = maritalStatusOptions.find((opt) => {
-      const optValue = String(
-        opt.id || opt.marital_status_pk_code || opt.value || "",
-      );
-      return optValue === String(statusValue);
-    });
-    if (selectedOption) {
-      const label = (
-        selectedOption.marital_status ||
-        selectedOption.name ||
-        selectedOption.label ||
-        ""
-      ).toLowerCase();
-      return label.includes("married") && !label.includes("unmarried");
-    }
-    return false;
+    return isMarriedStatusFromOptions(data.maritalStatus, maritalStatusOptions);
   };
 
   const isBhutan = (countryId: string) => {
@@ -362,7 +467,6 @@ const ComprehensiveOwnerDetails = ({
     );
   };
 
-  // File change handler
   const handleFileChange = (fieldName: string, file: File | null) => {
     if (file) {
       const allowedTypes = [
@@ -374,21 +478,13 @@ const ComprehensiveOwnerDetails = ({
       const maxSize = 5 * 1024 * 1024; // 5MB
 
       if (!allowedTypes.includes(file.type)) {
-        setErrors({
-          ...errors,
-          [fieldName]: "Only PDF, JPG, JPEG, and PNG files are allowed",
-        });
+        alert("Only PDF, JPG, JPEG, and PNG files are allowed");
         return;
       }
       if (file.size > maxSize) {
-        setErrors({
-          ...errors,
-          [fieldName]: "File size must be less than 5MB",
-        });
+        alert("File size must be less than 5MB");
         return;
       }
-
-      setErrors({ ...errors, [fieldName]: "" });
 
       if (fieldName === "passportPhoto") {
         updateField("passportPhoto", file);
@@ -396,6 +492,21 @@ const ComprehensiveOwnerDetails = ({
       } else {
         updateField(fieldName, file);
         updateField(`${fieldName}Name`, file.name);
+      }
+    }
+  };
+
+  const handleSpouseChange = (field: string, value: any) => {
+    onUpdate({ ...data, [field]: value });
+    if (onValidateField && onSetError && onClearError) {
+      const errorMsg = onValidateField(getErrorKey(field), value, {
+        ...data,
+        [field]: value,
+      });
+      if (errorMsg) {
+        onSetError(getErrorKey(field), errorMsg);
+      } else {
+        onClearError(getErrorKey(field));
       }
     }
   };
@@ -428,7 +539,6 @@ const ComprehensiveOwnerDetails = ({
 
       {isExpanded && (
         <div className="space-y-8">
-          {/* Popup for identity lookup */}
           {showLookupPopup && (
             <DocumentPopup
               open={showLookupPopup}
@@ -446,7 +556,9 @@ const ComprehensiveOwnerDetails = ({
                 value={data.identificationType}
                 onValueChange={(v) => updateField("identificationType", v)}
               >
-                <SelectTrigger className={uniformStyle}>
+                <SelectTrigger
+                  className={getFieldStyle(!!fieldError("identificationType"))}
+                >
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -464,25 +576,41 @@ const ComprehensiveOwnerDetails = ({
                   ))}
                 </SelectContent>
               </Select>
+              {fieldError("identificationType") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("identificationType")}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>Identification No. *</Label>
-              <Input
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="numeric"
+                maxLength={11}
+                className={getFieldStyle(!!fieldError("identificationNo"))}
                 value={data.identificationNo}
                 onChange={(e) =>
                   updateField("identificationNo", e.target.value)
                 }
-                onBlur={handleIdentityCheck} // trigger lookup on blur
+                onBlur={handleIdentityCheck}
               />
+              {fieldError("identificationNo") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("identificationNo")}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>Salutation *</Label>
               <Select
                 value={data.salutation}
                 onValueChange={(v) => updateField("salutation", v)}
               >
-                <SelectTrigger className={uniformStyle}>
+                <SelectTrigger
+                  className={getFieldStyle(!!fieldError("salutation"))}
+                >
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -492,22 +620,37 @@ const ComprehensiveOwnerDetails = ({
                   <SelectItem value="dasho">Dasho</SelectItem>
                 </SelectContent>
               </Select>
+              {fieldError("salutation") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("salutation")}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>Applicant Name *</Label>
-              <Input
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="alpha"
+                className={getFieldStyle(!!fieldError("applicantName"))}
                 value={data.applicantName}
                 onChange={(e) => updateField("applicantName", e.target.value)}
               />
+              {fieldError("applicantName") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("applicantName")}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>Nationality *</Label>
               <Select
                 value={data.nationality}
                 onValueChange={(v) => updateField("nationality", v)}
               >
-                <SelectTrigger className={uniformStyle}>
+                <SelectTrigger
+                  className={getFieldStyle(!!fieldError("nationality"))}
+                >
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -521,14 +664,22 @@ const ComprehensiveOwnerDetails = ({
                   ))}
                 </SelectContent>
               </Select>
+              {fieldError("nationality") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("nationality")}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>Gender *</Label>
               <Select
                 value={data.gender}
                 onValueChange={(v) => updateField("gender", v)}
               >
-                <SelectTrigger className={uniformStyle}>
+                <SelectTrigger
+                  className={getFieldStyle(!!fieldError("gender"))}
+                >
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -537,61 +688,99 @@ const ComprehensiveOwnerDetails = ({
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
+              {fieldError("gender") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("gender")}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>Identification Issue Date *</Label>
               <Input
                 type="date"
-                className={uniformStyle}
+                className={getFieldStyle(
+                  !!fieldError("identificationIssueDate"),
+                )}
                 value={formatDateForInput(data.identificationIssueDate)}
                 onChange={(e) =>
                   updateField("identificationIssueDate", e.target.value)
                 }
               />
+              {fieldError("identificationIssueDate") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("identificationIssueDate")}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>Identification Expiry Date *</Label>
               <Input
                 type="date"
-                className={uniformStyle}
+                className={getFieldStyle(
+                  !!fieldError("identificationExpiryDate"),
+                )}
                 value={formatDateForInput(data.identificationExpiryDate)}
                 onChange={(e) =>
                   updateField("identificationExpiryDate", e.target.value)
                 }
               />
+              {fieldError("identificationExpiryDate") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("identificationExpiryDate")}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>Date of Birth *</Label>
               <Input
                 type="date"
-                className={uniformStyle}
+                className={getFieldStyle(!!fieldError("dateOfBirth"))}
                 value={formatDateForInput(data.dateOfBirth)}
                 onChange={(e) => updateField("dateOfBirth", e.target.value)}
               />
+              {fieldError("dateOfBirth") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("dateOfBirth")}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>TPN No *</Label>
-              <Input
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="numeric"
+                maxLength={11}
+                className={getFieldStyle(!!fieldError("tpn"))}
                 value={data.tpn}
                 onChange={(e) => updateField("tpn", e.target.value)}
               />
+              {fieldError("tpn") && (
+                <p className="text-xs text-red-500 mt-1">{fieldError("tpn")}</p>
+              )}
             </div>
 
-            {/* Dynamic Shareholding % field */}
             {isPartner && (
               <div className="space-y-2">
                 <Label>Shareholding %</Label>
                 <Input
                   type="number"
-                  className={`${uniformStyle} border-[#003DA5]/40 focus:border-[#003DA5] focus:ring-1 focus:ring-[#003DA5] bg-blue-50/20`}
+                  className={getFieldStyle(!!fieldError("shareholdingPercent"))}
                   value={data.shareholdingPercent}
                   placeholder="e.g. 25"
                   onChange={(e) =>
                     updateField("shareholdingPercent", e.target.value)
                   }
+                  min={0}
+                  max={100}
                 />
+                {fieldError("shareholdingPercent") && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {fieldError("shareholdingPercent")}
+                  </p>
+                )}
               </div>
             )}
 
@@ -601,7 +790,9 @@ const ComprehensiveOwnerDetails = ({
                 value={data.maritalStatus}
                 onValueChange={(v) => updateField("maritalStatus", v)}
               >
-                <SelectTrigger className={uniformStyle}>
+                <SelectTrigger
+                  className={getFieldStyle(!!fieldError("maritalStatus"))}
+                >
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -617,9 +808,15 @@ const ComprehensiveOwnerDetails = ({
                   ))}
                 </SelectContent>
               </Select>
+              {fieldError("maritalStatus") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("maritalStatus")}
+                </p>
+              )}
             </div>
           </div>
 
+          {/* Spouse Section (if married) */}
           {isMarried() && (
             <div className="mt-4 border-t pt-4">
               <h5 className="font-semibold text-[#003DA5] mb-4">
@@ -628,35 +825,64 @@ const ComprehensiveOwnerDetails = ({
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label>Spouse CID/ID No. *</Label>
-                  <Input
-                    className={uniformStyle}
+                  <RestrictedInput
+                    allowed="numeric"
+                    maxLength={11}
+                    className={getFieldStyle(
+                      !!fieldError("spouseIdentificationNo"),
+                    )}
                     value={data.spouseIdentificationNo}
                     onChange={(e) =>
-                      updateField("spouseIdentificationNo", e.target.value)
+                      handleSpouseChange(
+                        "spouseIdentificationNo",
+                        e.target.value,
+                      )
                     }
                   />
+                  {fieldError("spouseIdentificationNo") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("spouseIdentificationNo")}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Spouse Name *</Label>
-                  <Input
-                    className={uniformStyle}
+                  <RestrictedInput
+                    allowed="alpha"
+                    className={getFieldStyle(!!fieldError("spouseName"))}
                     value={data.spouseName}
-                    onChange={(e) => updateField("spouseName", e.target.value)}
+                    onChange={(e) =>
+                      handleSpouseChange("spouseName", e.target.value)
+                    }
                   />
+                  {fieldError("spouseName") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("spouseName")}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Spouse Contact No. *</Label>
-                  <Input
-                    className={uniformStyle}
+                  <RestrictedInput
+                    allowed="numeric"
+                    maxLength={8}
+                    className={getFieldStyle(!!fieldError("spouseContact"))}
                     value={data.spouseContact}
                     onChange={(e) =>
-                      updateField("spouseContact", e.target.value)
+                      handleSpouseChange("spouseContact", e.target.value)
                     }
                   />
+                  {fieldError("spouseContact") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("spouseContact")}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
           )}
+
+          {/* Family Tree Upload */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t mt-4">
             <div className="space-y-2.5">
               <Label className="text-gray-800 font-semibold text-sm">
@@ -689,9 +915,15 @@ const ComprehensiveOwnerDetails = ({
                   {data.familyTreeName || "No file chosen"}
                 </span>
               </div>
+              {fieldError("familyTree") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("familyTree")}
+                </p>
+              )}
             </div>
           </div>
 
+          {/* Bank Details */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t">
             <div className="space-y-2">
               <Label>Name of Bank *</Label>
@@ -699,7 +931,9 @@ const ComprehensiveOwnerDetails = ({
                 value={data.bankName}
                 onValueChange={(v) => updateField("bankName", v)}
               >
-                <SelectTrigger className={uniformStyle}>
+                <SelectTrigger
+                  className={getFieldStyle(!!fieldError("bankName"))}
+                >
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -718,7 +952,6 @@ const ComprehensiveOwnerDetails = ({
                       option.bankName ||
                       option.bank ||
                       "Unknown";
-
                     return (
                       <SelectItem key={index} value={value}>
                         {label}
@@ -727,20 +960,31 @@ const ComprehensiveOwnerDetails = ({
                   })}
                 </SelectContent>
               </Select>
+              {fieldError("bankName") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("bankName")}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Saving Account No *</Label>
-              <Input
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="alphanumeric"
+                className={getFieldStyle(!!fieldError("bankAccount"))}
                 value={data.bankAccount}
                 onChange={(e) => updateField("bankAccount", e.target.value)}
               />
+              {fieldError("bankAccount") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("bankAccount")}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>Upload Passport-size Photograph *</Label>
               <div
-                className={fileUploadStyle}
+                className={fileUploadStyle(!!fieldError("passportPhoto"))}
                 onClick={() =>
                   document
                     .getElementById(`passport-${data.id || "owner"}`)
@@ -761,6 +1005,11 @@ const ComprehensiveOwnerDetails = ({
                   handleFileChange("passportPhoto", e.target.files?.[0] || null)
                 }
               />
+              {fieldError("passportPhoto") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("passportPhoto")}
+                </p>
+              )}
             </div>
           </div>
 
@@ -774,7 +1023,9 @@ const ComprehensiveOwnerDetails = ({
                   value={data.permCountry}
                   onValueChange={(v) => updateField("permCountry", v)}
                 >
-                  <SelectTrigger className={uniformStyle}>
+                  <SelectTrigger
+                    className={getFieldStyle(!!fieldError("permCountry"))}
+                  >
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
@@ -790,7 +1041,13 @@ const ComprehensiveOwnerDetails = ({
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldError("permCountry") && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {fieldError("permCountry")}
+                  </p>
+                )}
               </div>
+
               {isBhutan(data.permCountry) ? (
                 <>
                   <div className="space-y-2">
@@ -799,7 +1056,9 @@ const ComprehensiveOwnerDetails = ({
                       value={data.permDzongkhag}
                       onValueChange={(v) => updateField("permDzongkhag", v)}
                     >
-                      <SelectTrigger className={uniformStyle}>
+                      <SelectTrigger
+                        className={getFieldStyle(!!fieldError("permDzongkhag"))}
+                      >
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
@@ -817,6 +1076,11 @@ const ComprehensiveOwnerDetails = ({
                         ))}
                       </SelectContent>
                     </Select>
+                    {fieldError("permDzongkhag") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("permDzongkhag")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Gewog *</Label>
@@ -824,7 +1088,9 @@ const ComprehensiveOwnerDetails = ({
                       value={data.permGewog}
                       onValueChange={(v) => updateField("permGewog", v)}
                     >
-                      <SelectTrigger className={uniformStyle}>
+                      <SelectTrigger
+                        className={getFieldStyle(!!fieldError("permGewog"))}
+                      >
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
@@ -840,68 +1106,111 @@ const ComprehensiveOwnerDetails = ({
                         ))}
                       </SelectContent>
                     </Select>
+                    {fieldError("permGewog") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("permGewog")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Village/Street *</Label>
-                    <Input
-                      className={uniformStyle}
+                    <RestrictedInput
+                      allowed="alphanumeric"
+                      className={getFieldStyle(!!fieldError("permVillage"))}
                       value={data.permVillage}
                       onChange={(e) =>
                         updateField("permVillage", e.target.value)
                       }
                     />
+                    {fieldError("permVillage") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("permVillage")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Thram No. *</Label>
-                    <Input
-                      className={uniformStyle}
+                    <RestrictedInput
+                      allowed="alphanumeric"
+                      className={getFieldStyle(!!fieldError("permThram"))}
                       value={data.permThram}
                       onChange={(e) => updateField("permThram", e.target.value)}
                     />
+                    {fieldError("permThram") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("permThram")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>House No. *</Label>
-                    <Input
-                      className={uniformStyle}
+                    <RestrictedInput
+                      allowed="alphanumeric"
+                      className={getFieldStyle(!!fieldError("permHouse"))}
                       value={data.permHouse}
                       onChange={(e) => updateField("permHouse", e.target.value)}
                     />
+                    {fieldError("permHouse") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("permHouse")}
+                      </p>
+                    )}
                   </div>
                 </>
               ) : (
                 <>
                   <div className="space-y-2">
                     <Label>State *</Label>
-                    <Input
-                      className={uniformStyle}
+                    <RestrictedInput
+                      allowed="alpha"
+                      className={getFieldStyle(!!fieldError("permDzongkhag"))}
                       value={data.permDzongkhag}
                       onChange={(e) =>
                         updateField("permDzongkhag", e.target.value)
                       }
                     />
+                    {fieldError("permDzongkhag") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("permDzongkhag")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Province *</Label>
-                    <Input
-                      className={uniformStyle}
+                    <RestrictedInput
+                      allowed="alpha"
+                      className={getFieldStyle(!!fieldError("permGewog"))}
                       value={data.permGewog}
                       onChange={(e) => updateField("permGewog", e.target.value)}
                     />
+                    {fieldError("permGewog") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("permGewog")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Street Name *</Label>
-                    <Input
-                      className={uniformStyle}
+                    <RestrictedInput
+                      allowed="alphanumeric"
+                      className={getFieldStyle(!!fieldError("permVillage"))}
                       value={data.permVillage}
                       onChange={(e) =>
                         updateField("permVillage", e.target.value)
                       }
                     />
+                    {fieldError("permVillage") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("permVillage")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label>Upload Address Proof *</Label>
                     <div
-                      className={fileUploadStyle}
+                      className={fileUploadStyle(
+                        !!fieldError("permAddressProof"),
+                      )}
                       onClick={() =>
                         document
                           .getElementById(`perm-proof-${data.id || "owner"}`)
@@ -927,6 +1236,11 @@ const ComprehensiveOwnerDetails = ({
                         }
                       }}
                     />
+                    {fieldError("permAddressProof") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("permAddressProof")}
+                      </p>
+                    )}
                   </div>
                 </>
               )}
@@ -945,7 +1259,9 @@ const ComprehensiveOwnerDetails = ({
                   value={data.currCountry}
                   onValueChange={(v) => updateField("currCountry", v)}
                 >
-                  <SelectTrigger className={uniformStyle}>
+                  <SelectTrigger
+                    className={getFieldStyle(!!fieldError("currCountry"))}
+                  >
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
@@ -961,6 +1277,11 @@ const ComprehensiveOwnerDetails = ({
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldError("currCountry") && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {fieldError("currCountry")}
+                  </p>
+                )}
               </div>
 
               {isBhutan(data.currCountry) ? (
@@ -971,7 +1292,9 @@ const ComprehensiveOwnerDetails = ({
                       value={data.currDzongkhag}
                       onValueChange={(v) => updateField("currDzongkhag", v)}
                     >
-                      <SelectTrigger className={uniformStyle}>
+                      <SelectTrigger
+                        className={getFieldStyle(!!fieldError("currDzongkhag"))}
+                      >
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
@@ -989,6 +1312,11 @@ const ComprehensiveOwnerDetails = ({
                         ))}
                       </SelectContent>
                     </Select>
+                    {fieldError("currDzongkhag") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("currDzongkhag")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Gewog *</Label>
@@ -996,7 +1324,9 @@ const ComprehensiveOwnerDetails = ({
                       value={data.currGewog}
                       onValueChange={(v) => updateField("currGewog", v)}
                     >
-                      <SelectTrigger className={uniformStyle}>
+                      <SelectTrigger
+                        className={getFieldStyle(!!fieldError("currGewog"))}
+                      >
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1014,60 +1344,97 @@ const ComprehensiveOwnerDetails = ({
                         ))}
                       </SelectContent>
                     </Select>
+                    {fieldError("currGewog") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("currGewog")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Village/Street *</Label>
-                    <Input
-                      className={uniformStyle}
+                    <RestrictedInput
+                      allowed="alphanumeric"
+                      className={getFieldStyle(!!fieldError("currVillage"))}
                       value={data.currVillage}
                       onChange={(e) =>
                         updateField("currVillage", e.target.value)
                       }
                     />
+                    {fieldError("currVillage") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("currVillage")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>House/Building/Flat No *</Label>
-                    <Input
-                      className={uniformStyle}
+                    <RestrictedInput
+                      allowed="alphanumeric"
+                      className={getFieldStyle(!!fieldError("currFlat"))}
                       value={data.currFlat}
                       onChange={(e) => updateField("currFlat", e.target.value)}
                     />
+                    {fieldError("currFlat") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("currFlat")}
+                      </p>
+                    )}
                   </div>
                 </>
               ) : (
                 <>
                   <div className="space-y-2">
                     <Label>State *</Label>
-                    <Input
-                      className={uniformStyle}
+                    <RestrictedInput
+                      allowed="alpha"
+                      className={getFieldStyle(!!fieldError("currDzongkhag"))}
                       value={data.currDzongkhag}
                       onChange={(e) =>
                         updateField("currDzongkhag", e.target.value)
                       }
                     />
+                    {fieldError("currDzongkhag") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("currDzongkhag")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Province *</Label>
-                    <Input
-                      className={uniformStyle}
+                    <RestrictedInput
+                      allowed="alpha"
+                      className={getFieldStyle(!!fieldError("currGewog"))}
                       value={data.currGewog}
                       onChange={(e) => updateField("currGewog", e.target.value)}
                     />
+                    {fieldError("currGewog") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("currGewog")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Street Name *</Label>
-                    <Input
-                      className={uniformStyle}
+                    <RestrictedInput
+                      allowed="alphanumeric"
+                      className={getFieldStyle(!!fieldError("currVillage"))}
                       value={data.currVillage}
                       onChange={(e) =>
                         updateField("currVillage", e.target.value)
                       }
                     />
+                    {fieldError("currVillage") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("currVillage")}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label>Upload Address Proof *</Label>
                     <div
-                      className={fileUploadStyle}
+                      className={fileUploadStyle(
+                        !!fieldError("currAddressProof"),
+                      )}
                       onClick={() =>
                         document
                           .getElementById(`curr-proof-${data.id || "owner"}`)
@@ -1093,6 +1460,11 @@ const ComprehensiveOwnerDetails = ({
                         }
                       }}
                     />
+                    {fieldError("currAddressProof") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("currAddressProof")}
+                      </p>
+                    )}
                   </div>
                 </>
               )}
@@ -1100,28 +1472,52 @@ const ComprehensiveOwnerDetails = ({
               <div className="space-y-2">
                 <Label>Email Address *</Label>
                 <Input
-                  className={uniformStyle}
+                  type="email"
+                  className={getFieldStyle(!!fieldError("currEmail"))}
                   value={data.currEmail}
                   onChange={(e) => updateField("currEmail", e.target.value)}
                 />
+                {fieldError("currEmail") && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {fieldError("currEmail")}
+                  </p>
+                )}
               </div>
+
               <div className="space-y-2">
                 <Label>Contact Number *</Label>
-                <Input
-                  className={uniformStyle}
+                <RestrictedInput
+                  allowed="numeric"
+                  maxLength={8}
+                  className={getFieldStyle(!!fieldError("currContact"))}
                   value={data.currContact}
                   onChange={(e) => updateField("currContact", e.target.value)}
                 />
+                {fieldError("currContact") && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {fieldError("currContact")}
+                  </p>
+                )}
               </div>
+
               <div className="space-y-2">
                 <Label>Alternate Contact No</Label>
-                <Input
-                  className={uniformStyle}
+                <RestrictedInput
+                  allowed="numeric"
+                  maxLength={8}
+                  className={getFieldStyle(
+                    !!fieldError("currAlternateContact"),
+                  )}
                   value={data.currAlternateContact}
                   onChange={(e) =>
                     updateField("currAlternateContact", e.target.value)
                   }
                 />
+                {fieldError("currAlternateContact") && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {fieldError("currAlternateContact")}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -1132,7 +1528,6 @@ const ComprehensiveOwnerDetails = ({
               PEP Declaration
             </h2>
 
-            {/* SELF PEP Question */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 border-b pb-6">
               <div className="space-y-2.5">
                 <Label className="text-gray-800 font-semibold text-sm">
@@ -1147,9 +1542,12 @@ const ComprehensiveOwnerDetails = ({
                       pepPerson: value,
                       pepRelated: value === "yes" ? "" : data.pepRelated,
                     });
+                    if (onClearError) onClearError(getErrorKey("pepPerson"));
                   }}
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger
+                    className={getFieldStyle(!!fieldError("pepPerson"))}
+                  >
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -1157,6 +1555,11 @@ const ComprehensiveOwnerDetails = ({
                     <SelectItem value="no">No</SelectItem>
                   </SelectContent>
                 </Select>
+                {fieldError("pepPerson") && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {fieldError("pepPerson")}
+                  </p>
+                )}
               </div>
 
               {data.pepPerson === "yes" && (
@@ -1173,9 +1576,13 @@ const ComprehensiveOwnerDetails = ({
                           pepCategory: value,
                           pepSubCategory: "",
                         });
+                        if (onClearError)
+                          onClearError(getErrorKey("pepCategory"));
                       }}
                     >
-                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                      <SelectTrigger
+                        className={getFieldStyle(!!fieldError("pepCategory"))}
+                      >
                         <SelectValue placeholder="[Select]" />
                       </SelectTrigger>
                       <SelectContent sideOffset={4}>
@@ -1203,6 +1610,11 @@ const ComprehensiveOwnerDetails = ({
                         )}
                       </SelectContent>
                     </Select>
+                    {fieldError("pepCategory") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("pepCategory")}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2.5">
@@ -1212,12 +1624,18 @@ const ComprehensiveOwnerDetails = ({
                     </Label>
                     <Select
                       value={data.pepSubCategory}
-                      onValueChange={(value) =>
-                        updateField("pepSubCategory", value)
-                      }
+                      onValueChange={(value) => {
+                        onUpdate({ ...data, pepSubCategory: value });
+                        if (onClearError)
+                          onClearError(getErrorKey("pepSubCategory"));
+                      }}
                       disabled={!data.pepCategory}
                     >
-                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                      <SelectTrigger
+                        className={getFieldStyle(
+                          !!fieldError("pepSubCategory"),
+                        )}
+                      >
                         <SelectValue placeholder="[Select]" />
                       </SelectTrigger>
                       <SelectContent sideOffset={4}>
@@ -1249,6 +1667,11 @@ const ComprehensiveOwnerDetails = ({
                         )}
                       </SelectContent>
                     </Select>
+                    {fieldError("pepSubCategory") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("pepSubCategory")}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2.5">
@@ -1286,6 +1709,11 @@ const ComprehensiveOwnerDetails = ({
                         {data.identificationProofName || "No file chosen"}
                       </span>
                     </div>
+                    {fieldError("identificationProof") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("identificationProof")}
+                      </p>
+                    )}
                   </div>
                 </>
               )}
@@ -1308,9 +1736,12 @@ const ComprehensiveOwnerDetails = ({
                         relatedPeps:
                           value === "yes" ? [createEmptyRelatedPep()] : [],
                       });
+                      if (onClearError) onClearError(getErrorKey("pepRelated"));
                     }}
                   >
-                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectTrigger
+                      className={getFieldStyle(!!fieldError("pepRelated"))}
+                    >
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent sideOffset={4}>
@@ -1318,6 +1749,11 @@ const ComprehensiveOwnerDetails = ({
                       <SelectItem value="no">No</SelectItem>
                     </SelectContent>
                   </Select>
+                  {fieldError("pepRelated") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("pepRelated")}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -1353,7 +1789,6 @@ const ComprehensiveOwnerDetails = ({
                       )}
                     </div>
 
-                    {/* Fields grid: 2 columns on small, 4 on large */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-2.5">
                         <Label className="text-gray-800 font-semibold text-sm">
@@ -1362,11 +1797,21 @@ const ComprehensiveOwnerDetails = ({
                         </Label>
                         <Select
                           value={pep.relationship || ""}
-                          onValueChange={(value) =>
-                            updateRelatedPep(index, "relationship", value)
-                          }
+                          onValueChange={(value) => {
+                            updateRelatedPep(index, "relationship", value);
+                            if (onClearError)
+                              onClearError(
+                                `${getErrorKey(`relatedPeps.${index}.relationship`)}`,
+                              );
+                          }}
                         >
-                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              !!errors[
+                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.relationship`
+                              ],
+                            )}
+                          >
                             <SelectValue placeholder="[Select]" />
                           </SelectTrigger>
                           <SelectContent sideOffset={4}>
@@ -1376,6 +1821,17 @@ const ComprehensiveOwnerDetails = ({
                             <SelectItem value="child">Child</SelectItem>
                           </SelectContent>
                         </Select>
+                        {errors[
+                          `${basePath ? basePath + "." : ""}relatedPeps.${index}.relationship`
+                        ] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {
+                              errors[
+                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.relationship`
+                              ]
+                            }
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2.5">
@@ -1383,18 +1839,39 @@ const ComprehensiveOwnerDetails = ({
                           Identification No.{" "}
                           <span className="text-red-500">*</span>
                         </Label>
-                        <Input
+                        <RestrictedInput
+                          allowed="numeric"
+                          maxLength={11}
                           placeholder="Enter Identification No"
-                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          className={getFieldStyle(
+                            !!errors[
+                              `${basePath ? basePath + "." : ""}relatedPeps.${index}.identificationNo`
+                            ],
+                          )}
                           value={pep.identificationNo || ""}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             updateRelatedPep(
                               index,
                               "identificationNo",
                               e.target.value,
-                            )
-                          }
+                            );
+                            if (onClearError)
+                              onClearError(
+                                `${getErrorKey(`relatedPeps.${index}.identificationNo`)}`,
+                              );
+                          }}
                         />
+                        {errors[
+                          `${basePath ? basePath + "." : ""}relatedPeps.${index}.identificationNo`
+                        ] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {
+                              errors[
+                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.identificationNo`
+                              ]
+                            }
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2.5">
@@ -1404,11 +1881,21 @@ const ComprehensiveOwnerDetails = ({
                         </Label>
                         <Select
                           value={pep.category || ""}
-                          onValueChange={(value) =>
-                            handleRelatedPepCategoryChange(index, value)
-                          }
+                          onValueChange={(value) => {
+                            handleRelatedPepCategoryChange(index, value);
+                            if (onClearError)
+                              onClearError(
+                                `${getErrorKey(`relatedPeps.${index}.category`)}`,
+                              );
+                          }}
                         >
-                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              !!errors[
+                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.category`
+                              ],
+                            )}
+                          >
                             <SelectValue placeholder="[Select]" />
                           </SelectTrigger>
                           <SelectContent sideOffset={4}>
@@ -1438,6 +1925,17 @@ const ComprehensiveOwnerDetails = ({
                             )}
                           </SelectContent>
                         </Select>
+                        {errors[
+                          `${basePath ? basePath + "." : ""}relatedPeps.${index}.category`
+                        ] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {
+                              errors[
+                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.category`
+                              ]
+                            }
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2.5">
@@ -1447,12 +1945,22 @@ const ComprehensiveOwnerDetails = ({
                         </Label>
                         <Select
                           value={pep.subCategory || ""}
-                          onValueChange={(v) =>
-                            updateRelatedPep(index, "subCategory", v)
-                          }
+                          onValueChange={(v) => {
+                            updateRelatedPep(index, "subCategory", v);
+                            if (onClearError)
+                              onClearError(
+                                `${getErrorKey(`relatedPeps.${index}.subCategory`)}`,
+                              );
+                          }}
                           disabled={!pep.category}
                         >
-                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              !!errors[
+                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.subCategory`
+                              ],
+                            )}
+                          >
                             <SelectValue placeholder="[Select]" />
                           </SelectTrigger>
                           <SelectContent sideOffset={4}>
@@ -1484,6 +1992,17 @@ const ComprehensiveOwnerDetails = ({
                             )}
                           </SelectContent>
                         </Select>
+                        {errors[
+                          `${basePath ? basePath + "." : ""}relatedPeps.${index}.subCategory`
+                        ] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {
+                              errors[
+                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.subCategory`
+                              ]
+                            }
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -1524,6 +2043,17 @@ const ComprehensiveOwnerDetails = ({
                           {pep.identificationProofName || "No file chosen"}
                         </span>
                       </div>
+                      {errors[
+                        `${basePath ? basePath + "." : ""}relatedPeps.${index}.identificationProof`
+                      ] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {
+                            errors[
+                              `${basePath ? basePath + "." : ""}relatedPeps.${index}.identificationProof`
+                            ]
+                          }
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1553,7 +2083,11 @@ const ComprehensiveOwnerDetails = ({
               </Label>
               <RadioGroup
                 value={data.employmentStatus}
-                onValueChange={(v) => updateField("employmentStatus", v)}
+                onValueChange={(v) => {
+                  onUpdate({ ...data, employmentStatus: v });
+                  if (onClearError)
+                    onClearError(getErrorKey("employmentStatus"));
+                }}
                 className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8"
               >
                 <div className="flex items-center space-x-2">
@@ -1593,6 +2127,11 @@ const ComprehensiveOwnerDetails = ({
                   </Label>
                 </div>
               </RadioGroup>
+              {fieldError("employmentStatus") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("employmentStatus")}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1607,12 +2146,18 @@ const ComprehensiveOwnerDetails = ({
                   <Label className="text-gray-800 font-semibold text-sm">
                     Employee ID <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <RestrictedInput
+                    allowed="alphanumeric"
                     placeholder="Enter ID"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    className={getFieldStyle(!!fieldError("employeeId"))}
                     value={data.employeeId || ""}
                     onChange={(e) => updateField("employeeId", e.target.value)}
                   />
+                  {fieldError("employeeId") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("employeeId")}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2.5">
@@ -1623,7 +2168,9 @@ const ComprehensiveOwnerDetails = ({
                     value={data.occupation}
                     onValueChange={(v) => updateField("occupation", v)}
                   >
-                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectTrigger
+                      className={getFieldStyle(!!fieldError("occupation"))}
+                    >
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent sideOffset={4}>
@@ -1645,6 +2192,11 @@ const ComprehensiveOwnerDetails = ({
                       )}
                     </SelectContent>
                   </Select>
+                  {fieldError("occupation") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("occupation")}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2.5">
@@ -1655,7 +2207,9 @@ const ComprehensiveOwnerDetails = ({
                     value={data.employerType}
                     onValueChange={(v) => updateField("employerType", v)}
                   >
-                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectTrigger
+                      className={getFieldStyle(!!fieldError("employerType"))}
+                    >
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent sideOffset={4}>
@@ -1664,6 +2218,11 @@ const ComprehensiveOwnerDetails = ({
                       <SelectItem value="corporate">Corporate</SelectItem>
                     </SelectContent>
                   </Select>
+                  {fieldError("employerType") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("employerType")}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2.5">
@@ -1674,7 +2233,9 @@ const ComprehensiveOwnerDetails = ({
                     value={data.designation}
                     onValueChange={(v) => updateField("designation", v)}
                   >
-                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectTrigger
+                      className={getFieldStyle(!!fieldError("designation"))}
+                    >
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent sideOffset={4}>
@@ -1683,6 +2244,11 @@ const ComprehensiveOwnerDetails = ({
                       <SelectItem value="assistant">Assistant</SelectItem>
                     </SelectContent>
                   </Select>
+                  {fieldError("designation") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("designation")}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2.5">
@@ -1693,7 +2259,9 @@ const ComprehensiveOwnerDetails = ({
                     value={data.grade}
                     onValueChange={(v) => updateField("grade", v)}
                   >
-                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectTrigger
+                      className={getFieldStyle(!!fieldError("grade"))}
+                    >
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent sideOffset={4}>
@@ -1702,6 +2270,11 @@ const ComprehensiveOwnerDetails = ({
                       <SelectItem value="p3">P3</SelectItem>
                     </SelectContent>
                   </Select>
+                  {fieldError("grade") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("grade")}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2.5">
@@ -1712,7 +2285,11 @@ const ComprehensiveOwnerDetails = ({
                     value={data.organizationName}
                     onValueChange={(v) => updateField("organizationName", v)}
                   >
-                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectTrigger
+                      className={getFieldStyle(
+                        !!fieldError("organizationName"),
+                      )}
+                    >
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent sideOffset={4}>
@@ -1739,6 +2316,11 @@ const ComprehensiveOwnerDetails = ({
                       )}
                     </SelectContent>
                   </Select>
+                  {fieldError("organizationName") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("organizationName")}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2.5">
@@ -1746,12 +2328,18 @@ const ComprehensiveOwnerDetails = ({
                     Organization Location{" "}
                     <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <RestrictedInput
+                    allowed="alphanumeric"
                     placeholder="Enter Location"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    className={getFieldStyle(!!fieldError("orgLocation"))}
                     value={data.orgLocation || ""}
                     onChange={(e) => updateField("orgLocation", e.target.value)}
                   />
+                  {fieldError("orgLocation") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("orgLocation")}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2.5">
@@ -1761,10 +2349,15 @@ const ComprehensiveOwnerDetails = ({
                   <Input
                     type="date"
                     max={today}
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    className={getFieldStyle(!!fieldError("joiningDate"))}
                     value={formatDateForInput(data.joiningDate)}
                     onChange={(e) => updateField("joiningDate", e.target.value)}
                   />
+                  {fieldError("joiningDate") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("joiningDate")}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1777,7 +2370,9 @@ const ComprehensiveOwnerDetails = ({
                     value={data.serviceNature}
                     onValueChange={(v) => updateField("serviceNature", v)}
                   >
-                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                    <SelectTrigger
+                      className={getFieldStyle(!!fieldError("serviceNature"))}
+                    >
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent sideOffset={4}>
@@ -1786,6 +2381,11 @@ const ComprehensiveOwnerDetails = ({
                       <SelectItem value="temporary">Temporary</SelectItem>
                     </SelectContent>
                   </Select>
+                  {fieldError("serviceNature") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("serviceNature")}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2.5">
@@ -1796,12 +2396,17 @@ const ComprehensiveOwnerDetails = ({
                   <Input
                     type="number"
                     placeholder="Enter Annual Salary"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    className={getFieldStyle(!!fieldError("annualSalary"))}
                     value={data.annualSalary || ""}
                     onChange={(e) =>
                       updateField("annualSalary", e.target.value)
                     }
                   />
+                  {fieldError("annualSalary") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("annualSalary")}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1814,12 +2419,17 @@ const ComprehensiveOwnerDetails = ({
                     <Input
                       type="date"
                       min={today}
-                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      className={getFieldStyle(!!fieldError("contractEndDate"))}
                       value={formatDateForInput(data.contractEndDate)}
                       onChange={(e) =>
                         updateField("contractEndDate", e.target.value)
                       }
                     />
+                    {fieldError("contractEndDate") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("contractEndDate")}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1832,14 +2442,12 @@ const ComprehensiveOwnerDetails = ({
 };
 
 // --- Main Form Component ---
-
 export function BusinessDetailsForm({
   onNext,
   onBack,
   formData,
 }: BusinessDetailsFormProps) {
   // --- State Initialization ---
-
   const [businessData, setBusinessData] = useState({
     businessName: formData?.businessName || "",
     establishmentDate: formData?.establishmentDate || "",
@@ -1900,6 +2508,8 @@ export function BusinessDetailsForm({
     bankAccount: "",
     passportPhoto: null,
     passportPhotoName: "",
+    familyTree: null,
+    familyTreeName: "",
     permCountry: "",
     permDzongkhag: "",
     permGewog: "",
@@ -1944,7 +2554,6 @@ export function BusinessDetailsForm({
   );
 
   const [partners, setPartners] = useState<any[]>(formData?.partners || []);
-
   const [ceo, setCeo] = useState(
     formData?.ceo || { ...initialComprehensiveState, id: "ceo-" + Date.now() },
   );
@@ -1978,16 +2587,76 @@ export function BusinessDetailsForm({
     any[]
   >([]);
   const [banksOptions, setBanksOptions] = useState<any[]>([]);
+  const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([]); // new state
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const clearError = (fieldPath: string) => {
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors[fieldPath];
+      return newErrors;
+    });
+  };
+
+  const setError = (fieldPath: string, errorMsg: string) => {
+    setErrors((prev) => ({ ...prev, [fieldPath]: errorMsg }));
+  };
+
+  // Enhanced real-time field validation
+  const validateField = (
+    fieldPath: string,
+    value: any,
+    fullData?: any,
+  ): string => {
+    if (!value || value.toString().trim() === "") return "";
+
+    const parts = fieldPath.split(".");
+    const fieldName = parts[parts.length - 1];
+
+    switch (fieldName) {
+      case "identificationNo":
+      case "spouseIdentificationNo":
+        if (!isValidCID(value)) return "CID must be 11 digits";
+        break;
+      case "tpn":
+      case "taxIdentifierNumber":
+        if (!isValidTPN(value)) return "TPN must be 11 digits";
+        break;
+      case "currContact":
+      case "spouseContact":
+      case "currAlternateContact":
+      case "contactNumber":
+      case "alternateContactNumber":
+        if (!isValidPhoneNumber(value))
+          return "Enter a valid Bhutanese phone number (mobile: 8 digits starting with 16/17/77; landline: 7-8 digits starting with 2-8)";
+        break;
+      case "currEmail":
+      case "email":
+        if (!isValidEmail(value)) return "Invalid email format";
+        break;
+      case "shareholdingPercent":
+        if (!isValidShareholding(value))
+          return "Shareholding must be between 0 and 100";
+        break;
+      case "dateOfBirth":
+        if (!isLegalAge(value))
+          return "Applicant must be at least 18 years old";
+        break;
+    }
+    return "";
+  };
 
   useEffect(() => {
     const loadAllData = async () => {
       try {
-        const [country, dzongkhag, identificationType, banks] =
+        const [country, dzongkhag, identificationType, banks, marital] =
           await Promise.all([
             fetchCountry().catch(() => []),
             fetchDzongkhag().catch(() => []),
             fetchIdentificationType().catch(() => []),
             fetchBanks().catch(() => []),
+            fetchMaritalStatus().catch(() => []), // load marital status options
           ]);
         setCountryOptions(country?.data?.data || country || []);
         setDzongkhagOptions(dzongkhag?.data?.data || dzongkhag || []);
@@ -1995,6 +2664,7 @@ export function BusinessDetailsForm({
           identificationType?.data?.data || identificationType || [],
         );
         setBanksOptions(banks?.data?.data || banks || []);
+        setMaritalStatusOptions(marital?.data?.data || marital || []);
       } catch (error) {
         console.error("Error loading form data:", error);
       }
@@ -2026,6 +2696,13 @@ export function BusinessDetailsForm({
 
   const handleBusinessDataChange = (field: string, value: any) => {
     setBusinessData((prev) => ({ ...prev, [field]: value }));
+    const fieldPath = `business.${field}`;
+    const errorMsg = validateField(fieldPath, value);
+    if (errorMsg) {
+      setError(fieldPath, errorMsg);
+    } else {
+      clearError(fieldPath);
+    }
   };
 
   const handleBusinessAddressChange = (field: string, value: any) => {
@@ -2041,73 +2718,66 @@ export function BusinessDetailsForm({
       }
       return newState;
     });
+    const fieldPath = `business.${field}`;
+    const errorMsg = validateField(fieldPath, value);
+    if (errorMsg) {
+      setError(fieldPath, errorMsg);
+    } else {
+      clearError(fieldPath);
+    }
   };
 
-  // --- Partner/Shareholder Management Functions ---
   const handleAddPartner = () => {
     setPartners([
       ...partners,
       { ...initialComprehensiveState, id: Date.now() },
     ]);
   };
-
   const handleRemovePartner = (index: number) => {
     setPartners(partners.filter((_, i) => i !== index));
   };
-
   const handleUpdatePartner = (index: number, newData: any) => {
     const newPartners = [...partners];
     newPartners[index] = newData;
     setPartners(newPartners);
   };
-
   const handleAddShareholder = () => {
     setShareholders([
       ...shareholders,
       { ...initialComprehensiveState, id: "sh-" + Date.now() },
     ]);
   };
-
   const handleRemoveShareholder = (index: number) => {
     setShareholders(shareholders.filter((_, i) => i !== index));
   };
-
   const handleUpdateShareholder = (index: number, newData: any) => {
     const newSh = [...shareholders];
     newSh[index] = newData;
     setShareholders(newSh);
   };
-
-  // --- Board Members Management ---
   const handleAddBoardMember = () => {
     setBoardMembers([
       ...boardMembers,
       { ...initialComprehensiveState, id: "bm-" + Date.now() },
     ]);
   };
-
   const handleRemoveBoardMember = (index: number) => {
     setBoardMembers(boardMembers.filter((_, i) => i !== index));
   };
-
   const handleUpdateBoardMember = (index: number, newData: any) => {
     const newBm = [...boardMembers];
     newBm[index] = newData;
     setBoardMembers(newBm);
   };
-
-  // --- Trustee Management Functions ---
   const handleAddTrustee = () => {
     setTrustees([
       ...trustees,
       { ...initialComprehensiveState, id: "tr-" + Date.now() },
     ]);
   };
-
   const handleRemoveTrustee = (index: number) => {
     setTrustees(trustees.filter((_, i) => i !== index));
   };
-
   const handleUpdateTrustee = (index: number, newData: any) => {
     const newTr = [...trustees];
     newTr[index] = newData;
@@ -2127,29 +2797,469 @@ export function BusinessDetailsForm({
           [`${field}File`]: file,
           [`${field}FileName`]: file.name,
         }));
+        clearError(`business.${field}`);
       } else {
         setAttachments((prev) => ({
           ...prev,
           [field]: file,
           [`${field}Name`]: file.name,
         }));
+        clearError(`attachments.${field}`);
       }
     }
   };
 
-  const isFormValid = () => {
+  const checkCountryBhutan = (countryId: string) => {
+    const c = countryOptions.find(
+      (opt) =>
+        String(opt.country_pk_code || opt.country_id || opt.id) ===
+        String(countryId),
+    );
+    return (
+      c && (c.country_name || c.country || "").toLowerCase().includes("bhutan")
+    );
+  };
+
+  // Enhanced comprehensive owner validation with familyTree and proper marital check
+  const validateComprehensiveOwner = (
+    data: any,
+    basePath: string,
+    businessType?: string,
+    isPartnerOrShareholder?: boolean,
+  ): Record<string, string> => {
+    const errs: Record<string, string> = {};
+
+    // Personal required fields
+    const personalRequired = [
+      "identificationType",
+      "identificationNo",
+      "salutation",
+      "applicantName",
+      "nationality",
+      "gender",
+      "identificationIssueDate",
+      "identificationExpiryDate",
+      "dateOfBirth",
+      "tpn",
+      "maritalStatus",
+    ];
+    personalRequired.forEach((field) => {
+      if (isRequired(data[field]))
+        errs[`${basePath}.${field}`] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
+    });
+
+    // Shareholding validation for partners/shareholders
+    if (isPartnerOrShareholder) {
+      if (isRequired(data.shareholdingPercent)) {
+        errs[`${basePath}.shareholdingPercent`] =
+          "Shareholding percentage is required";
+      } else if (!isValidShareholding(data.shareholdingPercent)) {
+        errs[`${basePath}.shareholdingPercent`] =
+          "Shareholding must be between 0 and 100";
+      }
+    }
+
+    // Spouse checks using the same logic as component
     if (
-      !businessData.businessName ||
-      !businessData.businessType ||
-      !businessAddress.country
-    )
-      return false;
-    return true;
+      data.maritalStatus &&
+      isMarriedStatusFromOptions(data.maritalStatus, maritalStatusOptions)
+    ) {
+      if (isRequired(data.spouseIdentificationNo))
+        errs[`${basePath}.spouseIdentificationNo`] =
+          "Spouse identification number is required";
+      else if (!isValidCID(data.spouseIdentificationNo))
+        errs[`${basePath}.spouseIdentificationNo`] =
+          "Spouse CID must be 11 digits";
+
+      if (isRequired(data.spouseName))
+        errs[`${basePath}.spouseName`] = "Spouse name is required";
+
+      if (isRequired(data.spouseContact))
+        errs[`${basePath}.spouseContact`] = "Spouse contact number is required";
+      else if (!isValidPhoneNumber(data.spouseContact))
+        errs[`${basePath}.spouseContact`] =
+          "Enter a valid Bhutanese phone number";
+    }
+
+    // Age validation
+    if (!isRequired(data.dateOfBirth) && !isLegalAge(data.dateOfBirth)) {
+      errs[`${basePath}.dateOfBirth`] =
+        "Applicant must be at least 18 years old";
+    }
+
+    // Family Tree Upload (NEW)
+    if (!data.familyTree) {
+      errs[`${basePath}.familyTree`] = "Family tree document is required";
+    }
+
+    // Bank Details
+    if (isRequired(data.bankName))
+      errs[`${basePath}.bankName`] = "Bank name is required";
+    if (isRequired(data.bankAccount))
+      errs[`${basePath}.bankAccount`] = "Bank account number is required";
+
+    // Passport Photo
+    if (!data.passportPhoto)
+      errs[`${basePath}.passportPhoto`] = "Passport photo is required";
+
+    // Permanent Address
+    if (isRequired(data.permCountry))
+      errs[`${basePath}.permCountry`] = "Country is required";
+
+    const isBhutanPerm = checkCountryBhutan(data.permCountry);
+    if (isBhutanPerm) {
+      if (isRequired(data.permDzongkhag))
+        errs[`${basePath}.permDzongkhag`] = "Dzongkhag is required";
+      if (isRequired(data.permGewog))
+        errs[`${basePath}.permGewog`] = "Gewog is required";
+      if (isRequired(data.permVillage))
+        errs[`${basePath}.permVillage`] = "Village/Street is required";
+      if (isRequired(data.permThram))
+        errs[`${basePath}.permThram`] = "Thram number is required";
+      if (isRequired(data.permHouse))
+        errs[`${basePath}.permHouse`] = "House number is required";
+    } else {
+      // Non-Bhutan mapping: permDzongkhag -> State, permGewog -> Province
+      if (isRequired(data.permDzongkhag))
+        errs[`${basePath}.permDzongkhag`] = "State is required";
+      if (isRequired(data.permGewog))
+        errs[`${basePath}.permGewog`] = "Province is required";
+      if (isRequired(data.permVillage))
+        errs[`${basePath}.permVillage`] = "Street name is required";
+      if (!data.permAddressProof)
+        errs[`${basePath}.permAddressProof`] = "Address proof is required";
+    }
+
+    // Current Address
+    if (isRequired(data.currCountry))
+      errs[`${basePath}.currCountry`] = "Country is required";
+    const isBhutanCurr = checkCountryBhutan(data.currCountry);
+    if (isBhutanCurr) {
+      if (isRequired(data.currDzongkhag))
+        errs[`${basePath}.currDzongkhag`] = "Dzongkhag is required";
+      if (isRequired(data.currGewog))
+        errs[`${basePath}.currGewog`] = "Gewog is required";
+      if (isRequired(data.currVillage))
+        errs[`${basePath}.currVillage`] = "Village/Street is required";
+      if (isRequired(data.currFlat))
+        errs[`${basePath}.currFlat`] = "Flat/House number is required";
+    } else {
+      if (isRequired(data.currDzongkhag))
+        errs[`${basePath}.currDzongkhag`] = "State is required";
+      if (isRequired(data.currGewog))
+        errs[`${basePath}.currGewog`] = "Province is required";
+      if (isRequired(data.currVillage))
+        errs[`${basePath}.currVillage`] = "Street name is required";
+      if (!data.currAddressProof)
+        errs[`${basePath}.currAddressProof`] = "Address proof is required";
+    }
+
+    if (isRequired(data.currEmail))
+      errs[`${basePath}.currEmail`] = "Email is required";
+    else if (!isValidEmail(data.currEmail))
+      errs[`${basePath}.currEmail`] = "Invalid email format";
+
+    if (isRequired(data.currContact))
+      errs[`${basePath}.currContact`] = "Contact number is required";
+    else if (!isValidPhoneNumber(data.currContact))
+      errs[`${basePath}.currContact`] = "Enter a valid Bhutanese phone number";
+
+    // PEP
+    if (isRequired(data.pepPerson))
+      errs[`${basePath}.pepPerson`] = "PEP status is required";
+    if (data.pepPerson === "yes") {
+      if (isRequired(data.pepCategory))
+        errs[`${basePath}.pepCategory`] = "PEP category is required";
+      if (isRequired(data.pepSubCategory))
+        errs[`${basePath}.pepSubCategory`] = "PEP sub-category is required";
+      if (!data.identificationProof)
+        errs[`${basePath}.identificationProof`] =
+          "Identification proof is required";
+    } else if (data.pepPerson === "no") {
+      if (isRequired(data.pepRelated))
+        errs[`${basePath}.pepRelated`] = "Please indicate if related to a PEP";
+      if (data.pepRelated === "yes") {
+        (data.relatedPeps || []).forEach((pep: any, idx: number) => {
+          const relBase = `${basePath}.relatedPeps.${idx}`;
+          if (isRequired(pep.relationship))
+            errs[`${relBase}.relationship`] = "Relationship is required";
+          if (isRequired(pep.identificationNo))
+            errs[`${relBase}.identificationNo`] =
+              "Identification number is required";
+          else if (!isValidCID(pep.identificationNo))
+            errs[`${relBase}.identificationNo`] = "Must be 11 digits";
+          if (isRequired(pep.category))
+            errs[`${relBase}.category`] = "PEP category is required";
+          if (isRequired(pep.subCategory))
+            errs[`${relBase}.subCategory`] = "PEP sub-category is required";
+          if (!pep.identificationProof)
+            errs[`${relBase}.identificationProof`] =
+              "Identification proof is required";
+        });
+      }
+    }
+
+    // Employment
+    if (isRequired(data.employmentStatus))
+      errs[`${basePath}.employmentStatus`] = "Employment status is required";
+    if (data.employmentStatus === "employed") {
+      const empFields = [
+        "employeeId",
+        "occupation",
+        "employerType",
+        "designation",
+        "grade",
+        "organizationName",
+        "orgLocation",
+        "joiningDate",
+        "annualSalary",
+        "serviceNature",
+      ];
+      empFields.forEach((field) => {
+        if (isRequired(data[field]))
+          errs[`${basePath}.${field}`] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } is required`;
+      });
+      if (data.serviceNature === "contract") {
+        if (isRequired(data.contractEndDate))
+          errs[`${basePath}.contractEndDate`] = "Contract end date is required";
+      }
+    }
+
+    return errs;
+  };
+
+  const validateForm = (): boolean => {
+    let newErrors: Record<string, string> = {};
+
+    const businessRequired = [
+      "businessName",
+      "establishmentDate",
+      "industryClassification",
+      "identificationType",
+      "identificationNumber",
+      "identificationIssueDate",
+      "identificationExpiryDate",
+      "taxIdentifierType",
+      "nameOfBank",
+      "grossAnnualIncome",
+      "businessType",
+    ];
+    businessRequired.forEach((field) => {
+      if (isRequired(businessData[field]))
+        newErrors[`business.${field}`] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
+    });
+
+    if (isRequired(businessData.bankCurrentAccountNumber)) {
+      newErrors["business.bankCurrentAccountNumber"] =
+        "Current Account Number is required";
+    }
+
+    if (isRequired(businessData.taxIdentifierNumber)) {
+      newErrors["business.taxIdentifierNumber"] =
+        "Tax identifier number is required";
+    } else if (!isValidTPN(businessData.taxIdentifierNumber)) {
+      newErrors["business.taxIdentifierNumber"] = "TPN must be 11 digits";
+    }
+
+    if (!businessData.identificationProofFile)
+      newErrors["business.identificationProofFile"] =
+        "Identification proof is required";
+
+    if (isRequired(businessAddress.country))
+      newErrors["business.country"] = "Country is required";
+    if (businessAddress.country) {
+      if (isBusinessBhutan) {
+        if (isRequired(businessAddress.dzongkhag))
+          newErrors["business.dzongkhag"] = "Dzongkhag is required";
+        if (isRequired(businessAddress.gewog))
+          newErrors["business.gewog"] = "Gewog is required";
+        if (isRequired(businessAddress.villageStreet))
+          newErrors["business.villageStreet"] = "Village/Street is required";
+      } else {
+        if (isRequired(businessAddress.dzongkhag))
+          newErrors["business.dzongkhag"] = "State is required";
+        if (isRequired(businessAddress.gewog))
+          newErrors["business.gewog"] = "Province is required";
+        if (isRequired(businessAddress.villageStreet))
+          newErrors["business.villageStreet"] = "Street is required";
+      }
+      if (isRequired(businessAddress.specificLocation))
+        newErrors["business.specificLocation"] =
+          "Specific location is required";
+    }
+
+    if (isRequired(businessAddress.contactNumber)) {
+      newErrors["business.contactNumber"] = "Contact number is required";
+    } else if (!isValidPhoneNumber(businessAddress.contactNumber)) {
+      newErrors["business.contactNumber"] =
+        "Enter a valid Bhutanese phone number";
+    }
+    if (
+      businessAddress.alternateContactNumber &&
+      !isValidPhoneNumber(businessAddress.alternateContactNumber)
+    ) {
+      newErrors["business.alternateContactNumber"] =
+        "Enter a valid Bhutanese phone number";
+    }
+    if (isRequired(businessAddress.email)) {
+      newErrors["business.email"] = "Email is required";
+    } else if (!isValidEmail(businessAddress.email)) {
+      newErrors["business.email"] = "Invalid email format";
+    }
+
+    // Entity validation
+    if (businessData.businessType === "Sole Proprietorship") {
+      newErrors = {
+        ...newErrors,
+        ...validateComprehensiveOwner(
+          ownerData,
+          "owner",
+          businessData.businessType,
+        ),
+      };
+    }
+
+    if (businessData.businessType === "Partnership") {
+      partners.forEach((partner, idx) => {
+        newErrors = {
+          ...newErrors,
+          ...validateComprehensiveOwner(
+            partner,
+            `partners.${idx}`,
+            businessData.businessType,
+            true, // isPartnerOrShareholder
+          ),
+        };
+      });
+    }
+
+    if (businessData.businessType === "Private Limited Company") {
+      shareholders.forEach((sh, idx) => {
+        newErrors = {
+          ...newErrors,
+          ...validateComprehensiveOwner(
+            sh,
+            `shareholders.${idx}`,
+            businessData.businessType,
+            true,
+          ),
+        };
+      });
+      newErrors = {
+        ...newErrors,
+        ...validateComprehensiveOwner(
+          ceo,
+          "ceo",
+          businessData.businessType,
+          true,
+        ),
+      };
+      boardMembers.forEach((bm, idx) => {
+        newErrors = {
+          ...newErrors,
+          ...validateComprehensiveOwner(
+            bm,
+            `boardMembers.${idx}`,
+            businessData.businessType,
+            true,
+          ),
+        };
+      });
+    }
+
+    if (businessData.businessType === "Public Limited Company") {
+      shareholders.forEach((sh, idx) => {
+        newErrors = {
+          ...newErrors,
+          ...validateComprehensiveOwner(
+            sh,
+            `shareholders.${idx}`,
+            businessData.businessType,
+            true,
+          ),
+        };
+      });
+      newErrors = {
+        ...newErrors,
+        ...validateComprehensiveOwner(
+          ceo,
+          "ceo",
+          businessData.businessType,
+          true,
+        ),
+      };
+      boardMembers.forEach((bm, idx) => {
+        newErrors = {
+          ...newErrors,
+          ...validateComprehensiveOwner(
+            bm,
+            `boardMembers.${idx}`,
+            businessData.businessType,
+            true,
+          ),
+        };
+      });
+    }
+
+    if (businessData.businessType === "Trust") {
+      trustees.forEach((tr, idx) => {
+        newErrors = {
+          ...newErrors,
+          ...validateComprehensiveOwner(
+            tr,
+            `trustees.${idx}`,
+            businessData.businessType,
+          ),
+        };
+      });
+    }
+
+    if (businessData.businessType === "Association / Club") {
+      newErrors = {
+        ...newErrors,
+        ...validateComprehensiveOwner(
+          president,
+          "president",
+          businessData.businessType,
+        ),
+      };
+    }
+
+    if (businessData.businessType === "Government Body") {
+      newErrors = {
+        ...newErrors,
+        ...validateComprehensiveOwner(
+          headOfAgency,
+          "headOfAgency",
+          businessData.businessType,
+        ),
+      };
+    }
+
+    if (businessData.businessType === "NGO") {
+      newErrors = {
+        ...newErrors,
+        ...validateComprehensiveOwner(
+          headOfNGO,
+          "headOfNGO",
+          businessData.businessType,
+        ),
+      };
+    }
+
+    setErrors((prev) => ({ ...prev, ...newErrors }));
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleNext = () => {
-    if (!isFormValid()) {
-      alert("Please fill in all required fields.");
+    if (!validateForm()) {
+      alert("Please fix the errors before proceeding.");
       return;
     }
     const data = {
@@ -2187,13 +3297,19 @@ export function BusinessDetailsForm({
               <Label>
                 Business / Agency Name <span className="text-red-500">*</span>
               </Label>
-              <Input
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="alpha"
+                className={getFieldStyle(!!errors["business.businessName"])}
                 value={businessData.businessName}
                 onChange={(e) =>
                   handleBusinessDataChange("businessName", e.target.value)
                 }
               />
+              {errors["business.businessName"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.businessName"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -2219,7 +3335,9 @@ export function BusinessDetailsForm({
                   }
                 }}
               >
-                <SelectTrigger className={uniformStyle}>
+                <SelectTrigger
+                  className={getFieldStyle(!!errors["business.businessType"])}
+                >
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2239,6 +3357,11 @@ export function BusinessDetailsForm({
                   ))}
                 </SelectContent>
               </Select>
+              {errors["business.businessType"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.businessType"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -2246,21 +3369,31 @@ export function BusinessDetailsForm({
                 Establishment Date <span className="text-red-500">*</span>
               </Label>
               <Input
-                className={uniformStyle}
+                className={getFieldStyle(
+                  !!errors["business.establishmentDate"],
+                )}
                 type="date"
                 value={formatDateForInput(businessData.establishmentDate)}
                 onChange={(e) =>
                   handleBusinessDataChange("establishmentDate", e.target.value)
                 }
               />
+              {errors["business.establishmentDate"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.establishmentDate"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>
                 Industry Classification <span className="text-red-500">*</span>
               </Label>
-              <Input
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="alphanumeric"
+                className={getFieldStyle(
+                  !!errors["business.industryClassification"],
+                )}
                 value={businessData.industryClassification}
                 onChange={(e) =>
                   handleBusinessDataChange(
@@ -2269,6 +3402,11 @@ export function BusinessDetailsForm({
                   )
                 }
               />
+              {errors["business.industryClassification"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.industryClassification"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -2281,7 +3419,11 @@ export function BusinessDetailsForm({
                   handleBusinessDataChange("identificationType", v)
                 }
               >
-                <SelectTrigger className={uniformStyle}>
+                <SelectTrigger
+                  className={getFieldStyle(
+                    !!errors["business.identificationType"],
+                  )}
+                >
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2299,14 +3441,22 @@ export function BusinessDetailsForm({
                   ))}
                 </SelectContent>
               </Select>
+              {errors["business.identificationType"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.identificationType"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>
                 Identification Number <span className="text-red-500">*</span>
               </Label>
-              <Input
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="alphanumeric"
+                className={getFieldStyle(
+                  !!errors["business.identificationNumber"],
+                )}
                 value={businessData.identificationNumber}
                 onChange={(e) =>
                   handleBusinessDataChange(
@@ -2315,6 +3465,11 @@ export function BusinessDetailsForm({
                   )
                 }
               />
+              {errors["business.identificationNumber"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.identificationNumber"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -2323,7 +3478,9 @@ export function BusinessDetailsForm({
                 <span className="text-red-500">*</span>
               </Label>
               <Input
-                className={uniformStyle}
+                className={getFieldStyle(
+                  !!errors["business.identificationIssueDate"],
+                )}
                 type="date"
                 value={formatDateForInput(businessData.identificationIssueDate)}
                 onChange={(e) =>
@@ -2333,14 +3490,22 @@ export function BusinessDetailsForm({
                   )
                 }
               />
+              {errors["business.identificationIssueDate"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.identificationIssueDate"]}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>
                 Identification Expiry Date{" "}
                 <span className="text-red-500">*</span>
               </Label>
               <Input
-                className={uniformStyle}
+                className={getFieldStyle(
+                  !!errors["business.identificationExpiryDate"],
+                )}
                 type="date"
                 value={formatDateForInput(
                   businessData.identificationExpiryDate,
@@ -2352,6 +3517,11 @@ export function BusinessDetailsForm({
                   )
                 }
               />
+              {errors["business.identificationExpiryDate"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.identificationExpiryDate"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -2360,7 +3530,9 @@ export function BusinessDetailsForm({
                 <span className="text-red-500">*</span>
               </Label>
               <div
-                className={fileUploadStyle}
+                className={fileUploadStyle(
+                  !!errors["business.identificationProofFile"],
+                )}
                 onClick={() => document.getElementById("biz-id-proof")?.click()}
               >
                 <span className="text-gray-500 truncate max-w-[200px]">
@@ -2379,26 +3551,44 @@ export function BusinessDetailsForm({
                   handleFileChange("business", "identificationProof", e)
                 }
               />
+              {errors["business.identificationProofFile"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.identificationProofFile"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>
                 Tax Identifier Type <span className="text-red-500">*</span>
               </Label>
-              <Input
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="alphanumeric"
+                className={getFieldStyle(
+                  !!errors["business.taxIdentifierType"],
+                )}
                 value={businessData.taxIdentifierType}
                 onChange={(e) =>
                   handleBusinessDataChange("taxIdentifierType", e.target.value)
                 }
               />
+              {errors["business.taxIdentifierType"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.taxIdentifierType"]}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>
                 Tax Identifier Number <span className="text-red-500">*</span>
               </Label>
-              <Input
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="numeric"
+                maxLength={11}
+                className={getFieldStyle(
+                  !!errors["business.taxIdentifierNumber"],
+                )}
                 value={businessData.taxIdentifierNumber}
                 onChange={(e) =>
                   handleBusinessDataChange(
@@ -2407,6 +3597,11 @@ export function BusinessDetailsForm({
                   )
                 }
               />
+              {errors["business.taxIdentifierNumber"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.taxIdentifierNumber"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -2417,7 +3612,9 @@ export function BusinessDetailsForm({
                 value={businessData.nameOfBank}
                 onValueChange={(v) => handleBusinessDataChange("nameOfBank", v)}
               >
-                <SelectTrigger className={uniformStyle}>
+                <SelectTrigger
+                  className={getFieldStyle(!!errors["business.nameOfBank"])}
+                >
                   <SelectValue placeholder="Select Bank" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2445,12 +3642,23 @@ export function BusinessDetailsForm({
                   })}
                 </SelectContent>
               </Select>
+              {errors["business.nameOfBank"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.nameOfBank"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label>Bank Current Account Number</Label>
-              <Input
-                className={uniformStyle}
+              <Label>
+                Bank Current Account Number{" "}
+                <span className="text-red-500">*</span>
+              </Label>
+              <RestrictedInput
+                allowed="alphanumeric"
+                className={getFieldStyle(
+                  !!errors["business.bankCurrentAccountNumber"],
+                )}
                 value={businessData.bankCurrentAccountNumber}
                 onChange={(e) =>
                   handleBusinessDataChange(
@@ -2459,19 +3667,32 @@ export function BusinessDetailsForm({
                   )
                 }
               />
+              {errors["business.bankCurrentAccountNumber"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.bankCurrentAccountNumber"]}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label>
                 Gross Annual Income <span className="text-red-500">*</span>
               </Label>
               <Input
-                className={uniformStyle}
+                className={getFieldStyle(
+                  !!errors["business.grossAnnualIncome"],
+                )}
                 type="number"
                 value={businessData.grossAnnualIncome}
                 onChange={(e) =>
                   handleBusinessDataChange("grossAnnualIncome", e.target.value)
                 }
               />
+              {errors["business.grossAnnualIncome"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.grossAnnualIncome"]}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -2491,7 +3712,9 @@ export function BusinessDetailsForm({
                 value={businessAddress.country}
                 onValueChange={(v) => handleBusinessAddressChange("country", v)}
               >
-                <SelectTrigger className={uniformStyle}>
+                <SelectTrigger
+                  className={getFieldStyle(!!errors["business.country"])}
+                >
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2507,6 +3730,11 @@ export function BusinessDetailsForm({
                   ))}
                 </SelectContent>
               </Select>
+              {errors["business.country"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.country"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -2514,7 +3742,6 @@ export function BusinessDetailsForm({
                 {isBusinessBhutan ? "Dzongkhag" : "State"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-
               {isBusinessBhutan ? (
                 <Select
                   value={businessAddress.dzongkhag}
@@ -2523,7 +3750,9 @@ export function BusinessDetailsForm({
                   }
                   disabled={!businessAddress.country}
                 >
-                  <SelectTrigger className={uniformStyle}>
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors["business.dzongkhag"])}
+                  >
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
@@ -2542,14 +3771,20 @@ export function BusinessDetailsForm({
                   </SelectContent>
                 </Select>
               ) : (
-                <Input
-                  className={uniformStyle}
+                <RestrictedInput
+                  allowed="alpha"
+                  className={getFieldStyle(!!errors["business.dzongkhag"])}
                   placeholder="Enter State"
                   value={businessAddress.dzongkhag}
                   onChange={(e) =>
                     handleBusinessAddressChange("dzongkhag", e.target.value)
                   }
                 />
+              )}
+              {errors["business.dzongkhag"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.dzongkhag"]}
+                </p>
               )}
             </div>
 
@@ -2558,14 +3793,15 @@ export function BusinessDetailsForm({
                 {isBusinessBhutan ? "Gewog" : "Province"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-
               {isBusinessBhutan ? (
                 <Select
                   value={businessAddress.gewog}
                   onValueChange={(v) => handleBusinessAddressChange("gewog", v)}
                   disabled={!businessAddress.dzongkhag}
                 >
-                  <SelectTrigger className={uniformStyle}>
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors["business.gewog"])}
+                  >
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
@@ -2582,14 +3818,20 @@ export function BusinessDetailsForm({
                   </SelectContent>
                 </Select>
               ) : (
-                <Input
-                  className={uniformStyle}
+                <RestrictedInput
+                  allowed="alpha"
+                  className={getFieldStyle(!!errors["business.gewog"])}
                   placeholder="Enter Province"
                   value={businessAddress.gewog}
                   onChange={(e) =>
                     handleBusinessAddressChange("gewog", e.target.value)
                   }
                 />
+              )}
+              {errors["business.gewog"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.gewog"]}
+                </p>
               )}
             </div>
 
@@ -2598,8 +3840,9 @@ export function BusinessDetailsForm({
                 {isBusinessBhutan ? "Village / Street" : "Street"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              <Input
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="alphanumeric"
+                className={getFieldStyle(!!errors["business.villageStreet"])}
                 placeholder={
                   isBusinessBhutan ? "Enter Village / Street" : "Enter Street"
                 }
@@ -2609,14 +3852,20 @@ export function BusinessDetailsForm({
                 }
                 disabled={!businessAddress.country}
               />
+              {errors["business.villageStreet"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.villageStreet"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2 md:col-span-2">
               <Label>
                 Specific Area / Location <span className="text-red-500">*</span>
               </Label>
-              <Input
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="alphanumeric"
+                className={getFieldStyle(!!errors["business.specificLocation"])}
                 value={businessAddress.specificLocation}
                 onChange={(e) =>
                   handleBusinessAddressChange(
@@ -2625,27 +3874,41 @@ export function BusinessDetailsForm({
                   )
                 }
               />
+              {errors["business.specificLocation"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.specificLocation"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>
                 Contact Number <span className="text-red-500">*</span>
               </Label>
-              <Input
-                type="tel"
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="numeric"
+                maxLength={8}
+                className={getFieldStyle(!!errors["business.contactNumber"])}
                 value={businessAddress.contactNumber}
                 onChange={(e) =>
                   handleBusinessAddressChange("contactNumber", e.target.value)
                 }
               />
+              {errors["business.contactNumber"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.contactNumber"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>Alternate Contact Number</Label>
-              <Input
-                type="tel"
-                className={uniformStyle}
+              <RestrictedInput
+                allowed="numeric"
+                maxLength={8}
+                className={getFieldStyle(
+                  !!errors["business.alternateContactNumber"],
+                )}
                 value={businessAddress.alternateContactNumber}
                 onChange={(e) =>
                   handleBusinessAddressChange(
@@ -2654,6 +3917,11 @@ export function BusinessDetailsForm({
                   )
                 }
               />
+              {errors["business.alternateContactNumber"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.alternateContactNumber"]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -2662,12 +3930,17 @@ export function BusinessDetailsForm({
               </Label>
               <Input
                 type="email"
-                className={uniformStyle}
+                className={getFieldStyle(!!errors["business.email"])}
                 value={businessAddress.email}
                 onChange={(e) =>
                   handleBusinessAddressChange("email", e.target.value)
                 }
               />
+              {errors["business.email"] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors["business.email"]}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -2680,7 +3953,6 @@ export function BusinessDetailsForm({
             B. OWNERSHIP & MANAGEMENT DETAILS
           </h2>
 
-          {/* Sole Proprietorship */}
           {businessData.businessType === "Sole Proprietorship" && (
             <div className="space-y-6">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -2693,12 +3965,17 @@ export function BusinessDetailsForm({
                 countryOptions={countryOptions}
                 dzongkhagOptions={dzongkhagOptions}
                 identificationTypeOptions={identificationTypeOptions}
+                maritalStatusOptions={maritalStatusOptions} // new prop
                 title="Owner Personal Information"
+                errors={errors}
+                basePath="owner"
+                onClearError={clearError}
+                onSetError={setError}
+                onValidateField={validateField}
               />
             </div>
           )}
 
-          {/* Partnership */}
           {businessData.businessType === "Partnership" && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
@@ -2718,19 +3995,24 @@ export function BusinessDetailsForm({
                 <ComprehensiveOwnerDetails
                   key={partner.id || index}
                   data={partner}
-                  isPartner={true} // Shows Shareholding %
+                  isPartner={true}
                   title={`Partner ${index + 1} Personal Details`}
                   onUpdate={(newData) => handleUpdatePartner(index, newData)}
                   onRemove={() => handleRemovePartner(index)}
                   countryOptions={countryOptions}
                   dzongkhagOptions={dzongkhagOptions}
                   identificationTypeOptions={identificationTypeOptions}
+                  maritalStatusOptions={maritalStatusOptions} // new prop
+                  errors={errors}
+                  basePath={`partners.${index}`}
+                  onClearError={clearError}
+                  onSetError={setError}
+                  onValidateField={validateField}
                 />
               ))}
             </div>
           )}
 
-          {/* Private Limited Company */}
           {businessData.businessType === "Private Limited Company" && (
             <div className="space-y-12">
               <div className="space-y-6">
@@ -2759,6 +4041,12 @@ export function BusinessDetailsForm({
                     countryOptions={countryOptions}
                     dzongkhagOptions={dzongkhagOptions}
                     identificationTypeOptions={identificationTypeOptions}
+                    maritalStatusOptions={maritalStatusOptions} // new prop
+                    errors={errors}
+                    basePath={`shareholders.${idx}`}
+                    onClearError={clearError}
+                    onSetError={setError}
+                    onValidateField={validateField}
                   />
                 ))}
               </div>
@@ -2776,6 +4064,12 @@ export function BusinessDetailsForm({
                   countryOptions={countryOptions}
                   dzongkhagOptions={dzongkhagOptions}
                   identificationTypeOptions={identificationTypeOptions}
+                  maritalStatusOptions={maritalStatusOptions} // new prop
+                  errors={errors}
+                  basePath="ceo"
+                  onClearError={clearError}
+                  onSetError={setError}
+                  onValidateField={validateField}
                 />
               </div>
 
@@ -2806,13 +4100,18 @@ export function BusinessDetailsForm({
                     countryOptions={countryOptions}
                     dzongkhagOptions={dzongkhagOptions}
                     identificationTypeOptions={identificationTypeOptions}
+                    maritalStatusOptions={maritalStatusOptions} // new prop
+                    errors={errors}
+                    basePath={`boardMembers.${idx}`}
+                    onClearError={clearError}
+                    onSetError={setError}
+                    onValidateField={validateField}
                   />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Public Limited Company */}
           {businessData.businessType === "Public Limited Company" && (
             <div className="space-y-12">
               <div className="p-4 bg-blue-50 border-l-4 border-[#003DA5] text-sm text-[#003DA5] mb-6">
@@ -2847,6 +4146,12 @@ export function BusinessDetailsForm({
                     countryOptions={countryOptions}
                     dzongkhagOptions={dzongkhagOptions}
                     identificationTypeOptions={identificationTypeOptions}
+                    maritalStatusOptions={maritalStatusOptions} // new prop
+                    errors={errors}
+                    basePath={`shareholders.${idx}`}
+                    onClearError={clearError}
+                    onSetError={setError}
+                    onValidateField={validateField}
                   />
                 ))}
               </div>
@@ -2864,6 +4169,12 @@ export function BusinessDetailsForm({
                   countryOptions={countryOptions}
                   dzongkhagOptions={dzongkhagOptions}
                   identificationTypeOptions={identificationTypeOptions}
+                  maritalStatusOptions={maritalStatusOptions} // new prop
+                  errors={errors}
+                  basePath="ceo"
+                  onClearError={clearError}
+                  onSetError={setError}
+                  onValidateField={validateField}
                 />
               </div>
 
@@ -2894,13 +4205,18 @@ export function BusinessDetailsForm({
                     countryOptions={countryOptions}
                     dzongkhagOptions={dzongkhagOptions}
                     identificationTypeOptions={identificationTypeOptions}
+                    maritalStatusOptions={maritalStatusOptions} // new prop
+                    errors={errors}
+                    basePath={`boardMembers.${idx}`}
+                    onClearError={clearError}
+                    onSetError={setError}
+                    onValidateField={validateField}
                   />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Trust Details */}
           {businessData.businessType === "Trust" && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
@@ -2927,12 +4243,17 @@ export function BusinessDetailsForm({
                   countryOptions={countryOptions}
                   dzongkhagOptions={dzongkhagOptions}
                   identificationTypeOptions={identificationTypeOptions}
+                  maritalStatusOptions={maritalStatusOptions} // new prop
+                  errors={errors}
+                  basePath={`trustees.${index}`}
+                  onClearError={clearError}
+                  onSetError={setError}
+                  onValidateField={validateField}
                 />
               ))}
             </div>
           )}
 
-          {/* Association / Club Details */}
           {businessData.businessType === "Association / Club" && (
             <div className="space-y-6">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -2947,11 +4268,16 @@ export function BusinessDetailsForm({
                 countryOptions={countryOptions}
                 dzongkhagOptions={dzongkhagOptions}
                 identificationTypeOptions={identificationTypeOptions}
+                maritalStatusOptions={maritalStatusOptions} // new prop
+                errors={errors}
+                basePath="president"
+                onClearError={clearError}
+                onSetError={setError}
+                onValidateField={validateField}
               />
             </div>
           )}
 
-          {/* Government Body Head of Agency Details */}
           {businessData.businessType === "Government Body" && (
             <div className="space-y-6">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -2966,11 +4292,16 @@ export function BusinessDetailsForm({
                 countryOptions={countryOptions}
                 dzongkhagOptions={dzongkhagOptions}
                 identificationTypeOptions={identificationTypeOptions}
+                maritalStatusOptions={maritalStatusOptions} // new prop
+                errors={errors}
+                basePath="headOfAgency"
+                onClearError={clearError}
+                onSetError={setError}
+                onValidateField={validateField}
               />
             </div>
           )}
 
-          {/* NGO Head of NGO Details */}
           {businessData.businessType === "NGO" && (
             <div className="space-y-6">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -2985,24 +4316,13 @@ export function BusinessDetailsForm({
                 countryOptions={countryOptions}
                 dzongkhagOptions={dzongkhagOptions}
                 identificationTypeOptions={identificationTypeOptions}
+                maritalStatusOptions={maritalStatusOptions} // new prop
+                errors={errors}
+                basePath="headOfNGO"
+                onClearError={clearError}
+                onSetError={setError}
+                onValidateField={validateField}
               />
-            </div>
-          )}
-
-          {/* Fallback */}
-          {![
-            "Sole Proprietorship",
-            "Partnership",
-            "Private Limited Company",
-            "Public Limited Company",
-            "Trust",
-            "Association / Club",
-            "Government Body",
-            "NGO",
-          ].includes(businessData.businessType) && (
-            <div className="p-10 bg-gray-50 border border-gray-200 rounded-lg text-center text-gray-500 italic">
-              Please provide personal details as required for{" "}
-              {businessData.businessType} management.
             </div>
           )}
         </div>

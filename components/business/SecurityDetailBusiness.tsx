@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Trash2, PlusCircle } from "lucide-react";
+import { Trash2, PlusCircle, Upload } from "lucide-react";
 
 // Import mapping utility and the Popup component
 import { mapCustomerDataToForm } from "@/lib/mapCustomerData";
@@ -32,11 +32,97 @@ import {
   fetchPepSubCategoryByCategory,
 } from "@/services/api";
 
-interface SecurityDetailsFormProps {
-  onNext: (data: any) => void;
-  onBack: () => void;
-  formData: any;
-}
+// ================== Validation Helpers ==================
+const isRequired = (value: any) => !value || value.toString().trim() === "";
+const isValidEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const isValidCID = (value: string) => /^\d{11}$/.test(value);
+const isValidTPN = (value: string) => /^\d{11}$/.test(value);
+const isValidMobile = (value: string) => /^(16|17|77)\d{6}$/.test(value); // 8 digits starting with 16,17,77
+const isValidFixedLine = (value: string) => /^[2-8]\d{6,7}$/.test(value);
+const isValidPhoneNumber = (value: string) =>
+  isValidMobile(value) || isValidFixedLine(value);
+const isLegalAge = (dateOfBirth: string): boolean => {
+  if (!dateOfBirth) return false;
+  const dob = new Date(dateOfBirth);
+  if (isNaN(dob.getTime())) return false;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  return age >= 18;
+};
+// ================== END Validation Helpers ==================
+
+// --- Uniform Styling (Orange Focus, Red Error) ---
+const getFieldStyle = (hasError: boolean) => {
+  const baseStyle =
+    "h-12 w-full bg-white border rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus-visible:outline-none focus:ring-1 focus-visible:ring-1 focus:ring-[#FF9800] focus-visible:ring-[#FF9800] transition-colors";
+  if (hasError) {
+    return `${baseStyle} border-red-500 focus:border-red-500 focus-visible:border-red-500`;
+  }
+  return `${baseStyle} border-gray-300 focus:border-[#FF9800] focus-visible:border-[#FF9800]`;
+};
+
+const fileUploadStyle = (hasError: boolean) =>
+  `h-12 w-full bg-white border rounded-lg flex items-center px-3 justify-between cursor-pointer hover:bg-gray-50 transition-colors text-sm ${
+    hasError ? "border-red-500" : "border-gray-300"
+  }`;
+
+// ================== Restricted Input Component ==================
+type AllowedPattern = "numeric" | "alpha" | "alphanumeric" | "text";
+
+const RestrictedInput = ({
+  allowed = "text",
+  maxLength,
+  value,
+  onChange,
+  className,
+  ...props
+}: {
+  allowed?: AllowedPattern;
+  maxLength?: number;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  className?: string;
+  [key: string]: any;
+}) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let newValue = e.target.value;
+
+    // Filter based on allowed pattern
+    if (allowed === "numeric") {
+      newValue = newValue.replace(/[^0-9]/g, "");
+    } else if (allowed === "alpha") {
+      // Allow letters, spaces, hyphens, apostrophes (for names)
+      newValue = newValue.replace(/[^a-zA-Z\s\-']/g, "");
+    } else if (allowed === "alphanumeric") {
+      // Allow letters, numbers, spaces, hyphens, underscores
+      newValue = newValue.replace(/[^a-zA-Z0-9\s\-_]/g, "");
+    }
+
+    // Apply maxLength
+    if (maxLength && newValue.length > maxLength) {
+      newValue = newValue.slice(0, maxLength);
+    }
+
+    // Call original onChange with filtered value
+    if (onChange) {
+      onChange({ ...e, target: { ...e.target, value: newValue } });
+    }
+  };
+
+  return (
+    <Input
+      value={value}
+      onChange={handleChange}
+      className={className}
+      maxLength={maxLength} // also pass to native input for browser hint
+      {...props}
+    />
+  );
+};
+// ================== END Restricted Input ==================
 
 // Helper to format dates to YYYY-MM-DD
 const formatDateForInput = (dateString: string | null | undefined) => {
@@ -200,6 +286,12 @@ const createEmptyGuarantor = () => ({
   relatedPepOptionsMap: {} as Record<number, any[]>,
 });
 
+interface SecurityDetailsFormProps {
+  onNext: (data: any) => void;
+  onBack: () => void;
+  formData: any;
+}
+
 export function SecurityDetailBusiness({
   onNext,
   onBack,
@@ -229,9 +321,9 @@ export function SecurityDetailBusiness({
 
   // Calculate date constraints
   const today = new Date().toISOString().split("T")[0];
-  const fifteenYearsAgo = new Date();
-  fifteenYearsAgo.setFullYear(fifteenYearsAgo.getFullYear() - 15);
-  const maxDobDate = fifteenYearsAgo.toISOString().split("T")[0];
+  const eighteenYearsAgo = new Date();
+  eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
+  const maxDobDate = eighteenYearsAgo.toISOString().split("T")[0];
 
   // --- HELPER: Determine if Married for a specific guarantor ---
   const getIsMarried = (guarantor: any) => {
@@ -505,6 +597,54 @@ export function SecurityDetailBusiness({
     loadPepSubCategories();
   }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
 
+  // --- FIELD VALIDATION (individual) ---
+  const validateField = (
+    fieldName: string,
+    value: any,
+    fullData?: any,
+  ): string => {
+    if (!value || value.toString().trim() === "") return "";
+
+    switch (fieldName) {
+      case "idNumber":
+      case "spouseCid":
+        if (!isValidCID(value)) return "CID must be 11 digits";
+        break;
+      case "tpnNo":
+        if (!isValidTPN(value)) return "TPN must be 11 digits";
+        break;
+      case "contact":
+      case "spouseContact":
+      case "currAlternateContact":
+        if (!isValidMobile(value))
+          return "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
+        break;
+      case "email":
+        if (!isValidEmail(value)) return "Invalid email format";
+        break;
+      case "dateOfBirth":
+        if (!isLegalAge(value))
+          return "Guarantor must be at least 18 years old";
+        break;
+    }
+    return "";
+  };
+
+  // --- REAL-TIME VALIDATION ON BLUR ---
+  const handleBlurField = (index: number, field: string, value: any) => {
+    const errorMsg = validateField(field, value);
+    if (errorMsg) {
+      setGuarantors((prev) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          errors: { ...updated[index].errors, [field]: errorMsg },
+        };
+        return updated;
+      });
+    }
+  };
+
   // --- FILE UPLOAD HANDLERS ---
   const handleFileChange = (
     index: number | "main",
@@ -521,20 +661,15 @@ export function SecurityDetailBusiness({
       const maxSize = 5 * 1024 * 1024; // 5MB
 
       if (!allowedTypes.includes(file.type)) {
+        const errorMsg = "Only PDF, JPG, JPEG, and PNG files are allowed";
         if (index === "main") {
-          setErrors({
-            ...errors,
-            [fieldName]: "Only PDF, JPG, JPEG, and PNG files are allowed",
-          });
+          setErrors((prev) => ({ ...prev, [fieldName]: errorMsg }));
         } else {
           setGuarantors((prev) => {
             const updated = [...prev];
             updated[index] = {
               ...updated[index],
-              errors: {
-                ...updated[index].errors,
-                [fieldName]: "Only PDF, JPG, JPEG, and PNG files are allowed",
-              },
+              errors: { ...updated[index].errors, [fieldName]: errorMsg },
             };
             return updated;
           });
@@ -543,20 +678,15 @@ export function SecurityDetailBusiness({
       }
 
       if (file.size > maxSize) {
+        const errorMsg = "File size must be less than 5MB";
         if (index === "main") {
-          setErrors({
-            ...errors,
-            [fieldName]: "File size must be less than 5MB",
-          });
+          setErrors((prev) => ({ ...prev, [fieldName]: errorMsg }));
         } else {
           setGuarantors((prev) => {
             const updated = [...prev];
             updated[index] = {
               ...updated[index],
-              errors: {
-                ...updated[index].errors,
-                [fieldName]: "File size must be less than 5MB",
-              },
+              errors: { ...updated[index].errors, [fieldName]: errorMsg },
             };
             return updated;
           });
@@ -564,18 +694,16 @@ export function SecurityDetailBusiness({
         return;
       }
 
+      // Success
       if (index === "main") {
-        setErrors({ ...errors, [fieldName]: "" });
+        setErrors((prev) => ({ ...prev, [fieldName]: "" }));
       } else {
         setGuarantors((prev) => {
           const updated = [...prev];
           updated[index] = {
             ...updated[index],
             [fieldName]: file.name,
-            errors: {
-              ...updated[index].errors,
-              [fieldName]: "",
-            },
+            errors: { ...updated[index].errors, [fieldName]: "" },
           };
           return updated;
         });
@@ -595,19 +723,19 @@ export function SecurityDetailBusiness({
       const maxSize = 5 * 1024 * 1024; // 5MB
 
       if (!allowedTypes.includes(file.type)) {
-        setErrors({
-          ...errors,
+        setErrors((prev) => ({
+          ...prev,
           [`security-${index}-proof`]:
             "Only PDF, JPG, JPEG, and PNG files are allowed",
-        });
+        }));
         return;
       }
 
       if (file.size > maxSize) {
-        setErrors({
-          ...errors,
+        setErrors((prev) => ({
+          ...prev,
           [`security-${index}-proof`]: "File size must be less than 5MB",
-        });
+        }));
         return;
       }
 
@@ -991,14 +1119,12 @@ export function SecurityDetailBusiness({
       // Handle dependent field clearing based on changes
       if (field === "isPep") {
         if (value === "yes") {
-          // Clear related fields that are no longer applicable
           updatedGuarantor = {
             ...updatedGuarantor,
             relatedToPep: "",
-            relatedPeps: [], // Clear any related PEPs when self is PEP
+            relatedPeps: [],
           };
         } else if (value === "no") {
-          // Clear self PEP fields
           updatedGuarantor = {
             ...updatedGuarantor,
             pepCategory: "",
@@ -1010,7 +1136,6 @@ export function SecurityDetailBusiness({
 
       if (field === "relatedToPep") {
         if (value === "yes") {
-          // If switching to yes, ensure there's at least one related PEP entry
           if (
             !updatedGuarantor.relatedPeps ||
             updatedGuarantor.relatedPeps.length === 0
@@ -1018,7 +1143,6 @@ export function SecurityDetailBusiness({
             updatedGuarantor.relatedPeps = [createEmptyRelatedPep()];
           }
         } else if (value === "no") {
-          // Clear all related PEPs when switching to no
           updatedGuarantor.relatedPeps = [];
         }
       }
@@ -1034,6 +1158,7 @@ export function SecurityDetailBusiness({
     });
   };
 
+  // Enhanced validation for all guarantors (used on submit)
   const validateAllGuarantors = (): boolean => {
     let isValid = true;
     const updatedGuarantors = [...guarantors];
@@ -1041,28 +1166,205 @@ export function SecurityDetailBusiness({
     guarantors.forEach((guarantor, index) => {
       const errors: Record<string, string> = {};
 
-      // Basic validation
-      if (!guarantor.idType) errors.idType = "Required";
-      if (!guarantor.idNumber) errors.idNumber = "Required";
-      if (!guarantor.guarantorName) errors.guarantorName = "Required";
-      if (!guarantor.nationality) errors.nationality = "Required";
-      if (!guarantor.dateOfBirth) errors.dateOfBirth = "Required";
-      if (!guarantor.maritalStatus) errors.maritalStatus = "Required";
-      if (!guarantor.gender) errors.gender = "Required";
-      if (!guarantor.email) errors.email = "Required";
-      if (!guarantor.contact) errors.contact = "Required";
+      // Personal Information
+      const personalFields = [
+        "idType",
+        "idNumber",
+        "salutation",
+        "guarantorName",
+        "nationality",
+        "gender",
+        "idIssueDate",
+        "idExpiryDate",
+        "dateOfBirth",
+        "maritalStatus",
+        "bankName",
+        "bankAccount",
+      ];
+      personalFields.forEach((field) => {
+        if (isRequired(guarantor[field]))
+          errors[field] = `${field} is required`;
+      });
 
-      // Address validation
-      if (!guarantor.permCountry) errors.permCountry = "Required";
-      if (!guarantor.permDzongkhag) errors.permDzongkhag = "Required";
-      if (!guarantor.permVillage) errors.permVillage = "Required";
+      // Specific format validations
+      if (guarantor.idNumber && !isValidCID(guarantor.idNumber))
+        errors.idNumber = "CID must be 11 digits";
 
-      // PEP validation
-      if (!guarantor.isPep) errors.isPep = "Required";
+      if (guarantor.tpnNo && !isValidTPN(guarantor.tpnNo))
+        errors.tpnNo = "TPN must be 11 digits";
+
+      if (guarantor.dateOfBirth && !isLegalAge(guarantor.dateOfBirth))
+        errors.dateOfBirth = "Guarantor must be at least 18 years old";
+
+      // Spouse fields if married
+      if (getIsMarried(guarantor)) {
+        if (isRequired(guarantor.spouseCid))
+          errors.spouseCid = "Spouse CID is required";
+        else if (guarantor.spouseCid && !isValidCID(guarantor.spouseCid))
+          errors.spouseCid = "CID must be 11 digits";
+
+        if (isRequired(guarantor.spouseName))
+          errors.spouseName = "Spouse name is required";
+
+        if (isRequired(guarantor.spouseContact))
+          errors.spouseContact = "Spouse contact is required";
+        else if (
+          guarantor.spouseContact &&
+          !isValidMobile(guarantor.spouseContact)
+        )
+          errors.spouseContact =
+            "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
+      }
+
+      // Passport photo
+      if (!guarantor.passportPhoto)
+        errors.passportPhoto = "Passport photo is required";
+
+      // Family tree
+      if (!guarantor.familyTree)
+        errors.familyTree = "Family tree document is required";
+
+      // Permanent Address
+      if (isRequired(guarantor.permCountry))
+        errors.permCountry = "Country is required";
+
+      const isBhutanPerm = countryOptions.find(
+        (c) =>
+          String(c.country_pk_code || c.id || c.code) ===
+            guarantor.permCountry &&
+          (c.country || c.name || "").toLowerCase().includes("bhutan"),
+      );
+
+      if (isBhutanPerm) {
+        if (isRequired(guarantor.permDzongkhag))
+          errors.permDzongkhag = "Dzongkhag is required";
+        if (isRequired(guarantor.permGewog))
+          errors.permGewog = "Gewog is required";
+        if (isRequired(guarantor.permVillage))
+          errors.permVillage = "Village/Street is required";
+        if (isRequired(guarantor.permThram))
+          errors.permThram = "Thram number is required";
+        if (isRequired(guarantor.permHouse))
+          errors.permHouse = "House number is required";
+      } else {
+        if (isRequired(guarantor.permDzongkhag))
+          errors.permDzongkhag = "State is required";
+        if (isRequired(guarantor.permGewog))
+          errors.permGewog = "Province is required";
+        if (isRequired(guarantor.permVillage))
+          errors.permVillage = "Street name is required";
+        if (!guarantor.permAddressProof)
+          errors.permAddressProof = "Address proof is required";
+      }
+
+      // Current Address
+      if (isRequired(guarantor.currCountry))
+        errors.currCountry = "Country is required";
+
+      const isBhutanCurr = countryOptions.find(
+        (c) =>
+          String(c.country_pk_code || c.id || c.code) ===
+            guarantor.currCountry &&
+          (c.country || c.name || "").toLowerCase().includes("bhutan"),
+      );
+
+      if (isBhutanCurr) {
+        if (isRequired(guarantor.currDzongkhag))
+          errors.currDzongkhag = "Dzongkhag is required";
+        if (isRequired(guarantor.currGewog))
+          errors.currGewog = "Gewog is required";
+        if (isRequired(guarantor.currVillage))
+          errors.currVillage = "Village/Street is required";
+        if (isRequired(guarantor.currHouse))
+          errors.currHouse = "Flat/House number is required";
+      } else {
+        if (isRequired(guarantor.currDzongkhag))
+          errors.currDzongkhag = "State is required";
+        if (isRequired(guarantor.currGewog))
+          errors.currGewog = "Province is required";
+        if (isRequired(guarantor.currVillage))
+          errors.currVillage = "Street name is required";
+        if (!guarantor.currAddressProof)
+          errors.currAddressProof = "Address proof is required";
+      }
+
+      if (isRequired(guarantor.email)) errors.email = "Email is required";
+      else if (guarantor.email && !isValidEmail(guarantor.email))
+        errors.email = "Invalid email format";
+
+      if (isRequired(guarantor.contact))
+        errors.contact = "Contact number is required";
+      else if (guarantor.contact && !isValidMobile(guarantor.contact))
+        errors.contact =
+          "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
+
+      if (
+        guarantor.currAlternateContact &&
+        !isValidMobile(guarantor.currAlternateContact)
+      )
+        errors.currAlternateContact =
+          "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
+
+      // PEP Declaration
+      if (isRequired(guarantor.isPep)) errors.isPep = "PEP status is required";
       if (guarantor.isPep === "yes") {
-        if (!guarantor.pepCategory) errors.pepCategory = "Required";
-        if (!guarantor.pepSubCategory) errors.pepSubCategory = "Required";
-        if (!guarantor.pepUpload) errors.pepUpload = "Required";
+        if (isRequired(guarantor.pepCategory))
+          errors.pepCategory = "PEP category is required";
+        if (isRequired(guarantor.pepSubCategory))
+          errors.pepSubCategory = "PEP sub-category is required";
+        if (!guarantor.pepUpload)
+          errors.pepUpload = "Identification proof is required";
+      } else if (guarantor.isPep === "no") {
+        if (isRequired(guarantor.relatedToPep))
+          errors.relatedToPep = "Please indicate if related to a PEP";
+        if (guarantor.relatedToPep === "yes") {
+          (guarantor.relatedPeps || []).forEach((pep: any, pepIdx: number) => {
+            if (isRequired(pep.relationship))
+              errors[`relatedPeps.${pepIdx}.relationship`] =
+                "Relationship is required";
+            if (isRequired(pep.identificationNo))
+              errors[`relatedPeps.${pepIdx}.identificationNo`] =
+                "Identification number is required";
+            else if (pep.identificationNo && !isValidCID(pep.identificationNo))
+              errors[`relatedPeps.${pepIdx}.identificationNo`] =
+                "Must be 11 digits";
+            if (isRequired(pep.category))
+              errors[`relatedPeps.${pepIdx}.category`] =
+                "PEP category is required";
+            if (isRequired(pep.subCategory))
+              errors[`relatedPeps.${pepIdx}.subCategory`] =
+                "PEP sub-category is required";
+            if (!pep.identificationProof)
+              errors[`relatedPeps.${pepIdx}.identificationProof`] =
+                "Identification proof is required";
+          });
+        }
+      }
+
+      // Employment
+      if (isRequired(guarantor.employmentStatus))
+        errors.employmentStatus = "Employment status is required";
+      if (guarantor.employmentStatus === "employed") {
+        const empFields = [
+          "employeeId",
+          "occupation",
+          "employerType",
+          "designation",
+          "grade",
+          "organizationName",
+          "orgLocation",
+          "joiningDate",
+          "annualSalary",
+          "serviceNature",
+        ];
+        empFields.forEach((field) => {
+          if (isRequired(guarantor[field]))
+            errors[field] = `${field} is required`;
+        });
+        if (guarantor.serviceNature === "contract") {
+          if (isRequired(guarantor.contractEndDate))
+            errors.contractEndDate = "Contract end date is required";
+        }
       }
 
       if (Object.keys(errors).length > 0) {
@@ -1157,31 +1459,24 @@ export function SecurityDetailBusiness({
         <Label className="text-gray-800 font-semibold text-sm">
           {getUploadLabel()} <span className="text-red-500">*</span>
         </Label>
-        <div className="flex items-center gap-2">
-          <input
-            type="file"
-            id={`security-proof-${secIndex}`}
-            className="hidden"
-            accept=".pdf,.jpg,.jpeg,.png"
-            onChange={(e) =>
-              handleSecurityFileChange(secIndex, e.target.files?.[0] || null)
-            }
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-28 bg-transparent"
-            onClick={() =>
-              document.getElementById(`security-proof-${secIndex}`)?.click()
-            }
-          >
-            Choose File
-          </Button>
-          <span className="text-sm text-muted-foreground truncate max-w-[200px]">
-            {proofFileName}
-          </span>
+        <div
+          className={fileUploadStyle(!!errors[`security-${secIndex}-proof`])}
+          onClick={() =>
+            document.getElementById(`security-proof-${secIndex}`)?.click()
+          }
+        >
+          <span className="text-gray-500 truncate">{proofFileName}</span>
+          <Upload className="h-4 w-4 text-[#003DA5]" />
         </div>
+        <input
+          type="file"
+          id={`security-proof-${secIndex}`}
+          className="hidden"
+          accept=".pdf,.jpg,.jpeg,.png"
+          onChange={(e) =>
+            handleSecurityFileChange(secIndex, e.target.files?.[0] || null)
+          }
+        />
         {errors[`security-${secIndex}-proof`] && (
           <p className="text-xs text-red-500 mt-1">
             {errors[`security-${secIndex}-proof`]}
@@ -1199,6 +1494,18 @@ export function SecurityDetailBusiness({
     const isMarried = getIsMarried(guarantor);
     const relatedPeps = guarantor.relatedPeps || [createEmptyRelatedPep()];
     const errors = guarantor.errors || {};
+
+    const isBhutanPerm = countryOptions.find(
+      (c) =>
+        String(c.country_pk_code || c.id || c.code) === guarantor.permCountry &&
+        (c.country || c.name || "").toLowerCase().includes("bhutan"),
+    );
+
+    const isBhutanCurr = countryOptions.find(
+      (c) =>
+        String(c.country_pk_code || c.id || c.code) === guarantor.currCountry &&
+        (c.country || c.name || "").toLowerCase().includes("bhutan"),
+    );
 
     return (
       <div
@@ -1267,9 +1574,7 @@ export function SecurityDetailBusiness({
                 }
                 required
               >
-                <SelectTrigger
-                  className={`h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.idType ? "border-red-500" : ""}`}
-                >
+                <SelectTrigger className={getFieldStyle(!!errors.idType)}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -1316,16 +1621,17 @@ export function SecurityDetailBusiness({
               >
                 Identification No. <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <RestrictedInput
+                allowed="numeric"
+                maxLength={11}
                 id={`id-number-${index}`}
                 placeholder="Enter identification No"
-                className={`h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.idNumber ? "border-red-500" : ""}`}
+                className={getFieldStyle(!!errors.idNumber)}
                 value={guarantor.idNumber || ""}
                 onChange={(e) =>
                   updateGuarantorField(index, "idNumber", e.target.value)
                 }
                 onBlur={() => handleIdentityCheck(index)}
-                required
               />
               {errors.idNumber && (
                 <p className="text-xs text-red-500 mt-1">{errors.idNumber}</p>
@@ -1346,7 +1652,7 @@ export function SecurityDetailBusiness({
                 }
                 required
               >
-                <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+                <SelectTrigger className={getFieldStyle(!!errors.salutation)}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -1356,6 +1662,9 @@ export function SecurityDetailBusiness({
                   <SelectItem value="dr">Dr.</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.salutation && (
+                <p className="text-xs text-red-500 mt-1">{errors.salutation}</p>
+              )}
             </div>
 
             <div className="space-y-1.5 sm:space-y-2.5">
@@ -1365,15 +1674,18 @@ export function SecurityDetailBusiness({
               >
                 Guarantor Name <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <RestrictedInput
+                allowed="alpha"
                 id={`guarantor-name-${index}`}
                 placeholder="Enter Your Full Name"
-                className={`h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.guarantorName ? "border-red-500" : ""}`}
+                className={getFieldStyle(!!errors.guarantorName)}
                 value={guarantor.guarantorName || ""}
                 onChange={(e) =>
                   updateGuarantorField(index, "guarantorName", e.target.value)
                 }
-                required
+                onBlur={(e) =>
+                  handleBlurField(index, "guarantorName", e.target.value)
+                }
               />
               {errors.guarantorName && (
                 <p className="text-xs text-red-500 mt-1">
@@ -1398,9 +1710,7 @@ export function SecurityDetailBusiness({
                 }
                 required
               >
-                <SelectTrigger
-                  className={`h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.nationality ? "border-red-500" : ""}`}
-                >
+                <SelectTrigger className={getFieldStyle(!!errors.nationality)}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -1456,9 +1766,7 @@ export function SecurityDetailBusiness({
                 }
                 required
               >
-                <SelectTrigger
-                  className={`h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.gender ? "border-red-500" : ""}`}
-                >
+                <SelectTrigger className={getFieldStyle(!!errors.gender)}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -1484,13 +1792,17 @@ export function SecurityDetailBusiness({
                 type="date"
                 id={`id-issue-date-${index}`}
                 max={today}
-                className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                className={getFieldStyle(!!errors.idIssueDate)}
                 value={formatDateForInput(guarantor.idIssueDate)}
                 onChange={(e) =>
                   updateGuarantorField(index, "idIssueDate", e.target.value)
                 }
-                required
               />
+              {errors.idIssueDate && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.idIssueDate}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5 sm:space-y-2.5">
@@ -1505,13 +1817,17 @@ export function SecurityDetailBusiness({
                 type="date"
                 id={`id-expiry-date-${index}`}
                 min={today}
-                className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                className={getFieldStyle(!!errors.idExpiryDate)}
                 value={formatDateForInput(guarantor.idExpiryDate)}
                 onChange={(e) =>
                   updateGuarantorField(index, "idExpiryDate", e.target.value)
                 }
-                required
               />
+              {errors.idExpiryDate && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.idExpiryDate}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1527,12 +1843,14 @@ export function SecurityDetailBusiness({
                 type="date"
                 id={`dob-${index}`}
                 max={maxDobDate}
-                className={`h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.dateOfBirth ? "border-red-500" : ""}`}
+                className={getFieldStyle(!!errors.dateOfBirth)}
                 value={formatDateForInput(guarantor.dateOfBirth)}
                 onChange={(e) =>
                   updateGuarantorField(index, "dateOfBirth", e.target.value)
                 }
-                required
+                onBlur={(e) =>
+                  handleBlurField(index, "dateOfBirth", e.target.value)
+                }
               />
               {errors.dateOfBirth && (
                 <p className="text-xs text-red-500 mt-1">
@@ -1548,15 +1866,21 @@ export function SecurityDetailBusiness({
               >
                 TPN No
               </Label>
-              <Input
+              <RestrictedInput
+                allowed="numeric"
+                maxLength={11}
                 id={`tpn-no-${index}`}
                 placeholder="Enter TPN"
-                className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                className={getFieldStyle(!!errors.tpnNo)}
                 value={guarantor.tpnNo || ""}
                 onChange={(e) =>
                   updateGuarantorField(index, "tpnNo", e.target.value)
                 }
+                onBlur={(e) => handleBlurField(index, "tpnNo", e.target.value)}
               />
+              {errors.tpnNo && (
+                <p className="text-xs text-red-500 mt-1">{errors.tpnNo}</p>
+              )}
             </div>
 
             <div className="space-y-1.5 sm:space-y-2.5">
@@ -1574,7 +1898,7 @@ export function SecurityDetailBusiness({
                 required
               >
                 <SelectTrigger
-                  className={`h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.maritalStatus ? "border-red-500" : ""}`}
+                  className={getFieldStyle(!!errors.maritalStatus)}
                 >
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
@@ -1637,16 +1961,25 @@ export function SecurityDetailBusiness({
                   >
                     Spouse CID/ID No. <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <RestrictedInput
+                    allowed="numeric"
+                    maxLength={11}
                     id={`spouse-cid-${index}`}
                     placeholder="Enter Spouse CID/ID"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                    className={getFieldStyle(!!errors.spouseCid)}
                     value={guarantor.spouseCid || ""}
                     onChange={(e) =>
                       updateGuarantorField(index, "spouseCid", e.target.value)
                     }
-                    required
+                    onBlur={(e) =>
+                      handleBlurField(index, "spouseCid", e.target.value)
+                    }
                   />
+                  {errors.spouseCid && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spouseCid}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5 sm:space-y-2.5">
@@ -1656,16 +1989,24 @@ export function SecurityDetailBusiness({
                   >
                     Spouse Name <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <RestrictedInput
+                    allowed="alpha"
                     id={`spouse-name-${index}`}
                     placeholder="Enter Spouse Full Name"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                    className={getFieldStyle(!!errors.spouseName)}
                     value={guarantor.spouseName || ""}
                     onChange={(e) =>
                       updateGuarantorField(index, "spouseName", e.target.value)
                     }
-                    required
+                    onBlur={(e) =>
+                      handleBlurField(index, "spouseName", e.target.value)
+                    }
                   />
+                  {errors.spouseName && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spouseName}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5 sm:space-y-2.5">
@@ -1675,10 +2016,12 @@ export function SecurityDetailBusiness({
                   >
                     Spouse Contact No. <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <RestrictedInput
+                    allowed="numeric"
+                    maxLength={8}
                     id={`spouse-contact-${index}`}
                     placeholder="Enter Contact Number"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                    className={getFieldStyle(!!errors.spouseContact)}
                     value={guarantor.spouseContact || ""}
                     onChange={(e) =>
                       updateGuarantorField(
@@ -1687,8 +2030,15 @@ export function SecurityDetailBusiness({
                         e.target.value,
                       )
                     }
-                    required
+                    onBlur={(e) =>
+                      handleBlurField(index, "spouseContact", e.target.value)
+                    }
                   />
+                  {errors.spouseContact && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spouseContact}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1702,37 +2052,30 @@ export function SecurityDetailBusiness({
               >
                 Upload Family Tree
               </Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="file"
-                  id={`family-tree-input-${index}`}
-                  className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) =>
-                    handleFileChange(
-                      index,
-                      "familyTree",
-                      e.target.files?.[0] || null,
-                    )
-                  }
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-28 bg-transparent"
-                  onClick={() =>
-                    document
-                      .getElementById(`family-tree-input-${index}`)
-                      ?.click()
-                  }
-                >
-                  Choose File
-                </Button>
-                <span className="text-sm text-muted-foreground">
+              <div
+                className={fileUploadStyle(!!errors.familyTree)}
+                onClick={() =>
+                  document.getElementById(`family-tree-input-${index}`)?.click()
+                }
+              >
+                <span className="text-gray-500 truncate">
                   {guarantor.familyTree || "No file chosen"}
                 </span>
+                <Upload className="h-4 w-4 text-[#003DA5]" />
               </div>
+              <input
+                type="file"
+                id={`family-tree-input-${index}`}
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) =>
+                  handleFileChange(
+                    index,
+                    "familyTree",
+                    e.target.files?.[0] || null,
+                  )
+                }
+              />
               {errors.familyTree && (
                 <p className="text-xs text-red-500 mt-1">{errors.familyTree}</p>
               )}
@@ -1756,7 +2099,7 @@ export function SecurityDetailBusiness({
                   updateGuarantorField(index, "bankName", value)
                 }
               >
-                <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+                <SelectTrigger className={getFieldStyle(!!errors.bankName)}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -1796,6 +2139,9 @@ export function SecurityDetailBusiness({
                   )}
                 </SelectContent>
               </Select>
+              {errors.bankName && (
+                <p className="text-xs text-red-500 mt-1">{errors.bankName}</p>
+              )}
             </div>
             <div className="space-y-1.5 sm:space-y-2.5">
               <Label
@@ -1804,15 +2150,24 @@ export function SecurityDetailBusiness({
               >
                 Bank Saving Account No <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <RestrictedInput
+                allowed="alphanumeric"
                 id={`bankAccount-${index}`}
                 placeholder="Enter saving account number"
-                className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                className={getFieldStyle(!!errors.bankAccount)}
                 value={guarantor.bankAccount || ""}
                 onChange={(e) =>
                   updateGuarantorField(index, "bankAccount", e.target.value)
                 }
+                onBlur={(e) =>
+                  handleBlurField(index, "bankAccount", e.target.value)
+                }
               />
+              {errors.bankAccount && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.bankAccount}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1824,35 +2179,30 @@ export function SecurityDetailBusiness({
               Upload Passport-size Photograph{" "}
               <span className="text-red-500">*</span>
             </Label>
-            <div className="flex items-center gap-2">
-              <input
-                type="file"
-                id={`uploadPassport-${index}`}
-                className="hidden"
-                accept=".jpg,.jpeg,.png"
-                onChange={(e) =>
-                  handleFileChange(
-                    index,
-                    "passportPhoto",
-                    e.target.files?.[0] || null,
-                  )
-                }
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-28 bg-transparent"
-                onClick={() =>
-                  document.getElementById(`uploadPassport-${index}`)?.click()
-                }
-              >
-                Choose File
-              </Button>
-              <span className="text-sm text-muted-foreground">
+            <div
+              className={fileUploadStyle(!!errors.passportPhoto)}
+              onClick={() =>
+                document.getElementById(`uploadPassport-${index}`)?.click()
+              }
+            >
+              <span className="text-gray-500 truncate">
                 {guarantor.passportPhoto || "No file chosen"}
               </span>
+              <Upload className="h-4 w-4 text-[#003DA5]" />
             </div>
+            <input
+              type="file"
+              id={`uploadPassport-${index}`}
+              className="hidden"
+              accept=".jpg,.jpeg,.png"
+              onChange={(e) =>
+                handleFileChange(
+                  index,
+                  "passportPhoto",
+                  e.target.files?.[0] || null,
+                )
+              }
+            />
             {errors.passportPhoto && (
               <p className="text-xs text-red-500 mt-1">
                 {errors.passportPhoto}
@@ -1883,9 +2233,7 @@ export function SecurityDetailBusiness({
                 }
                 required
               >
-                <SelectTrigger
-                  className={`h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.permCountry ? "border-red-500" : ""}`}
-                >
+                <SelectTrigger className={getFieldStyle(!!errors.permCountry)}>
                   <SelectValue placeholder="Select Country" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -1924,34 +2272,22 @@ export function SecurityDetailBusiness({
                 htmlFor={`permDzongkhag-${index}`}
                 className="text-gray-800 font-semibold text-xs sm:text-sm"
               >
-                {guarantor.permCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      guarantor.permCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
-                  ? "Dzongkhag"
-                  : "State"}{" "}
+                {isBhutanPerm ? "Dzongkhag" : "State"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              {guarantor.permCountry &&
-              !countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    guarantor.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) ? (
-                <Input
+              {!isBhutanPerm ? (
+                <RestrictedInput
+                  allowed="alpha"
                   id={`permDzongkhag-${index}`}
                   placeholder="Enter State"
+                  className={getFieldStyle(!!errors.permDzongkhag)}
                   value={guarantor.permDzongkhag || ""}
                   onChange={(e) =>
                     updateGuarantorField(index, "permDzongkhag", e.target.value)
                   }
-                  className={`h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.permDzongkhag ? "border-red-500" : ""}`}
+                  onBlur={(e) =>
+                    handleBlurField(index, "permDzongkhag", e.target.value)
+                  }
                 />
               ) : (
                 <Select
@@ -1959,20 +2295,10 @@ export function SecurityDetailBusiness({
                   onValueChange={(value) =>
                     updateGuarantorField(index, "permDzongkhag", value)
                   }
-                  disabled={
-                    guarantor.permCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          guarantor.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    ) === undefined
-                  }
+                  disabled={!guarantor.permCountry || !isBhutanPerm}
                 >
                   <SelectTrigger
-                    className={`h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.permDzongkhag ? "border-red-500" : ""}`}
+                    className={getFieldStyle(!!errors.permDzongkhag)}
                   >
                     <SelectValue placeholder="Select Dzongkhag" />
                   </SelectTrigger>
@@ -2014,66 +2340,36 @@ export function SecurityDetailBusiness({
                 htmlFor={`permGewog-${index}`}
                 className="text-gray-800 font-semibold text-xs sm:text-sm"
               >
-                {guarantor.permCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      guarantor.permCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
-                  ? "Gewog"
-                  : "Province"}{" "}
+                {isBhutanPerm ? "Gewog" : "Province"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              {guarantor.permCountry &&
-              !countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    guarantor.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) ? (
-                <Input
+              {!isBhutanPerm ? (
+                <RestrictedInput
+                  allowed="alpha"
                   id={`permGewog-${index}`}
                   placeholder="Enter Province"
+                  className={getFieldStyle(!!errors.permGewog)}
                   value={guarantor.permGewog || ""}
                   onChange={(e) =>
                     updateGuarantorField(index, "permGewog", e.target.value)
                   }
-                  className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                  onBlur={(e) =>
+                    handleBlurField(index, "permGewog", e.target.value)
+                  }
                 />
               ) : (
                 <Select
-                  value={
-                    guarantor.permCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          guarantor.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                      ? guarantor.permGewog
-                      : ""
-                  }
+                  value={guarantor.permGewog}
                   onValueChange={(value) =>
                     updateGuarantorField(index, "permGewog", value)
                   }
                   disabled={
                     !guarantor.permCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          guarantor.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
+                    !isBhutanPerm ||
+                    !guarantor.permDzongkhag
                   }
                 >
-                  <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+                  <SelectTrigger className={getFieldStyle(!!errors.permGewog)}>
                     <SelectValue placeholder="Select Gewog" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -2114,6 +2410,9 @@ export function SecurityDetailBusiness({
                   </SelectContent>
                 </Select>
               )}
+              {errors.permGewog && (
+                <p className="text-xs text-red-500 mt-1">{errors.permGewog}</p>
+              )}
             </div>
           </div>
 
@@ -2123,40 +2422,24 @@ export function SecurityDetailBusiness({
                 htmlFor={`permVillage-${index}`}
                 className="text-gray-800 font-semibold text-xs sm:text-sm"
               >
-                {guarantor.permCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      guarantor.permCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
-                  ? "Village/Street"
-                  : "Street"}{" "}
+                {isBhutanPerm ? "Village/Street" : "Street"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <RestrictedInput
+                allowed="alphanumeric"
                 id={`permVillage-${index}`}
                 placeholder={
-                  guarantor.permCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        guarantor.permCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                    ? "Enter Village/Street"
-                    : "Enter Street"
+                  isBhutanPerm ? "Enter Village/Street" : "Enter Street"
                 }
+                className={getFieldStyle(!!errors.permVillage)}
                 value={guarantor.permVillage || ""}
                 onChange={(e) =>
                   updateGuarantorField(index, "permVillage", e.target.value)
                 }
                 disabled={!guarantor.permCountry}
-                className={`h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.permVillage ? "border-red-500" : ""}`}
+                onBlur={(e) =>
+                  handleBlurField(index, "permVillage", e.target.value)
+                }
               />
               {errors.permVillage && (
                 <p className="text-xs text-red-500 mt-1">
@@ -2166,132 +2449,109 @@ export function SecurityDetailBusiness({
             </div>
 
             {/* Thram and House fields - only for Bhutan */}
-            {guarantor.permCountry &&
-              countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    guarantor.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) && (
-                <>
-                  <div className="space-y-1.5 sm:space-y-2.5">
-                    <Label
-                      htmlFor={`permThram-${index}`}
-                      className="text-gray-800 font-semibold text-xs sm:text-sm"
-                    >
-                      Thram No
-                    </Label>
-                    <Input
-                      id={`permThram-${index}`}
-                      placeholder="Enter Thram No"
-                      value={guarantor.permThram || ""}
-                      onChange={(e) =>
-                        updateGuarantorField(index, "permThram", e.target.value)
-                      }
-                      disabled={
-                        !guarantor.permCountry ||
-                        !countryOptions.find(
-                          (c) =>
-                            String(c.country_pk_code || c.id || c.code) ===
-                              guarantor.permCountry &&
-                            (c.country || c.name || "")
-                              .toLowerCase()
-                              .includes("bhutan"),
-                        )
-                      }
-                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 sm:space-y-2.5">
-                    <Label
-                      htmlFor={`permHouse-${index}`}
-                      className="text-gray-800 font-semibold text-xs sm:text-sm"
-                    >
-                      House No
-                    </Label>
-                    <Input
-                      id={`permHouse-${index}`}
-                      placeholder="Enter House No"
-                      value={guarantor.permHouse || ""}
-                      onChange={(e) =>
-                        updateGuarantorField(index, "permHouse", e.target.value)
-                      }
-                      disabled={
-                        !guarantor.permCountry ||
-                        !countryOptions.find(
-                          (c) =>
-                            String(c.country_pk_code || c.id || c.code) ===
-                              guarantor.permCountry &&
-                            (c.country || c.name || "")
-                              .toLowerCase()
-                              .includes("bhutan"),
-                        )
-                      }
-                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-                    />
-                  </div>
-                </>
-              )}
-          </div>
-
-          {guarantor.permCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  guarantor.permCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) && (
-              <div className="space-y-1.5 sm:space-y-2.5 mt-4">
-                <Label
-                  htmlFor={`permAddressProof-${index}`}
-                  className="text-gray-800 font-semibold text-xs sm:text-sm"
-                >
-                  Upload Address Proof Document{" "}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    id={`permAddressProof-${index}`}
-                    className="hidden"
-                    accept=".pdf,.jpg,.jpeg,.png"
+            {isBhutanPerm && (
+              <>
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label
+                    htmlFor={`permThram-${index}`}
+                    className="text-gray-800 font-semibold text-xs sm:text-sm"
+                  >
+                    Thram No
+                  </Label>
+                  <RestrictedInput
+                    allowed="alphanumeric"
+                    id={`permThram-${index}`}
+                    placeholder="Enter Thram No"
+                    className={getFieldStyle(!!errors.permThram)}
+                    value={guarantor.permThram || ""}
                     onChange={(e) =>
-                      handleFileChange(
-                        index,
-                        "permAddressProof",
-                        e.target.files?.[0] || null,
-                      )
+                      updateGuarantorField(index, "permThram", e.target.value)
+                    }
+                    onBlur={(e) =>
+                      handleBlurField(index, "permThram", e.target.value)
                     }
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-28 bg-transparent"
-                    onClick={() =>
-                      document
-                        .getElementById(`permAddressProof-${index}`)
-                        ?.click()
-                    }
-                  >
-                    Choose File
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    {guarantor.permAddressProof || "No file chosen"}
-                  </span>
+                  {errors.permThram && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.permThram}
+                    </p>
+                  )}
                 </div>
-                {errors.permAddressProof && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.permAddressProof}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Please upload a valid address proof document for non-Bhutan
-                  residence
-                </p>
-              </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label
+                    htmlFor={`permHouse-${index}`}
+                    className="text-gray-800 font-semibold text-xs sm:text-sm"
+                  >
+                    House No
+                  </Label>
+                  <RestrictedInput
+                    allowed="alphanumeric"
+                    id={`permHouse-${index}`}
+                    placeholder="Enter House No"
+                    className={getFieldStyle(!!errors.permHouse)}
+                    value={guarantor.permHouse || ""}
+                    onChange={(e) =>
+                      updateGuarantorField(index, "permHouse", e.target.value)
+                    }
+                    onBlur={(e) =>
+                      handleBlurField(index, "permHouse", e.target.value)
+                    }
+                  />
+                  {errors.permHouse && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.permHouse}
+                    </p>
+                  )}
+                </div>
+              </>
             )}
+          </div>
+
+          {!isBhutanPerm && guarantor.permCountry && (
+            <div className="space-y-1.5 sm:space-y-2.5 mt-4">
+              <Label
+                htmlFor={`permAddressProof-${index}`}
+                className="text-gray-800 font-semibold text-xs sm:text-sm"
+              >
+                Upload Address Proof Document{" "}
+                <span className="text-red-500">*</span>
+              </Label>
+              <div
+                className={fileUploadStyle(!!errors.permAddressProof)}
+                onClick={() =>
+                  document.getElementById(`permAddressProof-${index}`)?.click()
+                }
+              >
+                <span className="text-gray-500 truncate">
+                  {guarantor.permAddressProof || "No file chosen"}
+                </span>
+                <Upload className="h-4 w-4 text-[#003DA5]" />
+              </div>
+              <input
+                type="file"
+                id={`permAddressProof-${index}`}
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) =>
+                  handleFileChange(
+                    index,
+                    "permAddressProof",
+                    e.target.files?.[0] || null,
+                  )
+                }
+              />
+              {errors.permAddressProof && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.permAddressProof}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Please upload a valid address proof document for non-Bhutan
+                residence
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Current/Residential Address */}
@@ -2314,7 +2574,7 @@ export function SecurityDetailBusiness({
                   updateGuarantorField(index, "currCountry", value)
                 }
               >
-                <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+                <SelectTrigger className={getFieldStyle(!!errors.currCountry)}>
                   <SelectValue placeholder="Select Country" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -2341,6 +2601,11 @@ export function SecurityDetailBusiness({
                   )}
                 </SelectContent>
               </Select>
+              {errors.currCountry && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.currCountry}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5 sm:space-y-2.5">
@@ -2348,66 +2613,34 @@ export function SecurityDetailBusiness({
                 htmlFor={`currDzongkhag-${index}`}
                 className="text-gray-800 font-semibold text-xs sm:text-sm"
               >
-                {guarantor.currCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      guarantor.currCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
-                  ? "Dzongkhag"
-                  : "State"}{" "}
+                {isBhutanCurr ? "Dzongkhag" : "State"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              {guarantor.currCountry &&
-              !countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    guarantor.currCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) ? (
-                <Input
+              {!isBhutanCurr ? (
+                <RestrictedInput
+                  allowed="alpha"
                   id={`currDzongkhag-${index}`}
                   placeholder="Enter State"
+                  className={getFieldStyle(!!errors.currDzongkhag)}
                   value={guarantor.currDzongkhag || ""}
                   onChange={(e) =>
                     updateGuarantorField(index, "currDzongkhag", e.target.value)
                   }
-                  className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                  onBlur={(e) =>
+                    handleBlurField(index, "currDzongkhag", e.target.value)
+                  }
                 />
               ) : (
                 <Select
-                  value={
-                    guarantor.currCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          guarantor.currCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                      ? guarantor.currDzongkhag
-                      : ""
-                  }
+                  value={guarantor.currDzongkhag}
                   onValueChange={(value) =>
                     updateGuarantorField(index, "currDzongkhag", value)
                   }
-                  disabled={
-                    !guarantor.currCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          guarantor.currCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                  }
+                  disabled={!guarantor.currCountry || !isBhutanCurr}
                 >
-                  <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors.currDzongkhag)}
+                  >
                     <SelectValue placeholder="Select Dzongkhag" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -2436,6 +2669,11 @@ export function SecurityDetailBusiness({
                   </SelectContent>
                 </Select>
               )}
+              {errors.currDzongkhag && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.currDzongkhag}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5 sm:space-y-2.5">
@@ -2443,66 +2681,36 @@ export function SecurityDetailBusiness({
                 htmlFor={`currGewog-${index}`}
                 className="text-gray-800 font-semibold text-xs sm:text-sm"
               >
-                {guarantor.currCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      guarantor.currCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
-                  ? "Gewog"
-                  : "Province"}{" "}
+                {isBhutanCurr ? "Gewog" : "Province"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              {guarantor.currCountry &&
-              !countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    guarantor.currCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) ? (
-                <Input
+              {!isBhutanCurr ? (
+                <RestrictedInput
+                  allowed="alpha"
                   id={`currGewog-${index}`}
                   placeholder="Enter Province"
+                  className={getFieldStyle(!!errors.currGewog)}
                   value={guarantor.currGewog || ""}
                   onChange={(e) =>
                     updateGuarantorField(index, "currGewog", e.target.value)
                   }
-                  className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                  onBlur={(e) =>
+                    handleBlurField(index, "currGewog", e.target.value)
+                  }
                 />
               ) : (
                 <Select
-                  value={
-                    guarantor.currCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          guarantor.currCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
-                      ? guarantor.currGewog
-                      : ""
-                  }
+                  value={guarantor.currGewog}
                   onValueChange={(value) =>
                     updateGuarantorField(index, "currGewog", value)
                   }
                   disabled={
                     !guarantor.currCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          guarantor.currCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
+                    !isBhutanCurr ||
+                    !guarantor.currDzongkhag
                   }
                 >
-                  <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+                  <SelectTrigger className={getFieldStyle(!!errors.currGewog)}>
                     <SelectValue placeholder="Select Gewog" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -2543,6 +2751,9 @@ export function SecurityDetailBusiness({
                   </SelectContent>
                 </Select>
               )}
+              {errors.currGewog && (
+                <p className="text-xs text-red-500 mt-1">{errors.currGewog}</p>
+              )}
             </div>
           </div>
 
@@ -2552,41 +2763,30 @@ export function SecurityDetailBusiness({
                 htmlFor={`currVillage-${index}`}
                 className="text-gray-800 font-semibold text-xs sm:text-sm"
               >
-                {guarantor.currCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      guarantor.currCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
-                  ? "Village/Street"
-                  : "Street"}{" "}
+                {isBhutanCurr ? "Village/Street" : "Street"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <RestrictedInput
+                allowed="alphanumeric"
                 id={`currVillage-${index}`}
                 placeholder={
-                  guarantor.currCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        guarantor.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                    ? "Enter Village/Street"
-                    : "Enter Street"
+                  isBhutanCurr ? "Enter Village/Street" : "Enter Street"
                 }
+                className={getFieldStyle(!!errors.currVillage)}
                 value={guarantor.currVillage || ""}
                 onChange={(e) =>
                   updateGuarantorField(index, "currVillage", e.target.value)
                 }
                 disabled={!guarantor.currCountry}
-                className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                onBlur={(e) =>
+                  handleBlurField(index, "currVillage", e.target.value)
+                }
               />
+              {errors.currVillage && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.currVillage}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5 sm:space-y-2.5">
@@ -2594,43 +2794,28 @@ export function SecurityDetailBusiness({
                 htmlFor={`currHouse-${index}`}
                 className="text-gray-800 font-semibold text-xs sm:text-sm"
               >
-                House/Flat No
+                {isBhutanCurr ? "House/Building/Flat No" : ""}
               </Label>
-              <Input
-                id={`currHouse-${index}`}
-                placeholder="Enter House/Flat No"
-                value={
-                  !guarantor.currCountry ||
-                  !countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        guarantor.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                    ? ""
-                    : guarantor.currHouse || ""
-                }
-                onChange={(e) =>
-                  updateGuarantorField(index, "currHouse", e.target.value)
-                }
-                disabled={
-                  !guarantor.currCountry ||
-                  !countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        guarantor.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
-                }
-                className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-              />
+              {isBhutanCurr ? (
+                <RestrictedInput
+                  allowed="alphanumeric"
+                  id={`currHouse-${index}`}
+                  placeholder="Enter House/Flat No"
+                  className={getFieldStyle(!!errors.currHouse)}
+                  value={guarantor.currHouse || ""}
+                  onChange={(e) =>
+                    updateGuarantorField(index, "currHouse", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleBlurField(index, "currHouse", e.target.value)
+                  }
+                />
+              ) : null}
+              {errors.currHouse && (
+                <p className="text-xs text-red-500 mt-1">{errors.currHouse}</p>
+              )}
             </div>
 
-            {/* Email - only show when current country is selected */}
             {guarantor.currCountry && (
               <div className="space-y-1.5 sm:space-y-2.5">
                 <Label
@@ -2643,11 +2828,14 @@ export function SecurityDetailBusiness({
                   id={`email-${index}`}
                   type="email"
                   placeholder="Enter Email Address"
+                  className={getFieldStyle(!!errors.email)}
                   value={guarantor.email || ""}
                   onChange={(e) =>
                     updateGuarantorField(index, "email", e.target.value)
                   }
-                  className={`h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.email ? "border-red-500" : ""}`}
+                  onBlur={(e) =>
+                    handleBlurField(index, "email", e.target.value)
+                  }
                 />
                 {errors.email && (
                   <p className="text-xs text-red-500 mt-1">{errors.email}</p>
@@ -2667,14 +2855,19 @@ export function SecurityDetailBusiness({
                   >
                     Contact Number <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <RestrictedInput
+                    allowed="numeric"
+                    maxLength={8}
                     id={`contact-${index}`}
                     placeholder="Enter Contact Number"
+                    className={getFieldStyle(!!errors.contact)}
                     value={guarantor.contact || ""}
                     onChange={(e) =>
                       updateGuarantorField(index, "contact", e.target.value)
                     }
-                    className={`h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.contact ? "border-red-500" : ""}`}
+                    onBlur={(e) =>
+                      handleBlurField(index, "contact", e.target.value)
+                    }
                   />
                   {errors.contact && (
                     <p className="text-xs text-red-500 mt-1">
@@ -2690,10 +2883,12 @@ export function SecurityDetailBusiness({
                   >
                     Alternate Contact No
                   </Label>
-                  <Input
+                  <RestrictedInput
+                    allowed="numeric"
+                    maxLength={8}
                     id={`currAlternateContact-${index}`}
                     placeholder="Enter Contact No"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                    className={getFieldStyle(!!errors.currAlternateContact)}
                     value={guarantor.currAlternateContact || ""}
                     onChange={(e) =>
                       updateGuarantorField(
@@ -2702,69 +2897,68 @@ export function SecurityDetailBusiness({
                         e.target.value,
                       )
                     }
+                    onBlur={(e) =>
+                      handleBlurField(
+                        index,
+                        "currAlternateContact",
+                        e.target.value,
+                      )
+                    }
                   />
+                  {errors.currAlternateContact && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.currAlternateContact}
+                    </p>
+                  )}
                 </div>
               </div>
             </>
           )}
 
-          {guarantor.currCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  guarantor.currCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) && (
-              <div className="space-y-1.5 sm:space-y-2.5 mt-4">
-                <Label
-                  htmlFor={`currAddressProof-${index}`}
-                  className="text-gray-800 font-semibold text-xs sm:text-sm"
-                >
-                  Upload Address Proof Document{" "}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    id={`currAddressProof-${index}`}
-                    className="hidden"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) =>
-                      handleFileChange(
-                        index,
-                        "currAddressProof",
-                        e.target.files?.[0] || null,
-                      )
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-28 bg-transparent"
-                    onClick={() =>
-                      document
-                        .getElementById(`currAddressProof-${index}`)
-                        ?.click()
-                    }
-                  >
-                    Choose File
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    {guarantor.currAddressProof || "No file chosen"}
-                  </span>
-                </div>
-                {errors.currAddressProof && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.currAddressProof}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Please upload a valid address proof document for non-Bhutan
-                  residence
-                </p>
+          {!isBhutanCurr && guarantor.currCountry && (
+            <div className="space-y-1.5 sm:space-y-2.5 mt-4">
+              <Label
+                htmlFor={`currAddressProof-${index}`}
+                className="text-gray-800 font-semibold text-xs sm:text-sm"
+              >
+                Upload Address Proof Document{" "}
+                <span className="text-red-500">*</span>
+              </Label>
+              <div
+                className={fileUploadStyle(!!errors.currAddressProof)}
+                onClick={() =>
+                  document.getElementById(`currAddressProof-${index}`)?.click()
+                }
+              >
+                <span className="text-gray-500 truncate">
+                  {guarantor.currAddressProof || "No file chosen"}
+                </span>
+                <Upload className="h-4 w-4 text-[#003DA5]" />
               </div>
-            )}
+              <input
+                type="file"
+                id={`currAddressProof-${index}`}
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) =>
+                  handleFileChange(
+                    index,
+                    "currAddressProof",
+                    e.target.files?.[0] || null,
+                  )
+                }
+              />
+              {errors.currAddressProof && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.currAddressProof}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Please upload a valid address proof document for non-Bhutan
+                residence
+              </p>
+            </div>
+          )}
         </div>
 
         {/* PEP Declaration */}
@@ -2789,9 +2983,7 @@ export function SecurityDetailBusiness({
                   updateGuarantorField(index, "isPep", value)
                 }
               >
-                <SelectTrigger
-                  className={`h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.isPep ? "border-red-500" : ""}`}
-                >
+                <SelectTrigger className={getFieldStyle(!!errors.isPep)}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -2820,7 +3012,7 @@ export function SecurityDetailBusiness({
                     }
                   >
                     <SelectTrigger
-                      className={`h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.pepCategory ? "border-red-500" : ""}`}
+                      className={getFieldStyle(!!errors.pepCategory)}
                     >
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
@@ -2879,7 +3071,7 @@ export function SecurityDetailBusiness({
                     disabled={!guarantor.pepCategory}
                   >
                     <SelectTrigger
-                      className={`h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base ${errors.pepSubCategory ? "border-red-500" : ""}`}
+                      className={getFieldStyle(!!errors.pepSubCategory)}
                     >
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
@@ -2932,37 +3124,30 @@ export function SecurityDetailBusiness({
                     Upload Identification Proof{" "}
                     <span className="text-red-500">*</span>
                   </Label>
-                  <div className="flex items-center gap-2 h-10 sm:h-12">
-                    <input
-                      type="file"
-                      id={`selfPepProof-${index}`}
-                      className="hidden"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) =>
-                        handleFileChange(
-                          index,
-                          "pepUpload",
-                          e.target.files?.[0] || null,
-                        )
-                      }
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-28 bg-transparent"
-                      onClick={() =>
-                        document
-                          .getElementById(`selfPepProof-${index}`)
-                          ?.click()
-                      }
-                    >
-                      Choose File
-                    </Button>
-                    <span className="text-sm text-muted-foreground truncate max-w-[150px]">
+                  <div
+                    className={fileUploadStyle(!!errors.pepUpload)}
+                    onClick={() =>
+                      document.getElementById(`selfPepProof-${index}`)?.click()
+                    }
+                  >
+                    <span className="text-gray-500 truncate">
                       {guarantor.pepUpload || "No file chosen"}
                     </span>
+                    <Upload className="h-4 w-4 text-[#003DA5]" />
                   </div>
+                  <input
+                    type="file"
+                    id={`selfPepProof-${index}`}
+                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) =>
+                      handleFileChange(
+                        index,
+                        "pepUpload",
+                        e.target.files?.[0] || null,
+                      )
+                    }
+                  />
                   {errors.pepUpload && (
                     <p className="text-xs text-red-500 mt-1">
                       {errors.pepUpload}
@@ -2990,7 +3175,9 @@ export function SecurityDetailBusiness({
                     updateGuarantorField(index, "relatedToPep", value)
                   }
                 >
-                  <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors.relatedToPep)}
+                  >
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -2998,6 +3185,11 @@ export function SecurityDetailBusiness({
                     <SelectItem value="no">No</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.relatedToPep && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.relatedToPep}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -3050,7 +3242,11 @@ export function SecurityDetailBusiness({
                           )
                         }
                       >
-                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+                        <SelectTrigger
+                          className={getFieldStyle(
+                            !!errors[`relatedPeps.${pepIndex}.relationship`],
+                          )}
+                        >
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
@@ -3060,6 +3256,11 @@ export function SecurityDetailBusiness({
                           <SelectItem value="child">Child</SelectItem>
                         </SelectContent>
                       </Select>
+                      {errors[`relatedPeps.${pepIndex}.relationship`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${pepIndex}.relationship`]}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1.5 sm:space-y-2.5">
@@ -3067,9 +3268,13 @@ export function SecurityDetailBusiness({
                         Identification No.{" "}
                         <span className="text-red-500">*</span>
                       </Label>
-                      <Input
+                      <RestrictedInput
+                        allowed="numeric"
+                        maxLength={11}
                         placeholder="Enter Identification No"
-                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                        className={getFieldStyle(
+                          !!errors[`relatedPeps.${pepIndex}.identificationNo`],
+                        )}
                         value={pep.identificationNo || ""}
                         onChange={(e) =>
                           handleRelatedPepChange(
@@ -3080,6 +3285,11 @@ export function SecurityDetailBusiness({
                           )
                         }
                       />
+                      {errors[`relatedPeps.${pepIndex}.identificationNo`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${pepIndex}.identificationNo`]}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1.5 sm:space-y-2.5">
@@ -3097,7 +3307,11 @@ export function SecurityDetailBusiness({
                           )
                         }
                       >
-                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+                        <SelectTrigger
+                          className={getFieldStyle(
+                            !!errors[`relatedPeps.${pepIndex}.category`],
+                          )}
+                        >
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
@@ -3132,6 +3346,11 @@ export function SecurityDetailBusiness({
                           )}
                         </SelectContent>
                       </Select>
+                      {errors[`relatedPeps.${pepIndex}.category`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${pepIndex}.category`]}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1.5 sm:space-y-2.5">
@@ -3151,7 +3370,11 @@ export function SecurityDetailBusiness({
                         }
                         disabled={!pep.category}
                       >
-                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+                        <SelectTrigger
+                          className={getFieldStyle(
+                            !!errors[`relatedPeps.${pepIndex}.subCategory`],
+                          )}
+                        >
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
@@ -3191,43 +3414,58 @@ export function SecurityDetailBusiness({
                           )}
                         </SelectContent>
                       </Select>
+                      {errors[`relatedPeps.${pepIndex}.subCategory`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${pepIndex}.subCategory`]}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1.5 sm:space-y-2.5">
                       <Label className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[40px] flex items-end pb-1">
                         Upload Proof <span className="text-red-500">*</span>
                       </Label>
-                      <div className="flex items-center gap-2 h-10 sm:h-12">
-                        <input
-                          type="file"
-                          id={`uploadId-${index}-${pepIndex}`}
-                          className="hidden"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) =>
-                            handleRelatedPepFileChange(
-                              index,
-                              pepIndex,
-                              e.target.files?.[0] || null,
-                            )
-                          }
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="w-full bg-white h-full"
-                          onClick={() =>
-                            document
-                              .getElementById(`uploadId-${index}-${pepIndex}`)
-                              ?.click()
-                          }
-                        >
-                          Choose File
-                        </Button>
+                      <div
+                        className={fileUploadStyle(
+                          !!errors[
+                            `relatedPeps.${pepIndex}.identificationProof`
+                          ],
+                        )}
+                        onClick={() =>
+                          document
+                            .getElementById(`uploadId-${index}-${pepIndex}`)
+                            ?.click()
+                        }
+                      >
+                        <span className="text-gray-500 truncate">
+                          {pep.identificationProof || "No file chosen"}
+                        </span>
+                        <Upload className="h-4 w-4 text-[#003DA5]" />
                       </div>
-                      <span className="text-sm text-muted-foreground truncate block">
-                        {pep.identificationProof || "No file chosen"}
-                      </span>
+                      <input
+                        type="file"
+                        id={`uploadId-${index}-${pepIndex}`}
+                        className="hidden"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) =>
+                          handleRelatedPepFileChange(
+                            index,
+                            pepIndex,
+                            e.target.files?.[0] || null,
+                          )
+                        }
+                      />
+                      {errors[
+                        `relatedPeps.${pepIndex}.identificationProof`
+                      ] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {
+                            errors[
+                              `relatedPeps.${pepIndex}.identificationProof`
+                            ]
+                          }
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -3312,15 +3550,24 @@ export function SecurityDetailBusiness({
                 >
                   Employee ID <span className="text-red-500">*</span>
                 </Label>
-                <Input
+                <RestrictedInput
+                  allowed="alphanumeric"
                   id={`employeeId-${index}`}
                   placeholder="Enter ID"
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className={getFieldStyle(!!errors.employeeId)}
                   value={guarantor.employeeId || ""}
                   onChange={(e) =>
                     updateGuarantorField(index, "employeeId", e.target.value)
                   }
+                  onBlur={(e) =>
+                    handleBlurField(index, "employeeId", e.target.value)
+                  }
                 />
+                {errors.employeeId && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.employeeId}
+                  </p>
+                )}
               </div>
               <div className="space-y-2.5">
                 <Label
@@ -3335,7 +3582,7 @@ export function SecurityDetailBusiness({
                     updateGuarantorField(index, "occupation", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger className={getFieldStyle(!!errors.occupation)}>
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3371,6 +3618,11 @@ export function SecurityDetailBusiness({
                     )}
                   </SelectContent>
                 </Select>
+                {errors.occupation && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.occupation}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3386,7 +3638,9 @@ export function SecurityDetailBusiness({
                     updateGuarantorField(index, "employerType", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors.employerType)}
+                  >
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3395,6 +3649,11 @@ export function SecurityDetailBusiness({
                     <SelectItem value="corporate">Corporate</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.employerType && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.employerType}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3410,7 +3669,9 @@ export function SecurityDetailBusiness({
                     updateGuarantorField(index, "designation", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors.designation)}
+                  >
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3419,6 +3680,11 @@ export function SecurityDetailBusiness({
                     <SelectItem value="assistant">Assistant</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.designation && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.designation}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3434,7 +3700,7 @@ export function SecurityDetailBusiness({
                     updateGuarantorField(index, "grade", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger className={getFieldStyle(!!errors.grade)}>
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3443,6 +3709,9 @@ export function SecurityDetailBusiness({
                     <SelectItem value="p3">P3</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.grade && (
+                  <p className="text-xs text-red-500 mt-1">{errors.grade}</p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3458,7 +3727,9 @@ export function SecurityDetailBusiness({
                     updateGuarantorField(index, "organizationName", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors.organizationName)}
+                  >
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3494,6 +3765,11 @@ export function SecurityDetailBusiness({
                     )}
                   </SelectContent>
                 </Select>
+                {errors.organizationName && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.organizationName}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3503,15 +3779,24 @@ export function SecurityDetailBusiness({
                 >
                   Organization Location <span className="text-red-500">*</span>
                 </Label>
-                <Input
+                <RestrictedInput
+                  allowed="alphanumeric"
                   id={`orgLocation-${index}`}
                   placeholder="Enter Full Name"
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className={getFieldStyle(!!errors.orgLocation)}
                   value={guarantor.orgLocation || ""}
                   onChange={(e) =>
                     updateGuarantorField(index, "orgLocation", e.target.value)
                   }
+                  onBlur={(e) =>
+                    handleBlurField(index, "orgLocation", e.target.value)
+                  }
                 />
+                {errors.orgLocation && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.orgLocation}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3525,12 +3810,17 @@ export function SecurityDetailBusiness({
                   type="date"
                   id={`joiningDate-${index}`}
                   max={today}
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className={getFieldStyle(!!errors.joiningDate)}
                   value={guarantor.joiningDate || ""}
                   onChange={(e) =>
                     updateGuarantorField(index, "joiningDate", e.target.value)
                   }
                 />
+                {errors.joiningDate && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.joiningDate}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -3548,7 +3838,9 @@ export function SecurityDetailBusiness({
                     updateGuarantorField(index, "serviceNature", value)
                   }
                 >
-                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectTrigger
+                    className={getFieldStyle(!!errors.serviceNature)}
+                  >
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3557,6 +3849,11 @@ export function SecurityDetailBusiness({
                     <SelectItem value="temporary">Temporary</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.serviceNature && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.serviceNature}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3571,12 +3868,17 @@ export function SecurityDetailBusiness({
                   type="number"
                   id={`annualSalary-${index}`}
                   placeholder="Enter Annual Salary"
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className={getFieldStyle(!!errors.annualSalary)}
                   value={guarantor.annualSalary || ""}
                   onChange={(e) =>
                     updateGuarantorField(index, "annualSalary", e.target.value)
                   }
                 />
+                {errors.annualSalary && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.annualSalary}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -3594,7 +3896,7 @@ export function SecurityDetailBusiness({
                     type="date"
                     id={`contractEndDate-${index}`}
                     min={today}
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    className={getFieldStyle(!!errors.contractEndDate)}
                     value={guarantor.contractEndDate || ""}
                     onChange={(e) =>
                       updateGuarantorField(
@@ -3605,6 +3907,11 @@ export function SecurityDetailBusiness({
                     }
                     required
                   />
+                  {errors.contractEndDate && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.contractEndDate}
+                    </p>
+                  )}
                 </div>
               </div>
             )}

@@ -831,6 +831,7 @@ export function CoBorrowerDetailsForm({
       });
     }
   };
+  
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

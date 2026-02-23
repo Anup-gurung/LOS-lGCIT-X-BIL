@@ -41,17 +41,14 @@ import { getNdiDataFromSession } from "@/lib/mapNdiData";
 import { getVerifiedCustomerDataFromSession } from "@/lib/mapCustomerData";
 import { PlusCircle, Trash2 } from "lucide-react";
 // const [errors, setErrors] = useState<Record<string, string>>({});
-const isRequired = (value: any) =>
-  !value || value.toString().trim() === "";
+const isRequired = (value: any) => !value || value.toString().trim() === "";
 
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-const isValidNumber = (value: string) =>
-  /^\d+$/.test(value);
+const isValidNumber = (value: string) => /^\d+$/.test(value);
 
-const isValidDate = (date: string) =>
-  !isNaN(Date.parse(date));
+const isValidDate = (date: string) => !isNaN(Date.parse(date));
 
 interface PersonalDetailsFormProps {
   onNext: (data: any) => void;
@@ -75,36 +72,36 @@ export function PersonalDetailsForm({
   formData,
 }: PersonalDetailsFormProps) {
   const [data, setData] = useState(() => {
-    console.log('========== PersonalDetail INIT ==========');
-    
+    console.log("========== PersonalDetail INIT ==========");
+
     // PRIORITY 1: Check for verified customer data (existing users)
     const verifiedData = getVerifiedCustomerDataFromSession();
     if (verifiedData && Object.keys(verifiedData).length > 0) {
-      console.log('✅ INIT: Loading verified customer data:', verifiedData);
+      console.log("✅ INIT: Loading verified customer data:", verifiedData);
       let initialData = { ...verifiedData };
-      
+
       if (!(initialData as any).relatedPeps) {
         (initialData as any).relatedPeps = [createEmptyRelatedPep()];
       }
-      console.log('========== Init Complete ==========\n');
+      console.log("========== Init Complete ==========\n");
       return initialData as any;
     }
 
     // PRIORITY 2: Check for NDI verified data (new users)
     const ndiData = getNdiDataFromSession();
     if (ndiData && Object.keys(ndiData).length > 0) {
-      console.log('✅ INIT: Loading NDI data:', ndiData);
+      console.log("✅ INIT: Loading NDI data:", ndiData);
       let initialData = { ...ndiData };
-      
+
       if (!(initialData as any).relatedPeps) {
         (initialData as any).relatedPeps = [createEmptyRelatedPep()];
       }
-      console.log('========== Init Complete ==========\n');
+      console.log("========== Init Complete ==========\n");
       return initialData as any;
     }
 
     // PRIORITY 3: Use formData from page
-    console.log('⚠️ INIT: No verified/NDI data, using formData:', formData);
+    console.log("⚠️ INIT: No verified/NDI data, using formData:", formData);
     let initialData = formData?.personalDetails || formData || {};
 
     // --- MIGRATION LOGIC FOR RELATED PEPS ---
@@ -124,7 +121,7 @@ export function PersonalDetailsForm({
       }
     }
 
-    console.log('========== Init Complete ==========\n');
+    console.log("========== Init Complete ==========\n");
     return initialData as any;
   });
 
@@ -199,22 +196,26 @@ export function PersonalDetailsForm({
    */
   const isBhutanCountry = (countryValue: string, options: any[]): boolean => {
     if (!countryValue) return false;
-    
+
     // Check if the value itself is "Bhutan" (case-insensitive)
-    if (String(countryValue).toLowerCase().includes('bhutan')) {
+    if (String(countryValue).toLowerCase().includes("bhutan")) {
       return true;
     }
-    
+
     // Check if the pk_code matches a Bhutan option
     const matchedOption = options.find(
-      (c) => String(c.country_pk_code || c.id || c.code) === countryValue
+      (c) => String(c.country_pk_code || c.id || c.code) === countryValue,
     );
-    
+
     if (matchedOption) {
-      const label = (matchedOption.country || matchedOption.name || '').toLowerCase();
-      return label.includes('bhutan');
+      const label = (
+        matchedOption.country ||
+        matchedOption.name ||
+        ""
+      ).toLowerCase();
+      return label.includes("bhutan");
     }
-    
+
     return false;
   };
 
@@ -222,33 +223,43 @@ export function PersonalDetailsForm({
    * Helper to find pk_code from label by searching through available options
    * This allows us to match stored label values to dropdown pk_codes
    */
-  const findPkCodeByLabel = (label: string, options: any[], labelFields: string[]): string => {
-    if (!label) return '';
-    
+  const findPkCodeByLabel = (
+    label: string,
+    options: any[],
+    labelFields: string[],
+  ): string => {
+    if (!label) return "";
+
     const labelLower = String(label).toLowerCase().trim();
-    
+
     for (const option of options) {
       // Try each possible label field
       for (const field of labelFields) {
-        const optionLabel = String(option[field] || '').toLowerCase().trim();
-        if (optionLabel === labelLower || optionLabel.includes(labelLower) || labelLower.includes(optionLabel)) {
+        const optionLabel = String(option[field] || "")
+          .toLowerCase()
+          .trim();
+        if (
+          optionLabel === labelLower ||
+          optionLabel.includes(labelLower) ||
+          labelLower.includes(optionLabel)
+        ) {
           // Found a match, return the pk_code by checking common pk_code field names
           return String(
             option.bank_pk_code ||
-            option.country_pk_code ||
-            option.nationality_pk_code || 
-            option.identity_type_pk_code || 
-            option.marital_status_pk_code || 
-            option.occupation_pk_code ||
-            option.pk_code ||
-            option.id || 
-            option.code || 
-            ''
+              option.country_pk_code ||
+              option.nationality_pk_code ||
+              option.identity_type_pk_code ||
+              option.marital_status_pk_code ||
+              option.occupation_pk_code ||
+              option.pk_code ||
+              option.id ||
+              option.code ||
+              "",
           );
         }
       }
     }
-    
+
     // No match found, return the label as-is (it might already be a pk_code)
     return label;
   };
@@ -258,20 +269,24 @@ export function PersonalDetailsForm({
     // Check for existing customer verified data first
     const verifiedData = getVerifiedCustomerDataFromSession();
     if (verifiedData && Object.keys(verifiedData).length > 0) {
-      console.log('========== PersonalDetail - LOADING VERIFIED CUSTOMER DATA ==========');
-      console.log('Verified data:', verifiedData);
-      console.log('Key fields:');
-      console.log('  applicantName:', verifiedData.applicantName);
-      console.log('  salutation:', verifiedData.salutation);
-      console.log('  gender:', verifiedData.gender);
-      console.log('  maritalStatus:', verifiedData.maritalStatus);
-      console.log('  nationality:', verifiedData.nationality);
-      console.log('  identificationType:', verifiedData.identificationType);
-      console.log('  currEmail:', verifiedData.currEmail);
-      console.log('  currContact:', verifiedData.currContact);
-      console.log('  bankName:', verifiedData.bankName);
-      console.log('====================================================================\n');
-      
+      console.log(
+        "========== PersonalDetail - LOADING VERIFIED CUSTOMER DATA ==========",
+      );
+      console.log("Verified data:", verifiedData);
+      console.log("Key fields:");
+      console.log("  applicantName:", verifiedData.applicantName);
+      console.log("  salutation:", verifiedData.salutation);
+      console.log("  gender:", verifiedData.gender);
+      console.log("  maritalStatus:", verifiedData.maritalStatus);
+      console.log("  nationality:", verifiedData.nationality);
+      console.log("  identificationType:", verifiedData.identificationType);
+      console.log("  currEmail:", verifiedData.currEmail);
+      console.log("  currContact:", verifiedData.currContact);
+      console.log("  bankName:", verifiedData.bankName);
+      console.log(
+        "====================================================================\n",
+      );
+
       setData((prevData: any) => ({
         ...verifiedData,
         ...prevData,
@@ -280,11 +295,11 @@ export function PersonalDetailsForm({
       }));
       return; // Don't check NDI data if verified customer data exists
     }
-    
+
     // If no verified customer data, check for NDI data
     const ndiData = getNdiDataFromSession();
     if (ndiData && Object.keys(ndiData).length > 0) {
-      console.log('PersonalDetail - Loading NDI data:', ndiData);
+      console.log("PersonalDetail - Loading NDI data:", ndiData);
       setData((prevData: any) => ({
         ...ndiData,
         ...prevData,
@@ -633,105 +648,85 @@ export function PersonalDetailsForm({
     }
   };
   const isEmpty = (val: any) =>
-  val === undefined || val === null || String(val).trim() === "";
+    val === undefined || val === null || String(val).trim() === "";
 
-const isEmail = (val: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+  const isEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
 
-const isNumeric = (val: string) =>
-  /^\d+$/.test(val);
+  const isNumeric = (val: string) => /^\d+$/.test(val);
 
-const isAlphabetOnly = (value: string) => {
-  return /^[A-Za-z\s]+$/.test(value);
-};
-
-const capitalizeWords = (value: string) => {
-  return value
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-};
 // const validateForm = () => {
 //   const newErrors: Record<string, string> = {};
 
-//   if (isRequired(data.applicantName)) {
-//     newErrors.applicantName = "Full Name is required";
-//   }
+  //   if (isRequired(data.applicantName)) {
+  //     newErrors.applicantName = "Full Name is required";
+  //   }
 
-//   if (isRequired(data.email)) {
-//     newErrors.email = "Email is required";
-//   } else if (!isValidEmail(data.email)) {
-//     newErrors.email = "Invalid email format";
-//   }
+  //   if (isRequired(data.email)) {
+  //     newErrors.email = "Email is required";
+  //   } else if (!isValidEmail(data.email)) {
+  //     newErrors.email = "Invalid email format";
+  //   }
 
-//   if (isRequired(data.mobileNo)) {
-//     newErrors.mobileNo = "Mobile number is required";
-//   } else if (!isValidNumber(data.mobileNo)) {
-//     newErrors.mobileNo = "Mobile number must contain digits only";
-//   }
+  //   if (isRequired(data.mobileNo)) {
+  //     newErrors.mobileNo = "Mobile number is required";
+  //   } else if (!isValidNumber(data.mobileNo)) {
+  //     newErrors.mobileNo = "Mobile number must contain digits only";
+  //   }
 
-//   if (isRequired(data.identificationType)) {
-//     newErrors.identificationType = "Identification Type is required";
-//   }
+  //   if (isRequired(data.identificationType)) {
+  //     newErrors.identificationType = "Identification Type is required";
+  //   }
 
-//   setErrors(newErrors);
+  //   setErrors(newErrors);
 
-//   return Object.keys(newErrors).length === 0;
-// };
+  //   return Object.keys(newErrors).length === 0;
+  // };
 
-const validateForm = () => {
-  let newErrors: Record<string, string> = {};
+  const validateForm = () => {
+    let newErrors: Record<string, string> = {};
 
-  // ============================
-  // BASIC PERSONAL INFO
-  // ============================
-  if (isRequired(data.applicantName))
-    newErrors.applicantName = "Applicant name is required";
+    // ============================
+    // BASIC PERSONAL INFO
+    // ============================
+    if (isRequired(data.applicantName))
+      newErrors.applicantName = "Applicant name is required";
 
-  if (isEmpty(data.identificationType))
-    newErrors.identificationType = "Identification type is required";
+    if (isEmpty(data.identificationType))
+      newErrors.identificationType = "Identification type is required";
 
-  if (isEmpty(data.identificationNo))
-    newErrors.identificationNo = "Identification number is required";
+    if (isEmpty(data.identificationNo))
+      newErrors.identificationNo = "Identification number is required";
 
-  if (isEmpty(data.salutation))
-    newErrors.salutation = "Salutation is required";
+    if (isEmpty(data.salutation))
+      newErrors.salutation = "Salutation is required";
 
-  if (isEmpty(data.nationality))
-    newErrors.nationality = "Nationality is required";
+    if (isEmpty(data.nationality))
+      newErrors.nationality = "Nationality is required";
 
-  if (isEmpty(data.gender))
-    newErrors.gender = "Gender is required";
+    if (isEmpty(data.gender)) newErrors.gender = "Gender is required";
 
-  if (isEmpty(data.dateOfBirth))
-    newErrors.dateOfBirth = "Date of birth is required";
+    if (isEmpty(data.dateOfBirth))
+      newErrors.dateOfBirth = "Date of birth is required";
 
-  if (isEmpty(data.tpn))
-    newErrors.tpn = "TPN Number is required";
+  if (isEmpty(data.tpnNo))
+    newErrors.tpnNo = "TPN Number is required";
 
-  // ============================
-  // MARITAL STATUS
-  // ============================
-  if (isEmpty(data.maritalStatus))
-    newErrors.maritalStatus = "Please select a marital status"
+    // ============================
+    // MARITAL STATUS
+    // ============================
+    if (isEmpty(data.maritalStatus))
+      newErrors.maritalStatus = "Please select a marital status";
 
   if (isMarried) {
-    if (isEmpty(data.spouseIdentificationNo))
-      newErrors.spouseIdentificationNo = "Spouse Identification Number is required"
-
     if (isEmpty(data.spouseName))
       newErrors.spouseName = "Spouse name is required";
 
-    if (isEmpty(data.spouseContact))
-      newErrors.spouseContact = "Spouse Contact is required";
+    if (isEmpty(data.spouseCid))
+      newErrors.spouseCid = "Spouse CID/ID is required";
   }
-  if (isEmpty(data.familyTree))
-    newErrors.familyTree = "No files uploaded"
+  if (isEmpty(data.FamilyTree))
+    newErrors.FamiltyTree = "No files uploaded"
 
-  if (isEmpty(data.identificationIssueDate))
-    newErrors.identificationIssueDate = "Identification Issue Date is required"
-
-  if (isEmpty(data.identificationExpiryDate))
-    newErrors.identificationExpiryDate = "Identification Expiry Date is required"
   // ============================
   // Bank Details
   // ============================
@@ -743,116 +738,47 @@ const validateForm = () => {
   // ============================
   // PERMANENT ADDRESS
   // ============================
+  if (!isBhutanCountry(data.permCountry, countryOptions)) {
+    if (isEmpty(data.permState))
+      newErrors.permState = "State is required";
 
- // =============================
-// PERMANENT ADDRESS VALIDATION
-// =============================
+    if (isEmpty(data.permProvince))
+      newErrors.permProvince = "Province is required";
 
-if (!data.permCountry) {
-  newErrors.permCountry = "Country is required";
-}
+    if (isEmpty(data.permStreet))
+      newErrors.permStreet = "Street is required";
+  } else {
+    if (isEmpty(data.permDzongkhag))
+      newErrors.permDzongkhag = "Dzongkhag is required";
 
-if (!data.permDzongkhag) {
-  newErrors.permDzongkhag = isBhutanCountry(data.permCountry, countryOptions)
-    ? "Dzongkhag is required"
-    : "State is required";
-}
+    if (isEmpty(data.permGewog))
+      newErrors.permGewog = "Gewog is required";
 
-if (!data.permGewog) {
-  newErrors.permGewog = isBhutanCountry(data.permCountry, countryOptions)
-    ? "Gewog is required"
-    : "Province is required";
-}
-
-if (!data.permVillage || data.permVillage.trim() === "") {
-  newErrors.permVillage = isBhutanCountry(data.permCountry, countryOptions)
-    ? "Village is required"
-    : "Street is required";
-}
-
-// Bhutan-specific validation
-if (isBhutanCountry(data.permCountry, countryOptions)) {
-  if (!data.permThram || data.permThram.trim() === "") {
-    newErrors.permThram = "Thram number is required";
+    if (isEmpty(data.permVillage))
+      newErrors.permVillage = "Village/Street is required";
   }
 
-  if (!data.permHouse || data.permHouse.trim() === "") {
-    newErrors.permHouse = "House number is required";
-  }
-}
-
-// Non-Bhutan validation
-if (
-  data.permCountry &&
-  !isBhutanCountry(data.permCountry, countryOptions)
-) {
-  if (!data.permAddressProof) {
-    newErrors.permAddressProof = "Address proof document is required";
-  }
-}
+  if (isEmpty(data.permAddressProof))
+    newErrors.permAddressProof = "Address proof is required";
 
   // ============================
   // CURRENT ADDRESS
   // ============================
-// =============================
-// CURRENT ADDRESS VALIDATION
-// =============================
+  if (!isBhutanCountry(data.currCountry, countryOptions)) {
+    if (isEmpty(data.currState))
+      newErrors.currState = "State is required";
 
-if (!data.currCountry) {
-  newErrors.currCountry = "Country is required";
-}
+    if (isEmpty(data.currProvince))
+      newErrors.currProvince = "Province is required";
+  } else {
+    if (isEmpty(data.currDzongkhag))
+      newErrors.currDzongkhag = "Dzongkhag is required";
 
-if (!data.currDzongkhag) {
-  newErrors.currDzongkhag = isBhutanCountry(data.currCountry, countryOptions)
-    ? "Dzongkhag is required"
-    : "State is required";
-}
-
-if (!data.currGewog) {
-  newErrors.currGewog = isBhutanCountry(data.currCountry, countryOptions)
-    ? "Gewog is required"
-    : "Province is required";
-}
-
-if (!data.currVillage || data.currVillage.trim() === "") {
-  newErrors.currVillage = isBhutanCountry(data.currCountry, countryOptions)
-    ? "Village is required"
-    : "Street is required";
-}
-
-
-
-// Bhutan-specific validation
-if (isBhutanCountry(data.currCountry, countryOptions)) {
-  // if (!data.currThram || data.currThram.trim() === "") {
-  //   newErrors.currThram = "Thram number is required";
-  // }
-
-  // if (!data.currHouse || data.currHouse.trim() === "") {
-  //   newErrors.currHouse = "House number is required";
-  // }
-   if (isEmpty(data.currEmail))
-    newErrors.currEmail = "Email is required";
-  else if (!isEmail(data.currEmail))
-    newErrors.currEmail = "Invalid email format";
-
-  if (isEmpty(data.currContact))
-    newErrors.currContact = "Contact number is required";
-  else if (!isNumeric(data.currContact))
-    newErrors.currContact = "Contact must be numeric";
-  
-}
-
-// Non-Bhutan validation
-if (
-  data.currCountry &&
-  !isBhutanCountry(data.currCountry, countryOptions)
-) {
-  if (!data.currAddressProof) {
-    newErrors.currAddressProof =
-      "Address proof document is required";
+    if (isEmpty(data.currGewog))
+      newErrors.currGewog = "Gewog is required";
   }
-    if (isEmpty(data.currEmail))
+
+  if (isEmpty(data.currEmail))
     newErrors.currEmail = "Email is required";
   else if (!isEmail(data.currEmail))
     newErrors.currEmail = "Invalid email format";
@@ -861,148 +787,86 @@ if (
     newErrors.currContact = "Contact number is required";
   else if (!isNumeric(data.currContact))
     newErrors.currContact = "Contact must be numeric";
-}
 
-
-  // if (isEmpty(data.currAlternateContact))
-  //   newErrors.currAlternateContact = "Alternate contact number is required";
-  // else if (!isNumeric(data.currAlternateContact))
-  //   newErrors.currAlternateContact = "Alternate contact must be numeric";
-  // if (isRequired(data.currCountry)) newErrors.currCountry = "Required";
-  // if (isRequired(data.currDzongkhag)) newErrors.currDzongkhag = "Required";
-  // if (isRequired(data.currGewog)) newErrors.currGewog = "Required";
-  // if (isRequired(data.currVillage)) newErrors.currVillage = "Village is required";
-  if (isRequired(data.currFlat)) newErrors.currFlat = "Flat Number is required";
   // ============================
   // BANK DETAILS
   // ============================
   if (isEmpty(data.bankName))
     newErrors.bankName = "Bank is required";
 
-  if (isEmpty(data.bankAccount))
-    newErrors.bankAccount = "Account number is required";
-  else if (!isNumeric(data.bankAccount))
-    newErrors.bankAccount = "Account number must be numeric";
+  if (isEmpty(data.bankSavingAccountNo))
+    newErrors.bankSavingAccountNo = "Account number is required";
+  else if (!isNumeric(data.bankSavingAccountNo))
+    newErrors.bankSavingAccountNo = "Account number must be numeric";
 
-  if (!data.passportPhoto)
-    newErrors.passportPhoto = "No Passport-size photo is uploaded";
-
-
-  // ============================
-  // Spouse Information
-  // ============================
-
-
+  if (isEmpty(data.passportPhoto))
+    newErrors.passportPhoto = "Passport-size photo is required";
 
   // ============================
   // EMPLOYMENT
   // ============================
-
-  // ============= Employment Status ==========
-if (!data.employmentStatus || data.employmentStatus.trim() === "") {
-  newErrors.employmentStatus = "Employment status is required";
-}
-
-  if (data.employmentStatus === "employed") {
+  if (data.employmentStatus === "Employed") {
     if (isEmpty(data.employeeId))
       newErrors.employeeId = "Employee ID is required";
 
-    if (isEmpty(data.occupation))
-      newErrors.occupation = "Occupation is required";
-
-    if (!data.employerType) {
-      newErrors.employerType = "Employer type is required";
-    }
-      if (!data.designation) {
-        newErrors.designation = "Designation is required";
-      }
-
-      if (!data.grade) {
-        newErrors.grade = "Grade is required";
-      }
+      if (isEmpty(data.occupation))
+        newErrors.occupation = "Occupation is required";
 
     if (isEmpty(data.organizationName))
       newErrors.organizationName = "Organization name is required";
 
-    if (!data.orgLocation || data.orgLocation.trim() === "") {
-      newErrors.orgLocation = "Organization location is required";
-    }
+    if (isEmpty(data.serviceJoiningDate))
+      newErrors.serviceJoiningDate = "Joining date is required";
 
-    if (!data.joiningDate) {
-      newErrors.joiningDate = "Joining date is required";
-    }
+    if (data.natureOfService === "Contract" && isEmpty(data.contractEndDate))
+      newErrors.contractEndDate = "Contract end date is required";
 
-    if (!data.serviceNature) {
-      newErrors.serviceNature = "Service nature is required";
-    }
-
-    if (isEmpty(data.annualSalary))
-      newErrors.annualSalary = "Gross annual salary income is required";
-    else if (!isNumeric(data.annualSalary))
-      newErrors.annualSalary = "Income must be numeric";
+    if (isEmpty(data.grossAnnualIncome))
+      newErrors.grossAnnualIncome = "Gross annual income is required";
+    else if (!isNumeric(data.grossAnnualIncome))
+      newErrors.grossAnnualIncome = "Income must be numeric";
   }
 
   // ============================
   // SELF PEP
   // ============================
-  if (isEmpty(data.pepPerson))
-    newErrors.pepPerson = "Please specify if you are a PEP or not";
-
   if (data.pepPerson === "yes") {
     if (isEmpty(data.pepCategory))
       newErrors.pepCategory = "PEP category is required";
 
-    if (isEmpty(data.pepSubCategory))
-      newErrors.pepSubCategory = "PEP sub category is required";
+      if (isEmpty(data.pepSubCategory))
+        newErrors.pepSubCategory = "PEP sub category is required";
 
-    if (!data.identificationProof)
-      newErrors.identificationProof = "Identification proof required, please upload the document";
+    if (isEmpty(data.pepIdentificationProof))
+      newErrors.pepIdentificationProof = "Identification proof required";
   }
 
   // ============================
   // RELATED PEP
   // ============================
-// ============================
-// RELATED PEP
-// ============================
-
-// ✅ Only validate related PEP if person is NOT PEP
-if (data.pepPerson === "no") {
-  if (isEmpty(data.pepRelated))
-    newErrors.pepRelated =
-      "Please specify if you are related to a PEP or not";
-
   if (data.pepRelated === "yes") {
     relatedPeps.forEach((pep: any, index: number) => {
       if (isEmpty(pep.relationship))
         newErrors[`relatedPeps.${index}.relationship`] =
           "Relationship is required";
 
-      if (isEmpty(pep.identificationNo))
-        newErrors[`relatedPeps.${index}.identificationNo`] =
-          "Identification number is required";
+        if (isEmpty(pep.identificationNo))
+          newErrors[`relatedPeps.${index}.identificationNo`] =
+            "Identification number is required";
 
-      if (isEmpty(pep.category))
-        newErrors[`relatedPeps.${index}.category`] =
-          "Category is required";
+        if (isEmpty(pep.category))
+          newErrors[`relatedPeps.${index}.category`] = "Category is required";
 
       if (isEmpty(pep.subCategory))
         newErrors[`relatedPeps.${index}.subCategory`] =
           "Sub category is required";
-
-      if (isEmpty(pep.identificationProof))
-        newErrors[`relatedPeps.${index}.identificationProof`] =
-          "PEP Identification proof is required";
     });
   }
-}
-  if (isEmpty(data.relatedToBil))
-      newErrors.relatedToBil = "Please specify if you are related to BIL or not";
 
-  setErrors(newErrors);
+    setErrors(newErrors);
 
-  return Object.keys(newErrors).length === 0;
-};
+    return Object.keys(newErrors).length === 0;
+  };
 
   const validateDates = () => {
     const newErrors: Record<string, string> = {};
@@ -1039,23 +903,17 @@ if (data.pepPerson === "no") {
   //   }
   // };
 
-const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
+     alert("Handle SUbmit")
   e.preventDefault();
+ 
 
-  const isValidDates = validateDates();
+  // const isValidDates = validateDates();
   const isValid = validateForm();
-  console.log("isValideDates:", isValidDates);
-  console.log("isValid:", isValid);
-  console.log("Errors:", errors);
-  console.log("Form data on submit:", data);
 
-  if (!isValid || !isValidDates) {
-    console.log("Form blocked.");
-    return;
+    if (isValid) {
+    setShowCoBorrowerDialog(true);
   }
-
-  // console.log("Form Passed. Opening dialog.");
-  setShowCoBorrowerDialog(true);
 };
 
 
@@ -1088,7 +946,13 @@ const handleSubmit = (e: React.FormEvent) => {
               Identification Type <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={findPkCodeByLabel(data.identificationType, identificationTypeOptions, ['identity_type', 'identification_type', 'name', 'label']) || data.identificationType}
+              value={
+                findPkCodeByLabel(
+                  data.identificationType,
+                  identificationTypeOptions,
+                  ["identity_type", "identification_type", "name", "label"],
+                ) || data.identificationType
+              }
               onValueChange={(value) => {
                 setData({ ...data, identificationType: value });
 
@@ -1101,15 +965,14 @@ const handleSubmit = (e: React.FormEvent) => {
                 }
               }}
             >
-            <SelectTrigger
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+              <SelectTrigger
+                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.identificationType
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
                     : "border-gray-300 focus:border-[#FF9800] focus:ring-[#228822]"
                 }`}
-            >
-
+              >
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -1163,24 +1026,13 @@ const handleSubmit = (e: React.FormEvent) => {
               id="identificationNo"
               placeholder="Enter identification No"
               // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-              value={data.identificationNo || ""}
-              onChange={(e) => {
-                const value = e.target.value;
-
-              setData({ ...data, identificationNo: value });
-
-              // Auto clear error when valid
-              if (!isRequired(value)) {
-                setErrors((prev) => {
-                  const updated = { ...prev };
-                  delete updated.identificationNo;
-                  return updated;
-                });
+              value={data.applicantName || ""}
+              onChange={(e) =>
+                setData({ ...data, applicantName: e.target.value })
               }
-            }}
               className={`h-10 sm:h-12 w-full text-sm sm:text-base border
               ${
-                errors.identificationNo
+                errors.applicantName
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
                     : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               }`}
@@ -1189,7 +1041,8 @@ const handleSubmit = (e: React.FormEvent) => {
             {errors.identificationNo && (
               <p className="text-xs text-red-500 mt-1">
                 {errors.identificationNo}
-              </p>)}
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5 sm:space-y-2.5">
@@ -1201,17 +1054,8 @@ const handleSubmit = (e: React.FormEvent) => {
             </Label>
             <Select
               value={data.salutation}
-              onValueChange={(value) => {
-                setData({ ...data, salutation: value });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.salutation;
-                    return updated;
-                  });
-                }
-              }}            >
+              onValueChange={(value) => setData({ ...data, salutation: value })}
+            >
               <SelectTrigger 
               // className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
                 className={`h-10 sm:h-12 w-full text-sm sm:text-base border
@@ -1221,7 +1065,6 @@ const handleSubmit = (e: React.FormEvent) => {
                     : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 }`}
               >
-           
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -1231,10 +1074,9 @@ const handleSubmit = (e: React.FormEvent) => {
                 <SelectItem value="dr">Dr.</SelectItem>
               </SelectContent>
             </Select>
-                {errors.salutation && (
-              <p className="text-xs text-red-500 mt-1">
-                {errors.salutation}
-              </p>)}
+            {errors.salutation && (
+              <p className="text-xs text-red-500 mt-1">{errors.salutation}</p>
+            )}
           </div>
 
           <div className="space-y-1.5 sm:space-y-2.5">
@@ -1247,53 +1089,40 @@ const handleSubmit = (e: React.FormEvent) => {
             <Input
               id="applicantName"
               placeholder="Enter Your Full Name"
-              value={data.applicantName || ""}
+              // className={`h-10 sm:h-12 border-gray-300 
+              //   focus:border-[#FF9800] focus:ring-[#FF9800] 
+              //   text-sm sm:text-base 
+              //   ${errors.applicantName ? "border-red-500" : ""}`}              
               onChange={(e) => {
-                let value = e.target.value;
-
-                // Allow only alphabets and spaces
-                if (!/^[A-Za-z\s]*$/.test(value)) {
-                  setErrors((prev) => ({
-                    ...prev,
-                    applicantName: "Only alphabets are allowed",
-                  }));
-                  return;
-                }
-
-                // Auto capitalize first letters
-                value = capitalizeWords(value);
+      const value = e.target.value;
 
                 setData({ ...data, applicantName: value });
 
-                // Required validation
-                if (value.trim() === "") {
-                  setErrors((prev) => ({
-                    ...prev,
-                    applicantName: "Full name is required",
-                  }));
-                  return;
-                }
+      // Auto clear error when valid
+      if (!isRequired(value)) {
+        setErrors((prev) => {
+          const updated = { ...prev };
+          delete updated.applicantName;
+          return updated;
+        });
+      }
+    }}
 
-                // Clear error if valid
-                setErrors((prev) => {
-                  const updated = { ...prev };
-                  delete updated.applicantName;
-                  return updated;
-                });
-              }}
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.applicantName
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
+    className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+     ${
+      errors.applicantName
+          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+    }`}
+              // required
+                // className={`form-input ${errors.applicantName ? "border-red-500" : ""}`}
+
             />
-
-            {errors.applicantName && (
-              <p className="text-xs text-red-500 mt-1">
-                {errors.applicantName}
-              </p>
-            )}
+   {errors.applicantName && (
+    <p className="text-xs text-red-500 mt-1">
+      {errors.applicantName}
+    </p>
+  )}
           </div>
         </div>
 
@@ -1307,21 +1136,13 @@ const handleSubmit = (e: React.FormEvent) => {
             </Label>
             <Select
               value={findPkCodeByLabel(data.nationality, nationalityOptions, ['nationality', 'name', 'label'])}
-              onValueChange={(value) => {
-                setData({ ...data, nationality: value });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.nationality;
-                    return updated;
-                  });
-                }
-              }}  
+              onValueChange={(value) =>
+                setData({ ...data, nationality: value })
+              }
             >
-              <SelectTrigger 
-              // className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+              <SelectTrigger
+                // className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.nationality
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -1363,11 +1184,9 @@ const handleSubmit = (e: React.FormEvent) => {
                 )}
               </SelectContent>
             </Select>
-               {errors.nationality && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.nationality}
-                </p>
-              )}
+            {errors.nationality && (
+              <p className="text-xs text-red-500 mt-1">{errors.nationality}</p>
+            )}
           </div>
           <div className="space-y-2.5">
             <Label
@@ -1378,18 +1197,8 @@ const handleSubmit = (e: React.FormEvent) => {
             </Label>
             <Select
               value={data.gender}
-              onValueChange={(value) => {
-                setData({ ...data, gender: value });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.gender;
-                    return updated;
-                  });
-                }
-              }}              
-              >
+              onValueChange={(value) => setData({ ...data, gender: value })}
+            >
               <SelectTrigger 
               // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 className={`h-10 sm:h-12 w-full text-sm sm:text-base border
@@ -1407,11 +1216,9 @@ const handleSubmit = (e: React.FormEvent) => {
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
-              {errors.gender && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.gender}
-                </p>
-              )}
+            {errors.gender && (
+              <p className="text-xs text-red-500 mt-1">{errors.gender}</p>
+            )}
           </div>
           <div className="space-y-1.5 sm:space-y-2.5">
             <Label
@@ -1438,7 +1245,6 @@ const handleSubmit = (e: React.FormEvent) => {
                       ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
                       : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 }`}
-              
             />
             {errors.identificationIssueDate && (
               <p className="text-xs text-red-500 mt-1">
@@ -1464,12 +1270,6 @@ const handleSubmit = (e: React.FormEvent) => {
                 setErrors({ ...errors, identificationExpiryDate: "" });
               }}
               // required
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                  ${
-                    errors.identificationExpiryDate
-                        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
             />
             {errors.identificationExpiryDate && (
               <p className="text-xs text-red-500 mt-1">
@@ -1498,12 +1298,6 @@ const handleSubmit = (e: React.FormEvent) => {
                 setErrors({ ...errors, dateOfBirth: "" });
               }}
               // required
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-     ${
-      errors.dateOfBirth
-          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-    }`}
             />
             {errors.dateOfBirth && (
               <p className="text-xs text-red-500 mt-1">{errors.dateOfBirth}</p>
@@ -1522,31 +1316,9 @@ const handleSubmit = (e: React.FormEvent) => {
               placeholder="Enter TPN"
               // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               value={data.tpn || ""}
-              onChange={(e) => {
-                const value = e.target.value;
-
-              setData({ ...data, tpn: value });
-
-              // Auto clear error when valid
-              if (!isRequired(value)) {
-                setErrors((prev) => {
-                  const updated = { ...prev };
-                  delete updated.tpn;
-                  return updated;
-                });
-              }
-            }}              // required
-
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-              ${
-                errors.tpn
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              }`}
+              onChange={(e) => setData({ ...data, tpn: e.target.value })}
+              // required
             />
-            {errors.tpn && (
-              <p className="text-xs text-red-500 mt-1">{errors.tpn}</p>
-            )}
           </div>
 
           <div className="space-y-2.5">
@@ -1557,29 +1329,12 @@ const handleSubmit = (e: React.FormEvent) => {
               Marital Status <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={String(data.maritalStatus || "")}
-              onValueChange={(value) => {
-                setData({ ...data, maritalStatus: value });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.maritalStatus;
-                    
-                    return updated;
-                  });
-                }
-              }}
+              value={findPkCodeByLabel(data.maritalStatus, maritalStatusOptions, ['marital_status', 'name', 'label']) || data.maritalStatus}
+              onValueChange={(value) =>
+                setData({ ...data, maritalStatus: value })
+              }
             >
-              <SelectTrigger 
-              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.maritalStatus
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
+              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -1619,9 +1374,6 @@ const handleSubmit = (e: React.FormEvent) => {
                 )}
               </SelectContent>
             </Select>
-            {errors.maritalStatus && (
-              <p className="text-xs text-red-500 mt-1">{errors.maritalStatus}</p>
-            )}
           </div>
         </div>
 
@@ -1645,36 +1397,12 @@ const handleSubmit = (e: React.FormEvent) => {
                   placeholder="Enter Spouse CID/ID"
                   // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
                   value={data.spouseIdentificationNo || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-
-                  setData({ ...data, spouseIdentificationNo: value });
-
-                  // Auto clear error when valid
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.spouseIdentificationNo;
-                      return updated;
-                    });
+                  onChange={(e) =>
+                    setData({ ...data, spouseIdentificationNo: e.target.value })
                   }
-                }}
-
-                    className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                    ${
-                      errors.spouseIdentificationNo
-                          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
-                              // required
-                                // className={`form-input ${errors.spouseIdentificationNo ? "border-red-500" : ""}`}
-
-                            />
-                  {errors.spouseIdentificationNo && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.spouseIdentificationNo}
-                    </p>
-                  )}
+                  // required
+                  
+                />
               </div>
 
               <div className="space-y-1.5 sm:space-y-2.5">
@@ -1689,36 +1417,11 @@ const handleSubmit = (e: React.FormEvent) => {
                   placeholder="Enter Spouse Full Name"
                   // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
                   value={data.spouseName || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, spouseName: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.spouseName;
-                        return updated;
-                      });
-                    }
-                  }}
-
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                      ${
-                        errors.spouseName
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      }`}
-                                // required
-                                  // className={`form-input ${errors.spouseName ? "border-red-500" : ""}`}
-
-                              />
-                    {errors.spouseName && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors.spouseName}
-                      </p>
-                    )}
+                  onChange={(e) =>
+                    setData({ ...data, spouseName: e.target.value })
+                  }
+                  // required
+                />
               </div>
 
               <div className="space-y-1.5 sm:space-y-2.5">
@@ -1733,36 +1436,11 @@ const handleSubmit = (e: React.FormEvent) => {
                   placeholder="Enter Contact Number"
                   // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
                   value={data.spouseContact || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, spouseContact: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.spouseContact;
-                        return updated;
-                      });
-                    }
-                  }}
-
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                      ${
-                        errors.spouseContact
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      }`}
-                                // required
-                                  // className={`form-input ${errors.spouseContact ? "border-red-500" : ""}`}
-
-                              />
-                    {errors.spouseContact && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors.spouseContact}
-                      </p>
-                    )}
+                  onChange={(e) =>
+                    setData({ ...data, spouseContact: e.target.value })
+                  }
+                  // required
+                />
               </div>
             </div>
           </div>
@@ -1820,26 +1498,9 @@ const handleSubmit = (e: React.FormEvent) => {
             </Label>
             <Select
               value={findPkCodeByLabel(data.bankName, banksOptions, ['bank_name', 'name', 'label']) || data.bankName}
-              onValueChange={(value) => {
-                setData({ ...data, bankName: value });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.bankName;
-                    return updated;
-                  });
-                }
-              }}            >
-              <SelectTrigger 
-              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-               className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.bankName
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
+              onValueChange={(value) => setData({ ...data, bankName: value })}
+            >
+              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -1893,57 +1554,12 @@ const handleSubmit = (e: React.FormEvent) => {
             <Input
               id="bankAccount"
               placeholder="Enter saving account number"
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               value={data.bankAccount || ""}
-              inputMode="numeric"
-              onChange={(e) => {
-                const rawValue = e.target.value;
-
-                // Remove spaces automatically
-                const valueWithoutSpaces = rawValue.replace(/\s/g, "");
-
-                // Check if contains anything other than digits
-                if (!/^\d*$/.test(valueWithoutSpaces)) {
-                  setErrors((prev) => ({
-                    ...prev,
-                    bankAccount: "Only numeric is allowed",
-                  }));
-
-                  // Keep only digits
-                  const digitsOnly = valueWithoutSpaces.replace(/\D/g, "");
-                  setData({ ...data, bankAccount: digitsOnly });
-                  return;
-                }
-
-                // If empty
-                if (valueWithoutSpaces === "") {
-                  setErrors((prev) => ({
-                    ...prev,
-                    bankAccount: "Bank account number is required",
-                  }));
-                } else {
-                  // Clear error
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.bankAccount;
-                    return updated;
-                  });
-                }
-
-                setData({ ...data, bankAccount: valueWithoutSpaces });
-              }}
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.bankAccount
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
+              onChange={(e) =>
+                setData({ ...data, bankAccount: e.target.value })
+              }
             />
-
-            {errors.bankAccount && (
-              <p className="text-xs text-red-500 mt-1">
-                {errors.bankAccount}
-              </p>
-            )}
           </div>
         </div>
 
@@ -2001,29 +1617,12 @@ const handleSubmit = (e: React.FormEvent) => {
               Country <span className="text-red-500">*</span>
             </Label>
             <Select
-            value={data.permCountry || ""}
-             onValueChange={(value) => {
-                setData({ ...data, permCountry: value });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.permCountry;
-                    return updated;
-                  });
-                }
-              }}  
-              
+              value={findPkCodeByLabel(data.permCountry, countryOptions, ['country', 'name', 'label']) || data.permCountry}
+              onValueChange={(value) =>
+                setData({ ...data, permCountry: value })
+              }
             >
-              <SelectTrigger 
-              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.permCountry
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
+              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -2076,65 +1675,24 @@ const handleSubmit = (e: React.FormEvent) => {
             </Label>
             {data.permCountry &&
             !isBhutanCountry(data.permCountry, countryOptions) ? (
-              <>
-                <Input
-                  id="permDzongkhag"
-                  placeholder="Enter State"
-                  value={data.permDzongkhag || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-
-                    setData({ ...data, permDzongkhag: value });
-
-                       // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permDzongkhag;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                    ${
-                      errors.permDzongkhag
-                        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
-                />
-
-                {/* {errors.permDzongkhag && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.permDzongkhag}
-                  </p>
-                )} */}
-              </>
+              <Input
+                id="permDzongkhag"
+                placeholder="Enter State"
+                className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                value={data.permDzongkhag || ""}
+                onChange={(e) =>
+                  setData({ ...data, permDzongkhag: e.target.value })
+                }
+              />
             ) : (
               <Select
                 value={data.permDzongkhag || ""}
-                onValueChange={(value) => {
-                    setData({ ...data, permDzongkhag: value });
-
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permDzongkhag;
-                        return updated;
-                      });
-                    }
-                  }} 
+                onValueChange={(value) =>
+                  setData({ ...data, permDzongkhag: value })
+                }
                 disabled={!isBhutanCountry(data.permCountry, countryOptions)}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                             
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.permDzongkhag
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                >
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -2171,9 +1729,6 @@ const handleSubmit = (e: React.FormEvent) => {
                 </SelectContent>
               </Select>
             )}
-            {errors.permDzongkhag && (
-              <p className="text-xs text-red-500 mt-1">{errors.permDzongkhag}</p>
-            )}
           </div>
 
           <div className="space-y-2.5">
@@ -2188,65 +1743,24 @@ const handleSubmit = (e: React.FormEvent) => {
             </Label>
             {data.permCountry &&
             !isBhutanCountry(data.permCountry, countryOptions) ? (
-            <>
               <Input
                 id="permGewog"
                 placeholder="Enter Province"
+                className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 value={data.permGewog || ""}
-                onChange={(e) => {
-                  const value = e.target.value;
-
-                  setData({ ...data, permGewog: value });
-
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.permGewog;
-                      return updated;
-                    });
-                  }
-                }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                  ${
-                    errors.permGewog
-                      ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
+                onChange={(e) =>
+                  setData({ ...data, permGewog: e.target.value })
+                }
               />
-
-              {/* {errors.permGewog && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.permGewog}
-                </p>
-              )} */}
-            </>
-
             ) : (
               <Select
                 value={isBhutanCountry(data.permCountry, countryOptions) ? data.permGewog : ""}
-                  onValueChange={(value) => {
-                      setData({ ...data, permGewog: value });
-
-                     // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permGewog;
-                        return updated;
-                      });
-                    }
-                  }}
+                onValueChange={(value) =>
+                  setData({ ...data, permGewog: value })
+                }
                 disabled={!isBhutanCountry(data.permCountry, countryOptions)}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.permGewog
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                >
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -2309,38 +1823,11 @@ const handleSubmit = (e: React.FormEvent) => {
               }
               // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               value={data.permVillage || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, permVillage: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permVillage;
-                        return updated;
-                      });
-                    }
-                  }}
-
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                      ${
-                        errors.permVillage
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      }`}
-                                // required
-                                  // className={`form-input ${errors.permVillage ? "border-red-500" : ""}`}
-                      disabled={!data.permCountry}
-                              />
-                    {errors.permVillage && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors.permVillage}
-                      </p>
-                    )}
-  
-            {/* /> */}
+              onChange={(e) =>
+                setData({ ...data, permVillage: e.target.value })
+              }
+              disabled={!data.permCountry}
+            />
           </div>
         </div>
 
@@ -2357,38 +1844,12 @@ const handleSubmit = (e: React.FormEvent) => {
                 <Input
                   id="permThram"
                   placeholder="Enter Thram No"
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.permThram || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, permThram: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permThram;
-                        return updated;
-                      });
-                    }
-                  }}
-
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                      ${
-                        errors.permThram
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      }`}
-                                // required
-                                  // className={`form-input ${errors.permThram ? "border-red-500" : ""}`}
-
-                              />
-                    {errors.permThram && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors.permThram}
-                      </p>
-                    )}
+                  onChange={(e) =>
+                    setData({ ...data, permThram: e.target.value })
+                  }
+                />
               </div>
 
               <div className="space-y-2.5">
@@ -2401,38 +1862,12 @@ const handleSubmit = (e: React.FormEvent) => {
                 <Input
                   id="permHouse"
                   placeholder="Enter House No"
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.permHouse || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, permHouse: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permHouse;
-                        return updated;
-                      });
-                    }
-                  }}
-
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                      ${
-                        errors.permHouse
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      }`}
-                                // required
-                                  // className={`form-input ${errors.permHouse ? "border-red-500" : ""}`}
-
-                              />
-                    {errors.permHouse && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors.permHouse}
-                      </p>
-                    )}
+                  onChange={(e) =>
+                    setData({ ...data, permHouse: e.target.value })
+                  }
+                />
               </div>
             </div>
           )}
@@ -2504,28 +1939,12 @@ const handleSubmit = (e: React.FormEvent) => {
               Country of Resident <span className="text-red-500">*</span>
             </Label>
             <Select
-            value={data.currCountry || ""}
-            onValueChange={(value) => {
-              setData({ ...data, currCountry: value });
-
-              if (!isRequired(value)) {
-                setErrors((prev) => {
-                  const updated = { ...prev };
-                  delete updated.currCountry;
-                  return updated;
-                });
+              value={findPkCodeByLabel(data.currCountry, countryOptions, ['country', 'name', 'label']) || data.currCountry}
+              onValueChange={(value) =>
+                setData({ ...data, currCountry: value })
               }
-            }}
             >
-              <SelectTrigger 
-              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currCountry
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
+              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -2561,9 +1980,6 @@ const handleSubmit = (e: React.FormEvent) => {
                 )}
               </SelectContent>
             </Select>
-            {errors.currCountry && (
-                <p className="text-xs text-red-500 mt-1">{errors.currCountry}</p>
-              )}
           </div>
 
           <div className="space-y-2.5">
@@ -2578,38 +1994,15 @@ const handleSubmit = (e: React.FormEvent) => {
             </Label>
             {data.currCountry &&
             !isBhutanCountry(data.currCountry, countryOptions) ? (
-             <>
               <Input
                 id="currDzongkhag"
                 placeholder="Enter State"
-                // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 value={data.currDzongkhag || ""}
-                onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, currDzongkhag: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currDzongkhag;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                    ${
-                      errors.currDzongkhag
-                        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
-                  
+                onChange={(e) =>
+                  setData({ ...data, currDzongkhag: e.target.value })
+                }
               />
-              {errors.currDzongkhag && (
-            <p className="text-xs text-red-500 mt-1">{errors.currDzongkhag}</p>
-          )}
-              </>
             ) : (
               <Select
                 value={data.currDzongkhag || ""}
@@ -2626,20 +2019,9 @@ const handleSubmit = (e: React.FormEvent) => {
                 }}
                 disabled={!isBhutanCountry(data.currCountry, countryOptions)}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currDzongkhag
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                >
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
-              {errors.currDzongkhag && (
-                <p className="text-xs text-red-500 mt-1">{errors.currDzongkhag}</p>
-              )}
                 <SelectContent sideOffset={4}>
                   {dzongkhagOptions.length > 0 ? (
                     dzongkhagOptions.map((option, index) => {
@@ -2688,66 +2070,26 @@ const handleSubmit = (e: React.FormEvent) => {
             </Label>
             {data.currCountry &&
             !isBhutanCountry(data.currCountry, countryOptions) ? (
-              <>
-            <Input
-              id="currGewog"
-              placeholder="Enter Province"
-              value={data.currGewog || ""}
-              onChange={(e) => {
-                const value = e.target.value;
-
-                setData({ ...data, currGewog: value });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.currGewog;
-                    return updated;
-                  });
+              <Input
+                id="currGewog"
+                placeholder="Enter Province"
+                className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                value={data.currGewog || ""}
+                onChange={(e) =>
+                  setData({ ...data, currGewog: e.target.value })
                 }
-              }}
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currGewog
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-            />
-
-            {errors.currGewog && (
-              <p className="text-xs text-red-500 mt-1">{errors.currGewog}</p>
-            )}
-            </>
+              />
             ) : (
               <Select
                 value={isBhutanCountry(data.currCountry, countryOptions) ? data.currGewog : ""}
-                onValueChange={(value) => {
-                  setData({ ...data, currGewog: value });
-
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.currGewog;
-                      return updated;
-                    });
-                  }
-                }}
+                onValueChange={(value) =>
+                  setData({ ...data, currGewog: value })
+                }
                 disabled={!isBhutanCountry(data.currCountry, countryOptions)}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currGewog
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                >
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
-                {errors.currGewog && (
-                <p className="text-xs text-red-500 mt-1">{errors.currGewog}</p>
-              )}
                 <SelectContent sideOffset={4}>
                   {currGewogOptions.length > 0 ? (
                     currGewogOptions.map((option, index) => {
@@ -2796,7 +2138,6 @@ const handleSubmit = (e: React.FormEvent) => {
                 : "Street"}{" "}
               <span className="text-red-500">*</span>
             </Label>
-            <>
             <Input
               id="currVillage"
               placeholder={
@@ -2804,33 +2145,13 @@ const handleSubmit = (e: React.FormEvent) => {
                   ? "Enter Village/Street"
                   : "Enter Street"
               }
+              className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               value={data.currVillage || ""}
-              onChange={(e) => {
-                const value = e.target.value;
-
-                setData({ ...data, currVillage: value });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.currVillage;
-                    return updated;
-                  });
-                }
-              }}
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currVillage
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
+              onChange={(e) =>
+                setData({ ...data, currVillage: e.target.value })
+              }
               disabled={!data.currCountry}
             />
-
-            {errors.currVillage && (
-              <p className="text-xs text-red-500 mt-1">{errors.currVillage}</p>
-            )}
-            </>
           </div>
         </div>
 
@@ -2849,31 +2170,12 @@ const handleSubmit = (e: React.FormEvent) => {
                 <Input
                   id="currFlat"
                   placeholder="Enter Flat No"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.currFlat || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-
-                    setData({ ...data, currFlat: value });
-
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currFlat;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                    ${
-                      errors.currFlat
-                        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
+                  onChange={(e) =>
+                    setData({ ...data, currFlat: e.target.value })
+                  }
                 />
-
-                {errors.currFlat && (
-                  <p className="text-xs text-red-500 mt-1">{errors.currFlat}</p>
-                )}
               </div>
 
               <div className="space-y-2.5">
@@ -2887,31 +2189,12 @@ const handleSubmit = (e: React.FormEvent) => {
                   id="currEmail"
                   type="email"
                   placeholder="Enter Your Email"
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.currEmail || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-
-                    setData({ ...data, currEmail: value });
-
-                    if (!isRequired(value) && isEmail(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currEmail;
-                        return updated;
-                      });
-                    }
-                  }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currEmail
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
+                  onChange={(e) =>
+                    setData({ ...data, currEmail: e.target.value })
+                  }
                 />
-                {errors.currEmail && (
-                  <p className="text-xs text-red-500 mt-1">{errors.currEmail}</p>
-                )}
               </div>
 
               <div className="space-y-2.5">
@@ -2924,32 +2207,12 @@ const handleSubmit = (e: React.FormEvent) => {
                 <Input
                   id="currContact"
                   placeholder="Enter Contact No"
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.currContact || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, currContact: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currContact;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                    ${
-                      errors.currContact
-                        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
+                  onChange={(e) =>
+                    setData({ ...data, currContact: e.target.value })
+                  }
                 />
-                {errors.currContact && (
-                  <p className="text-xs text-red-500 mt-1">{errors.currContact}</p>
-                )}
               </div>
 
               {/* NEW Alternate Contact Field for Bhutan */}
@@ -2965,22 +2228,10 @@ const handleSubmit = (e: React.FormEvent) => {
                   placeholder="Enter Contact No"
                   className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.currAlternateContact || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, currAlternateContact: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currAlternateContact;
-                        return updated;
-                      });
-                    }
-                  }}
+                  onChange={(e) =>
+                    setData({ ...data, currAlternateContact: e.target.value })
+                  }
                 />
-
               </div>
             </div>
           )}
@@ -3001,29 +2252,10 @@ const handleSubmit = (e: React.FormEvent) => {
                   placeholder="Enter Your Email"
                   // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.currEmail || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-
-                    setData({ ...data, currEmail: value });
-
-                    if (!isRequired(value) && isEmail(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currEmail;
-                        return updated;
-                      });
-                    }
-                  }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currEmail
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
+                  onChange={(e) =>
+                    setData({ ...data, currEmail: e.target.value })
+                  }
                 />
-                {errors.currEmail && (
-                  <p className="text-xs text-red-500 mt-1">{errors.currEmail}</p>
-                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3038,29 +2270,10 @@ const handleSubmit = (e: React.FormEvent) => {
                   placeholder="Enter Contact No"
                   // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.currContact || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-
-                    setData({ ...data, currEmail: value });
-
-                    if (!isRequired(value) && isEmail(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currEmail;
-                        return updated;
-                      });
-                    }
-                  }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currEmail
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
+                  onChange={(e) =>
+                    setData({ ...data, currContact: e.target.value })
+                  }
                 />
-                {errors.currEmail && (
-                  <p className="text-xs text-red-500 mt-1">{errors.currEmail}</p>
-                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3075,20 +2288,9 @@ const handleSubmit = (e: React.FormEvent) => {
                   placeholder="Enter Contact No"
                   className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.currAlternateContact || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, currAlternateContact: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currAlternateContact;
-                        return updated;
-                      });
-                    }
-                  }}
+                  onChange={(e) =>
+                    setData({ ...data, currAlternateContact: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -3164,35 +2366,15 @@ const handleSubmit = (e: React.FormEvent) => {
             </Label>
             <Select
               value={data.pepPerson}
-              onValueChange={(value) => {
-                setData((prev: { pepRelated: any; relatedPeps: any; }) => ({
-                  ...prev,
+              onValueChange={(value) =>
+                setData({
+                  ...data,
                   pepPerson: value,
-                  // ✅ If user is PEP → automatically set related to "no"
-                  pepRelated: value === "yes" ? "no" : prev.pepRelated,
-                  // ✅ Clear related list if user becomes PEP
-                  relatedPeps: value === "yes" ? [] : prev.relatedPeps,
-                }));
-
-                setErrors((prev) => {
-                  const updated = { ...prev };
-                  delete updated.pepPerson;
-                  if (value === "yes") {
-                    delete updated.pepRelated;
-                  }
-                  return updated;
-                });
-              }}
+                  pepRelated: value === "yes" ? "" : data.pepRelated,
+                })
+              }
             >
-              <SelectTrigger 
-              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.pepPerson
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
+              <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -3200,9 +2382,6 @@ const handleSubmit = (e: React.FormEvent) => {
                 <SelectItem value="no">No</SelectItem>
               </SelectContent>
             </Select>
-            {errors.pepPerson && (
-                <p className="text-xs text-red-500 mt-1">{errors.pepPerson}</p>
-              )}
           </div>
 
           {data.pepPerson === "yes" && (
@@ -3216,34 +2395,11 @@ const handleSubmit = (e: React.FormEvent) => {
                 </Label>
                 <Select
                   value={data.pepCategory}
-                  // onValueChange={(value) =>
-                  //   setData({ ...data, pepCategory: value, pepSubCategory: "" })
-                  // }
-                  onValueChange={(value) => {
-                  setData({
-                    ...data,
-                    pepCategory: value,
-                    pepSubCategory: "",
-                  });
-
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.pepCategory;
-                      return updated;
-                    });
+                  onValueChange={(value) =>
+                    setData({ ...data, pepCategory: value, pepSubCategory: "" })
                   }
-                }}
                 >
-                  <SelectTrigger 
-                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.pepCategory
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                  >
+                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3279,9 +2435,6 @@ const handleSubmit = (e: React.FormEvent) => {
                     )}
                   </SelectContent>
                 </Select>
-                {errors.pepCategory && (
-                <p className="text-xs text-red-500 mt-1">{errors.pepCategory}</p>
-              )}
               </div>
 
               <div className="space-y-2.5">
@@ -3293,34 +2446,12 @@ const handleSubmit = (e: React.FormEvent) => {
                 </Label>
                 <Select
                   value={data.pepSubCategory}
-                  // onValueChange={(value) =>
-                  //   setData({ ...data, pepSubCategory: value })
-                  // }
-                 onValueChange={(value) => {
-                  setData({
-                    ...data,
-                    pepSubCategory: value,
-                  });
-
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.pepSubCategory;
-                      return updated;
-                    });
+                  onValueChange={(value) =>
+                    setData({ ...data, pepSubCategory: value })
                   }
-                }}
                   disabled={!data.pepCategory}
                 >
-                  <SelectTrigger 
-                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.pepSubCategory
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                  >
+                  <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
@@ -3358,9 +2489,6 @@ const handleSubmit = (e: React.FormEvent) => {
                     )}
                   </SelectContent>
                 </Select>
-                {errors.pepSubCategory && (
-                <p className="text-xs text-red-500 mt-1">{errors.pepSubCategory}</p>
-              )}
               </div>
 
               <div className="space-y-2.5">
@@ -3396,9 +2524,9 @@ const handleSubmit = (e: React.FormEvent) => {
                     {data.identificationProof || "No file chosen"}
                   </span>
                 </div>
-                {errors.IdentificationProof && (
+                {errors.identificationProof && (
                   <p className="text-xs text-red-500 mt-1">
-                    {errors.IdentificationProof}
+                    {errors.identificationProof}
                   </p>
                 )}
               </div>
@@ -3420,40 +2548,16 @@ const handleSubmit = (e: React.FormEvent) => {
               </Label>
               <Select
                 value={data.pepRelated}
-                // onValueChange={(value) =>
-                //   setData({
-                //     ...data,
-                //     pepRelated: value,
-                //     relatedPeps:
-                //       value === "yes" ? [createEmptyRelatedPep()] : [],
-                //   })
-                // }
-
-                onValueChange={(value) => {
-                setData({
-                  ...data,
-                  pepRelated: value,
-                  relatedPepsd: value === "yes" ? [createEmptyRelatedPep()] : [],
-                });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.pepRelated;
-                    return updated;
-                  });
+                onValueChange={(value) =>
+                  setData({
+                    ...data,
+                    pepRelated: value,
+                    relatedPeps:
+                      value === "yes" ? [createEmptyRelatedPep()] : [],
+                  })
                 }
-              }}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.pepRelated
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                >
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -3550,37 +2654,18 @@ const handleSubmit = (e: React.FormEvent) => {
                     <Label className="text-gray-800 font-semibold text-sm">
                       Identification No. <span className="text-red-500">*</span>
                     </Label>
-                    <>
-                      <Input
-                        placeholder="Enter Identification No"
-                        value={pep.identificationNo || ""}
-                        onChange={(e) => {
-                          const value = e.target.value;
-
-                          handleRelatedPepChange(index, "identificationNo", value);
-
-                          if (!isRequired(value)) {
-                            setErrors((prev) => {
-                              const updated = { ...prev };
-                              delete updated[`relatedPeps.${index}.identificationNo`];
-                              return updated;
-                            });
-                          }
-                        }}
-                        className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                          ${
-                            errors[`relatedPeps.${index}.identificationNo`]
-                              ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                              : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                          }`}
-                      />
-
-                      {errors[`relatedPeps.${index}.identificationNo`] && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors[`relatedPeps.${index}.identificationNo`]}
-                        </p>
-                      )}
-                    </>
+                    <Input
+                      placeholder="Enter Identification No"
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      value={pep.identificationNo || ""}
+                      onChange={(e) =>
+                        handleRelatedPepChange(
+                          index,
+                          "identificationNo",
+                          e.target.value,
+                        )
+                      }
+                    />
                   </div>
                   <div className="space-y-2.5">
                     <Label className="text-gray-800 font-semibold text-sm">
@@ -3588,31 +2673,11 @@ const handleSubmit = (e: React.FormEvent) => {
                     </Label>
                     <Select
                       value={pep.category || ""}
-                      // onValueChange={(value) =>
-                      //   handleRelatedPepChange(index, "category", value)
-                      // }
-
-                      onValueChange={(value) => {
-                        handleRelatedPepChange(index, "category", value);
-
-                        if (!isRequired(value)) {
-                          setErrors((prev) => {
-                            const updated = { ...prev };
-                            delete updated[`relatedPeps.${index}.category`];
-                            return updated;
-                          });
-                        }
-                      }}
+                      onValueChange={(value) =>
+                        handleRelatedPepChange(index, "category", value)
+                      }
                     >
-                      <SelectTrigger 
-                      // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                        ${
-                          errors[`relatedPeps.${index}.category`]
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        }`}
-                      >
+                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                         <SelectValue placeholder="[Select]" />
                       </SelectTrigger>
                       <SelectContent sideOffset={4}>
@@ -3677,15 +2742,7 @@ const handleSubmit = (e: React.FormEvent) => {
                       }}
                       disabled={!pep.category}
                     >
-                      <SelectTrigger 
-                      // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                        ${
-                          errors[`relatedPeps.${index}.subCategory`]
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        }`}
-                      >
+                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                         <SelectValue placeholder="[Select]" />
                       </SelectTrigger>
                       <SelectContent sideOffset={4}>
@@ -3722,11 +2779,6 @@ const handleSubmit = (e: React.FormEvent) => {
                         )}
                       </SelectContent>
                     </Select>
-                    {errors[`relatedPeps.${index}.subCategory`] && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors[`relatedPeps.${index}.subCategory`]}
-                      </p>
-                      )}
                   </div>
                 </div>
 
@@ -3764,11 +2816,6 @@ const handleSubmit = (e: React.FormEvent) => {
                     </span>
 
                   </div>
-                    {errors[`relatedPeps.${index}.identificationProof`] && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors[`relatedPeps.${index}.identificationProof`]}
-                      </p>
-                    )}
                 </div>
               </div>
             ))}
@@ -3801,28 +2848,9 @@ const handleSubmit = (e: React.FormEvent) => {
           </Label>
           <Select
             value={data.relatedToBil}
-            // onValueChange={(value) => setData({ ...data, relatedToBil: value })}
-            onValueChange={(value) => {
-                setData({
-                  ...data,
-                  relatedToBil: value,
-                });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.relatedToBil;
-                    return updated;
-                  });
-                }
-              }}
+            onValueChange={(value) => setData({ ...data, relatedToBil: value })}
           >
-            <SelectTrigger 
-            // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${errors.relatedToBil ? "border-red-500" : "border-gray-300"}
-                focus:border-[#FF9800] focus:ring-[#FF9800]`}
-            >
+            <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
               <SelectValue placeholder="Select" />
             </SelectTrigger>
             <SelectContent sideOffset={4}>
@@ -3847,26 +2875,12 @@ const handleSubmit = (e: React.FormEvent) => {
             Employment Status <span className="text-red-500">*</span>
           </Label>
           <RadioGroup
-           className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8 border rounded-md p-3 border-transparent"
-              value={data.employmentStatus}
-              onValueChange={(value) => {
-                setData({ ...data, employmentStatus: value });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.employmentStatus;
-                    return updated;
-                  });
-                }
-              }}
-              // className={`flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8 border rounded-md p-3
-              //   ${
-              //     errors.employmentStatus
-              //       ? "border-red-500"
-              //       : "border-transparent"
-              //   }`}
-            >
+            value={data.employmentStatus}
+            onValueChange={(value) =>
+              setData({ ...data, employmentStatus: value })
+            }
+            className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8"
+          >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="employed" id="employed" />
               <Label
@@ -3923,30 +2937,10 @@ const handleSubmit = (e: React.FormEvent) => {
                 placeholder="Enter ID"
                 // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 value={data.employeeId || ""}
-                onChange={(e) => {
-                const value = e.target.value;
-                setData({ ...data, employeeId: value });
-
-                          if (value.trim() !== "") {
-                            setErrors((prev) => {
-                              const updated = { ...prev };
-                              delete updated.employeeId;
-                              return updated;
-                            });
-                          }
-                        }}
-                        className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                          ${
-                            errors.employeeId
-                              ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                              : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                          }`}
+                onChange={(e) =>
+                  setData({ ...data, employeeId: e.target.value })
+                }
               />
-              {errors.employeeId && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.employeeId}
-                  </p>
-                )}
             </div>
             <div className="space-y-2.5">
               <Label
@@ -3957,27 +2951,11 @@ const handleSubmit = (e: React.FormEvent) => {
               </Label>
               <Select
                 value={data.occupation}
-                onValueChange={(value) => {
-                    setData({ ...data, occupation: value });
-
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.occupation;
-                        return updated;
-                      });
-                    }
-                  }}
+                onValueChange={(value) =>
+                  setData({ ...data, occupation: value })
+                }
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                 className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${
-                    errors.occupation
-                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
-                >
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -4013,11 +2991,6 @@ const handleSubmit = (e: React.FormEvent) => {
                   )}
                 </SelectContent>
               </Select>
-              {errors.occupation && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.occupation}
-                  </p>
-                )}
             </div>
 
             <div className="space-y-2.5">
@@ -4029,27 +3002,11 @@ const handleSubmit = (e: React.FormEvent) => {
               </Label>
               <Select
                 value={data.employerType}
-                onValueChange={(value) => {
-                    setData({ ...data, employerType: value });
-
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.employerType;
-                        return updated;
-                      });
-                    }
-                  }}
+                onValueChange={(value) =>
+                  setData({ ...data, employerType: value })
+                }
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                 className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${
-                    errors.employerType
-                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
-                >
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -4069,24 +3026,11 @@ const handleSubmit = (e: React.FormEvent) => {
               </Label>
               <Select
                 value={data.designation}
-                onValueChange={(value) => {
-                    setData({ ...data, designation: value });
-
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.designation;
-                        return updated;
-                      });
-                    }
-                  }}
+                onValueChange={(value) =>
+                  setData({ ...data, designation: value })
+                }
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${errors.designation ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
-                >
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -4095,11 +3039,6 @@ const handleSubmit = (e: React.FormEvent) => {
                   <SelectItem value="assistant">Assistant</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.designation && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.designation}
-                  </p>
-                )}
             </div>
 
             <div className="space-y-2.5">
@@ -4111,24 +3050,9 @@ const handleSubmit = (e: React.FormEvent) => {
               </Label>
               <Select
                 value={data.grade}
-                // onValueChange={(value) => setData({ ...data, grade: value })}
-                onValueChange={(value) => {
-                    setData({ ...data, grade: value });
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.grade;
-                        return updated;
-                      });
-                    }
-                  }}
+                onValueChange={(value) => setData({ ...data, grade: value })}
               >
-                <SelectTrigger
-                //  className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${errors.grade ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
-                >
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -4137,11 +3061,6 @@ const handleSubmit = (e: React.FormEvent) => {
                   <SelectItem value="p3">P3</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.grade && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.grade}
-                  </p>
-                )}
             </div>
 
             <div className="space-y-2.5">
@@ -4153,27 +3072,11 @@ const handleSubmit = (e: React.FormEvent) => {
               </Label>
               <Select
                 value={data.organizationName}
-                // onValueChange={(value) =>
-                //   setData({ ...data, organizationName: value })
-                // }
-                onValueChange={(value) => {
-                    setData({ ...data, organizationName: value });
-                    
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.organizationName;
-                        return updated;
-                      }
-                      );
-                    }
-                  }}
+                onValueChange={(value) =>
+                  setData({ ...data, organizationName: value })
+                }
               >
-                <SelectTrigger 
-                className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${errors.organizationName ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
-                >
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -4209,11 +3112,6 @@ const handleSubmit = (e: React.FormEvent) => {
                   )}
                 </SelectContent>
               </Select>
-              {errors.organizationName && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.organizationName}
-                  </p>
-                )}
             </div>
 
             <div className="space-y-2.5">
@@ -4228,30 +3126,10 @@ const handleSubmit = (e: React.FormEvent) => {
                 placeholder="Enter Full Name"
                 // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 value={data.orgLocation || ""}
-                // onChange={(e) =>
-                //   setData({ ...data, orgLocation: e.target.value })
-                // }
-                onChange={(e) => {
-                    const value = e.target.value;
-                    setData({ ...data, orgLocation: value });
-
-                    if (value.trim() !== "") {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.orgLocation;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                    ${errors.orgLocation ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
+                onChange={(e) =>
+                  setData({ ...data, orgLocation: e.target.value })
+                }
               />
-              {errors.orgLocation && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.orgLocation}
-                  </p>
-                )}
             </div>
 
             <div className="space-y-2.5">
@@ -4267,30 +3145,10 @@ const handleSubmit = (e: React.FormEvent) => {
                 max={today}
                 // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 value={data.joiningDate || ""}
-                // onChange={(e) =>
-                //   setData({ ...data, joiningDate: e.target.value })
-                // }
-                onChange={(e) => {
-                    const value = e.target.value;
-                    setData({ ...data, joiningDate: value });
-
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.joiningDate;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                    ${errors.joiningDate ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
+                onChange={(e) =>
+                  setData({ ...data, joiningDate: e.target.value })
+                }
               />
-              {errors.joiningDate && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.joiningDate}
-                  </p>
-                )}
             </div>
 
           </div>
@@ -4305,25 +3163,11 @@ const handleSubmit = (e: React.FormEvent) => {
               </Label>
               <Select
                 value={data.serviceNature}
-                // onValueChange={(value) =>
-                //   setData({ ...data, serviceNature: value })
-                // }
-                onValueChange={(value) => {
-                    setData({ ...data, serviceNature: value });
-
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.serviceNature;
-                        return updated;
-                      });
-                    } }
-                  }
+                onValueChange={(value) =>
+                  setData({ ...data, serviceNature: value })
+                }
               >
-                <SelectTrigger 
-                className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${errors.serviceNature ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}>
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -4332,11 +3176,6 @@ const handleSubmit = (e: React.FormEvent) => {
                   <SelectItem value="temporary">Temporary</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.serviceNature && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.serviceNature}
-                  </p>
-                )}
             </div>
 
             <div className="space-y-2.5">
@@ -4351,31 +3190,12 @@ const handleSubmit = (e: React.FormEvent) => {
                 type="number"
                 id="annualSalary"
                 placeholder="Enter Annual Salary"
-                className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${errors.annualSalary ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
+                className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 value={data.annualSalary || ""}
-                // onChange={(e) =>
-                //   setData({ ...data, annualSalary: e.target.value })
-                // }
-                onChange={(e) => {
-                    const value = e.target.value;
-                    setData({ ...data, annualSalary: value });
-
-                    if (value.trim() !== "" && !isNaN(Number(value))) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.annualSalary;
-                        return updated;
-                      });
-                    }
-                  }}
+                onChange={(e) =>
+                  setData({ ...data, annualSalary: e.target.value })
+                }
               />
-              {errors.annualSalary && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.annualSalary}
-                  </p>  
-              )}
             </div>
           </div>
 
@@ -4393,34 +3213,13 @@ const handleSubmit = (e: React.FormEvent) => {
                   type="date"
                   id="contractEndDate"
                   min={today}
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.contractEndDate || ""}
-                  // onChange={(e) =>
-                  //   setData({ ...data, contractEndDate: e.target.value })
-                  // }
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setData({ ...data, contractEndDate: value });
-
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.contractEndDate;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                    ${errors.contractEndDate ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
+                  onChange={(e) =>
+                    setData({ ...data, contractEndDate: e.target.value })
+                  }
                   // required
                 />
-                {errors.contractEndDate && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.contractEndDate}
-                    </p>
-                  )}
               </div>
             </div>
           )}

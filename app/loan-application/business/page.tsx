@@ -592,11 +592,12 @@ function BusinessLoanApplicationContent() {
           </div>
         )}
 
-        {/* ---------- Global Navigation Buttons (exactly like individual page) ---------- */}
+        {/* ---------- Global Navigation Buttons  ---------- */}
         {currentStep !== 1 &&
           currentStep !== 2 &&
           currentStep !== 3 &&
-          currentStep !== 4 && (
+          currentStep !== 4 &&
+          currentStep !== 5 && (
             <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-6 sm:mt-8 md:mt-12 mb-4 sm:mb-6">
               <Button
                 variant="secondary"

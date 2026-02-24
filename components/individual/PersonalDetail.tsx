@@ -232,18 +232,14 @@ export function PersonalDetailsForm({
 
     const labelLower = String(label).toLowerCase().trim();
 
+    // First pass: exact match only
     for (const option of options) {
-      // Try each possible label field
       for (const field of labelFields) {
         const optionLabel = String(option[field] || "")
           .toLowerCase()
           .trim();
-        if (
-          optionLabel === labelLower ||
-          optionLabel.includes(labelLower) ||
-          labelLower.includes(optionLabel)
-        ) {
-          // Found a match, return the pk_code by checking common pk_code field names
+        if (optionLabel === labelLower) {
+          // Found exact match, return the pk_code
           return String(
             option.bank_pk_code ||
               option.country_pk_code ||
@@ -251,11 +247,41 @@ export function PersonalDetailsForm({
               option.identity_type_pk_code ||
               option.marital_status_pk_code ||
               option.occupation_pk_code ||
+              option.dzongkhag_pk_code ||
+              option.gewog_pk_code ||
               option.pk_code ||
               option.id ||
               option.code ||
               "",
           );
+        }
+      }
+    }
+
+    // Second pass: substring match (only if label is long enough to avoid false positives)
+    if (labelLower.length >= 4) {
+      for (const option of options) {
+        for (const field of labelFields) {
+          const optionLabel = String(option[field] || "")
+            .toLowerCase()
+            .trim();
+          if (optionLabel.includes(labelLower) || labelLower.includes(optionLabel)) {
+            // Found partial match, return the pk_code
+            return String(
+              option.bank_pk_code ||
+                option.country_pk_code ||
+                option.nationality_pk_code ||
+                option.identity_type_pk_code ||
+                option.marital_status_pk_code ||
+                option.occupation_pk_code ||
+                option.dzongkhag_pk_code ||
+                option.gewog_pk_code ||
+                option.pk_code ||
+                option.id ||
+                option.code ||
+                "",
+            );
+          }
         }
       }
     }
@@ -481,6 +507,94 @@ export function PersonalDetailsForm({
     }
   }, [formData]);
 
+  // Convert label values to pk_codes after dropdown options are loaded
+  useEffect(() => {
+    if (countryOptions.length > 0 && dzongkhagOptions.length > 0) {
+      const updates: any = {};
+      
+      // Convert permanent address country label to pk_code
+      if (data.permCountry && !countryOptions.find(c => String(c.country_pk_code || c.id) === data.permCountry)) {
+        const pkCode = findPkCodeByLabel(data.permCountry, countryOptions, ['country', 'name', 'label']);
+        if (pkCode && pkCode !== data.permCountry) {
+          updates.permCountry = pkCode;
+        }
+      }
+      
+      // Convert current address country label to pk_code
+      if (data.currCountry && !countryOptions.find(c => String(c.country_pk_code || c.id) === data.currCountry)) {
+        const pkCode = findPkCodeByLabel(data.currCountry, countryOptions, ['country', 'name', 'label']);
+        if (pkCode && pkCode !== data.currCountry) {
+          updates.currCountry = pkCode;
+        }
+      }
+      
+      // Convert permanent dzongkhag label to pk_code
+      if (data.permDzongkhag && !dzongkhagOptions.find(d => String(d.dzongkhag_pk_code || d.id) === data.permDzongkhag)) {
+        const pkCode = findPkCodeByLabel(data.permDzongkhag, dzongkhagOptions, ['dzongkhag', 'name', 'label']);
+        if (pkCode && pkCode !== data.permDzongkhag) {
+          updates.permDzongkhag = pkCode;
+        }
+      }
+      
+      // Convert current dzongkhag label to pk_code
+      if (data.currDzongkhag && !dzongkhagOptions.find(d => String(d.dzongkhag_pk_code || d.id) === data.currDzongkhag)) {
+        const pkCode = findPkCodeByLabel(data.currDzongkhag, dzongkhagOptions, ['dzongkhag', 'name', 'label']);
+        if (pkCode && pkCode !== data.currDzongkhag) {
+          updates.currDzongkhag = pkCode;
+        }
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        console.log('🔄 Converting label values to pk_codes:', updates);
+        setData((prev: any) => ({ ...prev, ...updates }));
+      }
+    }
+  }, [countryOptions, dzongkhagOptions, data.permCountry, data.currCountry, data.permDzongkhag, data.currDzongkhag]);
+
+  // Convert other dropdown fields (identificationType, bankName, nationality, maritalStatus)
+  useEffect(() => {
+    if (identificationTypeOptions.length > 0 || banksOptions.length > 0 || nationalityOptions.length > 0 || maritalStatusOptions.length > 0) {
+      const updates: any = {};
+      
+      // Convert identificationType label to pk_code
+      if (identificationTypeOptions.length > 0 && data.identificationType && !identificationTypeOptions.find(i => String(i.identity_type_pk_code || i.identification_type_pk_code || i.id) === data.identificationType)) {
+        const pkCode = findPkCodeByLabel(data.identificationType, identificationTypeOptions, ['identity_type', 'identification_type', 'name', 'label']);
+        if (pkCode && pkCode !== data.identificationType) {
+          updates.identificationType = pkCode;
+        }
+      }
+      
+      // Convert bankName label to pk_code
+      if (banksOptions.length > 0 && data.bankName && !banksOptions.find(b => String(b.bank_pk_code || b.id) === data.bankName)) {
+        const pkCode = findPkCodeByLabel(data.bankName, banksOptions, ['bank', 'bank_name', 'name', 'label']);
+        if (pkCode && pkCode !== data.bankName) {
+          updates.bankName = pkCode;
+        }
+      }
+      
+      // Convert nationality label to pk_code
+      if (nationalityOptions.length > 0 && data.nationality && !nationalityOptions.find(n => String(n.nationality_pk_code || n.id) === data.nationality)) {
+        const pkCode = findPkCodeByLabel(data.nationality, nationalityOptions, ['nationality', 'name', 'label']);
+        if (pkCode && pkCode !== data.nationality) {
+          updates.nationality = pkCode;
+        }
+      }
+      
+      // Convert maritalStatus label to pk_code
+      if (maritalStatusOptions.length > 0 && data.maritalStatus && !maritalStatusOptions.find(m => String(m.marital_status_pk_code || m.id) === data.maritalStatus)) {
+        const pkCode = findPkCodeByLabel(data.maritalStatus, maritalStatusOptions, ['marital_status', 'name', 'label']);
+        if (pkCode && pkCode !== data.maritalStatus) {
+          updates.maritalStatus = pkCode;
+        }
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        console.log('🔄 Converting dropdown label values to pk_codes:', updates);
+        setData((prev: any) => ({ ...prev, ...updates }));
+      }
+    }
+  }, [identificationTypeOptions, banksOptions, nationalityOptions, maritalStatusOptions, data.identificationType, data.bankName, data.nationality, data.maritalStatus]);
+
   // Load permanent gewogs
   useEffect(() => {
     const loadPermGewogs = async () => {
@@ -510,6 +624,27 @@ export function PersonalDetailsForm({
     };
     loadCurrGewogs();
   }, [data.currDzongkhag]);
+
+  // Convert gewog label values to pk_codes after gewog options are loaded
+  useEffect(() => {
+    if (permGewogOptions.length > 0 && data.permGewog && !permGewogOptions.find(g => String(g.gewog_pk_code || g.id) === data.permGewog)) {
+      const pkCode = findPkCodeByLabel(data.permGewog, permGewogOptions, ['gewog', 'name', 'label']);
+      if (pkCode && pkCode !== data.permGewog) {
+        console.log('🔄 Converting permGewog label to pk_code:', data.permGewog, '->', pkCode);
+        setData((prev: any) => ({ ...prev, permGewog: pkCode }));
+      }
+    }
+  }, [permGewogOptions, data.permGewog]);
+
+  useEffect(() => {
+    if (currGewogOptions.length > 0 && data.currGewog && !currGewogOptions.find(g => String(g.gewog_pk_code || g.id) === data.currGewog)) {
+      const pkCode = findPkCodeByLabel(data.currGewog, currGewogOptions, ['gewog', 'name', 'label']);
+      if (pkCode && pkCode !== data.currGewog) {
+        console.log('🔄 Converting currGewog label to pk_code:', data.currGewog, '->', pkCode);
+        setData((prev: any) => ({ ...prev, currGewog: pkCode }));
+      }
+    }
+  }, [currGewogOptions, data.currGewog]);
 
   // Load PEP sub-categories for SELF PEP
   useEffect(() => {
@@ -1237,6 +1372,7 @@ export function PersonalDetailsForm({
             <Input
               id="applicantName"
               placeholder="Enter Your Full Name"
+              value={data.applicantName || ""}
               // className={`h-10 sm:h-12 border-gray-300
               //   focus:border-[#FF9800] focus:ring-[#FF9800]
               //   text-sm sm:text-base

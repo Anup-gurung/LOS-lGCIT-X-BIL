@@ -273,8 +273,6 @@
 //     </div>
 //   )
 // }
-
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -283,17 +281,23 @@ import { Header } from "@/components/header"
 import { Card, CardContent } from "@/components/ui/card"
 import Image from "next/image"
 import { QRCodeCanvas } from "qrcode.react"
-// import { mapNdiDataToForm } from "" // import your NDI mapper
-import { MappedFormData } from "@/lib/mapCustomerData"
+import { mapNdiDataToPersonalDetail, PersonalDetailFormData } from "@/lib/mapNdiData"
 
 export default function QRScanPage() {
   const router = useRouter()
   const [qrUrl, setQrUrl] = useState<string | null>(null)
   const [threadId, setThreadId] = useState<string | null>(null)
-  const [proofData, setProofData] = useState<Record<string, string> | null>(null)
-  const [mappedFormData, setMappedFormData] = useState<MappedFormData | null>(null)
+  const [proofData, setProofData] = useState<Record<string, any> | null>(null)
+  const [mappedFormData, setMappedFormData] = useState<PersonalDetailFormData | null>(null)
+  const [status, setStatus] = useState<'pending' | 'completed' | 'error'>('pending')
+  
+  // Backend URL from .env
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
-  // Load stored proof request from sessionStorage
+
+  
+
+  // Load stored proof request (only QR info)
   useEffect(() => {
     const stored = sessionStorage.getItem("ndiProof")
     if (stored) {
@@ -301,58 +305,88 @@ export default function QRScanPage() {
       setQrUrl(parsed.proofRequestURL)
       setThreadId(parsed.threadId)
     }
+    console.log("Loaded stored proof request from session:", { stored, parsed: stored ? JSON.parse(stored) : null })
   }, [])
 
   // Poll backend for proof result
   useEffect(() => {
-    if (!threadId) return
+    if (!threadId || status !== 'pending') return
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`http://localhost:3001/api/proof-result/${threadId}`)
+        const res = await fetch(`${BACKEND_URL}/api/proof-result/${threadId}`)
         const data = await res.json()
-        console.log("Response data:", data)
 
         if (res.status === 202) {
           console.log("Proof still pending...")
           return
         }
 
-      if (res.status === 200 && data.status === "COMPLETED") {
-        const ndiAttributes = data.attributes
+        if (res.status === 200 && data.status === "COMPLETED" && data.attributes) {
+          const ndiAttributes = data.attributes
+          setProofData(ndiAttributes)
 
-        console.log("✅ NDI USER DATA:", ndiAttributes)
-        // Map ONLY NDI data
-        // const mappedFormData = mapNdiDataToForm(ndiAttributes)
+          // Save to Supabase (backend route)
+          // await fetch(`${BACKEND_URL}/api/ndi/store`, {
+          //   method: "POST",
+          //   headers: { "Content-Type": "application/json" },
+          //   body: JSON.stringify({ attributes: ndiAttributes, status: data.status })
+          // })
 
-        // Store separately for new-user flow
-        sessionStorage.setItem(
-          "ndiMappedFormData",
-          JSON.stringify(mappedFormData)
-        )
+          const storeRes = await fetch(`${BACKEND_URL}/api/ndi/store`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ attributes: ndiAttributes, status: data.status })
+          })
 
-        console.log("NDI mapped form data:", mappedFormData)
+          const storeData = await storeRes.json()
+          console.log("Stored in backend:", storeData)
+          
+          // Fetch from Supabase to populate form
+          const cid = ndiAttributes["ID Number"]
+          const supabaseRes = await fetch(`${BACKEND_URL}/api/ndi/fetch?cid=${cid}`)
+          const supabaseData = await supabaseRes.json()
+          console.log("Fetched from backend:", supabaseData)
 
-        clearInterval(interval)
+          if (supabaseData?.data && supabaseData.data.length > 0) {
+          const ndiRecord = supabaseData.data[0]  // because it's an array
+          console.log("NDI record to map:", ndiRecord)
+          const mapped = mapNdiDataToPersonalDetail(ndiRecord)
 
-        router.push("/loan-application?step=1")
-      }
+          setMappedFormData(mapped)
+          console.log("Mapped form data:", mapped)
+
+            // ✅ Persist for next page
+          sessionStorage.setItem(
+            "ndi_mapped_personal_details",
+            JSON.stringify(mapped)
+          )
+        } else {
+          console.error("No NDI data returned from backend:", supabaseData)
+        }
+          
+
+          setStatus('completed')
+          clearInterval(interval)
+          router.push("/loan-application?step=1") // redirect after completion
+        } else {
+          console.error("Unexpected proof result:", data)
+        }
       } catch (err) {
         console.error("Polling error:", err)
+        setStatus('error')
         clearInterval(interval)
       }
     }, 3000)
 
     return () => clearInterval(interval)
-  }, [threadId, router])
+  }, [threadId, status, router])
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24">
       <Header />
-
       <div className="container mx-auto px-4 py-16">
         <div className="grid lg:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
-
           {/* Left Illustration */}
           <div className="flex justify-center">
             <Image
@@ -373,7 +407,6 @@ export default function QRScanPage() {
                   <h2 className="text-2xl font-bold text-center">
                     Scan with Bhutan NDI Wallet
                   </h2>
-
                   <div className="flex flex-col items-center py-6 space-y-4">
                     {qrUrl ? (
                       <div className="p-4 bg-white rounded-xl border-4 border-green-400 shadow-lg">
@@ -382,11 +415,10 @@ export default function QRScanPage() {
                     ) : (
                       <p className="text-gray-500">Loading QR...</p>
                     )}
-
-                    {/* Instructions */}
                     <div className="space-y-2 text-gray-700 text-left">
                       <p><strong>1.</strong> Open Bhutan NDI Wallet</p>
                       <p><strong>2.</strong> Tap Scan and scan this QR code</p>
+                      <p><strong>3.</strong> Review and approve the credential sharing request</p>
                     </div>
                   </div>
                 </>
@@ -395,7 +427,6 @@ export default function QRScanPage() {
                   <h2 className="text-2xl font-bold text-center text-green-700">
                     Identity Verified
                   </h2>
-
                   <div className="space-y-4">
                     {mappedFormData && Object.entries(mappedFormData).map(([key, value]) => (
                       key !== "verifiedFields" && key !== "isVerified" && value ? (

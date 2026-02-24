@@ -1039,12 +1039,13 @@ if (data.pepPerson === "no") {
   //   }
   // };
 
-const handleSubmit = (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
   const isValidDates = validateDates();
   const isValid = validateForm();
-  console.log("isValideDates:", isValidDates);
+
+    console.log("isValideDates:", isValidDates);
   console.log("isValid:", isValid);
   console.log("Errors:", errors);
   console.log("Form data on submit:", data);
@@ -1054,10 +1055,48 @@ const handleSubmit = (e: React.FormEvent) => {
     return;
   }
 
-  // console.log("Form Passed. Opening dialog.");
-  setShowCoBorrowerDialog(true);
-};
+  try {
+    const formData = new FormData();
 
+    // 1️⃣ Append JSON data
+    formData.append("data", JSON.stringify(data));
+
+    // 2️⃣ Append files (ONLY if they exist)
+    if (data.passportPhoto) {
+      formData.append("passportPhoto", data.passportPhoto);
+    }
+
+    if (data.currAddressProof) {
+      formData.append("currAddressProof", data.currAddressProof);
+    }
+
+    if (data.familyTree) {
+      formData.append("familyTree", data.familyTree);
+    }
+
+    // 3️⃣ Call backend API
+    const response = await fetch("http://localhost:3001/api/personal", {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      alert(result.error || "Something went wrong");
+      return;
+    }
+
+    console.log("Saved successfully:", result);
+    alert("Personal details saved successfully!");
+
+    setShowCoBorrowerDialog(true);
+
+  } catch (error) {
+    console.error("Submit error:", error);
+    alert("Failed to submit form");
+  }
+};
 
   const handleCoBorrowerResponse = (hasCoBorrower: boolean) => {
     setShowCoBorrowerDialog(false);

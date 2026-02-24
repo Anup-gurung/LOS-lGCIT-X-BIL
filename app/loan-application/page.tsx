@@ -171,7 +171,15 @@ function LoanApplicationContent() {
   }, [selectedSubSector, loanSubSectorOptions]);
 
   const handlePersonalDetailsNext = (data: any) => {
-    setFormData({ ...formData, ...data });
+    const updatedFormData = { ...formData, ...data };
+    setFormData(updatedFormData);
+    
+    // Save to sessionStorage - merge with existing data
+    const existingData = sessionStorage.getItem('loanApplicationData');
+    const existingParsed = existingData ? JSON.parse(existingData) : {};
+    const mergedData = { ...existingParsed, ...data };
+    sessionStorage.setItem('loanApplicationData', JSON.stringify(mergedData));
+    
     // If hasCoBorrower is true, go to Co-Borrower Details (step 2)
     // If hasCoBorrower is false, skip to Security Details (step 3)
     setCurrentStep(data.hasCoBorrower ? 2 : 3);
@@ -182,7 +190,15 @@ function LoanApplicationContent() {
   };
 
   const handleCoBorrowerDetailsNext = (data: any) => {
-    setFormData({ ...formData, ...data });
+    const updatedFormData = { ...formData, ...data };
+    setFormData(updatedFormData);
+    
+    // Save to sessionStorage - merge with existing data
+    const existingData = sessionStorage.getItem('loanApplicationData');
+    const existingParsed = existingData ? JSON.parse(existingData) : {};
+    const mergedData = { ...existingParsed, ...data };
+    sessionStorage.setItem('loanApplicationData', JSON.stringify(mergedData));
+    
     setCurrentStep(3); // Move to Security Details step
   };
 
@@ -191,7 +207,15 @@ function LoanApplicationContent() {
   };
 
   const handleSecurityDetailsNext = (data: any) => {
-    setFormData({ ...formData, ...data });
+    const updatedFormData = { ...formData, ...data };
+    setFormData(updatedFormData);
+    
+    // Save to sessionStorage - merge with existing data
+    const existingData = sessionStorage.getItem('loanApplicationData');
+    const existingParsed = existingData ? JSON.parse(existingData) : {};
+    const mergedData = { ...existingParsed, ...data };
+    sessionStorage.setItem('loanApplicationData', JSON.stringify(mergedData));
+    
     setCurrentStep(4); // Move to Repayment Source step
   };
 
@@ -200,7 +224,15 @@ function LoanApplicationContent() {
   };
 
   const handleRepaymentSourceNext = (data: any) => {
-    setFormData({ ...formData, ...data });
+    const updatedFormData = { ...formData, ...data };
+    setFormData(updatedFormData);
+    
+    // Save to sessionStorage - merge with existing data
+    const existingData = sessionStorage.getItem('loanApplicationData');
+    const existingParsed = existingData ? JSON.parse(existingData) : {};
+    const mergedData = { ...existingParsed, ...data };
+    sessionStorage.setItem('loanApplicationData', JSON.stringify(mergedData));
+    
     setCurrentStep(5); // Move to Confirmation step
   };
 
@@ -754,7 +786,39 @@ function LoanApplicationContent() {
         open={showDocumentPopup}
         onOpenChange={setShowDocumentPopup}
         onProceed={() => {
-          setFormData({ ...formData, purpose });
+          // Get the actual display names instead of IDs
+          const selectedSectorObj = loanSectorOptions.find(
+            (s) => s.loan_sector_id === parseInt(selectedSector)
+          );
+          const selectedSubSectorIndex = selectedSubSector ? parseInt(selectedSubSector.split("-")[1]) : -1;
+          const selectedSubSectorObj = selectedSubSectorIndex >= 0 ? loanSubSectorOptions[selectedSubSectorIndex] : null;
+          const selectedCategoryIndex = selectedSubSectorCategory ? parseInt(selectedSubSectorCategory.split("-")[1]) : -1;
+          const selectedCategoryObj = selectedCategoryIndex >= 0 ? subSectorCategoryOptions[selectedCategoryIndex] : null;
+          
+          const selectedLoanTypeObj = loanTypeOptions.find(
+            (t) => t.loan_type_id === parseInt(selectedLoanType)
+          );
+
+          const loanDetails = {
+            loanType: selectedLoanTypeObj?.loan_type || selectedLoanType,
+            loanSector: selectedSectorObj?.loan_sector || selectedSector,
+            loanSubSector: selectedSubSectorObj?.sub_sector || selectedSubSector,
+            loanSubSectorCategory: selectedCategoryObj?.sub_cat_sector || selectedSubSectorCategory,
+            loanAmount: totalLoanInput,
+            loanPurpose: purpose,
+            tenure: apiTenure,
+            interestRate: apiInterestRate,
+          };
+
+          const updatedFormData = { ...formData, ...loanDetails };
+          setFormData(updatedFormData);
+          
+          // Save to sessionStorage - merge with existing data
+          const existingData = sessionStorage.getItem('loanApplicationData');
+          const existingParsed = existingData ? JSON.parse(existingData) : {};
+          const mergedData = { ...existingParsed, ...loanDetails };
+          sessionStorage.setItem('loanApplicationData', JSON.stringify(mergedData));
+          
           setCurrentStep(1);
         }}
       />

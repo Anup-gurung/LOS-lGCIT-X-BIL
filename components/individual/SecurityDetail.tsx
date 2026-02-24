@@ -1090,7 +1090,17 @@ export function SecurityDetailsForm({
       }
     }
 
-    onNext({ securityDetails: securities, additionalGuarantors: guarantors });
+    const securityData = { securityDetails: securities, additionalGuarantors: guarantors };
+    
+    // Retrieve existing data from sessionStorage
+    const existingData = sessionStorage.getItem('loanApplicationData');
+    const allData = existingData ? JSON.parse(existingData) : {};
+    
+    // Merge and save to sessionStorage
+    const updatedData = { ...allData, ...securityData };
+    sessionStorage.setItem('loanApplicationData', JSON.stringify(updatedData));
+    
+    onNext(securityData);
   };
 
   // Render security proof upload section

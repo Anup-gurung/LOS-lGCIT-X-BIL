@@ -854,7 +854,17 @@ export function CoBorrowerDetailsForm({
     );
 
     if (!hasErrors) {
-      onNext({ coBorrowers: validatedCoBorrowers });
+      const coBorrowerData = { coBorrowers: validatedCoBorrowers };
+      
+      // Retrieve existing data from sessionStorage
+      const existingData = sessionStorage.getItem('loanApplicationData');
+      const allData = existingData ? JSON.parse(existingData) : {};
+      
+      // Merge and save to sessionStorage
+      const updatedData = { ...allData, ...coBorrowerData };
+      sessionStorage.setItem('loanApplicationData', JSON.stringify(updatedData));
+      
+      onNext(coBorrowerData);
     }
   };
 

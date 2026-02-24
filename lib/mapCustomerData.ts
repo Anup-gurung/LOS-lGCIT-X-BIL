@@ -150,13 +150,16 @@ export interface MappedFormData {
   organizationName?: string; // Form alias
   employerLocation?: string;
   organizationLocation?: string; // Form alias
+  orgLocation?: string; // Form uses orgLocation
   employeeId?: string;
   serviceNature?: string;
   natureOfService?: string; // Form alias
   appointmentDate?: string;
+  joiningDate?: string; // Form uses joiningDate
   designation?: string;
   grade?: string;
   annualIncome?: string;
+  annualSalary?: string; // Form uses annualSalary
   
   // PEP Information
   pepDeclaration?: string;
@@ -285,6 +288,90 @@ function mapLabelToCode(label: string, type: string): string {
   // Default: return cleaned value as-is (preserve original for dropdown matching)
   console.log(`⚠️ No specific mapping for ${type}: "${cleaned}", returning: "${cleaned}"`);
   return cleaned;
+}
+
+/**
+ * Normalize employer type to match form dropdown values: government, private, corporate
+ */
+function normalizeEmployerType(value: string): string {
+  if (!value) return '';
+  const normalized = value.toLowerCase().trim();
+  
+  console.log(`🏢 normalizeEmployerType - Input: "${value}", Normalized: "${normalized}"`);
+  
+  // Map common variations to form values
+  if (normalized.includes('government') || normalized.includes('govt')) {
+    console.log(`  → Matched: government`);
+    return 'government';
+  }
+  if (normalized.includes('private')) {
+    console.log(`  → Matched: private`);
+    return 'private';
+  }
+  if (normalized.includes('corporate') || normalized.includes('corp')) {
+    console.log(`  → Matched: corporate`);
+    return 'corporate';
+  }
+  
+  console.log(`  → No match, returning: "${value.trim()}"`);
+  // Keep original value if no match
+  return value.trim();
+}
+
+/**
+ * Normalize designation to match form dropdown values: manager, officer, assistant
+ */
+function normalizeDesignation(value: string): string {
+  if (!value) return '';
+  const normalized = value.toLowerCase().trim();
+  
+  // Map common variations to form values
+  if (normalized.includes('manager') || normalized.includes('mgr')) return 'manager';
+  if (normalized.includes('officer')) return 'officer';
+  if (normalized.includes('assistant') || normalized.includes('asst')) return 'assistant';
+  
+  // Keep original value if no match - user can see API value
+  return value.trim();
+}
+
+/**
+ * Normalize grade to match form dropdown values: 1-11, p1, p2, p3
+ */
+function normalizeGrade(value: string): string {
+  if (!value) return '';
+  const normalized = value.toLowerCase().trim();
+  
+  // Remove "grade" prefix if present (e.g., "Grade 11" -> "11")
+  const withoutPrefix = normalized.replace(/^grade\s*/i, '');
+  
+  // If it's a valid numeric grade (1-11), return it
+  const numericGrade = parseInt(withoutPrefix, 10);
+  if (!isNaN(numericGrade) && numericGrade >= 1 && numericGrade <= 11) {
+    return String(numericGrade);
+  }
+  
+  // Handle p-grades
+  if (normalized === 'p1' || normalized === 'p-1') return 'p1';
+  if (normalized === 'p2' || normalized === 'p-2') return 'p2';
+  if (normalized === 'p3' || normalized === 'p-3') return 'p3';
+  
+  return withoutPrefix; // Return cleaned value
+}
+
+/**
+ * Normalize service nature to match form dropdown values: permanent, contract, temporary
+ */
+function normalizeServiceNature(value: string): string {
+  if (!value) return '';
+  const normalized = value.toLowerCase().trim();
+  
+  // Map common variations to form values
+  if (normalized.includes('permanent') || normalized.includes('perm')) return 'permanent';
+  if (normalized.includes('contract')) return 'contract';
+  if (normalized.includes('temporary') || normalized.includes('temp')) return 'temporary';
+  if (normalized.includes('regular')) return 'permanent'; // Regular service is typically permanent
+  
+  return normalized; // Return as-is if no match (form will show placeholder)
 }
 
 /**
@@ -440,19 +527,22 @@ export function mapCustomerDataToForm(response: CustomerApiResponse): MappedForm
 
     // Employment Information
     occupation: employment?.pty_empl_occupation || '',
-    employerType: employment?.pty_empl_employer_type || '',
-    organizationType: extractField(employment, 'pty_empl_employer_type', 'employer_type', 'organizationType'), // Form uses organizationType
+    employerType: normalizeEmployerType(extractField(employment, 'pty_empl_employer_type', 'employer_type', 'organizationType')),
+    organizationType: normalizeEmployerType(extractField(employment, 'pty_empl_employer_type', 'employer_type', 'organizationType')), // Form uses organizationType
     employerName: extractField(employment, 'pty_empl_organization_name', 'organization_name', 'employerName'),
     organizationName: extractField(employment, 'pty_empl_organization_name', 'organization_name', 'employerName'), // Form uses organizationName
     employerLocation: extractField(employment, 'pty_empl_organization_loc', 'organization_location', 'employerLocation'),
     organizationLocation: extractField(employment, 'pty_empl_organization_loc', 'organization_location', 'employerLocation'), // Form uses organizationLocation
+    orgLocation: extractField(employment, 'pty_empl_organization_loc', 'organization_location', 'employerLocation'), // Form uses orgLocation
     employeeId: extractField(employment, 'pty_empl_employee_id', 'employee_id', 'employeeId'),
-    serviceNature: extractField(employment, 'pty_empl_nature_of_service', 'nature_of_service', 'serviceNature'),
-    natureOfService: extractField(employment, 'pty_empl_nature_of_service', 'nature_of_service', 'serviceNature'), // Form uses natureOfService
+    serviceNature: normalizeServiceNature(extractField(employment, 'pty_empl_nature_of_service', 'nature_of_service', 'serviceNature')),
+    natureOfService: normalizeServiceNature(extractField(employment, 'pty_empl_nature_of_service', 'nature_of_service', 'serviceNature')), // Form uses natureOfService
     appointmentDate: formatDate(extractField(employment, 'pty_empl_appointment_date', 'appointment_date', 'appointmentDate')),
-    designation: extractField(employment, 'pty_empl_designation', 'designation'),
-    grade: extractField(employment, 'pty_empl_grade', 'grade'),
+    joiningDate: formatDate(extractField(employment, 'pty_empl_appointment_date', 'appointment_date', 'appointmentDate')), // Form uses joiningDate
+    designation: normalizeDesignation(extractField(employment, 'pty_empl_designation', 'designation')),
+    grade: normalizeGrade(extractField(employment, 'pty_empl_grade', 'grade')),
     annualIncome: extractField(employment, 'pty_empl_annual_income', 'annual_income', 'annualIncome'),
+    annualSalary: extractField(employment, 'pty_empl_annual_income', 'annual_income', 'annualIncome'), // Form uses annualSalary
 
     // PEP Information
     pepDeclaration: extractField(pep, 'pep_declaration_type', 'declaration_type'),

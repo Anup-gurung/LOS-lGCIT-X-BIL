@@ -585,6 +585,25 @@ export function PersonalDetailsForm({
     }
   }, [identificationTypeOptions, banksOptions, nationalityOptions, maritalStatusOptions, data.identificationType, data.bankName, data.nationality, data.maritalStatus]);
 
+  // Convert occupation label to pk_code after occupation options load
+  useEffect(() => {
+    if (occupationOptions.length > 0 && data.occupation) {
+      // Check if occupation is already a valid pk_code
+      const isValidPkCode = occupationOptions.find(o => 
+        String(o.occupation_pk_code || o.id) === data.occupation
+      );
+      
+      if (!isValidPkCode) {
+        // Try to find pk_code by label
+        const pkCode = findPkCodeByLabel(data.occupation, occupationOptions, ['occupation', 'name', 'label']);
+        if (pkCode && pkCode !== data.occupation) {
+          console.log(`🔄 Converting occupation: "${data.occupation}" -> "${pkCode}"`);
+          setData((prev: any) => ({ ...prev, occupation: pkCode }));
+        }
+      }
+    }
+  }, [occupationOptions, data.occupation]);
+
   // Load permanent gewogs
   useEffect(() => {
     const loadPermGewogs = async () => {
@@ -4276,6 +4295,17 @@ const handleSubmit = (e: React.FormEvent) => {
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
+                  <SelectItem value="1">Grade 1</SelectItem>
+                  <SelectItem value="2">Grade 2</SelectItem>
+                  <SelectItem value="3">Grade 3</SelectItem>
+                  <SelectItem value="4">Grade 4</SelectItem>
+                  <SelectItem value="5">Grade 5</SelectItem>
+                  <SelectItem value="6">Grade 6</SelectItem>
+                  <SelectItem value="7">Grade 7</SelectItem>
+                  <SelectItem value="8">Grade 8</SelectItem>
+                  <SelectItem value="9">Grade 9</SelectItem>
+                  <SelectItem value="10">Grade 10</SelectItem>
+                  <SelectItem value="11">Grade 11</SelectItem>
                   <SelectItem value="p1">P1</SelectItem>
                   <SelectItem value="p2">P2</SelectItem>
                   <SelectItem value="p3">P3</SelectItem>

@@ -75,6 +75,7 @@ export interface CustomerApiResponse {
       };
     };
   };
+  
 }
 
 export interface MappedFormData {
@@ -173,6 +174,7 @@ export interface MappedFormData {
   isVerified?: boolean;
   verifiedFields?: string[];
 }
+
 
 /**
  * Safely extract value from object by trying multiple possible field names

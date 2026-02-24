@@ -1241,10 +1241,18 @@ const handleSubmit = async (e: React.FormEvent) => {
 
     const result = await response.json();
 
-    if (!response.ok) {
-      alert(result.error || "Something went wrong");
-      return;
-    }
+ if (!response.ok) {
+  // If duplicate CID → allow progression
+  if (result.error?.includes("already exists")) {
+    console.log("CID already exists. Continuing to next step.");
+    setShowCoBorrowerDialog(true);
+    return;
+  }
+
+  // Other real errors
+  alert(result.error || "Something went wrong");
+  return;
+}
 
     console.log("Saved successfully:", result);
     alert("Personal details saved successfully!");

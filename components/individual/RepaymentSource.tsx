@@ -651,12 +651,23 @@ export function RepaymentSourceForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onNext({
+    
+    const repaymentData = {
       repaymentSource: {
         ...incomeData,
         guarantors: incomeData.repaymentGuarantor === "yes" ? guarantors : [],
       },
-    });
+    };
+    
+    // Retrieve existing data from sessionStorage
+    const existingData = sessionStorage.getItem('loanApplicationData');
+    const allData = existingData ? JSON.parse(existingData) : {};
+    
+    // Merge and save to sessionStorage
+    const updatedData = { ...allData, ...repaymentData };
+    sessionStorage.setItem('loanApplicationData', JSON.stringify(updatedData));
+    
+    onNext(repaymentData);
   };
 
   return (

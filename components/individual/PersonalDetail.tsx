@@ -41,14 +41,17 @@ import { getNdiDataFromSession } from "@/lib/mapNdiData";
 import { getVerifiedCustomerDataFromSession } from "@/lib/mapCustomerData";
 import { PlusCircle, Trash2 } from "lucide-react";
 // const [errors, setErrors] = useState<Record<string, string>>({});
-const isRequired = (value: any) => !value || value.toString().trim() === "";
+const isRequired = (value: any) =>
+  !value || value.toString().trim() === "";
 
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-const isValidNumber = (value: string) => /^\d+$/.test(value);
+const isValidNumber = (value: string) =>
+  /^\d+$/.test(value);
 
-const isValidDate = (date: string) => !isNaN(Date.parse(date));
+const isValidDate = (date: string) =>
+  !isNaN(Date.parse(date));
 
 interface PersonalDetailsFormProps {
   onNext: (data: any) => void;
@@ -72,36 +75,36 @@ export function PersonalDetailsForm({
   formData,
 }: PersonalDetailsFormProps) {
   const [data, setData] = useState(() => {
-    console.log("========== PersonalDetail INIT ==========");
-
+    console.log('========== PersonalDetail INIT ==========');
+    
     // PRIORITY 1: Check for verified customer data (existing users)
     const verifiedData = getVerifiedCustomerDataFromSession();
     if (verifiedData && Object.keys(verifiedData).length > 0) {
-      console.log("✅ INIT: Loading verified customer data:", verifiedData);
+      console.log('✅ INIT: Loading verified customer data:', verifiedData);
       let initialData = { ...verifiedData };
-
+      
       if (!(initialData as any).relatedPeps) {
         (initialData as any).relatedPeps = [createEmptyRelatedPep()];
       }
-      console.log("========== Init Complete ==========\n");
+      console.log('========== Init Complete ==========\n');
       return initialData as any;
     }
 
     // PRIORITY 2: Check for NDI verified data (new users)
     const ndiData = getNdiDataFromSession();
     if (ndiData && Object.keys(ndiData).length > 0) {
-      console.log("✅ INIT: Loading NDI data:", ndiData);
+      console.log('✅ INIT: Loading NDI data:', ndiData);
       let initialData = { ...ndiData };
-
+      
       if (!(initialData as any).relatedPeps) {
         (initialData as any).relatedPeps = [createEmptyRelatedPep()];
       }
-      console.log("========== Init Complete ==========\n");
+      console.log('========== Init Complete ==========\n');
       return initialData as any;
     }
 
     // PRIORITY 3: Use formData from page
-    console.log("⚠️ INIT: No verified/NDI data, using formData:", formData);
+    console.log('⚠️ INIT: No verified/NDI data, using formData:', formData);
     let initialData = formData?.personalDetails || formData || {};
 
     // --- MIGRATION LOGIC FOR RELATED PEPS ---
@@ -121,7 +124,7 @@ export function PersonalDetailsForm({
       }
     }
 
-    console.log("========== Init Complete ==========\n");
+    console.log('========== Init Complete ==========\n');
     return initialData as any;
   });
 
@@ -196,26 +199,22 @@ export function PersonalDetailsForm({
    */
   const isBhutanCountry = (countryValue: string, options: any[]): boolean => {
     if (!countryValue) return false;
-
+    
     // Check if the value itself is "Bhutan" (case-insensitive)
-    if (String(countryValue).toLowerCase().includes("bhutan")) {
+    if (String(countryValue).toLowerCase().includes('bhutan')) {
       return true;
     }
-
+    
     // Check if the pk_code matches a Bhutan option
     const matchedOption = options.find(
-      (c) => String(c.country_pk_code || c.id || c.code) === countryValue,
+      (c) => String(c.country_pk_code || c.id || c.code) === countryValue
     );
-
+    
     if (matchedOption) {
-      const label = (
-        matchedOption.country ||
-        matchedOption.name ||
-        ""
-      ).toLowerCase();
-      return label.includes("bhutan");
+      const label = (matchedOption.country || matchedOption.name || '').toLowerCase();
+      return label.includes('bhutan');
     }
-
+    
     return false;
   };
 
@@ -223,27 +222,18 @@ export function PersonalDetailsForm({
    * Helper to find pk_code from label by searching through available options
    * This allows us to match stored label values to dropdown pk_codes
    */
-  const findPkCodeByLabel = (
-    label: string,
-    options: any[],
-    labelFields: string[],
-  ): string => {
-    if (!label) return "";
-
+  const findPkCodeByLabel = (label: string, options: any[], labelFields: string[]): string => {
+    if (!label) return '';
+    
     const labelLower = String(label).toLowerCase().trim();
-
+    
     for (const option of options) {
-      // Try each possible label field
       for (const field of labelFields) {
         const optionLabel = String(option[field] || "")
           .toLowerCase()
           .trim();
-        if (
-          optionLabel === labelLower ||
-          optionLabel.includes(labelLower) ||
-          labelLower.includes(optionLabel)
-        ) {
-          // Found a match, return the pk_code by checking common pk_code field names
+        if (optionLabel === labelLower) {
+          // Found exact match, return the pk_code
           return String(
             option.bank_pk_code ||
               option.country_pk_code ||
@@ -251,11 +241,41 @@ export function PersonalDetailsForm({
               option.identity_type_pk_code ||
               option.marital_status_pk_code ||
               option.occupation_pk_code ||
+              option.dzongkhag_pk_code ||
+              option.gewog_pk_code ||
               option.pk_code ||
               option.id ||
               option.code ||
               "",
           );
+        }
+      }
+    }
+
+    // Second pass: substring match (only if label is long enough to avoid false positives)
+    if (labelLower.length >= 4) {
+      for (const option of options) {
+        for (const field of labelFields) {
+          const optionLabel = String(option[field] || "")
+            .toLowerCase()
+            .trim();
+          if (optionLabel.includes(labelLower) || labelLower.includes(optionLabel)) {
+            // Found partial match, return the pk_code
+            return String(
+              option.bank_pk_code ||
+                option.country_pk_code ||
+                option.nationality_pk_code ||
+                option.identity_type_pk_code ||
+                option.marital_status_pk_code ||
+                option.occupation_pk_code ||
+                option.dzongkhag_pk_code ||
+                option.gewog_pk_code ||
+                option.pk_code ||
+                option.id ||
+                option.code ||
+                "",
+            );
+          }
         }
       }
     }
@@ -269,24 +289,20 @@ export function PersonalDetailsForm({
     // Check for existing customer verified data first
     const verifiedData = getVerifiedCustomerDataFromSession();
     if (verifiedData && Object.keys(verifiedData).length > 0) {
-      console.log(
-        "========== PersonalDetail - LOADING VERIFIED CUSTOMER DATA ==========",
-      );
-      console.log("Verified data:", verifiedData);
-      console.log("Key fields:");
-      console.log("  applicantName:", verifiedData.applicantName);
-      console.log("  salutation:", verifiedData.salutation);
-      console.log("  gender:", verifiedData.gender);
-      console.log("  maritalStatus:", verifiedData.maritalStatus);
-      console.log("  nationality:", verifiedData.nationality);
-      console.log("  identificationType:", verifiedData.identificationType);
-      console.log("  currEmail:", verifiedData.currEmail);
-      console.log("  currContact:", verifiedData.currContact);
-      console.log("  bankName:", verifiedData.bankName);
-      console.log(
-        "====================================================================\n",
-      );
-
+      console.log('========== PersonalDetail - LOADING VERIFIED CUSTOMER DATA ==========');
+      console.log('Verified data:', verifiedData);
+      console.log('Key fields:');
+      console.log('  applicantName:', verifiedData.applicantName);
+      console.log('  salutation:', verifiedData.salutation);
+      console.log('  gender:', verifiedData.gender);
+      console.log('  maritalStatus:', verifiedData.maritalStatus);
+      console.log('  nationality:', verifiedData.nationality);
+      console.log('  identificationType:', verifiedData.identificationType);
+      console.log('  currEmail:', verifiedData.currEmail);
+      console.log('  currContact:', verifiedData.currContact);
+      console.log('  bankName:', verifiedData.bankName);
+      console.log('====================================================================\n');
+      
       setData((prevData: any) => ({
         ...verifiedData,
         ...prevData,
@@ -295,11 +311,11 @@ export function PersonalDetailsForm({
       }));
       return; // Don't check NDI data if verified customer data exists
     }
-
+    
     // If no verified customer data, check for NDI data
     const ndiData = getNdiDataFromSession();
     if (ndiData && Object.keys(ndiData).length > 0) {
-      console.log("PersonalDetail - Loading NDI data:", ndiData);
+      console.log('PersonalDetail - Loading NDI data:', ndiData);
       setData((prevData: any) => ({
         ...ndiData,
         ...prevData,
@@ -481,6 +497,113 @@ export function PersonalDetailsForm({
     }
   }, [formData]);
 
+  // Convert label values to pk_codes after dropdown options are loaded
+  useEffect(() => {
+    if (countryOptions.length > 0 && dzongkhagOptions.length > 0) {
+      const updates: any = {};
+      
+      // Convert permanent address country label to pk_code
+      if (data.permCountry && !countryOptions.find(c => String(c.country_pk_code || c.id) === data.permCountry)) {
+        const pkCode = findPkCodeByLabel(data.permCountry, countryOptions, ['country', 'name', 'label']);
+        if (pkCode && pkCode !== data.permCountry) {
+          updates.permCountry = pkCode;
+        }
+      }
+      
+      // Convert current address country label to pk_code
+      if (data.currCountry && !countryOptions.find(c => String(c.country_pk_code || c.id) === data.currCountry)) {
+        const pkCode = findPkCodeByLabel(data.currCountry, countryOptions, ['country', 'name', 'label']);
+        if (pkCode && pkCode !== data.currCountry) {
+          updates.currCountry = pkCode;
+        }
+      }
+      
+      // Convert permanent dzongkhag label to pk_code
+      if (data.permDzongkhag && !dzongkhagOptions.find(d => String(d.dzongkhag_pk_code || d.id) === data.permDzongkhag)) {
+        const pkCode = findPkCodeByLabel(data.permDzongkhag, dzongkhagOptions, ['dzongkhag', 'name', 'label']);
+        if (pkCode && pkCode !== data.permDzongkhag) {
+          updates.permDzongkhag = pkCode;
+        }
+      }
+      
+      // Convert current dzongkhag label to pk_code
+      if (data.currDzongkhag && !dzongkhagOptions.find(d => String(d.dzongkhag_pk_code || d.id) === data.currDzongkhag)) {
+        const pkCode = findPkCodeByLabel(data.currDzongkhag, dzongkhagOptions, ['dzongkhag', 'name', 'label']);
+        if (pkCode && pkCode !== data.currDzongkhag) {
+          updates.currDzongkhag = pkCode;
+        }
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        console.log('🔄 Converting label values to pk_codes:', updates);
+        setData((prev: any) => ({ ...prev, ...updates }));
+      }
+    }
+  }, [countryOptions, dzongkhagOptions, data.permCountry, data.currCountry, data.permDzongkhag, data.currDzongkhag]);
+
+  // Convert other dropdown fields (identificationType, bankName, nationality, maritalStatus)
+  useEffect(() => {
+    if (identificationTypeOptions.length > 0 || banksOptions.length > 0 || nationalityOptions.length > 0 || maritalStatusOptions.length > 0) {
+      const updates: any = {};
+      
+      // Convert identificationType label to pk_code
+      if (identificationTypeOptions.length > 0 && data.identificationType && !identificationTypeOptions.find(i => String(i.identity_type_pk_code || i.identification_type_pk_code || i.id) === data.identificationType)) {
+        const pkCode = findPkCodeByLabel(data.identificationType, identificationTypeOptions, ['identity_type', 'identification_type', 'name', 'label']);
+        if (pkCode && pkCode !== data.identificationType) {
+          updates.identificationType = pkCode;
+        }
+      }
+      
+      // Convert bankName label to pk_code
+      if (banksOptions.length > 0 && data.bankName && !banksOptions.find(b => String(b.bank_pk_code || b.id) === data.bankName)) {
+        const pkCode = findPkCodeByLabel(data.bankName, banksOptions, ['bank', 'bank_name', 'name', 'label']);
+        if (pkCode && pkCode !== data.bankName) {
+          updates.bankName = pkCode;
+        }
+      }
+      
+      // Convert nationality label to pk_code
+      if (nationalityOptions.length > 0 && data.nationality && !nationalityOptions.find(n => String(n.nationality_pk_code || n.id) === data.nationality)) {
+        const pkCode = findPkCodeByLabel(data.nationality, nationalityOptions, ['nationality', 'name', 'label']);
+        if (pkCode && pkCode !== data.nationality) {
+          updates.nationality = pkCode;
+        }
+      }
+      
+      // Convert maritalStatus label to pk_code
+      if (maritalStatusOptions.length > 0 && data.maritalStatus && !maritalStatusOptions.find(m => String(m.marital_status_pk_code || m.id) === data.maritalStatus)) {
+        const pkCode = findPkCodeByLabel(data.maritalStatus, maritalStatusOptions, ['marital_status', 'name', 'label']);
+        if (pkCode && pkCode !== data.maritalStatus) {
+          updates.maritalStatus = pkCode;
+        }
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        console.log('🔄 Converting dropdown label values to pk_codes:', updates);
+        setData((prev: any) => ({ ...prev, ...updates }));
+      }
+    }
+  }, [identificationTypeOptions, banksOptions, nationalityOptions, maritalStatusOptions, data.identificationType, data.bankName, data.nationality, data.maritalStatus]);
+
+  // Convert occupation label to pk_code after occupation options load
+  useEffect(() => {
+    if (occupationOptions.length > 0 && data.occupation) {
+      // Check if occupation is already a valid pk_code
+      const isValidPkCode = occupationOptions.find(o => 
+        String(o.occupation_pk_code || o.id) === data.occupation
+      );
+      
+      if (!isValidPkCode) {
+        // Try to find pk_code by label
+        const pkCode = findPkCodeByLabel(data.occupation, occupationOptions, ['occupation', 'name', 'label']);
+        if (pkCode && pkCode !== data.occupation) {
+          console.log(`🔄 Converting occupation: "${data.occupation}" -> "${pkCode}"`);
+          setData((prev: any) => ({ ...prev, occupation: pkCode }));
+        }
+      }
+    }
+  }, [occupationOptions, data.occupation]);
+
   // Load permanent gewogs
   useEffect(() => {
     const loadPermGewogs = async () => {
@@ -510,6 +633,27 @@ export function PersonalDetailsForm({
     };
     loadCurrGewogs();
   }, [data.currDzongkhag]);
+
+  // Convert gewog label values to pk_codes after gewog options are loaded
+  useEffect(() => {
+    if (permGewogOptions.length > 0 && data.permGewog && !permGewogOptions.find(g => String(g.gewog_pk_code || g.id) === data.permGewog)) {
+      const pkCode = findPkCodeByLabel(data.permGewog, permGewogOptions, ['gewog', 'name', 'label']);
+      if (pkCode && pkCode !== data.permGewog) {
+        console.log('🔄 Converting permGewog label to pk_code:', data.permGewog, '->', pkCode);
+        setData((prev: any) => ({ ...prev, permGewog: pkCode }));
+      }
+    }
+  }, [permGewogOptions, data.permGewog]);
+
+  useEffect(() => {
+    if (currGewogOptions.length > 0 && data.currGewog && !currGewogOptions.find(g => String(g.gewog_pk_code || g.id) === data.currGewog)) {
+      const pkCode = findPkCodeByLabel(data.currGewog, currGewogOptions, ['gewog', 'name', 'label']);
+      if (pkCode && pkCode !== data.currGewog) {
+        console.log('🔄 Converting currGewog label to pk_code:', data.currGewog, '->', pkCode);
+        setData((prev: any) => ({ ...prev, currGewog: pkCode }));
+      }
+    }
+  }, [currGewogOptions, data.currGewog]);
 
   // Load PEP sub-categories for SELF PEP
   useEffect(() => {
@@ -648,271 +792,286 @@ export function PersonalDetailsForm({
     }
   };
   const isEmpty = (val: any) =>
-    val === undefined || val === null || String(val).trim() === "";
+  val === undefined || val === null || String(val).trim() === "";
 
-  const isEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+const isEmail = (val: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
 
-  const isNumeric = (val: string) => /^\d+$/.test(val);
+const isNumeric = (val: string) =>
+  /^\d+$/.test(val);
 
-  // const validateForm = () => {
-  //   const newErrors: Record<string, string> = {};
+const isAlphabetOnly = (value: string) => {
+  return /^[A-Za-z\s]+$/.test(value);
+};
 
-  //   if (isRequired(data.applicantName)) {
-  //     newErrors.applicantName = "Full Name is required";
-  //   }
+const capitalizeWords = (value: string) => {
+  return value
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+// const validateForm = () => {
+//   const newErrors: Record<string, string> = {};
 
-  //   if (isRequired(data.email)) {
-  //     newErrors.email = "Email is required";
-  //   } else if (!isValidEmail(data.email)) {
-  //     newErrors.email = "Invalid email format";
-  //   }
+//   if (isRequired(data.applicantName)) {
+//     newErrors.applicantName = "Full Name is required";
+//   }
 
-  //   if (isRequired(data.mobileNo)) {
-  //     newErrors.mobileNo = "Mobile number is required";
-  //   } else if (!isValidNumber(data.mobileNo)) {
-  //     newErrors.mobileNo = "Mobile number must contain digits only";
-  //   }
+//   if (isRequired(data.email)) {
+//     newErrors.email = "Email is required";
+//   } else if (!isValidEmail(data.email)) {
+//     newErrors.email = "Invalid email format";
+//   }
 
-  //   if (isRequired(data.identificationType)) {
-  //     newErrors.identificationType = "Identification Type is required";
-  //   }
+//   if (isRequired(data.mobileNo)) {
+//     newErrors.mobileNo = "Mobile number is required";
+//   } else if (!isValidNumber(data.mobileNo)) {
+//     newErrors.mobileNo = "Mobile number must contain digits only";
+//   }
 
-  //   setErrors(newErrors);
+//   if (isRequired(data.identificationType)) {
+//     newErrors.identificationType = "Identification Type is required";
+//   }
 
-  //   return Object.keys(newErrors).length === 0;
-  // };
+//   setErrors(newErrors);
 
-  const validateForm = () => {
-    let newErrors: Record<string, string> = {};
+//   return Object.keys(newErrors).length === 0;
+// };
 
-    // ============================
-    // BASIC PERSONAL INFO
-    // ============================
-    if (isRequired(data.applicantName))
-      newErrors.applicantName = "Applicant name is required";
+const validateForm = () => {
+  let newErrors: Record<string, string> = {};
 
-    if (isEmpty(data.identificationType))
-      newErrors.identificationType = "Identification type is required";
+  // ============================
+  // BASIC PERSONAL INFO
+  // ============================
+  if (isRequired(data.applicantName))
+    newErrors.applicantName = "Applicant name is required";
 
-    if (isEmpty(data.identificationNo))
-      newErrors.identificationNo = "Identification number is required";
+  if (isEmpty(data.identificationType))
+    newErrors.identificationType = "Identification type is required";
 
-    if (isEmpty(data.salutation))
-      newErrors.salutation = "Salutation is required";
+  if (isEmpty(data.identificationNo))
+    newErrors.identificationNo = "Identification number is required";
 
-    if (isEmpty(data.nationality))
-      newErrors.nationality = "Nationality is required";
+  if (isEmpty(data.salutation))
+    newErrors.salutation = "Salutation is required";
 
-    if (isEmpty(data.gender)) newErrors.gender = "Gender is required";
+  if (isEmpty(data.nationality))
+    newErrors.nationality = "Nationality is required";
 
-    if (isEmpty(data.dateOfBirth))
-      newErrors.dateOfBirth = "Date of birth is required";
+  if (isEmpty(data.gender))
+    newErrors.gender = "Gender is required";
 
-    if (isEmpty(data.tpn)) newErrors.tpn = "TPN Number is required";
+  if (isEmpty(data.dateOfBirth))
+    newErrors.dateOfBirth = "Date of birth is required";
 
-    // ============================
-    // MARITAL STATUS
-    // ============================
-    if (isEmpty(data.maritalStatus))
-      newErrors.maritalStatus = "Please select a marital status";
+  if (isEmpty(data.tpn))
+    newErrors.tpn = "TPN Number is required";
 
-    if (isMarried) {
-      if (isEmpty(data.spouseIdentificationNo))
-        newErrors.spouseIdentificationNo =
-          "Spouse Identification Number is required";
+  // ============================
+  // MARITAL STATUS
+  // ============================
+  if (isEmpty(data.maritalStatus))
+    newErrors.maritalStatus = "Please select a marital status"
 
-      if (isEmpty(data.spouseName))
-        newErrors.spouseName = "Spouse name is required";
+  if (isMarried) {
+    if (isEmpty(data.spouseIdentificationNo))
+      newErrors.spouseIdentificationNo = "Spouse Identification Number is required"
 
-      if (isEmpty(data.spouseContact))
-        newErrors.spouseContact = "Spouse Contact is required";
+    if (isEmpty(data.spouseName))
+      newErrors.spouseName = "Spouse name is required";
+
+    if (isEmpty(data.spouseContact))
+      newErrors.spouseContact = "Spouse Contact is required";
+  }
+  if (isEmpty(data.familyTree))
+    newErrors.familyTree = "No files uploaded"
+
+  if (isEmpty(data.identificationIssueDate))
+    newErrors.identificationIssueDate = "Identification Issue Date is required"
+
+  if (isEmpty(data.identificationExpiryDate))
+    newErrors.identificationExpiryDate = "Identification Expiry Date is required"
+  // ============================
+  // Bank Details
+  // ============================
+  // if(isEmpty(data.BankName))
+  //   newErrors.BankName = "Please select a Bank"
+  // if(isEmpty(data.BankAccountNo))
+  //   newErrors.BankAccountNo = "Enter Bank Saving Account Number"
+
+  // ============================
+  // PERMANENT ADDRESS
+  // ============================
+
+ // =============================
+// PERMANENT ADDRESS VALIDATION
+// =============================
+
+if (!data.permCountry) {
+  newErrors.permCountry = "Country is required";
+}
+
+if (!data.permDzongkhag) {
+  newErrors.permDzongkhag = isBhutanCountry(data.permCountry, countryOptions)
+    ? "Dzongkhag is required"
+    : "State is required";
+}
+
+if (!data.permGewog) {
+  newErrors.permGewog = isBhutanCountry(data.permCountry, countryOptions)
+    ? "Gewog is required"
+    : "Province is required";
+}
+
+if (!data.permVillage || data.permVillage.trim() === "") {
+  newErrors.permVillage = isBhutanCountry(data.permCountry, countryOptions)
+    ? "Village is required"
+    : "Street is required";
+}
+
+// Bhutan-specific validation
+if (isBhutanCountry(data.permCountry, countryOptions)) {
+  if (!data.permThram || data.permThram.trim() === "") {
+    newErrors.permThram = "Thram number is required";
+  }
+
+  if (!data.permHouse || data.permHouse.trim() === "") {
+    newErrors.permHouse = "House number is required";
+  }
+}
+
+// Non-Bhutan validation
+if (
+  data.permCountry &&
+  !isBhutanCountry(data.permCountry, countryOptions)
+) {
+  if (!data.permAddressProof) {
+    newErrors.permAddressProof = "Address proof document is required";
+  }
+}
+
+  // ============================
+  // CURRENT ADDRESS
+  // ============================
+// =============================
+// CURRENT ADDRESS VALIDATION
+// =============================
+
+if (!data.currCountry) {
+  newErrors.currCountry = "Country is required";
+}
+
+if (!data.currDzongkhag) {
+  newErrors.currDzongkhag = isBhutanCountry(data.currCountry, countryOptions)
+    ? "Dzongkhag is required"
+    : "State is required";
+}
+
+if (!data.currGewog) {
+  newErrors.currGewog = isBhutanCountry(data.currCountry, countryOptions)
+    ? "Gewog is required"
+    : "Province is required";
+}
+
+if (!data.currVillage || data.currVillage.trim() === "") {
+  newErrors.currVillage = isBhutanCountry(data.currCountry, countryOptions)
+    ? "Village is required"
+    : "Street is required";
+}
+
+
+
+// Bhutan-specific validation
+if (isBhutanCountry(data.currCountry, countryOptions)) {
+  // if (!data.currThram || data.currThram.trim() === "") {
+  //   newErrors.currThram = "Thram number is required";
+  // }
+
+  // if (!data.currHouse || data.currHouse.trim() === "") {
+  //   newErrors.currHouse = "House number is required";
+  // }
+   if (isEmpty(data.currEmail))
+    newErrors.currEmail = "Email is required";
+  else if (!isEmail(data.currEmail))
+    newErrors.currEmail = "Invalid email format";
+
+  if (isEmpty(data.currContact))
+    newErrors.currContact = "Contact number is required";
+  else if (!isNumeric(data.currContact))
+    newErrors.currContact = "Contact must be numeric";
+  
+}
+
+// Non-Bhutan validation
+if (
+  data.currCountry &&
+  !isBhutanCountry(data.currCountry, countryOptions)
+) {
+  if (!data.currAddressProof) {
+    newErrors.currAddressProof =
+      "Address proof document is required";
+  }
+    if (isEmpty(data.currEmail))
+    newErrors.currEmail = "Email is required";
+  else if (!isEmail(data.currEmail))
+    newErrors.currEmail = "Invalid email format";
+
+  if (isEmpty(data.currContact))
+    newErrors.currContact = "Contact number is required";
+  else if (!isNumeric(data.currContact))
+    newErrors.currContact = "Contact must be numeric";
+}
+
+
+  // if (isEmpty(data.currAlternateContact))
+  //   newErrors.currAlternateContact = "Alternate contact number is required";
+  // else if (!isNumeric(data.currAlternateContact))
+  //   newErrors.currAlternateContact = "Alternate contact must be numeric";
+  // if (isRequired(data.currCountry)) newErrors.currCountry = "Required";
+  // if (isRequired(data.currDzongkhag)) newErrors.currDzongkhag = "Required";
+  // if (isRequired(data.currGewog)) newErrors.currGewog = "Required";
+  // if (isRequired(data.currVillage)) newErrors.currVillage = "Village is required";
+  if (isRequired(data.currFlat)) newErrors.currFlat = "Flat Number is required";
+  // ============================
+  // BANK DETAILS
+  // ============================
+  if (isEmpty(data.bankName))
+    newErrors.bankName = "Bank is required";
+
+  if (isEmpty(data.bankAccount))
+    newErrors.bankAccount = "Account number is required";
+  else if (!isNumeric(data.bankAccount))
+    newErrors.bankAccount = "Account number must be numeric";
+
+  if (!data.passportPhoto)
+    newErrors.passportPhoto = "No Passport-size photo is uploaded";
+
+
+  // ============================
+  // Spouse Information
+  // ============================
+
+
+
+  // ============================
+  // EMPLOYMENT
+  // ============================
+
+  // ============= Employment Status ==========
+if (!data.employmentStatus || data.employmentStatus.trim() === "") {
+  newErrors.employmentStatus = "Employment status is required";
+}
+
+  if (data.employmentStatus === "employed") {
+    if (isEmpty(data.employeeId))
+      newErrors.employeeId = "Employee ID is required";
+
+    if (isEmpty(data.occupation))
+      newErrors.occupation = "Occupation is required";
+
+    if (!data.employerType) {
+      newErrors.employerType = "Employer type is required";
     }
-    if (isEmpty(data.familyTree)) newErrors.familyTree = "No files uploaded";
-
-    if (isEmpty(data.identificationIssueDate))
-      newErrors.identificationIssueDate =
-        "Identification Issue Date is required";
-
-    if (isEmpty(data.identificationExpiryDate))
-      newErrors.identificationExpiryDate =
-        "Identification Expiry Date is required";
-    // ============================
-    // Bank Details
-    // ============================
-    // if(isEmpty(data.BankName))
-    //   newErrors.BankName = "Please select a Bank"
-    // if(isEmpty(data.BankAccountNo))
-    //   newErrors.BankAccountNo = "Enter Bank Saving Account Number"
-
-    // ============================
-    // PERMANENT ADDRESS
-    // ============================
-
-    // =============================
-    // PERMANENT ADDRESS VALIDATION
-    // =============================
-
-    if (!data.permCountry) {
-      newErrors.permCountry = "Country is required";
-    }
-
-    if (!data.permDzongkhag) {
-      newErrors.permDzongkhag = isBhutanCountry(
-        data.permCountry,
-        countryOptions,
-      )
-        ? "Dzongkhag is required"
-        : "State is required";
-    }
-
-    if (!data.permGewog) {
-      newErrors.permGewog = isBhutanCountry(data.permCountry, countryOptions)
-        ? "Gewog is required"
-        : "Province is required";
-    }
-
-    if (!data.permVillage || data.permVillage.trim() === "") {
-      newErrors.permVillage = isBhutanCountry(data.permCountry, countryOptions)
-        ? "Village is required"
-        : "Street is required";
-    }
-
-    // Bhutan-specific validation
-    if (isBhutanCountry(data.permCountry, countryOptions)) {
-      if (!data.permThram || data.permThram.trim() === "") {
-        newErrors.permThram = "Thram number is required";
-      }
-
-      if (!data.permHouse || data.permHouse.trim() === "") {
-        newErrors.permHouse = "House number is required";
-      }
-    }
-
-    // Non-Bhutan validation
-    if (
-      data.permCountry &&
-      !isBhutanCountry(data.permCountry, countryOptions)
-    ) {
-      if (!data.permAddressProof) {
-        newErrors.permAddressProof = "Address proof document is required";
-      }
-    }
-
-    // ============================
-    // CURRENT ADDRESS
-    // ============================
-    // =============================
-    // CURRENT ADDRESS VALIDATION
-    // =============================
-
-    if (!data.currCountry) {
-      newErrors.currCountry = "Country is required";
-    }
-
-    if (!data.currDzongkhag) {
-      newErrors.currDzongkhag = isBhutanCountry(
-        data.currCountry,
-        countryOptions,
-      )
-        ? "Dzongkhag is required"
-        : "State is required";
-    }
-
-    if (!data.currGewog) {
-      newErrors.currGewog = isBhutanCountry(data.currCountry, countryOptions)
-        ? "Gewog is required"
-        : "Province is required";
-    }
-
-    if (!data.currVillage || data.currVillage.trim() === "") {
-      newErrors.currVillage = isBhutanCountry(data.currCountry, countryOptions)
-        ? "Village is required"
-        : "Street is required";
-    }
-
-    // Bhutan-specific validation
-    if (isBhutanCountry(data.currCountry, countryOptions)) {
-      if (!data.currThram || data.currThram.trim() === "") {
-        newErrors.currThram = "Thram number is required";
-      }
-
-      if (!data.currHouse || data.currHouse.trim() === "") {
-        newErrors.currHouse = "House number is required";
-      }
-      if (isEmpty(data.currEmail)) newErrors.currEmail = "Email is required";
-      else if (!isEmail(data.currEmail))
-        newErrors.currEmail = "Invalid email format";
-
-      if (isEmpty(data.currContact))
-        newErrors.currContact = "Contact number is required";
-      else if (!isNumeric(data.currContact))
-        newErrors.currContact = "Contact must be numeric";
-    }
-
-    // Non-Bhutan validation
-    if (
-      data.currCountry &&
-      !isBhutanCountry(data.currCountry, countryOptions)
-    ) {
-      if (!data.currAddressProof) {
-        newErrors.currAddressProof = "Address proof document is required";
-      }
-      if (isEmpty(data.currEmail)) newErrors.currEmail = "Email is required";
-      else if (!isEmail(data.currEmail))
-        newErrors.currEmail = "Invalid email format";
-
-      if (isEmpty(data.currContact))
-        newErrors.currContact = "Contact number is required";
-      else if (!isNumeric(data.currContact))
-        newErrors.currContact = "Contact must be numeric";
-    }
-
-    // if (isEmpty(data.currAlternateContact))
-    //   newErrors.currAlternateContact = "Alternate contact number is required";
-    // else if (!isNumeric(data.currAlternateContact))
-    //   newErrors.currAlternateContact = "Alternate contact must be numeric";
-    // if (isRequired(data.currCountry)) newErrors.currCountry = "Required";
-    // if (isRequired(data.currDzongkhag)) newErrors.currDzongkhag = "Required";
-    // if (isRequired(data.currGewog)) newErrors.currGewog = "Required";
-    // if (isRequired(data.currVillage)) newErrors.currVillage = "Village is required";
-    if (isRequired(data.currFlat))
-      newErrors.currFlat = "Flat Number is required";
-    // ============================
-    // BANK DETAILS
-    // ============================
-    if (isEmpty(data.bankName)) newErrors.bankName = "Bank is required";
-
-    if (isEmpty(data.bankAccount))
-      newErrors.bankAccount = "Account number is required";
-    else if (!isNumeric(data.bankAccount))
-      newErrors.bankAccount = "Account number must be numeric";
-
-    if (isEmpty(data.passportPhoto))
-      newErrors.passportPhoto = "No Passport-size photo is uploaded";
-
-    // ============================
-    // Spouse Information
-    // ============================
-
-    // ============================
-    // EMPLOYMENT
-    // ============================
-
-    // ============= Employment Status ==========
-    if (!data.employmentStatus || data.employmentStatus.trim() === "") {
-      newErrors.employmentStatus = "Employment status is required";
-    }
-
-    if (data.employmentStatus === "employed") {
-      if (isEmpty(data.employeeId))
-        newErrors.employeeId = "Employee ID is required";
-
-      if (isEmpty(data.occupation))
-        newErrors.occupation = "Occupation is required";
-
-      if (!data.employerType) {
-        newErrors.employerType = "Employer type is required";
-      }
       if (!data.designation) {
         newErrors.designation = "Designation is required";
       }
@@ -921,81 +1080,88 @@ export function PersonalDetailsForm({
         newErrors.grade = "Grade is required";
       }
 
-      if (isEmpty(data.organizationName))
-        newErrors.organizationName = "Organization name is required";
+    if (isEmpty(data.organizationName))
+      newErrors.organizationName = "Organization name is required";
 
-      if (!data.orgLocation || data.orgLocation.trim() === "") {
-        newErrors.orgLocation = "Organization location is required";
-      }
-
-      if (!data.joiningDate) {
-        newErrors.joiningDate = "Joining date is required";
-      }
-
-      if (!data.serviceNature) {
-        newErrors.serviceNature = "Service nature is required";
-      }
-
-      if (isEmpty(data.annualSalary))
-        newErrors.annualSalary = "Gross annual salary income is required";
-      else if (!isNumeric(data.annualSalary))
-        newErrors.annualSalary = "Income must be numeric";
+    if (!data.orgLocation || data.orgLocation.trim() === "") {
+      newErrors.orgLocation = "Organization location is required";
     }
 
-    // ============================
-    // SELF PEP
-    // ============================
-    if (isEmpty(data.pepPerson))
-      newErrors.pepPerson = "Please specify if you are a PEP or not";
-
-    if (data.pepPerson === "yes") {
-      if (isEmpty(data.pepCategory))
-        newErrors.pepCategory = "PEP category is required";
-
-      if (isEmpty(data.pepSubCategory))
-        newErrors.pepSubCategory = "PEP sub category is required";
-
-      if (isEmpty(data.pepIdentificationProof))
-        newErrors.pepIdentificationProof = "Identification proof required";
+    if (!data.joiningDate) {
+      newErrors.joiningDate = "Joining date is required";
     }
 
-    // ============================
-    // RELATED PEP
-    // ============================
-    if (isEmpty(data.pepRelated))
-      newErrors.pepRelated =
-        "Please specify if you are related to a PEP or not";
-
-    if (data.pepRelated === "yes") {
-      relatedPeps.forEach((pep: any, index: number) => {
-        if (isEmpty(pep.relationship))
-          newErrors[`relatedPeps.${index}.relationship`] =
-            "Relationship is required";
-
-        if (isEmpty(pep.identificationNo))
-          newErrors[`relatedPeps.${index}.identificationNo`] =
-            "Identification number is required";
-
-        if (isEmpty(pep.category))
-          newErrors[`relatedPeps.${index}.category`] = "Category is required";
-
-        if (isEmpty(pep.subCategory))
-          newErrors[`relatedPeps.${index}.subCategory`] =
-            "Sub category is required";
-
-        if (isEmpty(pep.identificationProof))
-          newErrors[`relatedPeps.${index}.identificationProof`] =
-            "Identification proof is required";
-      });
+    if (!data.serviceNature) {
+      newErrors.serviceNature = "Service nature is required";
     }
-    if (isEmpty(data.relatedToBil))
-      newErrors.relatedToBil =
-        "Please specify if you are related to BIL or not";
 
-    setErrors(newErrors);
+    if (isEmpty(data.annualSalary))
+      newErrors.annualSalary = "Gross annual salary income is required";
+    else if (!isNumeric(data.annualSalary))
+      newErrors.annualSalary = "Income must be numeric";
+  }
 
-    return Object.keys(newErrors).length === 0;
-  };
+  // ============================
+  // SELF PEP
+  // ============================
+  if (isEmpty(data.pepPerson))
+    newErrors.pepPerson = "Please specify if you are a PEP or not";
+
+  if (data.pepPerson === "yes") {
+    if (isEmpty(data.pepCategory))
+      newErrors.pepCategory = "PEP category is required";
+
+    if (isEmpty(data.pepSubCategory))
+      newErrors.pepSubCategory = "PEP sub category is required";
+
+    if (!data.identificationProof)
+      newErrors.identificationProof = "Identification proof required, please upload the document";
+  }
+
+  // ============================
+  // RELATED PEP
+  // ============================
+// ============================
+// RELATED PEP
+// ============================
+
+// ✅ Only validate related PEP if person is NOT PEP
+if (data.pepPerson === "no") {
+  if (isEmpty(data.pepRelated))
+    newErrors.pepRelated =
+      "Please specify if you are related to a PEP or not";
+
+  if (data.pepRelated === "yes") {
+    relatedPeps.forEach((pep: any, index: number) => {
+      if (isEmpty(pep.relationship))
+        newErrors[`relatedPeps.${index}.relationship`] =
+          "Relationship is required";
+
+      if (isEmpty(pep.identificationNo))
+        newErrors[`relatedPeps.${index}.identificationNo`] =
+          "Identification number is required";
+
+      if (isEmpty(pep.category))
+        newErrors[`relatedPeps.${index}.category`] =
+          "Category is required";
+
+      if (isEmpty(pep.subCategory))
+        newErrors[`relatedPeps.${index}.subCategory`] =
+          "Sub category is required";
+
+      if (isEmpty(pep.identificationProof))
+        newErrors[`relatedPeps.${index}.identificationProof`] =
+          "PEP Identification proof is required";
+    });
+  }
+}
+  if (isEmpty(data.relatedToBil))
+      newErrors.relatedToBil = "Please specify if you are related to BIL or not";
+
+  setErrors(newErrors);
+
+  return Object.keys(newErrors).length === 0;
+};
 
   const validateDates = () => {
     const newErrors: Record<string, string> = {};
@@ -1032,17 +1198,25 @@ export function PersonalDetailsForm({
   //   }
   // };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    alert("Handle SUbmit");
-    e.preventDefault();
+const handleSubmit = (e: React.FormEvent) => {
+  e.preventDefault();
 
-    // const isValidDates = validateDates();
-    const isValid = validateForm();
+  const isValidDates = validateDates();
+  const isValid = validateForm();
+  console.log("isValideDates:", isValidDates);
+  console.log("isValid:", isValid);
+  console.log("Errors:", errors);
+  console.log("Form data on submit:", data);
 
-    if (isValid) {
-      setShowCoBorrowerDialog(true);
-    }
-  };
+  if (!isValid || !isValidDates) {
+    console.log("Form blocked.");
+    return;
+  }
+
+  // console.log("Form Passed. Opening dialog.");
+  setShowCoBorrowerDialog(true);
+};
+
 
   const handleCoBorrowerResponse = (hasCoBorrower: boolean) => {
     setShowCoBorrowerDialog(false);
@@ -1073,13 +1247,7 @@ export function PersonalDetailsForm({
               Identification Type <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={
-                findPkCodeByLabel(
-                  data.identificationType,
-                  identificationTypeOptions,
-                  ["identity_type", "identification_type", "name", "label"],
-                ) || data.identificationType
-              }
+              value={findPkCodeByLabel(data.identificationType, identificationTypeOptions, ['identity_type', 'identification_type', 'name', 'label']) || data.identificationType}
               onValueChange={(value) => {
                 setData({ ...data, identificationType: value });
 
@@ -1092,14 +1260,15 @@ export function PersonalDetailsForm({
                 }
               }}
             >
-              <SelectTrigger
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+            <SelectTrigger
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.identificationType
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
                     : "border-gray-300 focus:border-[#FF9800] focus:ring-[#228822]"
                 }`}
-              >
+            >
+
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -1157,30 +1326,29 @@ export function PersonalDetailsForm({
               onChange={(e) => {
                 const value = e.target.value;
 
-                setData({ ...data, identificationNo: value });
+              setData({ ...data, identificationNo: value });
 
-                // Auto clear error when valid
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.identificationNo;
-                    return updated;
-                  });
-                }
-              }}
+              // Auto clear error when valid
+              if (!isRequired(value)) {
+                setErrors((prev) => {
+                  const updated = { ...prev };
+                  delete updated.identificationNo;
+                  return updated;
+                });
+              }
+            }}
               className={`h-10 sm:h-12 w-full text-sm sm:text-base border
               ${
                 errors.identificationNo
-                  ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                  : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               }`}
               // required
             />
             {errors.identificationNo && (
               <p className="text-xs text-red-500 mt-1">
                 {errors.identificationNo}
-              </p>
-            )}
+              </p>)}
           </div>
 
           <div className="space-y-1.5 sm:space-y-2.5">
@@ -1202,10 +1370,9 @@ export function PersonalDetailsForm({
                     return updated;
                   });
                 }
-              }}
-            >
-              <SelectTrigger
-                // className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+              }}            >
+              <SelectTrigger 
+              // className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
                 className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.salutation
@@ -1213,6 +1380,7 @@ export function PersonalDetailsForm({
                     : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 }`}
               >
+           
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -1222,9 +1390,10 @@ export function PersonalDetailsForm({
                 <SelectItem value="dr">Dr.</SelectItem>
               </SelectContent>
             </Select>
-            {errors.salutation && (
-              <p className="text-xs text-red-500 mt-1">{errors.salutation}</p>
-            )}
+                {errors.salutation && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.salutation}
+              </p>)}
           </div>
 
           <div className="space-y-1.5 sm:space-y-2.5">
@@ -1237,33 +1406,52 @@ export function PersonalDetailsForm({
             <Input
               id="applicantName"
               placeholder="Enter Your Full Name"
+              value={data.applicantName || ""}
               // className={`h-10 sm:h-12 border-gray-300
               //   focus:border-[#FF9800] focus:ring-[#FF9800]
               //   text-sm sm:text-base
               //   ${errors.applicantName ? "border-red-500" : ""}`}
               onChange={(e) => {
-                const value = e.target.value;
+                let value = e.target.value;
+
+                // Allow only alphabets and spaces
+                if (!/^[A-Za-z\s]*$/.test(value)) {
+                  setErrors((prev) => ({
+                    ...prev,
+                    applicantName: "Only alphabets are allowed",
+                  }));
+                  return;
+                }
+
+                // Auto capitalize first letters
+                value = capitalizeWords(value);
 
                 setData({ ...data, applicantName: value });
 
-                // Auto clear error when valid
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.applicantName;
-                    return updated;
-                  });
+                // Required validation
+                if (value.trim() === "") {
+                  setErrors((prev) => ({
+                    ...prev,
+                    applicantName: "Full name is required",
+                  }));
+                  return;
                 }
+
+                // Clear error if valid
+                setErrors((prev) => {
+                  const updated = { ...prev };
+                  delete updated.applicantName;
+                  return updated;
+                });
               }}
               className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-     ${
-       errors.applicantName
-         ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-         : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-     }`}
-              // required
-              // className={`form-input ${errors.applicantName ? "border-red-500" : ""}`}
+                ${
+                  errors.applicantName
+                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                }`}
             />
+
             {errors.applicantName && (
               <p className="text-xs text-red-500 mt-1">
                 {errors.applicantName}
@@ -1281,11 +1469,7 @@ export function PersonalDetailsForm({
               Nationality <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={findPkCodeByLabel(data.nationality, nationalityOptions, [
-                "nationality",
-                "name",
-                "label",
-              ])}
+              value={findPkCodeByLabel(data.nationality, nationalityOptions, ['nationality', 'name', 'label'])}
               onValueChange={(value) => {
                 setData({ ...data, nationality: value });
 
@@ -1296,11 +1480,11 @@ export function PersonalDetailsForm({
                     return updated;
                   });
                 }
-              }}
+              }}  
             >
-              <SelectTrigger
-                // className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+              <SelectTrigger 
+              // className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.nationality
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -1342,9 +1526,11 @@ export function PersonalDetailsForm({
                 )}
               </SelectContent>
             </Select>
-            {errors.nationality && (
-              <p className="text-xs text-red-500 mt-1">{errors.nationality}</p>
-            )}
+               {errors.nationality && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.nationality}
+                </p>
+              )}
           </div>
           <div className="space-y-2.5">
             <Label
@@ -1365,10 +1551,10 @@ export function PersonalDetailsForm({
                     return updated;
                   });
                 }
-              }}
-            >
-              <SelectTrigger
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              }}              
+              >
+              <SelectTrigger 
+              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.gender
@@ -1384,9 +1570,11 @@ export function PersonalDetailsForm({
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
-            {errors.gender && (
-              <p className="text-xs text-red-500 mt-1">{errors.gender}</p>
-            )}
+              {errors.gender && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.gender}
+                </p>
+              )}
           </div>
           <div className="space-y-1.5 sm:space-y-2.5">
             <Label
@@ -1404,14 +1592,16 @@ export function PersonalDetailsForm({
               onChange={(e) => {
                 setData({ ...data, identificationIssueDate: e.target.value });
                 setErrors({ ...errors, identificationIssueDate: "" });
+                
               }}
               // required
               className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.identificationIssueDate
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 }`}
+              
             />
             {errors.identificationIssueDate && (
               <p className="text-xs text-red-500 mt-1">
@@ -1437,11 +1627,11 @@ export function PersonalDetailsForm({
                 setErrors({ ...errors, identificationExpiryDate: "" });
               }}
               // required
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                   ${
                     errors.identificationExpiryDate
-                      ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   }`}
             />
             {errors.identificationExpiryDate && (
@@ -1473,10 +1663,10 @@ export function PersonalDetailsForm({
               // required
               className={`h-10 sm:h-12 w-full text-sm sm:text-base border
      ${
-       errors.dateOfBirth
-         ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-         : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-     }`}
+      errors.dateOfBirth
+          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+    }`}
             />
             {errors.dateOfBirth && (
               <p className="text-xs text-red-500 mt-1">{errors.dateOfBirth}</p>
@@ -1498,22 +1688,23 @@ export function PersonalDetailsForm({
               onChange={(e) => {
                 const value = e.target.value;
 
-                setData({ ...data, tpn: value });
+              setData({ ...data, tpn: value });
 
-                // Auto clear error when valid
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.tpn;
-                    return updated;
-                  });
-                }
-              }} // required
+              // Auto clear error when valid
+              if (!isRequired(value)) {
+                setErrors((prev) => {
+                  const updated = { ...prev };
+                  delete updated.tpn;
+                  return updated;
+                });
+              }
+            }}              // required
+
               className={`h-10 sm:h-12 w-full text-sm sm:text-base border
               ${
                 errors.tpn
-                  ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                  : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               }`}
             />
             {errors.tpn && (
@@ -1529,13 +1720,7 @@ export function PersonalDetailsForm({
               Marital Status <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={
-                findPkCodeByLabel(data.maritalStatus, maritalStatusOptions, [
-                  "marital_status",
-                  "name",
-                  "label",
-                ]) || data.maritalStatus
-              }
+              value={String(data.maritalStatus || "")}
               onValueChange={(value) => {
                 setData({ ...data, maritalStatus: value });
 
@@ -1543,14 +1728,15 @@ export function PersonalDetailsForm({
                   setErrors((prev) => {
                     const updated = { ...prev };
                     delete updated.maritalStatus;
+                    
                     return updated;
                   });
                 }
               }}
             >
-              <SelectTrigger
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+              <SelectTrigger 
+              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.maritalStatus
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -1597,9 +1783,7 @@ export function PersonalDetailsForm({
               </SelectContent>
             </Select>
             {errors.maritalStatus && (
-              <p className="text-xs text-red-500 mt-1">
-                {errors.maritalStatus}
-              </p>
+              <p className="text-xs text-red-500 mt-1">{errors.maritalStatus}</p>
             )}
           </div>
         </div>
@@ -1627,31 +1811,33 @@ export function PersonalDetailsForm({
                   onChange={(e) => {
                     const value = e.target.value;
 
-                    setData({ ...data, spouseIdentificationNo: value });
+                  setData({ ...data, spouseIdentificationNo: value });
 
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.spouseIdentificationNo;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                  // Auto clear error when valid
+                  if (!isRequired(value)) {
+                    setErrors((prev) => {
+                      const updated = { ...prev };
+                      delete updated.spouseIdentificationNo;
+                      return updated;
+                    });
+                  }
+                }}
+
+                    className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                     ${
                       errors.spouseIdentificationNo
-                        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                     }`}
-                  // required
-                  // className={`form-input ${errors.spouseIdentificationNo ? "border-red-500" : ""}`}
-                />
-                {errors.spouseIdentificationNo && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseIdentificationNo}
-                  </p>
-                )}
+                              // required
+                                // className={`form-input ${errors.spouseIdentificationNo ? "border-red-500" : ""}`}
+
+                            />
+                  {errors.spouseIdentificationNo && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spouseIdentificationNo}
+                    </p>
+                  )}
               </div>
 
               <div className="space-y-1.5 sm:space-y-2.5">
@@ -1667,7 +1853,7 @@ export function PersonalDetailsForm({
                   // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
                   value={data.spouseName || ""}
                   onChange={(e) => {
-                    const value = e.target.value;
+                      const value = e.target.value;
 
                     setData({ ...data, spouseName: value });
 
@@ -1680,20 +1866,22 @@ export function PersonalDetailsForm({
                       });
                     }
                   }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+
+                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                       ${
                         errors.spouseName
-                          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                       }`}
-                  // required
-                  // className={`form-input ${errors.spouseName ? "border-red-500" : ""}`}
-                />
-                {errors.spouseName && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseName}
-                  </p>
-                )}
+                                // required
+                                  // className={`form-input ${errors.spouseName ? "border-red-500" : ""}`}
+
+                              />
+                    {errors.spouseName && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.spouseName}
+                      </p>
+                    )}
               </div>
 
               <div className="space-y-1.5 sm:space-y-2.5">
@@ -1709,7 +1897,7 @@ export function PersonalDetailsForm({
                   // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
                   value={data.spouseContact || ""}
                   onChange={(e) => {
-                    const value = e.target.value;
+                      const value = e.target.value;
 
                     setData({ ...data, spouseContact: value });
 
@@ -1722,20 +1910,22 @@ export function PersonalDetailsForm({
                       });
                     }
                   }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+
+                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                       ${
                         errors.spouseContact
-                          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                       }`}
-                  // required
-                  // className={`form-input ${errors.spouseContact ? "border-red-500" : ""}`}
-                />
-                {errors.spouseContact && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseContact}
-                  </p>
-                )}
+                                // required
+                                  // className={`form-input ${errors.spouseContact ? "border-red-500" : ""}`}
+
+                              />
+                    {errors.spouseContact && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.spouseContact}
+                      </p>
+                    )}
               </div>
             </div>
           </div>
@@ -1792,13 +1982,7 @@ export function PersonalDetailsForm({
               Name of Bank <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={
-                findPkCodeByLabel(data.bankName, banksOptions, [
-                  "bank_name",
-                  "name",
-                  "label",
-                ]) || data.bankName
-              }
+              value={findPkCodeByLabel(data.bankName, banksOptions, ['bank_name', 'name', 'label']) || data.bankName}
               onValueChange={(value) => {
                 setData({ ...data, bankName: value });
 
@@ -1809,11 +1993,10 @@ export function PersonalDetailsForm({
                     return updated;
                   });
                 }
-              }}
-            >
-              <SelectTrigger
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+              }}            >
+              <SelectTrigger 
+              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+               className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.bankName
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -1873,33 +2056,56 @@ export function PersonalDetailsForm({
             <Input
               id="bankAccount"
               placeholder="Enter saving account number"
-              // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               value={data.bankAccount || ""}
+              inputMode="numeric"
               onChange={(e) => {
-                const value = e.target.value;
+                const rawValue = e.target.value;
 
-                setData({ ...data, bankAccount: value });
+                // Remove spaces automatically
+                const valueWithoutSpaces = rawValue.replace(/\s/g, "");
 
-                // Auto clear error when valid
-                if (!isRequired(value)) {
+                // Check if contains anything other than digits
+                if (!/^\d*$/.test(valueWithoutSpaces)) {
+                  setErrors((prev) => ({
+                    ...prev,
+                    bankAccount: "Only numeric is allowed",
+                  }));
+
+                  // Keep only digits
+                  const digitsOnly = valueWithoutSpaces.replace(/\D/g, "");
+                  setData({ ...data, bankAccount: digitsOnly });
+                  return;
+                }
+
+                // If empty
+                if (valueWithoutSpaces === "") {
+                  setErrors((prev) => ({
+                    ...prev,
+                    bankAccount: "Bank account number is required",
+                  }));
+                } else {
+                  // Clear error
                   setErrors((prev) => {
                     const updated = { ...prev };
                     delete updated.bankAccount;
                     return updated;
                   });
                 }
+
+                setData({ ...data, bankAccount: valueWithoutSpaces });
               }}
               className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                      ${
-                        errors.bankAccount
-                          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      }`}
-              // required
-              // className={`form-input ${errors.bankAccount ? "border-red-500" : ""}`}
+                ${
+                  errors.bankAccount
+                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                }`}
             />
+
             {errors.bankAccount && (
-              <p className="text-xs text-red-500 mt-1">{errors.bankAccount}</p>
+              <p className="text-xs text-red-500 mt-1">
+                {errors.bankAccount}
+              </p>
             )}
           </div>
         </div>
@@ -1958,8 +2164,8 @@ export function PersonalDetailsForm({
               Country <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.permCountry || ""}
-              onValueChange={(value) => {
+            value={data.permCountry || ""}
+             onValueChange={(value) => {
                 setData({ ...data, permCountry: value });
 
                 if (!isRequired(value)) {
@@ -1969,11 +2175,12 @@ export function PersonalDetailsForm({
                     return updated;
                   });
                 }
-              }}
+              }}  
+              
             >
-              <SelectTrigger
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+              <SelectTrigger 
+              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.permCountry
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -2042,7 +2249,7 @@ export function PersonalDetailsForm({
 
                     setData({ ...data, permDzongkhag: value });
 
-                    // Auto clear error when valid
+                       // Auto clear error when valid
                     if (!isRequired(value)) {
                       setErrors((prev) => {
                         const updated = { ...prev };
@@ -2069,22 +2276,22 @@ export function PersonalDetailsForm({
               <Select
                 value={data.permDzongkhag || ""}
                 onValueChange={(value) => {
-                  setData({ ...data, permDzongkhag: value });
+                    setData({ ...data, permDzongkhag: value });
 
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.permDzongkhag;
-                      return updated;
-                    });
-                  }
-                }}
+                    if (!isRequired(value)) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.permDzongkhag;
+                        return updated;
+                      });
+                    }
+                  }} 
                 disabled={!isBhutanCountry(data.permCountry, countryOptions)}
               >
-                <SelectTrigger
-                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                <SelectTrigger 
+                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                             
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.permDzongkhag
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -2128,9 +2335,7 @@ export function PersonalDetailsForm({
               </Select>
             )}
             {errors.permDzongkhag && (
-              <p className="text-xs text-red-500 mt-1">
-                {errors.permDzongkhag}
-              </p>
+              <p className="text-xs text-red-500 mt-1">{errors.permDzongkhag}</p>
             )}
           </div>
 
@@ -2146,49 +2351,16 @@ export function PersonalDetailsForm({
             </Label>
             {data.permCountry &&
             !isBhutanCountry(data.permCountry, countryOptions) ? (
-              <>
-                <Input
-                  id="permGewog"
-                  placeholder="Enter Province"
-                  value={data.permGewog || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
+            <>
+              <Input
+                id="permGewog"
+                placeholder="Enter Province"
+                value={data.permGewog || ""}
+                onChange={(e) => {
+                  const value = e.target.value;
 
-                    setData({ ...data, permGewog: value });
-
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permGewog;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                  ${
-                    errors.permGewog
-                      ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
-                />
-
-                {/* {errors.permGewog && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.permGewog}
-                </p>
-              )} */}
-              </>
-            ) : (
-              <Select
-                value={
-                  isBhutanCountry(data.permCountry, countryOptions)
-                    ? data.permGewog
-                    : ""
-                }
-                onValueChange={(value) => {
                   setData({ ...data, permGewog: value });
 
-                  // Auto clear error when valid
                   if (!isRequired(value)) {
                     setErrors((prev) => {
                       const updated = { ...prev };
@@ -2197,11 +2369,41 @@ export function PersonalDetailsForm({
                     });
                   }
                 }}
+                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                  ${
+                    errors.permGewog
+                      ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  }`}
+              />
+
+              {/* {errors.permGewog && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.permGewog}
+                </p>
+              )} */}
+            </>
+
+            ) : (
+              <Select
+                value={isBhutanCountry(data.permCountry, countryOptions) ? data.permGewog : ""}
+                  onValueChange={(value) => {
+                      setData({ ...data, permGewog: value });
+
+                     // Auto clear error when valid
+                    if (!isRequired(value)) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.permGewog;
+                        return updated;
+                      });
+                    }
+                  }}
                 disabled={!isBhutanCountry(data.permCountry, countryOptions)}
               >
-                <SelectTrigger
-                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                <SelectTrigger 
+                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.permGewog
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -2270,122 +2472,133 @@ export function PersonalDetailsForm({
               }
               // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               value={data.permVillage || ""}
-              onChange={(e) => {
-                const value = e.target.value;
+                  onChange={(e) => {
+                      const value = e.target.value;
 
-                setData({ ...data, permVillage: value });
+                    setData({ ...data, permVillage: value });
 
-                // Auto clear error when valid
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.permVillage;
-                    return updated;
-                  });
-                }
-              }}
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                    // Auto clear error when valid
+                    if (!isRequired(value)) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.permVillage;
+                        return updated;
+                      });
+                    }
+                  }}
+
+                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                       ${
                         errors.permVillage
-                          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                       }`}
-              // required
-              // className={`form-input ${errors.permVillage ? "border-red-500" : ""}`}
-              disabled={!data.permCountry}
-            />
-            {errors.permVillage && (
-              <p className="text-xs text-red-500 mt-1">{errors.permVillage}</p>
-            )}
-
+                                // required
+                                  // className={`form-input ${errors.permVillage ? "border-red-500" : ""}`}
+                      disabled={!data.permCountry}
+                              />
+                    {errors.permVillage && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.permVillage}
+                      </p>
+                    )}
+  
             {/* /> */}
           </div>
         </div>
 
         {/* Conditional grid - show Thram and House only for Bhutan */}
         {isBhutanCountry(data.permCountry, countryOptions) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2.5">
-              <Label
-                htmlFor="permThram"
-                className="text-gray-800 font-semibold text-sm"
-              >
-                Thram No. <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="permThram"
-                placeholder="Enter Thram No"
-                // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                value={data.permThram || ""}
-                onChange={(e) => {
-                  const value = e.target.value;
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor="permThram"
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Thram No. <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="permThram"
+                  placeholder="Enter Thram No"
+                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={data.permThram || ""}
+                  onChange={(e) => {
+                      const value = e.target.value;
 
-                  setData({ ...data, permThram: value });
+                    setData({ ...data, permThram: value });
 
-                  // Auto clear error when valid
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.permThram;
-                      return updated;
-                    });
-                  }
-                }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                    // Auto clear error when valid
+                    if (!isRequired(value)) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.permThram;
+                        return updated;
+                      });
+                    }
+                  }}
+
+                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                       ${
                         errors.permThram
-                          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                       }`}
-                // required
-                // className={`form-input ${errors.permThram ? "border-red-500" : ""}`}
-              />
-              {errors.permThram && (
-                <p className="text-xs text-red-500 mt-1">{errors.permThram}</p>
-              )}
-            </div>
+                                // required
+                                  // className={`form-input ${errors.permThram ? "border-red-500" : ""}`}
 
-            <div className="space-y-2.5">
-              <Label
-                htmlFor="permHouse"
-                className="text-gray-800 font-semibold text-sm"
-              >
-                House No. <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="permHouse"
-                placeholder="Enter House No"
-                // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                value={data.permHouse || ""}
-                onChange={(e) => {
-                  const value = e.target.value;
+                              />
+                    {errors.permThram && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.permThram}
+                      </p>
+                    )}
+              </div>
 
-                  setData({ ...data, permHouse: value });
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor="permHouse"
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  House No. <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="permHouse"
+                  placeholder="Enter House No"
+                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={data.permHouse || ""}
+                  onChange={(e) => {
+                      const value = e.target.value;
 
-                  // Auto clear error when valid
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.permHouse;
-                      return updated;
-                    });
-                  }
-                }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                    setData({ ...data, permHouse: value });
+
+                    // Auto clear error when valid
+                    if (!isRequired(value)) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.permHouse;
+                        return updated;
+                      });
+                    }
+                  }}
+
+                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                       ${
                         errors.permHouse
-                          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                       }`}
-                // required
-                // className={`form-input ${errors.permHouse ? "border-red-500" : ""}`}
-              />
-              {errors.permHouse && (
-                <p className="text-xs text-red-500 mt-1">{errors.permHouse}</p>
-              )}
+                                // required
+                                  // className={`form-input ${errors.permHouse ? "border-red-500" : ""}`}
+
+                              />
+                    {errors.permHouse && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.permHouse}
+                      </p>
+                    )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Document Upload for Non-Bhutan Countries */}
         {data.permCountry &&
@@ -2454,22 +2667,22 @@ export function PersonalDetailsForm({
               Country of Resident <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={data.currCountry || ""}
-              onValueChange={(value) => {
-                setData({ ...data, currCountry: value });
+            value={data.currCountry || ""}
+            onValueChange={(value) => {
+              setData({ ...data, currCountry: value });
 
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.currCountry;
-                    return updated;
-                  });
-                }
-              }}
+              if (!isRequired(value)) {
+                setErrors((prev) => {
+                  const updated = { ...prev };
+                  delete updated.currCountry;
+                  return updated;
+                });
+              }
+            }}
             >
-              <SelectTrigger
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+              <SelectTrigger 
+              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.currCountry
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -2512,8 +2725,8 @@ export function PersonalDetailsForm({
               </SelectContent>
             </Select>
             {errors.currCountry && (
-              <p className="text-xs text-red-500 mt-1">{errors.currCountry}</p>
-            )}
+                <p className="text-xs text-red-500 mt-1">{errors.currCountry}</p>
+              )}
           </div>
 
           <div className="space-y-2.5">
@@ -2528,14 +2741,14 @@ export function PersonalDetailsForm({
             </Label>
             {data.currCountry &&
             !isBhutanCountry(data.currCountry, countryOptions) ? (
-              <>
-                <Input
-                  id="currDzongkhag"
-                  placeholder="Enter State"
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  value={data.currDzongkhag || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
+             <>
+              <Input
+                id="currDzongkhag"
+                placeholder="Enter State"
+                // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                value={data.currDzongkhag || ""}
+                onChange={(e) => {
+                      const value = e.target.value;
 
                     setData({ ...data, currDzongkhag: value });
 
@@ -2554,12 +2767,11 @@ export function PersonalDetailsForm({
                         ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
                         : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                     }`}
-                />
-                {errors.currDzongkhag && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.currDzongkhag}
-                  </p>
-                )}
+                  
+              />
+              {errors.currDzongkhag && (
+            <p className="text-xs text-red-500 mt-1">{errors.currDzongkhag}</p>
+          )}
               </>
             ) : (
               <Select
@@ -2577,9 +2789,9 @@ export function PersonalDetailsForm({
                 }}
                 disabled={!isBhutanCountry(data.currCountry, countryOptions)}
               >
-                <SelectTrigger
-                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                <SelectTrigger 
+                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.currDzongkhag
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -2588,11 +2800,9 @@ export function PersonalDetailsForm({
                 >
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
-                {errors.currDzongkhag && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.currDzongkhag}
-                  </p>
-                )}
+              {errors.currDzongkhag && (
+                <p className="text-xs text-red-500 mt-1">{errors.currDzongkhag}</p>
+              )}
                 <SelectContent sideOffset={4}>
                   {dzongkhagOptions.length > 0 ? (
                     dzongkhagOptions.map((option, index) => {
@@ -2642,44 +2852,38 @@ export function PersonalDetailsForm({
             {data.currCountry &&
             !isBhutanCountry(data.currCountry, countryOptions) ? (
               <>
-                <Input
-                  id="currGewog"
-                  placeholder="Enter Province"
-                  value={data.currGewog || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
+            <Input
+              id="currGewog"
+              placeholder="Enter Province"
+              value={data.currGewog || ""}
+              onChange={(e) => {
+                const value = e.target.value;
 
-                    setData({ ...data, currGewog: value });
+                setData({ ...data, currGewog: value });
 
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currGewog;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                if (!isRequired(value)) {
+                  setErrors((prev) => {
+                    const updated = { ...prev };
+                    delete updated.currGewog;
+                    return updated;
+                  });
+                }
+              }}
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.currGewog
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
                     : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 }`}
-                />
+            />
 
-                {errors.currGewog && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.currGewog}
-                  </p>
-                )}
-              </>
+            {errors.currGewog && (
+              <p className="text-xs text-red-500 mt-1">{errors.currGewog}</p>
+            )}
+            </>
             ) : (
               <Select
-                value={
-                  isBhutanCountry(data.currCountry, countryOptions)
-                    ? data.currGewog
-                    : ""
-                }
+                value={isBhutanCountry(data.currCountry, countryOptions) ? data.currGewog : ""}
                 onValueChange={(value) => {
                   setData({ ...data, currGewog: value });
 
@@ -2693,9 +2897,9 @@ export function PersonalDetailsForm({
                 }}
                 disabled={!isBhutanCountry(data.currCountry, countryOptions)}
               >
-                <SelectTrigger
-                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                <SelectTrigger 
+                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.currGewog
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -2705,10 +2909,8 @@ export function PersonalDetailsForm({
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 {errors.currGewog && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.currGewog}
-                  </p>
-                )}
+                <p className="text-xs text-red-500 mt-1">{errors.currGewog}</p>
+              )}
                 <SelectContent sideOffset={4}>
                   {currGewogOptions.length > 0 ? (
                     currGewogOptions.map((option, index) => {
@@ -2758,195 +2960,193 @@ export function PersonalDetailsForm({
               <span className="text-red-500">*</span>
             </Label>
             <>
-              <Input
-                id="currVillage"
-                placeholder={
-                  isBhutanCountry(data.currCountry, countryOptions)
-                    ? "Enter Village/Street"
-                    : "Enter Street"
+            <Input
+              id="currVillage"
+              placeholder={
+                isBhutanCountry(data.currCountry, countryOptions)
+                  ? "Enter Village/Street"
+                  : "Enter Street"
+              }
+              value={data.currVillage || ""}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                setData({ ...data, currVillage: value });
+
+                if (!isRequired(value)) {
+                  setErrors((prev) => {
+                    const updated = { ...prev };
+                    delete updated.currVillage;
+                    return updated;
+                  });
                 }
-                value={data.currVillage || ""}
-                onChange={(e) => {
-                  const value = e.target.value;
-
-                  setData({ ...data, currVillage: value });
-
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.currVillage;
-                      return updated;
-                    });
-                  }
-                }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+              }}
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.currVillage
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
                     : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 }`}
-                disabled={!data.currCountry}
-              />
+              disabled={!data.currCountry}
+            />
 
-              {errors.currVillage && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.currVillage}
-                </p>
-              )}
+            {errors.currVillage && (
+              <p className="text-xs text-red-500 mt-1">{errors.currVillage}</p>
+            )}
             </>
           </div>
         </div>
 
         {/* Conditional grid layout based on country */}
         {isBhutanCountry(data.currCountry, countryOptions) && (
-          // Updated Grid to accommodate Alternate Contact
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-            <div className="space-y-2.5">
-              <Label
-                htmlFor="currFlat"
-                className="text-gray-800 font-semibold text-sm"
-              >
-                House/Building/ Flat No <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="currFlat"
-                placeholder="Enter Flat No"
-                value={data.currFlat || ""}
-                onChange={(e) => {
-                  const value = e.target.value;
+            // Updated Grid to accommodate Alternate Contact
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor="currFlat"
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  House/Building/ Flat No{" "}
+                  <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="currFlat"
+                  placeholder="Enter Flat No"
+                  value={data.currFlat || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
 
-                  setData({ ...data, currFlat: value });
+                    setData({ ...data, currFlat: value });
 
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.currFlat;
-                      return updated;
-                    });
-                  }
-                }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                    if (!isRequired(value)) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.currFlat;
+                        return updated;
+                      });
+                    }
+                  }}
+                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                     ${
                       errors.currFlat
                         ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
                         : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                     }`}
-              />
+                />
 
-              {errors.currFlat && (
-                <p className="text-xs text-red-500 mt-1">{errors.currFlat}</p>
-              )}
-            </div>
+                {errors.currFlat && (
+                  <p className="text-xs text-red-500 mt-1">{errors.currFlat}</p>
+                )}
+              </div>
 
-            <div className="space-y-2.5">
-              <Label
-                htmlFor="currEmail"
-                className="text-gray-800 font-semibold text-sm"
-              >
-                Email Address <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="currEmail"
-                type="email"
-                placeholder="Enter Your Email"
-                // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                value={data.currEmail || ""}
-                onChange={(e) => {
-                  const value = e.target.value;
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor="currEmail"
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Email Address <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="currEmail"
+                  type="email"
+                  placeholder="Enter Your Email"
+                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={data.currEmail || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
 
-                  setData({ ...data, currEmail: value });
+                    setData({ ...data, currEmail: value });
 
-                  if (!isRequired(value) && isEmail(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.currEmail;
-                      return updated;
-                    });
-                  }
-                }}
+                    if (!isRequired(value) && isEmail(value)) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.currEmail;
+                        return updated;
+                      });
+                    }
+                  }}
                 className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.currEmail
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
                     : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 }`}
-              />
-              {errors.currEmail && (
-                <p className="text-xs text-red-500 mt-1">{errors.currEmail}</p>
-              )}
-            </div>
+                />
+                {errors.currEmail && (
+                  <p className="text-xs text-red-500 mt-1">{errors.currEmail}</p>
+                )}
+              </div>
 
-            <div className="space-y-2.5">
-              <Label
-                htmlFor="currContact"
-                className="text-gray-800 font-semibold text-sm"
-              >
-                Contact Number <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="currContact"
-                placeholder="Enter Contact No"
-                // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                value={data.currContact || ""}
-                onChange={(e) => {
-                  const value = e.target.value;
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor="currContact"
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Contact Number <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="currContact"
+                  placeholder="Enter Contact No"
+                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={data.currContact || ""}
+                  onChange={(e) => {
+                      const value = e.target.value;
 
-                  setData({ ...data, currContact: value });
+                    setData({ ...data, currContact: value });
 
-                  // Auto clear error when valid
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.currContact;
-                      return updated;
-                    });
-                  }
-                }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                    // Auto clear error when valid
+                    if (!isRequired(value)) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.currContact;
+                        return updated;
+                      });
+                    }
+                  }}
+                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                     ${
                       errors.currContact
                         ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
                         : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                     }`}
-              />
-              {errors.currContact && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.currContact}
-                </p>
-              )}
+                />
+                {errors.currContact && (
+                  <p className="text-xs text-red-500 mt-1">{errors.currContact}</p>
+                )}
+              </div>
+
+              {/* NEW Alternate Contact Field for Bhutan */}
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor="currAlternateContact"
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Alternate Contact No
+                </Label>
+                <Input
+                  id="currAlternateContact"
+                  placeholder="Enter Contact No"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={data.currAlternateContact || ""}
+                  onChange={(e) => {
+                      const value = e.target.value;
+
+                    setData({ ...data, currAlternateContact: value });
+
+                    // Auto clear error when valid
+                    if (!isRequired(value)) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.currAlternateContact;
+                        return updated;
+                      });
+                    }
+                  }}
+                />
+
+              </div>
             </div>
-
-            {/* NEW Alternate Contact Field for Bhutan */}
-            <div className="space-y-2.5">
-              <Label
-                htmlFor="currAlternateContact"
-                className="text-gray-800 font-semibold text-sm"
-              >
-                Alternate Contact No
-              </Label>
-              <Input
-                id="currAlternateContact"
-                placeholder="Enter Contact No"
-                className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                value={data.currAlternateContact || ""}
-                onChange={(e) => {
-                  const value = e.target.value;
-
-                  setData({ ...data, currAlternateContact: value });
-
-                  // Auto clear error when valid
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.currAlternateContact;
-                      return updated;
-                    });
-                  }
-                }}
-              />
-            </div>
-          </div>
-        )}
+          )}
 
         {data.currCountry &&
           !isBhutanCountry(data.currCountry, countryOptions) && (
@@ -2977,7 +3177,7 @@ export function PersonalDetailsForm({
                       });
                     }
                   }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.currEmail
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -2985,9 +3185,7 @@ export function PersonalDetailsForm({
                 }`}
                 />
                 {errors.currEmail && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.currEmail}
-                  </p>
+                  <p className="text-xs text-red-500 mt-1">{errors.currEmail}</p>
                 )}
               </div>
 
@@ -3016,7 +3214,7 @@ export function PersonalDetailsForm({
                       });
                     }
                   }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.currEmail
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -3024,9 +3222,7 @@ export function PersonalDetailsForm({
                 }`}
                 />
                 {errors.currEmail && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.currEmail}
-                  </p>
+                  <p className="text-xs text-red-500 mt-1">{errors.currEmail}</p>
                 )}
               </div>
 
@@ -3043,7 +3239,7 @@ export function PersonalDetailsForm({
                   className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.currAlternateContact || ""}
                   onChange={(e) => {
-                    const value = e.target.value;
+                      const value = e.target.value;
 
                     setData({ ...data, currAlternateContact: value });
 
@@ -3132,24 +3328,28 @@ export function PersonalDetailsForm({
             <Select
               value={data.pepPerson}
               onValueChange={(value) => {
-                setData({
-                  ...data,
+                setData((prev: { pepRelated: any; relatedPeps: any; }) => ({
+                  ...prev,
                   pepPerson: value,
-                  pepRelated: value === "yes" ? "" : data.pepRelated,
-                });
+                  // ✅ If user is PEP → automatically set related to "no"
+                  pepRelated: value === "yes" ? "no" : prev.pepRelated,
+                  // ✅ Clear related list if user becomes PEP
+                  relatedPeps: value === "yes" ? [] : prev.relatedPeps,
+                }));
 
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.pepPerson;
-                    return updated;
-                  });
-                }
+                setErrors((prev) => {
+                  const updated = { ...prev };
+                  delete updated.pepPerson;
+                  if (value === "yes") {
+                    delete updated.pepRelated;
+                  }
+                  return updated;
+                });
               }}
             >
-              <SelectTrigger
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+              <SelectTrigger 
+              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.pepPerson
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -3164,8 +3364,8 @@ export function PersonalDetailsForm({
               </SelectContent>
             </Select>
             {errors.pepPerson && (
-              <p className="text-xs text-red-500 mt-1">{errors.pepPerson}</p>
-            )}
+                <p className="text-xs text-red-500 mt-1">{errors.pepPerson}</p>
+              )}
           </div>
 
           {data.pepPerson === "yes" && (
@@ -3183,24 +3383,24 @@ export function PersonalDetailsForm({
                   //   setData({ ...data, pepCategory: value, pepSubCategory: "" })
                   // }
                   onValueChange={(value) => {
-                    setData({
-                      ...data,
-                      pepCategory: value,
-                      pepSubCategory: "",
-                    });
+                  setData({
+                    ...data,
+                    pepCategory: value,
+                    pepSubCategory: "",
+                  });
 
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.pepCategory;
-                        return updated;
-                      });
-                    }
-                  }}
+                  if (!isRequired(value)) {
+                    setErrors((prev) => {
+                      const updated = { ...prev };
+                      delete updated.pepCategory;
+                      return updated;
+                    });
+                  }
+                }}
                 >
-                  <SelectTrigger
-                    // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                  <SelectTrigger 
+                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.pepCategory
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -3243,10 +3443,8 @@ export function PersonalDetailsForm({
                   </SelectContent>
                 </Select>
                 {errors.pepCategory && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.pepCategory}
-                  </p>
-                )}
+                <p className="text-xs text-red-500 mt-1">{errors.pepCategory}</p>
+              )}
               </div>
 
               <div className="space-y-2.5">
@@ -3261,25 +3459,25 @@ export function PersonalDetailsForm({
                   // onValueChange={(value) =>
                   //   setData({ ...data, pepSubCategory: value })
                   // }
-                  onValueChange={(value) => {
-                    setData({
-                      ...data,
-                      pepSubCategory: value,
-                    });
+                 onValueChange={(value) => {
+                  setData({
+                    ...data,
+                    pepSubCategory: value,
+                  });
 
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.pepSubCategory;
-                        return updated;
-                      });
-                    }
-                  }}
+                  if (!isRequired(value)) {
+                    setErrors((prev) => {
+                      const updated = { ...prev };
+                      delete updated.pepSubCategory;
+                      return updated;
+                    });
+                  }
+                }}
                   disabled={!data.pepCategory}
                 >
-                  <SelectTrigger
-                    // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                  <SelectTrigger 
+                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.pepSubCategory
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -3324,10 +3522,8 @@ export function PersonalDetailsForm({
                   </SelectContent>
                 </Select>
                 {errors.pepSubCategory && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.pepSubCategory}
-                  </p>
-                )}
+                <p className="text-xs text-red-500 mt-1">{errors.pepSubCategory}</p>
+              )}
               </div>
 
               <div className="space-y-2.5">
@@ -3363,12 +3559,13 @@ export function PersonalDetailsForm({
                     {data.identificationProof || "No file chosen"}
                   </span>
                 </div>
-                {errors.pepIdentificationProof && (
+                {errors.IdentificationProof && (
                   <p className="text-xs text-red-500 mt-1">
-                    {errors.pepIdentificationProof}
+                    {errors.IdentificationProof}
                   </p>
                 )}
               </div>
+  
             </>
           )}
         </div>
@@ -3396,25 +3593,24 @@ export function PersonalDetailsForm({
                 // }
 
                 onValueChange={(value) => {
-                  setData({
-                    ...data,
-                    pepRelated: value,
-                    relatedPepsd:
-                      value === "yes" ? [createEmptyRelatedPep()] : [],
-                  });
+                setData({
+                  ...data,
+                  pepRelated: value,
+                  relatedPepsd: value === "yes" ? [createEmptyRelatedPep()] : [],
+                });
 
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.pepRelated;
-                      return updated;
-                    });
-                  }
-                }}
+                if (!isRequired(value)) {
+                  setErrors((prev) => {
+                    const updated = { ...prev };
+                    delete updated.pepRelated;
+                    return updated;
+                  });
+                }
+              }}
               >
-                <SelectTrigger
-                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                <SelectTrigger 
+                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${
                   errors.pepRelated
                     ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -3436,7 +3632,7 @@ export function PersonalDetailsForm({
         )}
 
         {/* RELATED PEP MULTIPLE ENTRIES */}
-        {data.pepPerson === "no" && data.pepRelated === "yes" && (
+        {data.pepRelated === "yes" && (
           <div className="space-y-6 pt-4">
             <div className="flex justify-between items-center">
               <h3 className="text-md font-bold text-gray-700">
@@ -3524,18 +3720,12 @@ export function PersonalDetailsForm({
                         onChange={(e) => {
                           const value = e.target.value;
 
-                          handleRelatedPepChange(
-                            index,
-                            "identificationNo",
-                            value,
-                          );
+                          handleRelatedPepChange(index, "identificationNo", value);
 
                           if (!isRequired(value)) {
                             setErrors((prev) => {
                               const updated = { ...prev };
-                              delete updated[
-                                `relatedPeps.${index}.identificationNo`
-                              ];
+                              delete updated[`relatedPeps.${index}.identificationNo`];
                               return updated;
                             });
                           }
@@ -3577,9 +3767,9 @@ export function PersonalDetailsForm({
                         }
                       }}
                     >
-                      <SelectTrigger
-                        // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                      <SelectTrigger 
+                      // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                         ${
                           errors[`relatedPeps.${index}.category`]
                             ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -3650,9 +3840,9 @@ export function PersonalDetailsForm({
                       }}
                       disabled={!pep.category}
                     >
-                      <SelectTrigger
-                        // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+                      <SelectTrigger 
+                      // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                         ${
                           errors[`relatedPeps.${index}.subCategory`]
                             ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -3699,7 +3889,7 @@ export function PersonalDetailsForm({
                       <p className="text-xs text-red-500 mt-1">
                         {errors[`relatedPeps.${index}.subCategory`]}
                       </p>
-                    )}
+                      )}
                   </div>
                 </div>
 
@@ -3735,12 +3925,13 @@ export function PersonalDetailsForm({
                     <span className="text-sm text-muted-foreground truncate max-w-[200px]">
                       {pep.identificationProof || "No file chosen"}
                     </span>
+
                   </div>
-                  {errors[`relatedPeps.${index}.identificationProof`] && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors[`relatedPeps.${index}.identificationProof`]}
-                    </p>
-                  )}
+                    {errors[`relatedPeps.${index}.identificationProof`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${index}.identificationProof`]}
+                      </p>
+                    )}
                 </div>
               </div>
             ))}
@@ -3775,22 +3966,22 @@ export function PersonalDetailsForm({
             value={data.relatedToBil}
             // onValueChange={(value) => setData({ ...data, relatedToBil: value })}
             onValueChange={(value) => {
-              setData({
-                ...data,
-                relatedToBil: value,
-              });
-
-              if (!isRequired(value)) {
-                setErrors((prev) => {
-                  const updated = { ...prev };
-                  delete updated.relatedToBil;
-                  return updated;
+                setData({
+                  ...data,
+                  relatedToBil: value,
                 });
-              }
-            }}
+
+                if (!isRequired(value)) {
+                  setErrors((prev) => {
+                    const updated = { ...prev };
+                    delete updated.relatedToBil;
+                    return updated;
+                  });
+                }
+              }}
           >
-            <SelectTrigger
-              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+            <SelectTrigger 
+            // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               className={`h-10 sm:h-12 w-full text-sm sm:text-base border
                 ${errors.relatedToBil ? "border-red-500" : "border-gray-300"}
                 focus:border-[#FF9800] focus:ring-[#FF9800]`}
@@ -3819,26 +4010,26 @@ export function PersonalDetailsForm({
             Employment Status <span className="text-red-500">*</span>
           </Label>
           <RadioGroup
-            className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8 border rounded-md p-3 border-transparent"
-            value={data.employmentStatus}
-            onValueChange={(value) => {
-              setData({ ...data, employmentStatus: value });
+           className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8 border rounded-md p-3 border-transparent"
+              value={data.employmentStatus}
+              onValueChange={(value) => {
+                setData({ ...data, employmentStatus: value });
 
-              if (!isRequired(value)) {
-                setErrors((prev) => {
-                  const updated = { ...prev };
-                  delete updated.employmentStatus;
-                  return updated;
-                });
-              }
-            }}
-            // className={`flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8 border rounded-md p-3
-            //   ${
-            //     errors.employmentStatus
-            //       ? "border-red-500"
-            //       : "border-transparent"
-            //   }`}
-          >
+                if (!isRequired(value)) {
+                  setErrors((prev) => {
+                    const updated = { ...prev };
+                    delete updated.employmentStatus;
+                    return updated;
+                  });
+                }
+              }}
+              // className={`flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8 border rounded-md p-3
+              //   ${
+              //     errors.employmentStatus
+              //       ? "border-red-500"
+              //       : "border-transparent"
+              //   }`}
+            >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="employed" id="employed" />
               <Label
@@ -3896,18 +4087,18 @@ export function PersonalDetailsForm({
                 // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 value={data.employeeId || ""}
                 onChange={(e) => {
-                  const value = e.target.value;
-                  setData({ ...data, employeeId: value });
+                const value = e.target.value;
+                setData({ ...data, employeeId: value });
 
-                  if (value.trim() !== "") {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.employeeId;
-                      return updated;
-                    });
-                  }
-                }}
-                className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
+                          if (value.trim() !== "") {
+                            setErrors((prev) => {
+                              const updated = { ...prev };
+                              delete updated.employeeId;
+                              return updated;
+                            });
+                          }
+                        }}
+                        className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
                           ${
                             errors.employeeId
                               ? "border-red-500 focus:ring-red-500 focus:border-red-500"
@@ -3915,8 +4106,10 @@ export function PersonalDetailsForm({
                           }`}
               />
               {errors.employeeId && (
-                <p className="text-xs text-red-500 mt-1">{errors.employeeId}</p>
-              )}
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.employeeId}
+                  </p>
+                )}
             </div>
             <div className="space-y-2.5">
               <Label
@@ -3928,20 +4121,20 @@ export function PersonalDetailsForm({
               <Select
                 value={data.occupation}
                 onValueChange={(value) => {
-                  setData({ ...data, occupation: value });
+                    setData({ ...data, occupation: value });
 
-                  if (value) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.occupation;
-                      return updated;
-                    });
-                  }
-                }}
+                    if (value) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.occupation;
+                        return updated;
+                      });
+                    }
+                  }}
               >
-                <SelectTrigger
-                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
+                <SelectTrigger 
+                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                 className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
                   ${
                     errors.occupation
                       ? "border-red-500 focus:ring-red-500 focus:border-red-500"
@@ -3984,8 +4177,10 @@ export function PersonalDetailsForm({
                 </SelectContent>
               </Select>
               {errors.occupation && (
-                <p className="text-xs text-red-500 mt-1">{errors.occupation}</p>
-              )}
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.occupation}
+                  </p>
+                )}
             </div>
 
             <div className="space-y-2.5">
@@ -3998,20 +4193,20 @@ export function PersonalDetailsForm({
               <Select
                 value={data.employerType}
                 onValueChange={(value) => {
-                  setData({ ...data, employerType: value });
+                    setData({ ...data, employerType: value });
 
-                  if (value) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.employerType;
-                      return updated;
-                    });
-                  }
-                }}
+                    if (value) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.employerType;
+                        return updated;
+                      });
+                    }
+                  }}
               >
-                <SelectTrigger
-                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
+                <SelectTrigger 
+                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                 className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
                   ${
                     errors.employerType
                       ? "border-red-500 focus:ring-red-500 focus:border-red-500"
@@ -4038,24 +4233,21 @@ export function PersonalDetailsForm({
               <Select
                 value={data.designation}
                 onValueChange={(value) => {
-                  setData({ ...data, designation: value });
+                    setData({ ...data, designation: value });
 
-                  if (value) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.designation;
-                      return updated;
-                    });
-                  }
-                }}
+                    if (value) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.designation;
+                        return updated;
+                      });
+                    }
+                  }}
               >
-                <SelectTrigger
-                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                <SelectTrigger 
+                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${
-                    errors.designation
-                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  ${errors.designation ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   }`}
                 >
                   <SelectValue placeholder="[Select]" />
@@ -4067,10 +4259,10 @@ export function PersonalDetailsForm({
                 </SelectContent>
               </Select>
               {errors.designation && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.designation}
-                </p>
-              )}
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.designation}
+                  </p>
+                )}
             </div>
 
             <div className="space-y-2.5">
@@ -4084,36 +4276,46 @@ export function PersonalDetailsForm({
                 value={data.grade}
                 // onValueChange={(value) => setData({ ...data, grade: value })}
                 onValueChange={(value) => {
-                  setData({ ...data, grade: value });
-                  if (value) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.grade;
-                      return updated;
-                    });
-                  }
-                }}
+                    setData({ ...data, grade: value });
+                    if (value) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.grade;
+                        return updated;
+                      });
+                    }
+                  }}
               >
                 <SelectTrigger
-                  //  className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                //  className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${
-                    errors.grade
-                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  ${errors.grade ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   }`}
                 >
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
+                  <SelectItem value="1">Grade 1</SelectItem>
+                  <SelectItem value="2">Grade 2</SelectItem>
+                  <SelectItem value="3">Grade 3</SelectItem>
+                  <SelectItem value="4">Grade 4</SelectItem>
+                  <SelectItem value="5">Grade 5</SelectItem>
+                  <SelectItem value="6">Grade 6</SelectItem>
+                  <SelectItem value="7">Grade 7</SelectItem>
+                  <SelectItem value="8">Grade 8</SelectItem>
+                  <SelectItem value="9">Grade 9</SelectItem>
+                  <SelectItem value="10">Grade 10</SelectItem>
+                  <SelectItem value="11">Grade 11</SelectItem>
                   <SelectItem value="p1">P1</SelectItem>
                   <SelectItem value="p2">P2</SelectItem>
                   <SelectItem value="p3">P3</SelectItem>
                 </SelectContent>
               </Select>
               {errors.grade && (
-                <p className="text-xs text-red-500 mt-1">{errors.grade}</p>
-              )}
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.grade}
+                  </p>
+                )}
             </div>
 
             <div className="space-y-2.5">
@@ -4129,23 +4331,21 @@ export function PersonalDetailsForm({
                 //   setData({ ...data, organizationName: value })
                 // }
                 onValueChange={(value) => {
-                  setData({ ...data, organizationName: value });
-
-                  if (value) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.organizationName;
-                      return updated;
-                    });
-                  }
-                }}
+                    setData({ ...data, organizationName: value });
+                    
+                    if (value) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.organizationName;
+                        return updated;
+                      }
+                      );
+                    }
+                  }}
               >
-                <SelectTrigger
-                  className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${
-                    errors.organizationName
-                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                <SelectTrigger 
+                className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
+                  ${errors.organizationName ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   }`}
                 >
                   <SelectValue placeholder="[Select]" />
@@ -4184,10 +4384,10 @@ export function PersonalDetailsForm({
                 </SelectContent>
               </Select>
               {errors.organizationName && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.organizationName}
-                </p>
-              )}
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.organizationName}
+                  </p>
+                )}
             </div>
 
             <div className="space-y-2.5">
@@ -4206,29 +4406,26 @@ export function PersonalDetailsForm({
                 //   setData({ ...data, orgLocation: e.target.value })
                 // }
                 onChange={(e) => {
-                  const value = e.target.value;
-                  setData({ ...data, orgLocation: value });
+                    const value = e.target.value;
+                    setData({ ...data, orgLocation: value });
 
-                  if (value.trim() !== "") {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.orgLocation;
-                      return updated;
-                    });
-                  }
-                }}
-                className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                    ${
-                      errors.orgLocation
-                        ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    if (value.trim() !== "") {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.orgLocation;
+                        return updated;
+                      });
+                    }
+                  }}
+                  className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
+                    ${errors.orgLocation ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                     }`}
               />
               {errors.orgLocation && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.orgLocation}
-                </p>
-              )}
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.orgLocation}
+                  </p>
+                )}
             </div>
 
             <div className="space-y-2.5">
@@ -4248,30 +4445,28 @@ export function PersonalDetailsForm({
                 //   setData({ ...data, joiningDate: e.target.value })
                 // }
                 onChange={(e) => {
-                  const value = e.target.value;
-                  setData({ ...data, joiningDate: value });
+                    const value = e.target.value;
+                    setData({ ...data, joiningDate: value });
 
-                  if (value) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.joiningDate;
-                      return updated;
-                    });
-                  }
-                }}
-                className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                    ${
-                      errors.joiningDate
-                        ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    if (value) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.joiningDate;
+                        return updated;
+                      });
+                    }
+                  }}
+                  className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
+                    ${errors.joiningDate ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                     }`}
               />
               {errors.joiningDate && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.joiningDate}
-                </p>
-              )}
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.joiningDate}
+                  </p>
+                )}
             </div>
+
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -4288,25 +4483,21 @@ export function PersonalDetailsForm({
                 //   setData({ ...data, serviceNature: value })
                 // }
                 onValueChange={(value) => {
-                  setData({ ...data, serviceNature: value });
+                    setData({ ...data, serviceNature: value });
 
-                  if (value) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.serviceNature;
-                      return updated;
-                    });
+                    if (value) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.serviceNature;
+                        return updated;
+                      });
+                    } }
                   }
-                }}
               >
-                <SelectTrigger
-                  className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${
-                    errors.serviceNature
-                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
-                >
+                <SelectTrigger 
+                className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
+                  ${errors.serviceNature ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  }`}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -4316,10 +4507,10 @@ export function PersonalDetailsForm({
                 </SelectContent>
               </Select>
               {errors.serviceNature && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.serviceNature}
-                </p>
-              )}
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.serviceNature}
+                  </p>
+                )}
             </div>
 
             <div className="space-y-2.5">
@@ -4335,32 +4526,29 @@ export function PersonalDetailsForm({
                 id="annualSalary"
                 placeholder="Enter Annual Salary"
                 className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${
-                    errors.annualSalary
-                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  ${errors.annualSalary ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   }`}
                 value={data.annualSalary || ""}
                 // onChange={(e) =>
                 //   setData({ ...data, annualSalary: e.target.value })
                 // }
                 onChange={(e) => {
-                  const value = e.target.value;
-                  setData({ ...data, annualSalary: value });
+                    const value = e.target.value;
+                    setData({ ...data, annualSalary: value });
 
-                  if (value.trim() !== "" && !isNaN(Number(value))) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.annualSalary;
-                      return updated;
-                    });
-                  }
-                }}
+                    if (value.trim() !== "" && !isNaN(Number(value))) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.annualSalary;
+                        return updated;
+                      });
+                    }
+                  }}
               />
               {errors.annualSalary && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.annualSalary}
-                </p>
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.annualSalary}
+                  </p>  
               )}
             </div>
           </div>
@@ -4380,7 +4568,7 @@ export function PersonalDetailsForm({
                   id="contractEndDate"
                   min={today}
                   // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-
+                  
                   value={data.contractEndDate || ""}
                   // onChange={(e) =>
                   //   setData({ ...data, contractEndDate: e.target.value })
@@ -4398,18 +4586,15 @@ export function PersonalDetailsForm({
                     }
                   }}
                   className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                    ${
-                      errors.contractEndDate
-                        ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                    ${errors.contractEndDate ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                     }`}
                   // required
                 />
                 {errors.contractEndDate && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.contractEndDate}
-                  </p>
-                )}
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.contractEndDate}
+                    </p>
+                  )}
               </div>
             </div>
           )}

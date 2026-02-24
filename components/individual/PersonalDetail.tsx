@@ -1215,6 +1215,17 @@ const handleSubmit = async (e: React.FormEvent) => {
   }
 
   try {
+    // Check if this is an existing user (skip API call for existing users)
+    const verifiedData = getVerifiedCustomerDataFromSession();
+    const isExistingUser = verifiedData && Object.keys(verifiedData).length > 0;
+
+    if (isExistingUser) {
+      console.log("Existing user detected - skipping API call");
+      setShowCoBorrowerDialog(true);
+      return;
+    }
+
+    // Only proceed with API call for new users
     const formData = new FormData();
 
     // 1️⃣ Append JSON data
@@ -1233,7 +1244,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       formData.append("familyTree", data.familyTree);
     }
 
-    // 3️⃣ Call backend API
+    // 3️⃣ Call backend API (only for new users)
     const response = await fetch("http://localhost:3001/api/personal", {
       method: "POST",
       body: formData,

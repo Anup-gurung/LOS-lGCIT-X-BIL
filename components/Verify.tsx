@@ -94,10 +94,6 @@ useEffect(() => {
   loadIdentificationType();
 }, []);
 const idTypeValidationRules: Record<string, { regex: RegExp; errorMsg: string }> = {
-  "90001": { // Citizenship Identity card
-    regex: /^\d{11}$/,
-    errorMsg: "CID must be exactly 11 digits"
-  },
   "90002": { // Special Resident Permit
     regex: /^[A-Z0-9-]{6,20}$/,
     errorMsg: "SRP must be alphanumeric (6–20 chars)"

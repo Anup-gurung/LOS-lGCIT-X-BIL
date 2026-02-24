@@ -265,6 +265,7 @@ function LoanApplicationContent() {
   // Prefer sector-specific copy; fall back to default when no sector match is found
   const loanInfo = loanInfoContent[selectedSectorId] || loanInfoContent.default;
 
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-16 sm:pt-20 md:pt-24">
       <Header />
@@ -627,12 +628,62 @@ function LoanApplicationContent() {
                     </Label>
                     <Input
                       id="total-loan"
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       placeholder="Enter Total Loan Amount"
-                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
                       value={totalLoanInput}
-                      onChange={(e) => setTotalLoanInput(e.target.value)}
+                      onChange={(e) => {
+                        const rawValue = e.target.value;
+
+                        // Remove commas
+                        const withoutCommas = rawValue.replace(/,/g, "");
+
+                        // If empty → required error
+                        if (withoutCommas === "") {
+                          setErrors((prev) => ({
+                            ...prev,
+                            totalLoan: "Total loan amount is required",
+                          }));
+                          setTotalLoanInput("");
+                          return;
+                        }
+
+                        // If contains anything other than digits
+                        if (!/^\d+$/.test(withoutCommas)) {
+                          setErrors((prev) => ({
+                            ...prev,
+                            totalLoan: "Only whole numbers are allowed. No letters or decimals.",
+                          }));
+                        } else {
+                          // Clear error if valid
+                          setErrors((prev) => {
+                            const updated = { ...prev };
+                            delete updated.totalLoan;
+                            return updated;
+                          });
+                        }
+
+                        // Keep digits only
+                        const digitsOnly = withoutCommas.replace(/\D/g, "");
+                        console.log("Digits only value:", digitsOnly);
+                        // Format with commas
+                        const formatted = digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                          console.log("Formatted value:", formatted);
+                        setTotalLoanInput(digitsOnly);
+                      }}
+                      className={`h-10 sm:h-12 border text-sm sm:text-base
+                        ${
+                          errors.totalLoan
+                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                        }`}
                     />
+
+                    {errors.totalLoan && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.totalLoan}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">

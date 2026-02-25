@@ -737,29 +737,56 @@ export function CoBorrowerDetailsForm({
   const validateDates = (coBorrower: any) => {
     const newErrors: Record<string, string> = {};
 
-    if (
-      coBorrower.identificationIssueDate &&
-      coBorrower.identificationIssueDate > today
-    ) {
-      newErrors.identificationIssueDate = "Issue date cannot be in the future";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const parseLocalDate = (dateString: string) => {
+      const [year, month, day] = dateString.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    };
+
+    const issueDate = coBorrower.identificationIssueDate
+      ? parseLocalDate(coBorrower.identificationIssueDate)
+      : null;
+
+    const expiryDate = coBorrower.identificationExpiryDate
+      ? parseLocalDate(coBorrower.identificationExpiryDate)
+      : null;
+
+    const dobDate = coBorrower.dateOfBirth
+      ? parseLocalDate(coBorrower.dateOfBirth)
+      : null;
+
+    if (issueDate && issueDate > today) {
+      newErrors.identificationIssueDate =
+        "Issue date cannot be in the future";
     }
-    if (
-      coBorrower.identificationExpiryDate &&
-      coBorrower.identificationExpiryDate < today
-    ) {
-      newErrors.identificationExpiryDate = "Expiry date cannot be in the past";
+
+    if (expiryDate && expiryDate < today) {
+      newErrors.identificationExpiryDate =
+        "Expiry date cannot be in the past";
     }
-    if (coBorrower.dateOfBirth && coBorrower.dateOfBirth > maxDobDate) {
-      newErrors.dateOfBirth = "You must be at least 15 years old";
+
+    if (dobDate) {
+      const minDob = new Date();
+      minDob.setFullYear(minDob.getFullYear() - 15);
+      minDob.setHours(0, 0, 0, 0);
+
+      if (dobDate > minDob) {
+        newErrors.dateOfBirth = "You must be at least 15 years old";
+      }
     }
-    if (
-      coBorrower.identificationIssueDate &&
-      coBorrower.identificationExpiryDate &&
-      coBorrower.identificationIssueDate >= coBorrower.identificationExpiryDate
-    ) {
+
+    if (issueDate && expiryDate && expiryDate <= issueDate) {
       newErrors.identificationExpiryDate =
         "Expiry date must be after issue date";
     }
+
+    console.log("Today:", today);
+    console.log("Issue Date:", issueDate);
+    console.log("Expiry Date:", expiryDate);
+    console.log("DOB Date:", dobDate);
+    console.log("Validation Errors:", newErrors);
 
     return newErrors;
   };
@@ -839,13 +866,13 @@ export function CoBorrowerDetailsForm({
     // Validate all co-borrowers
     const validatedCoBorrowers = coBorrowers.map((coBorrower) => {
       const dateErrors = validateDates(coBorrower);
+
       return {
         ...coBorrower,
-        errors: { ...coBorrower.errors, ...dateErrors },
+        errors: dateErrors, // 🔥 replace, do NOT merge
         isMarried: getIsMarried(coBorrower),
       };
     });
-
     setCoBorrowers(validatedCoBorrowers);
 
     // Check if there are any errors
@@ -3334,7 +3361,7 @@ export function CoBorrowerDetailsForm({
                 </Label>
                 <Input
                   id={`orgLocation-${index}`}
-                  placeholder="Enter Full Name"
+                  placeholder="Enter Location"
                   className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={coBorrower.orgLocation || ""}
                   onChange={(e) =>

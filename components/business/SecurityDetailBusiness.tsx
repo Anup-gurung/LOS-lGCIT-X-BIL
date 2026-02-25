@@ -38,7 +38,7 @@ const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidCID = (value: string) => /^\d{11}$/.test(value);
 const isValidTPN = (value: string) => /^\d{11}$/.test(value);
-const isValidMobile = (value: string) => /^(16|17|77)\d{6}$/.test(value); // 8 digits starting with 16,17,77
+const isValidMobile = (value: string) => /^(16|17|77)\d{6}$/.test(value);
 const isValidFixedLine = (value: string) => /^[2-8]\d{6,7}$/.test(value);
 const isValidPhoneNumber = (value: string) =>
   isValidMobile(value) || isValidFixedLine(value);
@@ -90,23 +90,18 @@ const RestrictedInput = ({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let newValue = e.target.value;
 
-    // Filter based on allowed pattern
     if (allowed === "numeric") {
       newValue = newValue.replace(/[^0-9]/g, "");
     } else if (allowed === "alpha") {
-      // Allow letters, spaces, hyphens, apostrophes (for names)
       newValue = newValue.replace(/[^a-zA-Z\s\-']/g, "");
     } else if (allowed === "alphanumeric") {
-      // Allow letters, numbers, spaces, hyphens, underscores
       newValue = newValue.replace(/[^a-zA-Z0-9\s\-_]/g, "");
     }
 
-    // Apply maxLength
     if (maxLength && newValue.length > maxLength) {
       newValue = newValue.slice(0, maxLength);
     }
 
-    // Call original onChange with filtered value
     if (onChange) {
       onChange({ ...e, target: { ...e.target, value: newValue } });
     }
@@ -117,7 +112,7 @@ const RestrictedInput = ({
       value={value}
       onChange={handleChange}
       className={className}
-      maxLength={maxLength} // also pass to native input for browser hint
+      maxLength={maxLength}
       {...props}
     />
   );
@@ -145,11 +140,10 @@ const createEmptyRelatedPep = () => ({
   identificationProof: "",
 });
 
-// Initialize empty security entry (Fixed: Isolated state)
+// Initialize empty security entry
 const createEmptySecurity = () => ({
   securityType: "",
   ownershipType: "",
-  // Vehicle fields
   vehicleType: "",
   vehicleMake: "",
   vehicleModel: "",
@@ -157,7 +151,6 @@ const createEmptySecurity = () => ({
   registrationNo: "",
   chassisNo: "",
   engineNo: "",
-  // Land/Property fields
   thramNo: "",
   plotNo: "",
   area: "",
@@ -166,49 +159,39 @@ const createEmptySecurity = () => ({
   gewog: "",
   village: "",
   houseNo: "",
-  // Insurance fields
   insuranceCompany: "",
   policyNo: "",
   insuranceValue: "",
   insuranceStartDate: "",
   insuranceExpiryDate: "",
-  // PPF fields
   ppfInstitution: "",
   ppfFundNo: "",
   ppfAccountNo: "",
   ppfValue: "",
-  // Share fields
   shareCompany: "",
   shareCertificateNo: "",
   shareRegistrationNo: "",
-  // Stock fields
   stockName: "",
   stockQuantity: "",
   stockValue: "",
-  // Equipment fields
   equipmentType: "",
   equipmentMake: "",
   equipmentModel: "",
   equipmentSerialNo: "",
   equipmentValue: "",
-  // Fixed Deposit fields
   fdBank: "",
   fdAccountNo: "",
   fdAmount: "",
   fdMaturityDate: "",
-  // Building fields
   buildingType: "",
   buildingArea: "",
   buildingYear: "",
-  // Security Proof File Upload
   securityProof: "",
-  // Local options for this specific row (Prevents dropdown conflicts)
   gewogOptions: [] as any[],
 });
 
-// Initialize empty guarantor with all required fields
+// Initialize empty guarantor
 const createEmptyGuarantor = () => ({
-  // Personal Information
   idType: "",
   idNumber: "",
   salutation: "",
@@ -227,8 +210,6 @@ const createEmptyGuarantor = () => ({
   bankName: "",
   bankAccount: "",
   passportPhoto: "",
-
-  // Permanent Address
   permCountry: "",
   permDzongkhag: "",
   permGewog: "",
@@ -236,8 +217,6 @@ const createEmptyGuarantor = () => ({
   permThram: "",
   permHouse: "",
   permAddressProof: "",
-
-  // Current Address
   currCountry: "",
   currDzongkhag: "",
   currGewog: "",
@@ -247,8 +226,6 @@ const createEmptyGuarantor = () => ({
   contact: "",
   currAlternateContact: "",
   currAddressProof: "",
-
-  // Employment Details
   employmentStatus: "",
   employeeId: "",
   occupation: "",
@@ -261,25 +238,16 @@ const createEmptyGuarantor = () => ({
   serviceNature: "",
   annualSalary: "",
   contractEndDate: "",
-
-  // PEP Declaration
   isPep: "",
   pepCategory: "",
   pepSubCategory: "",
   pepUpload: "",
   relatedToPep: "",
-  pepRelationship: "",
-  pepIdNo: "",
-  pepSubCat2: "",
   relatedPeps: [createEmptyRelatedPep()],
-
-  // Lookup states
   showLookupPopup: false,
   lookupStatus: "searching" as "searching" | "found" | "not_found",
   fetchedCustomerData: null,
   errors: {} as Record<string, string>,
-
-  // Dropdown options specific to this guarantor
   permGewogOptions: [] as any[],
   currGewogOptions: [] as any[],
   pepSubCategoryOptions: [] as any[],
@@ -297,16 +265,10 @@ export function SecurityDetailBusiness({
   onBack,
   formData,
 }: SecurityDetailsFormProps) {
-  // State for Securities (Array of objects instead of single object)
   const [securities, setSecurities] = useState<any[]>([createEmptySecurity()]);
-
-  // State for Guarantors
   const [guarantors, setGuarantors] = useState<any[]>([createEmptyGuarantor()]);
-
-  // Global/Form errors (mostly used for file upload at root level if any)
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Dropdown Options (Shared across all rows)
   const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
   const [identificationTypeOptions, setIdentificationTypeOptions] = useState<
     any[]
@@ -319,13 +281,11 @@ export function SecurityDetailBusiness({
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
 
-  // Calculate date constraints
   const today = new Date().toISOString().split("T")[0];
   const eighteenYearsAgo = new Date();
   eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
   const maxDobDate = eighteenYearsAgo.toISOString().split("T")[0];
 
-  // --- HELPER: Determine if Married for a specific guarantor ---
   const getIsMarried = (guarantor: any) => {
     const status = guarantor.maritalStatus;
     if (!status) return false;
@@ -391,15 +351,8 @@ export function SecurityDetailBusiness({
         setMaritalStatusOptions(maritalStatus);
         setBanksOptions(banks);
         setPepCategoryOptions(pepCategories || []);
-        setOccupationOptions(
-          occupations || [
-            { id: "engineer", name: "Engineer" },
-            { id: "teacher", name: "Teacher" },
-          ],
-        );
-        setOrganizationOptions(
-          organizations || [{ id: "org1", name: "Organization 1" }],
-        );
+        setOccupationOptions(occupations || []);
+        setOrganizationOptions(organizations || []);
       } catch (error) {
         console.error("Failed to load dropdown data:", error);
       }
@@ -411,20 +364,15 @@ export function SecurityDetailBusiness({
   // Sync with formData
   useEffect(() => {
     if (formData && Object.keys(formData).length > 0) {
-      // Handle Securities
       if (formData.securityDetails) {
         if (Array.isArray(formData.securityDetails)) {
-          // If it's already an array (returning user)
           setSecurities(formData.securityDetails);
         } else if (typeof formData.securityDetails === "object") {
-          // If legacy format (single object), convert to array
           setSecurities([
             { ...createEmptySecurity(), ...formData.securityDetails },
           ]);
         }
       }
-
-      // Handle Guarantors
       if (
         formData.additionalGuarantors &&
         Array.isArray(formData.additionalGuarantors)
@@ -442,8 +390,6 @@ export function SecurityDetailBusiness({
 
       for (let i = 0; i < securities.length; i++) {
         const security = securities[i];
-
-        // Only fetch if land/building type and dzongkhag is selected
         if (
           (security.securityType === "land" ||
             security.securityType === "building") &&
@@ -597,6 +543,147 @@ export function SecurityDetailBusiness({
     loadPepSubCategories();
   }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
 
+  // --- LABEL-TO-ID HELPER (for lookup) ---
+  const findPkCodeByLabel = (
+    label: string,
+    options: any[],
+    labelFields: string[],
+  ): string => {
+    if (!label) return "";
+
+    const trimmedLabel = String(label).trim().toLowerCase();
+    const strippedLabel = trimmedLabel.replace(/\s+/g, "");
+    const inputWords = trimmedLabel.split(/\s+/).filter((w) => w.length > 0);
+
+    for (const option of options) {
+      for (const field of labelFields) {
+        const optionValue = String(option[field] || "");
+        const trimmedOption = optionValue.trim().toLowerCase();
+        const strippedOption = trimmedOption.replace(/\s+/g, "");
+        const optionWords = trimmedOption
+          .split(/\s+/)
+          .filter((w) => w.length > 0);
+
+        if (strippedOption === strippedLabel) {
+          return String(
+            option.bank_pk_code ||
+              option.country_pk_code ||
+              option.nationality_pk_code ||
+              option.identity_type_pk_code ||
+              option.marital_status_pk_code ||
+              option.occ_pk_code ||
+              option.occupation_pk_code ||
+              option.dzongkhag_pk_code ||
+              option.gewog_pk_code ||
+              option.curr_gewog_pk_code ||
+              option.pk_gewog_id ||
+              option.pep_category_pk_code ||
+              option.pep_sub_category_pk_code ||
+              option.lgal_constitution_pk_code ||
+              option.legal_const_pk_code ||
+              option.pk_code ||
+              option.id ||
+              option.code ||
+              "",
+          );
+        }
+
+        if (trimmedOption === trimmedLabel) {
+          return String(
+            option.bank_pk_code ||
+              option.country_pk_code ||
+              option.nationality_pk_code ||
+              option.identity_type_pk_code ||
+              option.marital_status_pk_code ||
+              option.occ_pk_code ||
+              option.occupation_pk_code ||
+              option.dzongkhag_pk_code ||
+              option.gewog_pk_code ||
+              option.curr_gewog_pk_code ||
+              option.pk_gewog_id ||
+              option.pep_category_pk_code ||
+              option.pep_sub_category_pk_code ||
+              option.lgal_constitution_pk_code ||
+              option.legal_const_pk_code ||
+              option.pk_code ||
+              option.id ||
+              option.code ||
+              "",
+          );
+        }
+
+        if (inputWords.length > 0 && optionWords.length > 0) {
+          const allWordsMatch = inputWords.every((word) =>
+            optionWords.some(
+              (optWord) => optWord.includes(word) || word.includes(optWord),
+            ),
+          );
+          if (allWordsMatch) {
+            return String(
+              option.bank_pk_code ||
+                option.country_pk_code ||
+                option.nationality_pk_code ||
+                option.identity_type_pk_code ||
+                option.marital_status_pk_code ||
+                option.occ_pk_code ||
+                option.occupation_pk_code ||
+                option.dzongkhag_pk_code ||
+                option.gewog_pk_code ||
+                option.curr_gewog_pk_code ||
+                option.pk_gewog_id ||
+                option.pep_category_pk_code ||
+                option.pep_sub_category_pk_code ||
+                option.lgal_constitution_pk_code ||
+                option.legal_const_pk_code ||
+                option.pk_code ||
+                option.id ||
+                option.code ||
+                "",
+            );
+          }
+        }
+      }
+    }
+
+    if (trimmedLabel.length >= 4) {
+      for (const option of options) {
+        for (const field of labelFields) {
+          const optionLabel = String(option[field] || "")
+            .trim()
+            .toLowerCase();
+          if (
+            optionLabel.includes(trimmedLabel) ||
+            trimmedLabel.includes(optionLabel)
+          ) {
+            return String(
+              option.bank_pk_code ||
+                option.country_pk_code ||
+                option.nationality_pk_code ||
+                option.identity_type_pk_code ||
+                option.marital_status_pk_code ||
+                option.occ_pk_code ||
+                option.occupation_pk_code ||
+                option.dzongkhag_pk_code ||
+                option.gewog_pk_code ||
+                option.curr_gewog_pk_code ||
+                option.pk_gewog_id ||
+                option.pep_category_pk_code ||
+                option.pep_sub_category_pk_code ||
+                option.lgal_constitution_pk_code ||
+                option.legal_const_pk_code ||
+                option.pk_code ||
+                option.id ||
+                option.code ||
+                "",
+            );
+          }
+        }
+      }
+    }
+
+    return label;
+  };
+
   // --- FIELD VALIDATION (individual) ---
   const validateField = (
     fieldName: string,
@@ -630,7 +717,6 @@ export function SecurityDetailBusiness({
     return "";
   };
 
-  // --- REAL-TIME VALIDATION ON BLUR ---
   const handleBlurField = (index: number, field: string, value: any) => {
     const errorMsg = validateField(field, value);
     if (errorMsg) {
@@ -658,7 +744,7 @@ export function SecurityDetailBusiness({
         "image/jpg",
         "image/png",
       ];
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      const maxSize = 5 * 1024 * 1024;
 
       if (!allowedTypes.includes(file.type)) {
         const errorMsg = "Only PDF, JPG, JPEG, and PNG files are allowed";
@@ -694,7 +780,6 @@ export function SecurityDetailBusiness({
         return;
       }
 
-      // Success
       if (index === "main") {
         setErrors((prev) => ({ ...prev, [fieldName]: "" }));
       } else {
@@ -711,7 +796,6 @@ export function SecurityDetailBusiness({
     }
   };
 
-  // Security file upload handler
   const handleSecurityFileChange = (index: number, file: File | null) => {
     if (file) {
       const allowedTypes = [
@@ -720,7 +804,7 @@ export function SecurityDetailBusiness({
         "image/jpg",
         "image/png",
       ];
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      const maxSize = 5 * 1024 * 1024;
 
       if (!allowedTypes.includes(file.type)) {
         setErrors((prev) => ({
@@ -739,7 +823,6 @@ export function SecurityDetailBusiness({
         return;
       }
 
-      // Clear error and update security
       setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[`security-${index}-proof`];
@@ -852,69 +935,319 @@ export function SecurityDetailBusiness({
     }
   };
 
-  const handleLookupProceed = (index: number) => {
+  const handleLookupProceed = async (index: number) => {
     const guarantor = guarantors[index];
     if (guarantor.lookupStatus === "found" && guarantor.fetchedCustomerData) {
-      const formattedData = {
-        nationality: guarantor.fetchedCustomerData.nationality
-          ? String(guarantor.fetchedCustomerData.nationality)
-          : "",
-        idIssueDate: formatDateForInput(
-          guarantor.fetchedCustomerData.identificationIssueDate,
-        ),
-        idExpiryDate: formatDateForInput(
-          guarantor.fetchedCustomerData.identificationExpiryDate,
-        ),
-        dateOfBirth: formatDateForInput(
-          guarantor.fetchedCustomerData.dateOfBirth,
-        ),
-        tpnNo: guarantor.fetchedCustomerData.tpn || "",
-        maritalStatus: guarantor.fetchedCustomerData.maritalStatus
-          ? String(guarantor.fetchedCustomerData.maritalStatus)
-          : "",
-        gender: guarantor.fetchedCustomerData.gender
-          ? String(guarantor.fetchedCustomerData.gender)
-          : "",
-        email: guarantor.fetchedCustomerData.email || "",
-        contact: guarantor.fetchedCustomerData.contact || "",
+      const api = guarantor.fetchedCustomerData;
 
-        // Address
-        permCountry: guarantor.fetchedCustomerData.permCountry
-          ? String(guarantor.fetchedCustomerData.permCountry)
-          : "",
-        permDzongkhag: guarantor.fetchedCustomerData.permDzongkhag
-          ? String(guarantor.fetchedCustomerData.permDzongkhag)
-          : "",
-        permGewog: guarantor.fetchedCustomerData.permGewog
-          ? String(guarantor.fetchedCustomerData.permGewog)
-          : "",
-        permVillage: guarantor.fetchedCustomerData.permVillage || "",
-        currCountry: guarantor.fetchedCustomerData.currCountry
-          ? String(guarantor.fetchedCustomerData.currCountry)
-          : "",
-        currDzongkhag: guarantor.fetchedCustomerData.currDzongkhag
-          ? String(guarantor.fetchedCustomerData.currDzongkhag)
-          : "",
-        currGewog: guarantor.fetchedCustomerData.currGewog
-          ? String(guarantor.fetchedCustomerData.currGewog)
-          : "",
-        currVillage: guarantor.fetchedCustomerData.currVillage || "",
+      // --- 1. PRE-CALCULATE IDs FROM LABELS ---
+      const mappedNationality = findPkCodeByLabel(
+        api.nationality,
+        nationalityOptions,
+        ["nationality", "name", "label"],
+      );
+
+      const mappedMaritalStatus = findPkCodeByLabel(
+        api.maritalStatus,
+        maritalStatusOptions,
+        ["marital_status", "name", "label"],
+      );
+
+      const mappedBankName = findPkCodeByLabel(api.bankName, banksOptions, [
+        "bank_name",
+        "name",
+        "label",
+        "bank",
+      ]);
+
+      const mappedPermCountry = findPkCodeByLabel(
+        api.permCountry || api.permanentCountry,
+        countryOptions,
+        ["country_name", "country", "name", "label"],
+      );
+
+      const mappedCurrCountry = findPkCodeByLabel(
+        api.currCountry || api.currentCountry,
+        countryOptions,
+        ["country_name", "country", "name", "label"],
+      );
+
+      const isPermBhutan =
+        mappedPermCountry &&
+        countryOptions.some(
+          (c) =>
+            String(c.country_pk_code || c.id) === mappedPermCountry &&
+            (c.country_name || c.country || "")
+              .toLowerCase()
+              .includes("bhutan"),
+        );
+
+      const isCurrBhutan =
+        mappedCurrCountry &&
+        countryOptions.some(
+          (c) =>
+            String(c.country_pk_code || c.id) === mappedCurrCountry &&
+            (c.country_name || c.country || "")
+              .toLowerCase()
+              .includes("bhutan"),
+        );
+
+      let mappedPermDzongkhag = api.permDzongkhag || api.permanentDzongkhag;
+      let mappedCurrDzongkhag = api.currDzongkhag || api.currentDzongkhag;
+
+      if (isPermBhutan) {
+        mappedPermDzongkhag = findPkCodeByLabel(
+          mappedPermDzongkhag,
+          dzongkhagOptions,
+          ["dzongkhag_name", "dzongkhag", "name", "label"],
+        );
+      }
+      if (isCurrBhutan) {
+        mappedCurrDzongkhag = findPkCodeByLabel(
+          mappedCurrDzongkhag,
+          dzongkhagOptions,
+          ["dzongkhag_name", "dzongkhag", "name", "label"],
+        );
+      }
+
+      const rawPermGewog = api.permGewog || api.permanentGewog || "";
+      const rawCurrGewog = api.currGewog || api.currentGewog || "";
+
+      // --- MAP OCCUPATION AND ORGANIZATION (with expanded field list) ---
+      const mappedOccupation = findPkCodeByLabel(
+        api.occupation,
+        occupationOptions,
+        ["occ_name", "occupation", "name", "occupation_name"],
+      );
+
+      const mappedOrganization = findPkCodeByLabel(
+        api.organizationName || api.employerName,
+        organizationOptions,
+        ["lgal_constitution", "legal_const_name", "name", "constitution_name"],
+      );
+
+      // --- INFER EMPLOYMENT STATUS & TYPE ---
+      let inferredEmploymentStatus = "unemployed";
+      const hasOccupation =
+        api.occupation && api.occupation.toLowerCase() !== "na";
+      const hasEmployeeId =
+        api.employeeId && api.employeeId.toLowerCase() !== "na";
+      const hasEmployer =
+        api.employerName && api.employerName.toLowerCase() !== "na";
+      const hasAnnualSalary = parseFloat(api.annualSalary) > 0;
+
+      if (hasOccupation || hasEmployeeId || hasEmployer || hasAnnualSalary) {
+        inferredEmploymentStatus = "employed";
+      }
+
+      let inferredEmployerType = "";
+      const rawOrgType = (api.organizationType || "").toLowerCase();
+      if (
+        rawOrgType.includes("government") ||
+        rawOrgType.includes("ministry")
+      ) {
+        inferredEmployerType = "government";
+      } else if (
+        rawOrgType.includes("financial") ||
+        rawOrgType.includes("corporate") ||
+        rawOrgType.includes("limited")
+      ) {
+        inferredEmployerType = "corporate";
+      } else if (rawOrgType.includes("private")) {
+        inferredEmployerType = "private";
+      } else if (inferredEmploymentStatus === "employed") {
+        inferredEmployerType = "private";
+      }
+
+      const mappedDesignation = (api.designation || "").toLowerCase();
+      const mappedGrade = api.grade ? String(api.grade) : "";
+      const mappedServiceNature = (
+        api.natureOfService ||
+        api.serviceNature ||
+        ""
+      ).toLowerCase();
+
+      // --- PEP FIELDS ---
+      let mappedPepPerson = "";
+      if (api.pepPerson === "yes" || api.pepPerson === "no") {
+        mappedPepPerson = api.pepPerson;
+      } else if (api.pepDeclaration === "yes" || api.pepDeclaration === "no") {
+        mappedPepPerson = api.pepDeclaration;
+      }
+
+      const mappedPepCategory = findPkCodeByLabel(
+        api.pepCategory,
+        pepCategoryOptions,
+        ["pep_category", "name", "label"],
+      );
+
+      let mappedPepRelated = "";
+      if (api.relatedToAnyPep === "yes" || api.relatedToAnyPep === "no") {
+        mappedPepRelated = api.relatedToAnyPep;
+      } else if (api.pepRelated === "yes" || api.pepRelated === "no") {
+        mappedPepRelated = api.pepRelated;
+      }
+
+      // --- BUILD BASE GUARANTOR OBJECT ---
+      const baseGuarantor = {
+        ...guarantor,
+        salutation: api.salutation || guarantor.salutation,
+        guarantorName:
+          api.fullName || api.applicantName || guarantor.guarantorName,
+        nationality: mappedNationality || guarantor.nationality,
+        gender: api.gender || guarantor.gender,
+        idIssueDate:
+          formatDateForInput(api.identificationIssueDate) ||
+          guarantor.idIssueDate,
+        idExpiryDate:
+          formatDateForInput(api.identificationExpiryDate) ||
+          guarantor.idExpiryDate,
+        dateOfBirth:
+          formatDateForInput(api.dateOfBirth) || guarantor.dateOfBirth,
+        tpnNo: api.tpn || api.tpnNumber || guarantor.tpnNo,
+        maritalStatus: mappedMaritalStatus || guarantor.maritalStatus,
+        spouseCid: api.spouseCid || guarantor.spouseCid,
+        spouseName: api.spouseName || guarantor.spouseName,
+        spouseContact: api.spouseContact || guarantor.spouseContact,
+        bankName: mappedBankName || guarantor.bankName,
+        bankAccount:
+          api.bankAccount || api.bankAccountNo || guarantor.bankAccount,
+        permCountry: mappedPermCountry || guarantor.permCountry,
+        permDzongkhag: mappedPermDzongkhag || guarantor.permDzongkhag,
+        permGewog: rawPermGewog,
+        permVillage:
+          api.permVillage || api.permanentStreet || guarantor.permVillage,
+        permThram: api.permThram || api.thramNo || guarantor.permThram,
+        permHouse: api.permHouse || api.houseNo || guarantor.permHouse,
+        currCountry: mappedCurrCountry || guarantor.currCountry,
+        currDzongkhag: mappedCurrDzongkhag || guarantor.currDzongkhag,
+        currGewog: rawCurrGewog,
+        currVillage:
+          api.currVillage || api.currentStreet || guarantor.currVillage,
+        currHouse:
+          api.currFlat ||
+          api.currHouse ||
+          api.currentBuildingNo ||
+          guarantor.currHouse,
+        email: api.email || api.emailId || guarantor.email,
+        contact: api.contactNo || api.phone || guarantor.contact,
+        currAlternateContact:
+          api.alternateContactNo ||
+          api.alternatePhone ||
+          guarantor.currAlternateContact,
+        employmentStatus:
+          inferredEmploymentStatus || guarantor.employmentStatus,
+        employeeId: api.employeeId || guarantor.employeeId,
+        occupation: mappedOccupation || guarantor.occupation,
+        employerType: inferredEmployerType || guarantor.employerType,
+        designation: mappedDesignation || guarantor.designation,
+        grade: mappedGrade || guarantor.grade,
+        organizationName: mappedOrganization || guarantor.organizationName,
+        orgLocation:
+          api.orgLocation || api.employerLocation || guarantor.orgLocation,
+        joiningDate:
+          formatDateForInput(api.joiningDate || api.appointmentDate) ||
+          guarantor.joiningDate,
+        annualSalary:
+          api.annualSalary || api.annualIncome || guarantor.annualSalary,
+        serviceNature: mappedServiceNature || guarantor.serviceNature,
+        contractEndDate:
+          formatDateForInput(api.contractEndDate) || guarantor.contractEndDate,
+        isPep: mappedPepPerson || guarantor.isPep,
+        pepCategory: mappedPepCategory || guarantor.pepCategory,
+        relatedToPep: mappedPepRelated || guarantor.relatedToPep,
+      };
+
+      // --- FETCH GEWOG OPTIONS AND MAP GEWOG NAMES TO IDs ---
+      let permGewogOptions: any[] = [];
+      let currGewogOptions: any[] = [];
+      let mappedPermGewog = rawPermGewog;
+      let mappedCurrGewog = rawCurrGewog;
+
+      if (isPermBhutan && mappedPermDzongkhag) {
+        try {
+          permGewogOptions = await fetchGewogsByDzongkhag(mappedPermDzongkhag);
+          if (rawPermGewog) {
+            const converted = findPkCodeByLabel(
+              rawPermGewog,
+              permGewogOptions,
+              ["gewog_name", "gewog", "name", "label"],
+            );
+            if (converted && converted !== rawPermGewog) {
+              mappedPermGewog = converted;
+            } else {
+              const cleanedRaw = rawPermGewog
+                .toLowerCase()
+                .replace(/\s+gewog$/, "");
+              const matched = permGewogOptions.find((opt) =>
+                [opt.gewog_name, opt.gewog, opt.name].some(
+                  (field) =>
+                    field?.toLowerCase().replace(/\s+gewog$/, "") ===
+                    cleanedRaw,
+                ),
+              );
+              if (matched) {
+                mappedPermGewog = String(
+                  matched.gewog_pk_code || matched.id || matched.pk_gewog_id,
+                );
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch permanent gewog options", e);
+        }
+      }
+
+      if (isCurrBhutan && mappedCurrDzongkhag) {
+        try {
+          currGewogOptions = await fetchGewogsByDzongkhag(mappedCurrDzongkhag);
+          if (rawCurrGewog) {
+            const converted = findPkCodeByLabel(
+              rawCurrGewog,
+              currGewogOptions,
+              ["gewog_name", "gewog", "name", "label"],
+            );
+            if (converted && converted !== rawCurrGewog) {
+              mappedCurrGewog = converted;
+            } else {
+              const cleanedRaw = rawCurrGewog
+                .toLowerCase()
+                .replace(/\s+gewog$/, "");
+              const matched = currGewogOptions.find((opt) =>
+                [opt.gewog_name, opt.gewog, opt.name].some(
+                  (field) =>
+                    field?.toLowerCase().replace(/\s+gewog$/, "") ===
+                    cleanedRaw,
+                ),
+              );
+              if (matched) {
+                mappedCurrGewog = String(
+                  matched.gewog_pk_code || matched.id || matched.pk_gewog_id,
+                );
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch current gewog options", e);
+        }
+      }
+
+      const finalGuarantor = {
+        ...baseGuarantor,
+        permGewog: mappedPermGewog,
+        currGewog: mappedCurrGewog,
+        permGewogOptions,
+        currGewogOptions,
+        pepSubCategoryOptions: guarantor.pepSubCategoryOptions,
+        relatedPepOptionsMap: guarantor.relatedPepOptionsMap,
+        showLookupPopup: false,
+        lookupStatus: "searching",
+        errors: {},
       };
 
       setGuarantors((prev) => {
         const updated = [...prev];
-        updated[index] = {
-          ...prev[index],
-          ...formattedData,
-          guarantorName:
-            guarantor.fetchedCustomerData.name || prev[index].guarantorName,
-          salutation:
-            guarantor.fetchedCustomerData.salutation || prev[index].salutation,
-          // Preserve ID fields
-          idType: prev[index].idType,
-          idNumber: prev[index].idNumber,
-          showLookupPopup: false,
-        };
+        updated[index] = finalGuarantor;
         return updated;
       });
     } else {
@@ -928,6 +1261,165 @@ export function SecurityDetailBusiness({
       });
     }
   };
+
+  // --- FALLBACK EFFECTS: Convert labels to IDs after options load ---
+
+  // Convert permGewog label to ID when options load
+  useEffect(() => {
+    guarantors.forEach((guarantor, idx) => {
+      if (
+        guarantor.permGewog &&
+        guarantor.permGewogOptions.length > 0 &&
+        !guarantor.permGewogOptions.some(
+          (opt: any) =>
+            String(
+              opt.gewog_pk_code ||
+                opt.id ||
+                opt.pk_gewog_id ||
+                opt.curr_gewog_pk_code,
+            ) === String(guarantor.permGewog),
+        )
+      ) {
+        const mapped = findPkCodeByLabel(
+          guarantor.permGewog,
+          guarantor.permGewogOptions,
+          ["gewog_name", "gewog", "name", "label"],
+        );
+        if (mapped && mapped !== guarantor.permGewog) {
+          updateGuarantorField(idx, "permGewog", mapped);
+        }
+      }
+    });
+  }, [
+    guarantors
+      .map((g) => `${g.permGewog}-${g.permGewogOptions.length}`)
+      .join(","),
+  ]);
+
+  // Convert currGewog label to ID when options load
+  useEffect(() => {
+    guarantors.forEach((guarantor, idx) => {
+      if (
+        guarantor.currGewog &&
+        guarantor.currGewogOptions.length > 0 &&
+        !guarantor.currGewogOptions.some(
+          (opt: any) =>
+            String(
+              opt.gewog_pk_code ||
+                opt.id ||
+                opt.pk_gewog_id ||
+                opt.curr_gewog_pk_code,
+            ) === String(guarantor.currGewog),
+        )
+      ) {
+        const mapped = findPkCodeByLabel(
+          guarantor.currGewog,
+          guarantor.currGewogOptions,
+          ["gewog_name", "gewog", "name", "label"],
+        );
+        if (mapped && mapped !== guarantor.currGewog) {
+          updateGuarantorField(idx, "currGewog", mapped);
+        }
+      }
+    });
+  }, [
+    guarantors
+      .map((g) => `${g.currGewog}-${g.currGewogOptions.length}`)
+      .join(","),
+  ]);
+
+  // Convert pepSubCategory label to ID when options load
+  useEffect(() => {
+    guarantors.forEach((guarantor, idx) => {
+      if (
+        guarantor.pepSubCategory &&
+        guarantor.pepSubCategoryOptions.length > 0 &&
+        !guarantor.pepSubCategoryOptions.some(
+          (opt: any) =>
+            String(opt.pep_sub_category_pk_code || opt.id) ===
+            String(guarantor.pepSubCategory),
+        )
+      ) {
+        const mapped = findPkCodeByLabel(
+          guarantor.pepSubCategory,
+          guarantor.pepSubCategoryOptions,
+          ["pep_sub_category", "name", "label"],
+        );
+        if (mapped && mapped !== guarantor.pepSubCategory) {
+          updateGuarantorField(idx, "pepSubCategory", mapped);
+        }
+      }
+    });
+  }, [
+    guarantors
+      .map((g) => `${g.pepSubCategory}-${g.pepSubCategoryOptions.length}`)
+      .join(","),
+  ]);
+
+  // --- FALLBACK EFFECTS for Occupation and Organization ---
+  // Enhanced: also set employmentStatus to "employed" if occupation becomes valid
+  useEffect(() => {
+    if (occupationOptions.length > 0) {
+      guarantors.forEach((guarantor, idx) => {
+        if (
+          guarantor.occupation &&
+          !occupationOptions.some(
+            (opt) =>
+              String(opt.occ_pk_code || opt.occupation_pk_code || opt.id) ===
+              String(guarantor.occupation),
+          )
+        ) {
+          const mapped = findPkCodeByLabel(
+            guarantor.occupation,
+            occupationOptions,
+            ["occ_name", "occupation", "name", "occupation_name"],
+          );
+          if (mapped && mapped !== guarantor.occupation) {
+            updateGuarantorField(idx, "occupation", mapped);
+            // If occupation is now set, ensure employment status is "employed"
+            if (guarantor.employmentStatus !== "employed") {
+              updateGuarantorField(idx, "employmentStatus", "employed");
+            }
+          }
+        }
+      });
+    }
+  }, [occupationOptions.length, guarantors.map((g) => g.occupation).join(",")]);
+
+  useEffect(() => {
+    if (organizationOptions.length > 0) {
+      guarantors.forEach((guarantor, idx) => {
+        if (
+          guarantor.organizationName &&
+          !organizationOptions.some(
+            (opt) =>
+              String(
+                opt.lgal_constitution_pk_code ||
+                  opt.legal_const_pk_code ||
+                  opt.id,
+              ) === String(guarantor.organizationName),
+          )
+        ) {
+          const mapped = findPkCodeByLabel(
+            guarantor.organizationName,
+            organizationOptions,
+            [
+              "lgal_constitution",
+              "legal_const_name",
+              "name",
+              "constitution_name",
+            ],
+          );
+          if (mapped && mapped !== guarantor.organizationName) {
+            updateGuarantorField(idx, "organizationName", mapped);
+          }
+        }
+      });
+    }
+  }, [
+    organizationOptions.length,
+    guarantors.map((g) => g.organizationName).join(","),
+  ]);
 
   // --- HANDLERS FOR MULTIPLE PEP DECLARATIONS ---
   const handleAddRelatedPep = (index: number) => {
@@ -951,7 +1443,6 @@ export function SecurityDetailBusiness({
         (_: any, i: number) => i !== pepIndex,
       );
 
-      // Cleanup options map
       const newOptionsMap: Record<number, any[]> = {
         ...updated[guarantorIndex].relatedPepOptionsMap,
       };
@@ -987,9 +1478,8 @@ export function SecurityDetailBusiness({
 
       updatedPeps[pepIndex] = { ...updatedPeps[pepIndex], [field]: value };
 
-      // Special logic for Category change -> Fetch Sub Categories
       if (field === "category") {
-        updatedPeps[pepIndex].subCategory = ""; // Clear sub category
+        updatedPeps[pepIndex].subCategory = "";
         fetchPepSubCategoryByCategory(value)
           .then((options) => {
             setGuarantors((current) => {
@@ -1065,7 +1555,7 @@ export function SecurityDetailBusiness({
     }
   };
 
-  // --- SECURITY HANDLERS (New Logic) ---
+  // --- SECURITY HANDLERS ---
   const addSecurity = () => {
     setSecurities([...securities, createEmptySecurity()]);
   };
@@ -1084,10 +1574,9 @@ export function SecurityDetailBusiness({
         [field]: value,
       };
 
-      // Reset dependent fields if necessary
       if (field === "dzongkhag") {
         updated[index].gewog = "";
-        updated[index].gewogOptions = []; // Will trigger useEffect to reload
+        updated[index].gewogOptions = [];
       }
 
       return updated;
@@ -1110,13 +1599,11 @@ export function SecurityDetailBusiness({
       const updated = [...prev];
       const currentGuarantor = updated[index];
 
-      // Start with the updated field value
       let updatedGuarantor = {
         ...currentGuarantor,
         [field]: value,
       };
 
-      // Handle dependent field clearing based on changes
       if (field === "isPep") {
         if (value === "yes") {
           updatedGuarantor = {
@@ -1147,7 +1634,6 @@ export function SecurityDetailBusiness({
         }
       }
 
-      // Clear error for this field
       updatedGuarantor.errors = {
         ...updatedGuarantor.errors,
         [field]: "",
@@ -1158,7 +1644,7 @@ export function SecurityDetailBusiness({
     });
   };
 
-  // Enhanced validation for all guarantors (used on submit)
+  // Enhanced validation for all guarantors
   const validateAllGuarantors = (): boolean => {
     let isValid = true;
     const updatedGuarantors = [...guarantors];
@@ -1166,7 +1652,6 @@ export function SecurityDetailBusiness({
     guarantors.forEach((guarantor, index) => {
       const errors: Record<string, string> = {};
 
-      // Personal Information
       const personalFields = [
         "idType",
         "idNumber",
@@ -1186,7 +1671,6 @@ export function SecurityDetailBusiness({
           errors[field] = `${field} is required`;
       });
 
-      // Specific format validations
       if (guarantor.idNumber && !isValidCID(guarantor.idNumber))
         errors.idNumber = "CID must be 11 digits";
 
@@ -1196,7 +1680,6 @@ export function SecurityDetailBusiness({
       if (guarantor.dateOfBirth && !isLegalAge(guarantor.dateOfBirth))
         errors.dateOfBirth = "Guarantor must be at least 18 years old";
 
-      // Spouse fields if married
       if (getIsMarried(guarantor)) {
         if (isRequired(guarantor.spouseCid))
           errors.spouseCid = "Spouse CID is required";
@@ -1216,15 +1699,12 @@ export function SecurityDetailBusiness({
             "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
       }
 
-      // Passport photo
       if (!guarantor.passportPhoto)
         errors.passportPhoto = "Passport photo is required";
 
-      // Family tree
       if (!guarantor.familyTree)
         errors.familyTree = "Family tree document is required";
 
-      // Permanent Address
       if (isRequired(guarantor.permCountry))
         errors.permCountry = "Country is required";
 
@@ -1257,7 +1737,6 @@ export function SecurityDetailBusiness({
           errors.permAddressProof = "Address proof is required";
       }
 
-      // Current Address
       if (isRequired(guarantor.currCountry))
         errors.currCountry = "Country is required";
 
@@ -1305,7 +1784,6 @@ export function SecurityDetailBusiness({
         errors.currAlternateContact =
           "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
 
-      // PEP Declaration
       if (isRequired(guarantor.isPep)) errors.isPep = "PEP status is required";
       if (guarantor.isPep === "yes") {
         if (isRequired(guarantor.pepCategory))
@@ -1341,7 +1819,6 @@ export function SecurityDetailBusiness({
         }
       }
 
-      // Employment
       if (isRequired(guarantor.employmentStatus))
         errors.employmentStatus = "Employment status is required";
       if (guarantor.employmentStatus === "employed") {
@@ -1402,26 +1879,40 @@ export function SecurityDetailBusiness({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate securities
     const areSecuritiesValid = validateSecurities();
     if (!areSecuritiesValid) {
       return;
     }
 
-    // Check ownership type in securities
     const hasThirdParty = securities.some(
       (s) => s.ownershipType === "third-party",
     );
 
     if (hasThirdParty) {
-      // Validate all guarantors if third party ownership exists
       const allGuarantorsValid = validateAllGuarantors();
       if (!allGuarantorsValid) {
         return;
       }
     }
 
-    onNext({ securityDetails: securities, additionalGuarantors: guarantors });
+    // Prepare the data to save
+    const formDataToSave = {
+      securityDetails: securities,
+      additionalGuarantors: guarantors,
+    };
+
+    // Retrieve existing data from sessionStorage
+    const existingData = sessionStorage.getItem("businessLoanApplicationData");
+    const allData = existingData ? JSON.parse(existingData) : {};
+
+    // Merge and save to sessionStorage
+    const updatedData = { ...allData, ...formDataToSave };
+    sessionStorage.setItem(
+      "businessLoanApplicationData",
+      JSON.stringify(updatedData),
+    );
+
+    onNext(formDataToSave);
   };
 
   // Render security proof upload section
@@ -3606,7 +4097,7 @@ export function SecurityDetailBusiness({
                           "Unknown";
 
                         return (
-                          <SelectItem key={key} value={label}>
+                          <SelectItem key={key} value={value}>
                             {label}
                           </SelectItem>
                         );
@@ -3704,9 +4195,16 @@ export function SecurityDetailBusiness({
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
+                    {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
+                      <SelectItem key={num} value={String(num)}>
+                        {num}
+                      </SelectItem>
+                    ))}
                     <SelectItem value="p1">P1</SelectItem>
                     <SelectItem value="p2">P2</SelectItem>
                     <SelectItem value="p3">P3</SelectItem>
+                    <SelectItem value="p4">P4</SelectItem>
+                    <SelectItem value="p5">P5</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.grade && (

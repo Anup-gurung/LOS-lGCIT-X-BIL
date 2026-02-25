@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Percent, Calendar, Menu, X } from "lucide-react";
 import DocumentPopupBusiness from "@/components/DocumentPopupBusiness";
 
@@ -69,7 +68,7 @@ function BusinessLoanApplicationContent() {
     "Housing Sector",
   ];
 
-  // ---------- Slider states (fallback for EMI – kept for consistency) ----------
+  // ---------- Slider states (kept for consistency, not used in EMI now) ----------
   const [loanAmount, setLoanAmount] = useState([500000]);
   const [interestRate, setInterestRate] = useState([8.0]);
   const [tenure, setTenure] = useState([12]);
@@ -107,7 +106,6 @@ function BusinessLoanApplicationContent() {
         const result = await fetchLoanData();
         const data = result?.data?.data || result?.data || result;
         if (data?.loanSector && Array.isArray(data.loanSector)) {
-          // Filter loan sectors to only those in ALLOWED_SECTORS list
           const filteredSectors = data.loanSector.filter((sector: any) =>
             ALLOWED_SECTORS.some(
               (allowed) =>
@@ -128,7 +126,6 @@ function BusinessLoanApplicationContent() {
   }, []);
 
   // ---------- Cascading Dropdown Effects ----------
-  // Sector → Sub‑sector
   useEffect(() => {
     if (selectedSector) {
       const sector = loanSectorOptions.find(
@@ -139,7 +136,6 @@ function BusinessLoanApplicationContent() {
       } else {
         setLoanSubSectorOptions([]);
       }
-      // Reset dependent fields
       setSelectedSubSector("");
       setSelectedSubSectorCategory("");
       setApiTenure(0);
@@ -153,7 +149,6 @@ function BusinessLoanApplicationContent() {
     }
   }, [selectedSector, loanSectorOptions]);
 
-  // Sub‑sector → Category + Tenure + Interest rate
   useEffect(() => {
     if (selectedSubSector) {
       const subSectorIndex = parseInt(selectedSubSector.split("-")[1]);
@@ -181,51 +176,75 @@ function BusinessLoanApplicationContent() {
     }
   }, [selectedSubSector, loanSubSectorOptions]);
 
+  // ---------- Helper to save data to sessionStorage ----------
+  const saveToSession = (data: any) => {
+    const existing = sessionStorage.getItem("businessLoanApplicationData");
+    const parsed = existing ? JSON.parse(existing) : {};
+    const merged = { ...parsed, ...data };
+    sessionStorage.setItem(
+      "businessLoanApplicationData",
+      JSON.stringify(merged),
+    );
+  };
+
   // ---------- Navigation Handlers ----------
   const handleLoanDetailsNext = () => {
     if (!isFormValid()) return;
-
-    const loanData = {
-      loanType: selectedLoanType,
-      loanSector: selectedSector,
-      loanSubSector: selectedSubSector,
-      loanSubSectorCategory: selectedSubSectorCategory,
-      loanAmount: totalLoanInput,
-      loanPurpose,
-      tenure: apiTenure,
-      interestRate: apiInterestRate,
-    };
-    setFormData({ ...formData, ...loanData });
     setShowDocumentPopup(true);
   };
 
   const handleBusinessDetailsNext = (data: any) => {
-    setFormData({ ...formData, ...data });
+    setFormData((prev: any) => ({ ...prev, ...data }));
+    saveToSession(data);
     setCurrentStep(2);
   };
 
   const handleCoBorrowerNext = (data: any) => {
-    setFormData({ ...formData, ...data });
+    setFormData((prev: any) => ({ ...prev, ...data }));
+    saveToSession(data);
     setCurrentStep(3);
   };
 
   const handleSecurityNext = (data: any) => {
-    setFormData({ ...formData, ...data });
+    setFormData((prev: any) => ({ ...prev, ...data }));
+    saveToSession(data);
     setCurrentStep(4);
   };
 
   const handleRepaymentSourceNext = (data: any) => {
-    setFormData({ ...formData, ...data });
+    setFormData((prev: any) => ({ ...prev, ...data }));
+    saveToSession(data);
     setCurrentStep(5);
   };
 
   const handleConfirmationNext = (data: any) => {
-    setFormData({ ...formData, ...data });
+    setFormData((prev: any) => ({ ...prev, ...data }));
+    saveToSession(data);
     alert("Business Loan Application submitted successfully!");
   };
 
+  // ---------- EMI Calculation ----------
+  const calculateEMI = () => {
+    const amount = parseFloat(totalLoanInput);
+    if (!amount || amount <= 0 || apiInterestRate <= 0 || apiTenure <= 0) {
+      return "0.00";
+    }
+
+    const P = amount;
+    const r = apiInterestRate / 12 / 100; // Monthly interest rate
+    const n = apiTenure; // Already in months
+
+    // EMI formula
+    const emi = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+
+    if (isNaN(emi) || !isFinite(emi)) {
+      return "0.00";
+    }
+
+    return emi.toFixed(2);
+  };
+
   // ---------- Utilities ----------
-  // Validation: four dropdowns + positive loan amount (purpose is optional)
   const isFormValid = () => {
     return (
       selectedLoanType !== "" &&
@@ -509,7 +528,7 @@ function BusinessLoanApplicationContent() {
               </CardContent>
             </Card>
 
-            {/* Right Column – Loan Amount, Purpose */}
+            {/* Right Column – Loan Amount, Purpose, and EMI */}
             <Card className="shadow-lg sm:shadow-xl border-0 bg-white rounded-lg sm:rounded-2xl overflow-hidden">
               <CardContent className="p-4 sm:p-6 md:p-10 space-y-4 sm:space-y-6 md:space-y-8">
                 <div className="space-y-4">
@@ -539,6 +558,22 @@ function BusinessLoanApplicationContent() {
                       onChange={(e) => setLoanPurpose(e.target.value)}
                     />
                   </div>
+
+                  {/* EMI Display */}
+                  {parseFloat(totalLoanInput) > 0 &&
+                    apiInterestRate > 0 &&
+                    apiTenure > 0 && (
+                      <div className="border-t border-gray-200 pt-4 sm:pt-6 md:pt-8 mt-4 sm:mt-6 md:mt-8">
+                        <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] p-6 sm:p-8 md:p-12 rounded-xl sm:rounded-2xl text-center shadow-xl sm:shadow-2xl transform hover:scale-105 transition-transform duration-300">
+                          <p className="text-sm sm:text-base md:text-lg text-white/95 mb-3 sm:mb-4 font-semibold tracking-wide">
+                            Your Monthly EMI
+                          </p>
+                          <p className="text-3xl sm:text-5xl md:text-7xl font-bold text-white drop-shadow-lg break-all">
+                            Nu. {calculateEMI()}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                 </div>
               </CardContent>
             </Card>
@@ -620,11 +655,24 @@ function BusinessLoanApplicationContent() {
           )}
       </div>
 
-      {/* Document Popup – exactly like individual page */}
+      {/* Document Popup */}
       <DocumentPopupBusiness
         open={showDocumentPopup}
         onOpenChange={setShowDocumentPopup}
         onProceed={() => {
+          const loanDetails = {
+            loanType: selectedLoanType,
+            loanSector: selectedSector,
+            loanSubSector: selectedSubSector,
+            loanSubSectorCategory: selectedSubSectorCategory,
+            loanAmount: totalLoanInput,
+            loanPurpose,
+            tenure: apiTenure,
+            interestRate: apiInterestRate,
+          };
+
+          setFormData((prev: any) => ({ ...prev, ...loanDetails }));
+          saveToSession(loanDetails);
           setShowDocumentPopup(false);
           setCurrentStep(1);
         }}

@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { de } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
@@ -38,6 +37,7 @@ import {
   fetchLegalConstitution,
   fetchPepCategory,
   fetchPepSubCategoryByCategory,
+  // No loan‑related fetches here – they are passed as props
 } from "@/services/api";
 
 /* ----------------------- Types ----------------------- */
@@ -45,7 +45,13 @@ import {
 interface ConfirmationProps {
   onNext: (data: any) => void;
   onBack: () => void;
-  formData: any;
+  formData: any; // full session data
+
+  // Loan options passed from parent (optional, but recommended)
+  loanTypeOptions?: any[];
+  loanSectorOptions?: any[];
+  loanSubSectorOptions?: any[];
+  loanSubSectorCategoryOptions?: any[];
 }
 
 // --- Constants for Uniform Styling ---
@@ -67,7 +73,24 @@ const formatDateForInput = (dateString: string | null | undefined) => {
   }
 };
 
-// --- Helper to get option label from value ---
+/**
+ * Extracts the numeric ID from a value that may be stored as "id-index" or just "id".
+ * Example: "1-0" → "1", "2" → "2"
+ */
+const extractId = (value: any): string => {
+  if (!value) return "";
+  const str = String(value);
+  const parts = str.split("-");
+  return parts[0]; // take the first part before any hyphen
+};
+
+/**
+ * Finds the label for a given value from an options array.
+ * @param options Array of option objects
+ * @param value The stored value (may contain "-index")
+ * @param valueKey The key in the option object that holds the ID (e.g. "pk_id", "loan_sector_id")
+ * @param labelKey The key in the option object that holds the display label (e.g. "loan_type", "loan_sector")
+ */
 const getOptionLabel = (
   options: any[],
   value: any,
@@ -75,7 +98,8 @@ const getOptionLabel = (
   labelKey = "name",
 ) => {
   if (!value || !options || options.length === 0) return value || "";
-  const option = options.find((opt) => String(opt[valueKey]) === String(value));
+  const id = extractId(value);
+  const option = options.find((opt) => String(opt[valueKey]) === String(id));
   return option ? option[labelKey] : value;
 };
 
@@ -85,38 +109,52 @@ export function BusinessConfirmation({
   onNext,
   onBack,
   formData,
+  loanTypeOptions = [],
+  loanSectorOptions = [],
+  loanSubSectorOptions = [],
+  loanSubSectorCategoryOptions = [],
 }: ConfirmationProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const laonData = formData || {};
-  const personalData = formData?.personalDetails || {};
-  const coBorrowerData = formData?.coBorrowerDetails || {};
-  const securityData = formData?.securityDetails || {};
-  const repaymentData = formData?.repaymentSource || {};
-  const guarantorsData = formData?.guarantors || [];
 
-  // Extract business details from formData
-  const businessData = formData?.businessData || {
-    businessName: "",
-    establishmentDate: "",
-    industryClassification: "",
+  // ---------- Extract all data from the session (the provided structure) ----------
+  const session = formData || {};
+
+  // Loan details
+  const loanData = {
+    loanType: session.loanType || "",
+    loanSector: session.loanSector || "",
+    loanSubSector: session.loanSubSector || "",
+    loanSubSectorCategory: session.loanSubSectorCategory || "",
+    loanAmount: session.loanAmount || "",
+    loanPurpose: session.loanPurpose || "",
+    interestRate: session.interestRate || "",
+    tenure: session.tenure || "",
+  };
+
+  // Business details (top-level fields)
+  const businessData = {
+    businessName: session.businessName || "",
+    establishmentDate: session.establishmentDate || "",
+    industryClassification: session.industryClassification || "",
+    // Business identification (not present in session – leave empty or map from elsewhere if needed)
     identificationType: "",
     identificationNumber: "",
     identificationIssueDate: "",
     identificationExpiryDate: "",
-    identificationProofFile: null,
     identificationProofFileName: "",
-    taxIdentifierType: "",
-    taxIdentifierNumber: "",
-    bankCurrentAccountNumber: "",
-    bankSavingAccountNumber: "",
-    nameOfBank: "",
-    grossAnnualIncome: "",
-    businessType: "",
+    taxIdentifierType: session.taxIdentifierType || "",
+    taxIdentifierNumber: session.taxIdentifierNumber || "",
+    bankCurrentAccountNumber: session.bankCurrentAccountNumber || "",
+    bankSavingAccountNumber: session.bankSavingAccountNumber || "",
+    nameOfBank: session.nameOfBank || "",
+    grossAnnualIncome: session.grossAnnualIncome || "",
+    businessType: session.businessType || "",
   };
 
-  const businessAddress = formData?.businessAddress || {
+  // Business address
+  const businessAddress = session.businessAddress || {
     country: "",
     dzongkhag: "",
     gewog: "",
@@ -127,7 +165,8 @@ export function BusinessConfirmation({
     email: "",
   };
 
-  const attachments = formData?.attachments || {
+  // Attachments (if any)
+  const attachments = session.attachments || {
     familyTree: null,
     familyTreeName: "",
     supportingDoc: null,
@@ -135,16 +174,37 @@ export function BusinessConfirmation({
     declarationConsent: false,
   };
 
-  const ownerData = formData?.ownerData || {};
-  const partners = formData?.partners || [];
-  const ceo = formData?.ceo || {};
-  const boardMembers = formData?.boardMembers || [];
-  const shareholders = formData?.shareholders || [];
-  const trustees = formData?.trustees || [];
-  const president = formData?.president || {};
-  const headOfAgency = formData?.headOfAgency || {};
-  const headOfNGO = formData?.headOfNGO || {};
+  // Ownership / management data (directly from session)
+  const ownerData = session.ownerData || {};
+  const partners = session.partners || [];
+  const ceo = session.ceo || {};
+  const boardMembers = session.boardMembers || [];
+  const shareholders = session.shareholders || [];
+  const trustees = session.trustees || [];
+  const president = session.president || {};
+  const headOfAgency = session.headOfAgency || {};
+  const headOfNGO = session.headOfNGO || {};
 
+  // Co‑borrowers (if needed – not displayed yet, but we keep them)
+  const coBorrowers = session.coBorrowers || [];
+
+  // Security details – take the first item (the UI currently shows only one)
+  const securityData = session.securityDetails?.[0] || {};
+
+  // Repayment source
+  const repaymentData = {
+    repaymentSourceType: session.businessIncome?.repaymentSourceType || "",
+    monthlyIncome: session.businessIncome?.amount || "",
+    proofFileName: session.businessIncome?.proofFileName || "",
+  };
+
+  // Guarantors (repayment guarantors)
+  const guarantorsData = session.guarantors || [];
+
+  // Additional guarantors (security guarantors) – not shown separately, but we keep them
+  const additionalGuarantors = session.additionalGuarantors || [];
+
+  // ---------- Fetch other dropdown options (country, banks, etc.) ----------
   const [countryOptions, setCountryOptions] = useState<any[]>([]);
   const [dzongkhagOptions, setDzongkhagOptions] = useState<any[]>([]);
   const [gewogOptions, setGewogOptions] = useState<any[]>([]);
@@ -222,97 +282,81 @@ export function BusinessConfirmation({
     }
   }, [businessAddress.dzongkhag, isBusinessBhutan]);
 
-  /* ---------------- Payload Builder ---------------- */
-
+  /* ---------------- Payload Builder (unchanged) ---------------- */
   const buildBilPayload = () => ({
     loanData: {
-      loanType: laonData.loanType,
-      loanSector: laonData.loanSector,
-      loanSubSector: laonData.loanSubSector,
-      loanSubSectorCategory: laonData.loanSubSectorCategory,
-      loanAmount: laonData.loanAmount,
-      loanPurpose: laonData.loanPurpose,
+      loanType: loanData.loanType,
+      loanSector: loanData.loanSector,
+      loanSubSector: loanData.loanSubSector,
+      loanSubSectorCategory: loanData.loanSubSectorCategory,
+      loanAmount: loanData.loanAmount,
+      loanPurpose: loanData.loanPurpose,
     },
     personalData: {
-      salutation: personalData.salutation,
-      applicantName: personalData.applicantName,
-      nationality: personalData.nationality,
-      cid: personalData.identificationNo,
-      issueDate: personalData.identificationIssueDate,
-      expiryDate: personalData.identificationExpiryDate,
-      gender: personalData.gender,
-      dob: personalData.dateOfBirth,
-      maritalStatus: personalData.maritalStatus,
-      tpn: personalData.tpn,
-      spouseName: personalData.spouseName,
-      spouseCid: personalData.spouseCid,
-      spouseContact: personalData.spouseContact,
-      familyTreeDocs: personalData.familyTreeDocs,
-      bankName: personalData.bankName,
-      bankAccount: personalData.bankAccount,
-      contact: personalData.currContact,
-      alternateContact: personalData.alternateContact,
-      email: personalData.currEmail,
-      permCountry: personalData.permCountry,
-      permDzongkhag: personalData.permDzongkhag,
-      permGewog: personalData.permGewog,
-      permVillage: personalData.permVillage,
-      permThram: personalData.permThram,
-      permHouse: personalData.permHouse,
-      currCountry: personalData.currCountry,
-      currDzongkhag: personalData.currDzongkhag,
-      currGewog: personalData.currGewog,
-      currVillage: personalData.currVillage,
-      currFlat: personalData.currFlat,
-      pep: personalData.pepPerson,
-      proofDoc: personalData.identificationProof,
-      pepSubCategory: personalData.pepSubCategory,
-      pepRelated: personalData.pepRelated,
-      pepRelationship: personalData.pepRelationship,
-      pepIdentificationNo: personalData.pepIdentificationNo,
-      pepCategory: personalData.pepCategory,
-      pepSubCat2: personalData.pepSubCat2,
-      bilRelated: personalData.bilRelated,
-      empolymentStatus: personalData.employmentStatus,
-      occupation: personalData.occupation,
-      organizationName: personalData.organizationName,
-      employerType: personalData.employerType,
-      orgLocation: personalData.orgLocation,
-      employeeId: personalData.employeeId,
-      joiningDate: personalData.joiningDate,
-      designation: personalData.designation,
-      grade: personalData.grade,
-      employeeType: personalData.employeeType,
-      grossIncome: personalData.grossIncome,
+      salutation: ownerData.salutation,
+      applicantName: ownerData.applicantName,
+      nationality: ownerData.nationality,
+      cid: ownerData.identificationNo,
+      issueDate: ownerData.identificationIssueDate,
+      expiryDate: ownerData.identificationExpiryDate,
+      gender: ownerData.gender,
+      dob: ownerData.dateOfBirth,
+      maritalStatus: ownerData.maritalStatus,
+      tpn: ownerData.tpn,
+      spouseName: ownerData.spouseName,
+      spouseCid: ownerData.spouseIdentificationNo,
+      spouseContact: ownerData.spouseContact,
+      familyTreeDocs: ownerData.familyTree,
+      bankName: ownerData.bankName,
+      bankAccount: ownerData.bankAccount,
+      contact: ownerData.currContact,
+      alternateContact: ownerData.currAlternateContact,
+      email: ownerData.currEmail,
+      permCountry: ownerData.permCountry,
+      permDzongkhag: ownerData.permDzongkhag,
+      permGewog: ownerData.permGewog,
+      permVillage: ownerData.permVillage,
+      permThram: ownerData.permThram,
+      permHouse: ownerData.permHouse,
+      currCountry: ownerData.currCountry,
+      currDzongkhag: ownerData.currDzongkhag,
+      currGewog: ownerData.currGewog,
+      currVillage: ownerData.currVillage,
+      currFlat: ownerData.currFlat,
+      pep: ownerData.pepPerson,
+      proofDoc: ownerData.identificationProof,
+      pepSubCategory: ownerData.pepSubCategory,
+      pepRelated: ownerData.pepRelated,
+      pepRelationship: ownerData.pepRelationship,
+      pepIdentificationNo: ownerData.pepIdentificationNo,
+      pepCategory: ownerData.pepCategory,
+      pepSubCat2: ownerData.pepSubCat2,
+      bilRelated: ownerData.bilRelated,
+      empolymentStatus: ownerData.employmentStatus,
+      occupation: ownerData.occupation,
+      organizationName: ownerData.organizationName,
+      employerType: ownerData.employerType,
+      orgLocation: ownerData.orgLocation,
+      employeeId: ownerData.employeeId,
+      joiningDate: ownerData.joiningDate,
+      designation: ownerData.designation,
+      grade: ownerData.grade,
+      employeeType: ownerData.employeeType,
+      grossIncome: ownerData.annualIncome,
     },
-
-    coBorrowerData: {
-      salutation: coBorrowerData.salutation,
-      name: coBorrowerData.name,
-      nationality: coBorrowerData.nationality,
-      identificationType: coBorrowerData.identificationType,
-      cid: coBorrowerData.cid,
-      pep: coBorrowerData.pep,
-      pep_related: coBorrowerData.pepRelated,
-      identification_proof: coBorrowerData.identificationProof,
-      relationship: coBorrowerData.relationship,
-      contact: coBorrowerData.contact,
-    },
-
+    coBorrowerData: coBorrowers[0] || {},
     securityData: {
       securityType: securityData.securityType,
       propertyLocation: securityData.propertyLocation,
       estimatedValue: securityData.estimatedValue,
     },
-
     repaymentData: {
-      source: repaymentData.source,
+      source: repaymentData.repaymentSourceType,
       monthlyIncome: repaymentData.monthlyIncome,
     },
   });
 
   /* ---------------- Submit Handler ---------------- */
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -332,16 +376,15 @@ export function BusinessConfirmation({
         }
       });
 
-      if (personalData.passportPhotoFile instanceof File) {
-        fd.append("passportPhoto", personalData.passportPhotoFile);
+      // Append files if they exist (adjust paths as needed)
+      if (ownerData.passportPhoto instanceof File) {
+        fd.append("passportPhoto", ownerData.passportPhoto);
       }
-
-      if (personalData.currAddressProofFile instanceof File) {
-        fd.append("currentAddressProof", personalData.currAddressProofFile);
+      if (ownerData.currAddressProof instanceof File) {
+        fd.append("currentAddressProof", ownerData.currAddressProof);
       }
-
-      if (personalData.permAddressProofFile instanceof File) {
-        fd.append("permanentAddressProof", personalData.permAddressProofFile);
+      if (ownerData.permAddressProof instanceof File) {
+        fd.append("permanentAddressProof", ownerData.permAddressProof);
       }
 
       const res = await fetch("https://bil.example.com/api/loan-applications", {
@@ -388,7 +431,7 @@ export function BusinessConfirmation({
           type="button"
           onClick={() => setOpen(!open)}
           className={`w-full flex justify-between items-center px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-base sm:text-lg md:text-xl font-bold transition-colors
-            ${headerClassName || "bg-gray-100 text-gray-800 hover:bg-gray-200"}`}
+            ${headerClassName || "bg-[#e68900] text-white hover:bg-[#e68900]"}`}
         >
           {title}
           <span className="text-xl sm:text-2xl font-bold">
@@ -438,38 +481,58 @@ export function BusinessConfirmation({
       onSubmit={handleSubmit}
       className="space-y-6 sm:space-y-8 md:space-y-10 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12"
     >
+      {/* LOAN DETAILS */}
       <AccordionSection title="Loan Details" defaultOpen={true}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           <Field
             label="Loan Type"
-            value={laonData.loanType}
-            capitalizeFirst={true}
+            value={getOptionLabel(
+              loanTypeOptions,
+              loanData.loanType,
+              "pk_id",
+              "loan_type",
+            )}
           />
           <Field
             label="Loan Sector"
-            value={laonData.loanSector}
-            capitalizeFirst={true}
+            value={getOptionLabel(
+              loanSectorOptions,
+              loanData.loanSector,
+              "loan_sector_id",
+              "loan_sector",
+            )}
           />
           <Field
             label="Loan Sub-Sector"
-            value={laonData.loanSubSector}
-            capitalizeFirst={true}
+            value={getOptionLabel(
+              loanSubSectorOptions,
+              loanData.loanSubSector,
+              "sub_sector_id",
+              "sub_sector",
+            )}
           />
           <Field
             label="Loan Sub-Sector Category"
-            value={laonData.loanSubSectorCategory}
-            capitalizeFirst={true}
+            value={getOptionLabel(
+              loanSubSectorCategoryOptions,
+              loanData.loanSubSectorCategory,
+              "sub_sector_cat_id",
+              "sub_cat_sector",
+            )}
           />
-          <Field label="Loan Amount" value={laonData.loanAmount} />
-          <Field label="Loan Purpose" value={laonData.loanPurpose} />
+          <Field label="Loan Amount (Nu.)" value={loanData.loanAmount} />
+          <Field label="Loan Purpose" value={loanData.loanPurpose} />
+          <Field label="Interest Rate (%)" value={loanData.interestRate} />
+          <Field label="Tenure (months)" value={loanData.tenure} />
         </div>
       </AccordionSection>
 
+      {/* PERSONAL DETAILS (includes business & ownership) */}
       <AccordionSection title="Personal Details" defaultOpen>
         <div className="max-w-7xl mx-auto space-y-8 pb-10">
           {/* --- A. BUSINESS DETAILS --- */}
           <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
-            <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+            <h2 className="text-2xl font-bold text-gray-800 border-b border-gray-200 pb-4">
               A. BUSINESS DETAILS
             </h2>
 
@@ -618,20 +681,20 @@ export function BusinessConfirmation({
           {/* --- B. OWNERSHIP / MANAGEMENT DETAILS --- */}
           {businessData.businessType && (
             <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
-              <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+              <h2 className="text-2xl font-bold text-gray-800 border-b border-gray-200 pb-4">
                 B. OWNERSHIP & MANAGEMENT DETAILS
               </h2>
 
-              {/* Owner Details Display Component */}
+              {/* Owner Details (Sole Proprietorship) */}
               {businessData.businessType === "Sole Proprietorship" &&
                 ownerData && (
                   <div className="space-y-6">
                     <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                      <Users className="h-5 w-5 text-[#003DA5]" /> Owner
-                      Personal Details
+                      <Users className="h-5 w-5 text-gray-600" /> Owner Personal
+                      Details
                     </h3>
                     <div className="border border-gray-200 rounded-lg p-6 bg-gray-50/50 mb-6">
-                      <h4 className="text-xl font-bold text-[#003DA5] mb-6">
+                      <h4 className="text-xl font-bold text-gray-800 mb-6">
                         Owner Personal Information
                       </h4>
                       <div className="space-y-8">
@@ -718,7 +781,7 @@ export function BusinessConfirmation({
                             ?.toLowerCase()
                             .includes("married") && (
                             <div className="mt-4 border-t pt-4">
-                              <h5 className="font-semibold text-[#003DA5] mb-4">
+                              <h5 className="font-semibold text-gray-800 mb-4">
                                 Spouse Personal Information
                               </h5>
                               <div className="grid md:grid-cols-3 gap-6">
@@ -769,7 +832,7 @@ export function BusinessConfirmation({
 
                         {/* Address Details */}
                         <div className="space-y-6 pt-4 border-t">
-                          <h5 className="font-semibold text-[#003DA5]">
+                          <h5 className="font-semibold text-gray-800">
                             Permanent Address
                           </h5>
                           <div className="grid md:grid-cols-4 gap-6">
@@ -848,7 +911,7 @@ export function BusinessConfirmation({
 
                         {/* Current Address */}
                         <div className="space-y-4 pt-4 border-t">
-                          <h5 className="font-semibold text-[#003DA5]">
+                          <h5 className="font-semibold text-gray-800">
                             Current/Residential Address
                           </h5>
                           <div className="grid md:grid-cols-4 gap-6">
@@ -936,7 +999,7 @@ export function BusinessConfirmation({
                         {/* PEP Declaration */}
                         {ownerData.pepPerson && (
                           <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
-                            <h5 className="font-semibold text-[#003DA5]">
+                            <h5 className="font-semibold text-gray-800">
                               PEP Declaration
                             </h5>
                             <div className="grid md:grid-cols-4 gap-6">
@@ -981,7 +1044,7 @@ export function BusinessConfirmation({
                         {/* Employment Status */}
                         {ownerData.employmentStatus && (
                           <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
-                            <h5 className="font-semibold text-[#003DA5]">
+                            <h5 className="font-semibold text-gray-800">
                               Employment Status
                             </h5>
                             <Field
@@ -1073,7 +1136,7 @@ export function BusinessConfirmation({
                 partners.length > 0 && (
                   <div className="space-y-6">
                     <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                      <Users className="h-5 w-5 text-[#003DA5]" /> Partners
+                      <Users className="h-5 w-5 text-gray-600" /> Partners
                       Personal Details
                     </h3>
                     {partners.map((partner: any, index: number) => (
@@ -1081,7 +1144,7 @@ export function BusinessConfirmation({
                         key={index}
                         className="border border-gray-200 rounded-lg p-6 bg-gray-50/50 mb-6"
                       >
-                        <h4 className="text-xl font-bold text-[#003DA5] mb-6">
+                        <h4 className="text-xl font-bold text-gray-800 mb-6">
                           Partner {index + 1} Personal Details
                         </h4>
                         <div className="space-y-6">
@@ -1121,7 +1184,7 @@ export function BusinessConfirmation({
                   {shareholders.length > 0 && (
                     <div className="space-y-6">
                       <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <Users className="h-5 w-5 text-[#003DA5]" /> 1.
+                        <Users className="h-5 w-5 text-gray-600" /> 1.
                         Shareholders / Partners Personal Details
                       </h3>
                       {shareholders.map((sh: any, idx: number) => (
@@ -1129,7 +1192,7 @@ export function BusinessConfirmation({
                           key={idx}
                           className="border border-gray-200 rounded-lg p-6 bg-gray-50/50 mb-6"
                         >
-                          <h4 className="text-xl font-bold text-[#003DA5] mb-6">
+                          <h4 className="text-xl font-bold text-gray-800 mb-6">
                             Shareholder {idx + 1} Information
                           </h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1155,7 +1218,7 @@ export function BusinessConfirmation({
                   {ceo && ceo.applicantName && (
                     <div className="space-y-6 pt-8 border-t border-dashed">
                       <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <UserCheck className="h-5 w-5 text-[#003DA5]" /> 2. CEO
+                        <UserCheck className="h-5 w-5 text-gray-600" /> 2. CEO
                         Personal Details
                       </h3>
                       <div className="border border-gray-200 rounded-lg p-6 bg-gray-50/50">
@@ -1177,7 +1240,7 @@ export function BusinessConfirmation({
                   {boardMembers.length > 0 && (
                     <div className="space-y-6 pt-8 border-t border-dashed">
                       <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <Users className="h-5 w-5 text-[#003DA5]" /> 3. Board of
+                        <Users className="h-5 w-5 text-gray-600" /> 3. Board of
                         Directors Information
                       </h3>
                       {boardMembers.map((bm: any, idx: number) => (
@@ -1185,7 +1248,7 @@ export function BusinessConfirmation({
                           key={idx}
                           className="border border-gray-200 rounded-lg p-6 bg-gray-50/50 mb-6"
                         >
-                          <h4 className="text-xl font-bold text-[#003DA5] mb-6">
+                          <h4 className="text-xl font-bold text-gray-800 mb-6">
                             Director {idx + 1} Information
                           </h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1212,7 +1275,7 @@ export function BusinessConfirmation({
                   "Partnership",
                   "Private Limited Company",
                 ].includes(businessData.businessType) && (
-                  <div className="p-4 bg-blue-50 border-l-4 border-[#003DA5] text-sm text-[#003DA5]">
+                  <div className="p-4 bg-blue-50 border-l-4 border-blue-600 text-sm text-blue-800">
                     <strong>Note:</strong> {businessData.businessType}{" "}
                     ownership/management details are included in the submitted
                     data.
@@ -1223,154 +1286,181 @@ export function BusinessConfirmation({
         </div>
       </AccordionSection>
 
+      {/* SECURITY DETAILS */}
       <AccordionSection title="Security Details" defaultOpen>
-        {securityData.securityType?.toLowerCase() !== "not applicable" && (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 pb-6">
-              <Field
-                label="Security Type"
-                value={securityData.securityType || "N/A"}
-                capitalizeFirst
-              />
-              <Field
-                label="Security Ownership"
-                value={securityData.ownershipType || "N/A"}
-                capitalizeFirst
-              />
-              <Field
-                label="Property Location"
-                value={securityData.propertyLocation || "N/A"}
-              />
-              <Field
-                label="Estimated Value"
-                value={securityData.estimatedValue || "N/A"}
-              />
-            </div>
-
-            {/* Land Security Details */}
-            {securityData.securityType?.toLowerCase() === "land" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+        {securityData.securityType &&
+          securityData.securityType?.toLowerCase() !== "not applicable" && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 pb-6">
                 <Field
-                  label="Thram No."
-                  value={securityData.thramNo || "N/A"}
-                />
-                <Field label="Plot No." value={securityData.plotNo || "N/A"} />
-                <Field
-                  label="Area (Sq.Ft)"
-                  value={securityData.Area || "N/A"}
+                  label="Security Type"
+                  value={securityData.securityType || "N/A"}
+                  capitalizeFirst
                 />
                 <Field
-                  label="Land Use Type"
-                  value={securityData.landUse || "N/A"}
-                />
-                <Field
-                  label="Dzongkhag"
-                  value={securityData.dzongkhag || "N/A"}
-                />
-                <Field label="Gewog" value={securityData.gewog || "N/A"} />
-                <Field
-                  label="Village/Street"
-                  value={securityData.village || "N/A"}
-                />
-                <Field
-                  label="House No."
-                  value={securityData.houseNo || "N/A"}
+                  label="Security Ownership"
+                  value={securityData.ownershipType || "N/A"}
+                  capitalizeFirst
                 />
               </div>
-            )}
 
-            {/* Vehicle Security Details */}
-            {securityData.securityType?.toLowerCase() === "vehicle" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+              {/* Land Security Details */}
+              {securityData.securityType?.toLowerCase() === "land" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+                  <Field
+                    label="Thram No."
+                    value={securityData.thramNo || "N/A"}
+                  />
+                  <Field
+                    label="Plot No."
+                    value={securityData.plotNo || "N/A"}
+                  />
+                  <Field
+                    label="Area (Sq.Ft)"
+                    value={securityData.area || "N/A"}
+                  />
+                  <Field
+                    label="Land Use Type"
+                    value={securityData.landUse || "N/A"}
+                  />
+                  <Field
+                    label="Dzongkhag"
+                    value={securityData.dzongkhag || "N/A"}
+                  />
+                  <Field label="Gewog" value={securityData.gewog || "N/A"} />
+                  <Field
+                    label="Village/Street"
+                    value={securityData.village || "N/A"}
+                  />
+                  <Field
+                    label="House No."
+                    value={securityData.houseNo || "N/A"}
+                  />
+                </div>
+              )}
+
+              {/* Vehicle Security Details */}
+              {securityData.securityType?.toLowerCase() === "vehicle" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+                  <Field
+                    label="Vehicle Type"
+                    value={securityData.vehicleType || "N/A"}
+                  />
+                  <Field
+                    label="Make/Brand"
+                    value={securityData.vehicleMake || "N/A"}
+                  />
+                  <Field
+                    label="Model"
+                    value={securityData.vehicleModel || "N/A"}
+                  />
+                  <Field
+                    label="Year of Manufacture"
+                    value={securityData.vehicleYear || "N/A"}
+                  />
+                  <Field
+                    label="Registration No."
+                    value={securityData.registrationNo || "N/A"}
+                  />
+                  <Field
+                    label="Chassis No."
+                    value={securityData.chassisNo || "N/A"}
+                  />
+                  <Field
+                    label="Engine No."
+                    value={securityData.engineNo || "N/A"}
+                  />
+                </div>
+              )}
+
+              {/* Insurance Security Details */}
+              {securityData.securityType?.toLowerCase() === "insurance" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+                  <Field
+                    label="Insurance Company"
+                    value={securityData.insuranceCompany || "N/A"}
+                  />
+                  <Field
+                    label="Policy No."
+                    value={securityData.policyNo || "N/A"}
+                  />
+                  <Field
+                    label="Insurance Value"
+                    value={securityData.insuranceValue || "N/A"}
+                  />
+                  <Field
+                    label="Start Date"
+                    value={formatDateForInput(securityData.insuranceStartDate)}
+                  />
+                  <Field
+                    label="Expiry Date"
+                    value={formatDateForInput(securityData.insuranceExpiryDate)}
+                  />
+                </div>
+              )}
+
+              {/* Pension/Provident Security Details */}
+              {securityData.securityType?.toLowerCase() === "pension" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+                  <Field
+                    label="Institution Name"
+                    value={securityData.ppfInstitution || "N/A"}
+                  />
+                  <Field
+                    label="Provident Fund No."
+                    value={securityData.ppfFundNo || "N/A"}
+                  />
+                  <Field
+                    label="Account No."
+                    value={securityData.ppfAccountNo || "N/A"}
+                  />
+                  <Field
+                    label="Fund Value (Nu.)"
+                    value={securityData.ppfValue || "N/A"}
+                  />
+                </div>
+              )}
+
+              {/* Fixed Deposit Details */}
+              {securityData.securityType?.toLowerCase() === "fixed deposit" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+                  <Field
+                    label="FD Account No."
+                    value={securityData.fdAccountNo || "N/A"}
+                  />
+                  <Field
+                    label="FD Amount"
+                    value={securityData.fdAmount || "N/A"}
+                  />
+                  <Field label="FD Bank" value={securityData.fdBank || "N/A"} />
+                  <Field
+                    label="Maturity Date"
+                    value={formatDateForInput(securityData.fdMaturityDate)}
+                  />
+                </div>
+              )}
+
+              {/* Security Proof Document */}
+              <div className="pt-6 mt-6 border-t">
                 <Field
-                  label="Vehicle Type"
-                  value={securityData.vehicleType || "N/A"}
-                />
-                <Field label="Make/Brand" value={securityData.Brand || "N/A"} />
-                <Field label="Model" value={securityData.Model || "N/A"} />
-                <Field
-                  label="Year of Manufacture"
-                  value={securityData.Manufacture || "N/A"}
-                />
-                <Field
-                  label="Registration No."
-                  value={securityData.registrationNo || "N/A"}
-                />
-                <Field
-                  label="Chassis No."
-                  value={securityData.chassisNo || "N/A"}
-                />
-                <Field
-                  label="Engine No."
-                  value={securityData.engineNo || "N/A"}
+                  label="Security Proof Document"
+                  value={securityData.securityProof || "No file uploaded"}
                 />
               </div>
-            )}
-
-            {/* Insurance Security Details */}
-            {securityData.securityType?.toLowerCase() === "insurance" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
-                <Field
-                  label="Insurance Company"
-                  value={securityData.insuranceCompany || "N/A"}
-                />
-                <Field
-                  label="Policy No."
-                  value={securityData.policyNo || "N/A"}
-                />
-                <Field
-                  label="Insurance Value"
-                  value={securityData.insuranceValue || "N/A"}
-                />
-                <Field
-                  label="Start Date"
-                  value={securityData.insuranceStartDate || "N/A"}
-                />
-                <Field
-                  label="Expiry Date"
-                  value={securityData.insuranceExpiryDate || "N/A"}
-                />
-              </div>
-            )}
-
-            {/* Pension/Provident Security Details */}
-            {securityData.securityType?.toLowerCase() === "pension" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
-                <Field
-                  label="Institution Name"
-                  value={securityData.Institution || "N/A"}
-                />
-                <Field
-                  label="Provident Fund"
-                  value={securityData.Provident || "N/A"}
-                />
-                <Field
-                  label="Account No."
-                  value={securityData.account || "N/A"}
-                />
-                <Field
-                  label="Fund Value (Nu.)"
-                  value={securityData.fund || "N/A"}
-                />
-              </div>
-            )}
-
-            {/* Security Proof Document */}
-            <div className="pt-6 mt-6 border-t">
-              <Field
-                label="Security Proof Document"
-                value={securityData.proofDoc || "No file uploaded"}
-              />
-            </div>
-          </>
+            </>
+          )}
+        {(!securityData.securityType ||
+          securityData.securityType?.toLowerCase() === "not applicable") && (
+          <p className="text-gray-500 italic">No security details provided.</p>
         )}
       </AccordionSection>
 
+      {/* REPAYMENT SOURCE */}
       <AccordionSection title="Repayment Source" defaultOpen>
         <div className="space-y-8">
           {/* Primary Repayment Source */}
           <div>
-            <h4 className="text-lg font-bold text-[#003DA5] mb-4 bg-gray-50 p-2 rounded">
+            <h4 className="text-lg font-bold text-gray-800 mb-4 bg-gray-50 p-2 rounded">
               Primary Repayment Source
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1389,7 +1479,7 @@ export function BusinessConfirmation({
           {/* Guarantors Section */}
           {guarantorsData && guarantorsData.length > 0 && (
             <div>
-              <h4 className="text-lg font-bold text-[#003DA5] mb-4 bg-gray-50 p-2 rounded">
+              <h4 className="text-lg font-bold text-gray-800 mb-4 bg-gray-50 p-2 rounded">
                 Guarantors ({guarantorsData.length})
               </h4>
               <div className="space-y-6">
@@ -1398,7 +1488,7 @@ export function BusinessConfirmation({
                     key={index}
                     className="border border-gray-200 rounded-lg p-6 bg-gray-50/50"
                   >
-                    <h5 className="text-md font-bold text-[#003DA5] mb-4">
+                    <h5 className="text-md font-bold text-gray-800 mb-4">
                       Guarantor {index + 1}
                     </h5>
 
@@ -1414,20 +1504,24 @@ export function BusinessConfirmation({
                         />
                         <Field
                           label="Applicant Name"
-                          value={guarantor.applicantName}
+                          value={
+                            guarantor.guarantorName || guarantor.applicantName
+                          }
                         />
                         <Field
                           label="Identification Type"
                           value={getOptionLabel(
                             identificationTypeOptions,
-                            guarantor.identificationType,
+                            guarantor.idType || guarantor.identificationType,
                             "id",
                             "identification_type",
                           )}
                         />
                         <Field
                           label="Identification No."
-                          value={guarantor.identificationNo}
+                          value={
+                            guarantor.idNumber || guarantor.identificationNo
+                          }
                         />
                         <Field
                           label="Nationality"

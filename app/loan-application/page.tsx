@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Percent, Calendar, Menu, X } from "lucide-react";
 import DocumentPopup from "@/components/DocumentPopup";
 import { PersonalDetailsForm } from "@/components/individual/PersonalDetail";
@@ -173,13 +172,13 @@ function LoanApplicationContent() {
   const handlePersonalDetailsNext = (data: any) => {
     const updatedFormData = { ...formData, ...data };
     setFormData(updatedFormData);
-    
+
     // Save to sessionStorage - merge with existing data
-    const existingData = sessionStorage.getItem('loanApplicationData');
+    const existingData = sessionStorage.getItem("loanApplicationData");
     const existingParsed = existingData ? JSON.parse(existingData) : {};
     const mergedData = { ...existingParsed, ...data };
-    sessionStorage.setItem('loanApplicationData', JSON.stringify(mergedData));
-    
+    sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
+
     // If hasCoBorrower is true, go to Co-Borrower Details (step 2)
     // If hasCoBorrower is false, skip to Security Details (step 3)
     setCurrentStep(data.hasCoBorrower ? 2 : 3);
@@ -192,13 +191,13 @@ function LoanApplicationContent() {
   const handleCoBorrowerDetailsNext = (data: any) => {
     const updatedFormData = { ...formData, ...data };
     setFormData(updatedFormData);
-    
+
     // Save to sessionStorage - merge with existing data
-    const existingData = sessionStorage.getItem('loanApplicationData');
+    const existingData = sessionStorage.getItem("loanApplicationData");
     const existingParsed = existingData ? JSON.parse(existingData) : {};
     const mergedData = { ...existingParsed, ...data };
-    sessionStorage.setItem('loanApplicationData', JSON.stringify(mergedData));
-    
+    sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
+
     setCurrentStep(3); // Move to Security Details step
   };
 
@@ -209,13 +208,13 @@ function LoanApplicationContent() {
   const handleSecurityDetailsNext = (data: any) => {
     const updatedFormData = { ...formData, ...data };
     setFormData(updatedFormData);
-    
+
     // Save to sessionStorage - merge with existing data
-    const existingData = sessionStorage.getItem('loanApplicationData');
+    const existingData = sessionStorage.getItem("loanApplicationData");
     const existingParsed = existingData ? JSON.parse(existingData) : {};
     const mergedData = { ...existingParsed, ...data };
-    sessionStorage.setItem('loanApplicationData', JSON.stringify(mergedData));
-    
+    sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
+
     setCurrentStep(4); // Move to Repayment Source step
   };
 
@@ -226,13 +225,13 @@ function LoanApplicationContent() {
   const handleRepaymentSourceNext = (data: any) => {
     const updatedFormData = { ...formData, ...data };
     setFormData(updatedFormData);
-    
+
     // Save to sessionStorage - merge with existing data
-    const existingData = sessionStorage.getItem('loanApplicationData');
+    const existingData = sessionStorage.getItem("loanApplicationData");
     const existingParsed = existingData ? JSON.parse(existingData) : {};
     const mergedData = { ...existingParsed, ...data };
-    sessionStorage.setItem('loanApplicationData', JSON.stringify(mergedData));
-    
+    sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
+
     setCurrentStep(5); // Move to Confirmation step
   };
 
@@ -684,7 +683,8 @@ function LoanApplicationContent() {
                         if (!/^\d+$/.test(withoutCommas)) {
                           setErrors((prev) => ({
                             ...prev,
-                            totalLoan: "Only whole numbers are allowed. No letters or decimals.",
+                            totalLoan:
+                              "Only whole numbers are allowed. No letters or decimals.",
                           }));
                         } else {
                           // Clear error if valid
@@ -699,8 +699,11 @@ function LoanApplicationContent() {
                         const digitsOnly = withoutCommas.replace(/\D/g, "");
                         console.log("Digits only value:", digitsOnly);
                         // Format with commas
-                        const formatted = digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-                          console.log("Formatted value:", formatted);
+                        const formatted = digitsOnly.replace(
+                          /\B(?=(\d{3})+(?!\d))/g,
+                          ",",
+                        );
+                        console.log("Formatted value:", formatted);
                         setTotalLoanInput(digitsOnly);
                       }}
                       className={`h-10 sm:h-12 border text-sm sm:text-base
@@ -736,19 +739,21 @@ function LoanApplicationContent() {
                   </div>
                 </div>
 
-                {/* EMI Display */}
-                {selectedLoanType && selectedLoanType.split("-")[0] === "1" && (
-                  <div className="border-t border-gray-200 pt-4 sm:pt-6 md:pt-8 mt-4 sm:mt-6 md:mt-8">
-                    <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] p-6 sm:p-8 md:p-12 rounded-xl sm:rounded-2xl text-center shadow-xl sm:shadow-2xl transform hover:scale-105 transition-transform duration-300">
-                      <p className="text-sm sm:text-base md:text-lg text-white/95 mb-3 sm:mb-4 font-semibold tracking-wide">
-                        Your Monthly EMI
-                      </p>
-                      <p className="text-3xl sm:text-5xl md:text-7xl font-bold text-white drop-shadow-lg break-all">
-                        Nu. {calculateEMI()}
-                      </p>
+                {/* EMI Display - Now shown whenever a valid loan amount and sub‑sector data exist */}
+                {parseFloat(totalLoanInput) > 0 &&
+                  apiInterestRate > 0 &&
+                  apiTenure > 0 && (
+                    <div className="border-t border-gray-200 pt-4 sm:pt-6 md:pt-8 mt-4 sm:mt-6 md:mt-8">
+                      <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] p-6 sm:p-8 md:p-12 rounded-xl sm:rounded-2xl text-center shadow-xl sm:shadow-2xl transform hover:scale-105 transition-transform duration-300">
+                        <p className="text-sm sm:text-base md:text-lg text-white/95 mb-3 sm:mb-4 font-semibold tracking-wide">
+                          Your Monthly EMI
+                        </p>
+                        <p className="text-3xl sm:text-5xl md:text-7xl font-bold text-white drop-shadow-lg break-all">
+                          Nu. {calculateEMI()}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </CardContent>
             </Card>
           </div>
@@ -788,22 +793,34 @@ function LoanApplicationContent() {
         onProceed={() => {
           // Get the actual display names instead of IDs
           const selectedSectorObj = loanSectorOptions.find(
-            (s) => s.loan_sector_id === parseInt(selectedSector)
+            (s) => s.loan_sector_id === parseInt(selectedSector),
           );
-          const selectedSubSectorIndex = selectedSubSector ? parseInt(selectedSubSector.split("-")[1]) : -1;
-          const selectedSubSectorObj = selectedSubSectorIndex >= 0 ? loanSubSectorOptions[selectedSubSectorIndex] : null;
-          const selectedCategoryIndex = selectedSubSectorCategory ? parseInt(selectedSubSectorCategory.split("-")[1]) : -1;
-          const selectedCategoryObj = selectedCategoryIndex >= 0 ? subSectorCategoryOptions[selectedCategoryIndex] : null;
-          
+          const selectedSubSectorIndex = selectedSubSector
+            ? parseInt(selectedSubSector.split("-")[1])
+            : -1;
+          const selectedSubSectorObj =
+            selectedSubSectorIndex >= 0
+              ? loanSubSectorOptions[selectedSubSectorIndex]
+              : null;
+          const selectedCategoryIndex = selectedSubSectorCategory
+            ? parseInt(selectedSubSectorCategory.split("-")[1])
+            : -1;
+          const selectedCategoryObj =
+            selectedCategoryIndex >= 0
+              ? subSectorCategoryOptions[selectedCategoryIndex]
+              : null;
+
           const selectedLoanTypeObj = loanTypeOptions.find(
-            (t) => t.loan_type_id === parseInt(selectedLoanType)
+            (t) => t.loan_type_id === parseInt(selectedLoanType),
           );
 
           const loanDetails = {
             loanType: selectedLoanTypeObj?.loan_type || selectedLoanType,
             loanSector: selectedSectorObj?.loan_sector || selectedSector,
-            loanSubSector: selectedSubSectorObj?.sub_sector || selectedSubSector,
-            loanSubSectorCategory: selectedCategoryObj?.sub_cat_sector || selectedSubSectorCategory,
+            loanSubSector:
+              selectedSubSectorObj?.sub_sector || selectedSubSector,
+            loanSubSectorCategory:
+              selectedCategoryObj?.sub_cat_sector || selectedSubSectorCategory,
             loanAmount: totalLoanInput,
             loanPurpose: purpose,
             tenure: apiTenure,
@@ -812,13 +829,16 @@ function LoanApplicationContent() {
 
           const updatedFormData = { ...formData, ...loanDetails };
           setFormData(updatedFormData);
-          
+
           // Save to sessionStorage - merge with existing data
-          const existingData = sessionStorage.getItem('loanApplicationData');
+          const existingData = sessionStorage.getItem("loanApplicationData");
           const existingParsed = existingData ? JSON.parse(existingData) : {};
           const mergedData = { ...existingParsed, ...loanDetails };
-          sessionStorage.setItem('loanApplicationData', JSON.stringify(mergedData));
-          
+          sessionStorage.setItem(
+            "loanApplicationData",
+            JSON.stringify(mergedData),
+          );
+
           setCurrentStep(1);
         }}
       />

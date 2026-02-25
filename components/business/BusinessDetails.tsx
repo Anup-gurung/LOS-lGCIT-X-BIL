@@ -132,6 +132,132 @@ const isMarriedStatusFromOptions = (
   return false;
 };
 
+// --- Helper to convert a label to pk_code using options (Enhanced) ---
+const findPkCodeByLabel = (
+  label: string,
+  options: any[],
+  labelFields: string[],
+): string => {
+  if (!label) return "";
+
+  // Normalizations
+  const trimmedLabel = String(label).trim().toLowerCase();
+  const strippedLabel = trimmedLabel.replace(/\s+/g, ""); // for strict spacing‑insensitive match
+  const inputWords = trimmedLabel.split(/\s+/).filter((w) => w.length > 0);
+
+  for (const option of options) {
+    for (const field of labelFields) {
+      const optionValue = String(option[field] || "");
+      const trimmedOption = optionValue.trim().toLowerCase();
+      const strippedOption = trimmedOption.replace(/\s+/g, "");
+      const optionWords = trimmedOption
+        .split(/\s+/)
+        .filter((w) => w.length > 0);
+
+      // 1. Exact stripped match (handles inconsistent spacing)
+      if (strippedOption === strippedLabel) {
+        return String(
+          option.bank_pk_code ||
+            option.country_pk_code ||
+            option.nationality_pk_code ||
+            option.identity_type_pk_code ||
+            option.marital_status_pk_code ||
+            option.occupation_pk_code ||
+            option.dzongkhag_pk_code ||
+            option.gewog_pk_code ||
+            option.curr_gewog_pk_code || // added
+            option.pk_gewog_id || // added
+            option.pk_code ||
+            option.id ||
+            option.code ||
+            "",
+        );
+      }
+
+      // 2. Exact trimmed match
+      if (trimmedOption === trimmedLabel) {
+        return String(
+          option.bank_pk_code ||
+            option.country_pk_code ||
+            option.nationality_pk_code ||
+            option.identity_type_pk_code ||
+            option.marital_status_pk_code ||
+            option.occupation_pk_code ||
+            option.dzongkhag_pk_code ||
+            option.gewog_pk_code ||
+            option.curr_gewog_pk_code ||
+            option.pk_gewog_id ||
+            option.pk_code ||
+            option.id ||
+            option.code ||
+            "",
+        );
+      }
+
+      // 3. Word‑based match: all input words must appear in option words
+      if (inputWords.length > 0 && optionWords.length > 0) {
+        const allWordsMatch = inputWords.every((word) =>
+          optionWords.some(
+            (optWord) => optWord.includes(word) || word.includes(optWord),
+          ),
+        );
+        if (allWordsMatch) {
+          return String(
+            option.bank_pk_code ||
+              option.country_pk_code ||
+              option.nationality_pk_code ||
+              option.identity_type_pk_code ||
+              option.marital_status_pk_code ||
+              option.occupation_pk_code ||
+              option.dzongkhag_pk_code ||
+              option.gewog_pk_code ||
+              option.curr_gewog_pk_code ||
+              option.pk_gewog_id ||
+              option.pk_code ||
+              option.id ||
+              option.code ||
+              "",
+          );
+        }
+      }
+    }
+  }
+
+  // 4. Substring match fallback (only for long strings)
+  if (trimmedLabel.length >= 4) {
+    for (const option of options) {
+      for (const field of labelFields) {
+        const optionLabel = String(option[field] || "")
+          .trim()
+          .toLowerCase();
+        if (
+          optionLabel.includes(trimmedLabel) ||
+          trimmedLabel.includes(optionLabel)
+        ) {
+          return String(
+            option.bank_pk_code ||
+              option.country_pk_code ||
+              option.nationality_pk_code ||
+              option.identity_type_pk_code ||
+              option.marital_status_pk_code ||
+              option.occupation_pk_code ||
+              option.dzongkhag_pk_code ||
+              option.gewog_pk_code ||
+              option.curr_gewog_pk_code ||
+              option.pk_gewog_id ||
+              option.pk_code ||
+              option.id ||
+              option.code ||
+              "",
+          );
+        }
+      }
+    }
+  }
+
+  return label; // Return original if no match found
+};
+
 // ================== Restricted Input Component ==================
 type AllowedPattern = "numeric" | "alpha" | "alphanumeric" | "text";
 
@@ -245,18 +371,42 @@ const ComprehensiveOwnerDetails = ({
 
   const today = new Date().toISOString().split("T")[0];
 
+  // Unique identifier for this person (used as session key)
+  const personId = data.id;
+
+  // Load stored data from session on mount
+  useEffect(() => {
+    if (!personId) return;
+    const stored = sessionStorage.getItem(`verifiedPersonData_${personId}`);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        // Merge with current data (preserving the ID)
+        onUpdate({ ...data, ...parsed, id: data.id });
+      } catch (e) {
+        console.error("Failed to parse stored person data", e);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [personId]); // run only when personId changes (on mount)
+
   const getErrorKey = (field: string) =>
     basePath ? `${basePath}.${field}` : field;
   const fieldError = (field: string) => errors[getErrorKey(field)];
 
-  // Helper to update parent state AND validate the field in real time
+  // Helper to update parent state AND validate the field in real time,
+  // and also write the updated data to session storage.
   const updateField = (field: string, value: any) => {
-    onUpdate({ ...data, [field]: value });
+    const newData = { ...data, [field]: value };
+    onUpdate(newData);
+    if (personId) {
+      sessionStorage.setItem(
+        `verifiedPersonData_${personId}`,
+        JSON.stringify(newData),
+      );
+    }
     if (onValidateField && onSetError && onClearError) {
-      const errorMsg = onValidateField(getErrorKey(field), value, {
-        ...data,
-        [field]: value,
-      });
+      const errorMsg = onValidateField(getErrorKey(field), value, newData);
       if (errorMsg) {
         onSetError(getErrorKey(field), errorMsg);
       } else {
@@ -314,9 +464,105 @@ const ComprehensiveOwnerDetails = ({
 
   const handleLookupProceed = () => {
     if (lookupStatus === "found" && fetchedCustomerData) {
+      // --- 1. PRE-CALCULATE IDs FROM LABELS ---
+      // This is crucial because the API returns labels (e.g., "Bhutan") but Select components expect IDs.
+      // We do this immediately using the props/state available so the user sees filled values instantly.
+
+      // Map Country IDs
+      const mappedPermCountry = findPkCodeByLabel(
+        fetchedCustomerData.permCountry,
+        countryOptions,
+        ["country_name", "country", "name", "label"],
+      );
+      const mappedCurrCountry = findPkCodeByLabel(
+        fetchedCustomerData.currCountry,
+        countryOptions,
+        ["country_name", "country", "name", "label"],
+      );
+
+      // Map Dzongkhag IDs (if available in props)
+      const mappedPermDzongkhag = findPkCodeByLabel(
+        fetchedCustomerData.permDzongkhag,
+        dzongkhagOptions,
+        ["dzongkhag_name", "dzongkhag", "name", "label"],
+      );
+      const mappedCurrDzongkhag = findPkCodeByLabel(
+        fetchedCustomerData.currDzongkhag,
+        dzongkhagOptions,
+        ["dzongkhag_name", "dzongkhag", "name", "label"],
+      );
+
+      // Map Nationality ID (using internal options state if loaded, otherwise reliance on Effect)
+      let mappedNationality = fetchedCustomerData.nationality;
+      if (nationalityOptions.length > 0) {
+        mappedNationality = findPkCodeByLabel(
+          fetchedCustomerData.nationality,
+          nationalityOptions,
+          ["nationality", "name"],
+        );
+      }
+
+      // Map Marital Status ID
+      const mappedMaritalStatus = findPkCodeByLabel(
+        fetchedCustomerData.maritalStatus,
+        maritalStatusOptions,
+        ["marital_status", "name", "label"],
+      );
+
+      // --- 2. DETERMINE EMPLOYMENT STATUS ---
+      let inferredEmploymentStatus = "unemployed";
+      const hasOccupation =
+        fetchedCustomerData.occupation &&
+        fetchedCustomerData.occupation.toLowerCase() !== "na";
+      const hasEmployeeId =
+        fetchedCustomerData.employeeId &&
+        fetchedCustomerData.employeeId.toLowerCase() !== "na";
+      const hasEmployer =
+        fetchedCustomerData.employerName &&
+        fetchedCustomerData.employerName.toLowerCase() !== "na";
+      const hasAnnualSalary = parseFloat(fetchedCustomerData.annualSalary) > 0;
+
+      if (hasOccupation || hasEmployeeId || hasEmployer || hasAnnualSalary) {
+        inferredEmploymentStatus = "employed";
+      }
+
+      // --- 3. MAP EMPLOYER TYPE ---
+      // Form expects: "government", "private", "corporate"
+      // API might return: "Non-Bank Financial Institutions", "Government", etc.
+      let mappedEmployerType = "";
+      const rawOrgType = (
+        fetchedCustomerData.organizationType || ""
+      ).toLowerCase();
+      if (
+        rawOrgType.includes("government") ||
+        rawOrgType.includes("ministry")
+      ) {
+        mappedEmployerType = "government";
+      } else if (
+        rawOrgType.includes("financial") ||
+        rawOrgType.includes("corporate") ||
+        rawOrgType.includes("limited")
+      ) {
+        mappedEmployerType = "corporate";
+      } else if (rawOrgType.includes("private")) {
+        mappedEmployerType = "private";
+      } else if (inferredEmploymentStatus === "employed") {
+        // Default to private if employed but type unknown
+        mappedEmployerType = "private";
+      }
+
       // Prepare sanitized data (ensure dates are in YYYY-MM-DD)
       const sanitized = {
         ...fetchedCustomerData,
+        // Map Keys
+        nationality: mappedNationality,
+        permCountry: mappedPermCountry || fetchedCustomerData.permCountry,
+        permDzongkhag: mappedPermDzongkhag || fetchedCustomerData.permDzongkhag,
+        currCountry: mappedCurrCountry || fetchedCustomerData.currCountry,
+        currDzongkhag: mappedCurrDzongkhag || fetchedCustomerData.currDzongkhag,
+        maritalStatus: mappedMaritalStatus || fetchedCustomerData.maritalStatus,
+
+        // Map Dates
         identificationIssueDate: formatDateForInput(
           fetchedCustomerData.identificationIssueDate,
         ),
@@ -324,41 +570,49 @@ const ComprehensiveOwnerDetails = ({
           fetchedCustomerData.identificationExpiryDate,
         ),
         dateOfBirth: formatDateForInput(fetchedCustomerData.dateOfBirth),
-        nationality: fetchedCustomerData.nationality
-          ? String(fetchedCustomerData.nationality)
-          : "",
-        permCountry: fetchedCustomerData.permCountry
-          ? String(fetchedCustomerData.permCountry)
-          : "",
-        permDzongkhag: fetchedCustomerData.permDzongkhag
-          ? String(fetchedCustomerData.permDzongkhag)
-          : "",
+        joiningDate: formatDateForInput(fetchedCustomerData.joiningDate),
+
+        // Employment Data Logic
+        employmentStatus: inferredEmploymentStatus,
+        employerType: mappedEmployerType,
+
+        // Fields directly from API that might need string conversion
+        // IMPORTANT: We pass the raw string for Gewogs initially.
+        // The useEffect will map these to IDs once the dependent options load.
         permGewog: fetchedCustomerData.permGewog
           ? String(fetchedCustomerData.permGewog)
-          : "",
-        currCountry: fetchedCustomerData.currCountry
-          ? String(fetchedCustomerData.currCountry)
-          : "",
-        currDzongkhag: fetchedCustomerData.currDzongkhag
-          ? String(fetchedCustomerData.currDzongkhag)
           : "",
         currGewog: fetchedCustomerData.currGewog
           ? String(fetchedCustomerData.currGewog)
           : "",
-        maritalStatus: fetchedCustomerData.maritalStatus
-          ? String(fetchedCustomerData.maritalStatus)
-          : "",
         occupation: fetchedCustomerData.occupation
           ? String(fetchedCustomerData.occupation)
           : "",
+        // Pass organization name directly as it is a text field now
+        organizationName: fetchedCustomerData.organizationName
+          ? String(fetchedCustomerData.organizationName)
+          : "",
+        grade: fetchedCustomerData.grade
+          ? String(fetchedCustomerData.grade)
+          : "",
+        // FIX: Map alternate contact number to the form's expected field
+        currAlternateContact: fetchedCustomerData.alternateContactNo || "",
       };
 
-      onUpdate({
+      const newData = {
         ...data,
         ...sanitized,
         identificationType: data.identificationType,
         identificationNo: data.identificationNo,
-      });
+      };
+
+      onUpdate(newData);
+      if (personId) {
+        sessionStorage.setItem(
+          `verifiedPersonData_${personId}`,
+          JSON.stringify(newData),
+        );
+      }
     }
     setShowLookupPopup(false);
   };
@@ -386,22 +640,298 @@ const ComprehensiveOwnerDetails = ({
     loadOptions();
   }, []);
 
-  // --- Logic: Address Gewogs ---
+  // --- Conversion Effects (label -> pk_code) ---
+
+  // Convert nationality label to pk_code
   useEffect(() => {
+    if (nationalityOptions.length > 0 && data.nationality) {
+      const isValid = nationalityOptions.some(
+        (opt) =>
+          String(opt.id || opt.nationality_pk_code) ===
+          String(data.nationality),
+      );
+      if (!isValid) {
+        const pkCode = findPkCodeByLabel(data.nationality, nationalityOptions, [
+          "nationality",
+          "name",
+          "label",
+        ]);
+        if (pkCode && pkCode !== data.nationality) {
+          updateField("nationality", pkCode);
+        }
+      }
+    }
+  }, [nationalityOptions, data.nationality]);
+
+  // Convert bankName label to pk_code
+  useEffect(() => {
+    if (banksOptions.length > 0 && data.bankName) {
+      const isValid = banksOptions.some(
+        (opt) => String(opt.bank_pk_code || opt.id) === String(data.bankName),
+      );
+      if (!isValid) {
+        const pkCode = findPkCodeByLabel(data.bankName, banksOptions, [
+          "bank_name",
+          "name",
+          "label",
+          "bank",
+        ]);
+        if (pkCode && pkCode !== data.bankName) {
+          updateField("bankName", pkCode);
+        }
+      }
+    }
+  }, [banksOptions, data.bankName]);
+
+  // Convert maritalStatus label to pk_code
+  useEffect(() => {
+    if (maritalStatusOptions.length > 0 && data.maritalStatus) {
+      const isValid = maritalStatusOptions.some(
+        (opt) =>
+          String(opt.marital_status_pk_code || opt.id) ===
+          String(data.maritalStatus),
+      );
+      if (!isValid) {
+        const pkCode = findPkCodeByLabel(
+          data.maritalStatus,
+          maritalStatusOptions,
+          ["marital_status", "name", "label"],
+        );
+        if (pkCode && pkCode !== data.maritalStatus) {
+          updateField("maritalStatus", pkCode);
+        }
+      }
+    }
+  }, [maritalStatusOptions, data.maritalStatus]);
+
+  // Convert occupation label to pk_code
+  useEffect(() => {
+    if (occupationOptions.length > 0 && data.occupation) {
+      const isValid = occupationOptions.some(
+        (opt) =>
+          String(opt.occ_pk_code || opt.occupation_pk_code || opt.id) ===
+          String(data.occupation),
+      );
+      if (!isValid) {
+        const pkCode = findPkCodeByLabel(data.occupation, occupationOptions, [
+          "occ_name",
+          "occupation",
+          "name",
+        ]);
+        if (pkCode && pkCode !== data.occupation) {
+          updateField("occupation", pkCode);
+        }
+      }
+    }
+  }, [occupationOptions, data.occupation]);
+
+  // Convert permCountry label to pk_code
+  useEffect(() => {
+    if (countryOptions.length > 0 && data.permCountry) {
+      const isValid = countryOptions.some(
+        (opt) =>
+          String(opt.country_pk_code || opt.id) === String(data.permCountry),
+      );
+      if (!isValid) {
+        const pkCode = findPkCodeByLabel(data.permCountry, countryOptions, [
+          "country_name",
+          "country",
+        ]);
+        if (pkCode && pkCode !== data.permCountry) {
+          updateField("permCountry", pkCode);
+        }
+      }
+    }
+  }, [countryOptions, data.permCountry]);
+
+  // Convert currCountry label to pk_code
+  useEffect(() => {
+    if (countryOptions.length > 0 && data.currCountry) {
+      const isValid = countryOptions.some(
+        (opt) =>
+          String(opt.country_pk_code || opt.id) === String(data.currCountry),
+      );
+      if (!isValid) {
+        const pkCode = findPkCodeByLabel(data.currCountry, countryOptions, [
+          "country_name",
+          "country",
+        ]);
+        if (pkCode && pkCode !== data.currCountry) {
+          updateField("currCountry", pkCode);
+        }
+      }
+    }
+  }, [countryOptions, data.currCountry]);
+
+  const isBhutan = (countryId: string) => {
+    const c = countryOptions.find(
+      (opt) =>
+        String(opt.country_pk_code || opt.country_id || opt.id) ===
+        String(countryId),
+    );
+    return (
+      c && (c.country_name || c.country || "").toLowerCase().includes("bhutan")
+    );
+  };
+
+  // Convert permDzongkhag label to pk_code (only if Bhutan)
+  useEffect(() => {
+    if (
+      isBhutan(data.permCountry) &&
+      dzongkhagOptions.length > 0 &&
+      data.permDzongkhag
+    ) {
+      const isValid = dzongkhagOptions.some(
+        (opt) =>
+          String(opt.dzongkhag_pk_code || opt.id) ===
+          String(data.permDzongkhag),
+      );
+      if (!isValid) {
+        const pkCode = findPkCodeByLabel(data.permDzongkhag, dzongkhagOptions, [
+          "dzongkhag_name",
+          "dzongkhag",
+        ]);
+        if (pkCode && pkCode !== data.permDzongkhag) {
+          updateField("permDzongkhag", pkCode);
+        }
+      }
+    }
+  }, [dzongkhagOptions, data.permDzongkhag, data.permCountry]);
+
+  // Convert currDzongkhag label to pk_code (only if Bhutan)
+  useEffect(() => {
+    if (
+      isBhutan(data.currCountry) &&
+      dzongkhagOptions.length > 0 &&
+      data.currDzongkhag
+    ) {
+      const isValid = dzongkhagOptions.some(
+        (opt) =>
+          String(opt.dzongkhag_pk_code || opt.id) ===
+          String(data.currDzongkhag),
+      );
+      if (!isValid) {
+        const pkCode = findPkCodeByLabel(data.currDzongkhag, dzongkhagOptions, [
+          "dzongkhag_name",
+          "dzongkhag",
+        ]);
+        if (pkCode && pkCode !== data.currDzongkhag) {
+          updateField("currDzongkhag", pkCode);
+        }
+      }
+    }
+  }, [dzongkhagOptions, data.currDzongkhag, data.currCountry]);
+
+  // --- Logic: Address Gewogs ---
+
+  // 1. Fetch Options when Dzongkhag changes
+  useEffect(() => {
+    // Only fetch if data.permDzongkhag is present
     if (data.permDzongkhag) {
-      fetchGewogsByDzongkhag(data.permDzongkhag)
+      // Check if it's an ID (numeric) or a label
+      const isId = /^\d+$/.test(data.permDzongkhag);
+
+      // If it's a label, try to resolve it to an ID first
+      let dzongkhagId = data.permDzongkhag;
+      if (!isId && dzongkhagOptions.length > 0) {
+        const resolved = findPkCodeByLabel(
+          data.permDzongkhag,
+          dzongkhagOptions,
+          ["dzongkhag_name", "dzongkhag"],
+        );
+        if (resolved) dzongkhagId = resolved;
+      }
+
+      fetchGewogsByDzongkhag(dzongkhagId)
         .then((res) => setPermGewogOptions(res?.data?.data || res || []))
         .catch(() => setPermGewogOptions([]));
+    } else {
+      setPermGewogOptions([]);
     }
-  }, [data.permDzongkhag]);
+  }, [data.permDzongkhag, dzongkhagOptions]);
 
   useEffect(() => {
     if (data.currDzongkhag) {
-      fetchGewogsByDzongkhag(data.currDzongkhag)
+      // Check if it's an ID (numeric) or a label
+      const isId = /^\d+$/.test(data.currDzongkhag);
+
+      // If it's a label, try to resolve it to an ID first
+      let dzongkhagId = data.currDzongkhag;
+      if (!isId && dzongkhagOptions.length > 0) {
+        const resolved = findPkCodeByLabel(
+          data.currDzongkhag,
+          dzongkhagOptions,
+          ["dzongkhag_name", "dzongkhag"],
+        );
+        if (resolved) dzongkhagId = resolved;
+      }
+
+      fetchGewogsByDzongkhag(dzongkhagId)
         .then((res) => setCurrGewogOptions(res?.data?.data || res || []))
         .catch(() => setCurrGewogOptions([]));
+    } else {
+      setCurrGewogOptions([]);
     }
-  }, [data.currDzongkhag]);
+  }, [data.currDzongkhag, dzongkhagOptions]);
+
+  // 2. Convert Gewog Names to IDs when Options become available
+  // Permanent Gewog conversion
+  useEffect(() => {
+    if (permGewogOptions.length > 0 && data.permGewog) {
+      // Check if the current value is already a valid ID in the options
+      const isId = permGewogOptions.some(
+        (opt) =>
+          String(
+            opt.gewog_pk_code ||
+              opt.id ||
+              opt.pk_gewog_id ||
+              opt.curr_gewog_pk_code,
+          ) === String(data.permGewog),
+      );
+
+      if (!isId) {
+        // If not an ID, try to match by label
+        const matchedId = findPkCodeByLabel(data.permGewog, permGewogOptions, [
+          "gewog_name",
+          "gewog",
+          "name",
+          "label",
+        ]);
+        if (matchedId && matchedId !== data.permGewog) {
+          updateField("permGewog", matchedId);
+        }
+      }
+    }
+  }, [permGewogOptions, data.permGewog]);
+
+  // Current Gewog conversion
+  useEffect(() => {
+    if (currGewogOptions.length > 0 && data.currGewog) {
+      // Check if the current value is already a valid ID in the options
+      const isId = currGewogOptions.some(
+        (opt) =>
+          String(
+            opt.gewog_pk_code ||
+              opt.id ||
+              opt.pk_gewog_id ||
+              opt.curr_gewog_pk_code,
+          ) === String(data.currGewog),
+      );
+
+      if (!isId) {
+        // If not an ID, try to match by label
+        const matchedId = findPkCodeByLabel(data.currGewog, currGewogOptions, [
+          "gewog_name",
+          "gewog",
+          "name",
+          "label",
+        ]);
+        if (matchedId && matchedId !== data.currGewog) {
+          updateField("currGewog", matchedId);
+        }
+      }
+    }
+  }, [currGewogOptions, data.currGewog]);
 
   // --- Logic: PEP Subcategories ---
   useEffect(() => {
@@ -456,17 +986,6 @@ const ComprehensiveOwnerDetails = ({
     return isMarriedStatusFromOptions(data.maritalStatus, maritalStatusOptions);
   };
 
-  const isBhutan = (countryId: string) => {
-    const c = countryOptions.find(
-      (opt) =>
-        String(opt.country_pk_code || opt.country_id || opt.id) ===
-        String(countryId),
-    );
-    return (
-      c && (c.country_name || c.country || "").toLowerCase().includes("bhutan")
-    );
-  };
-
   const handleFileChange = (fieldName: string, file: File | null) => {
     if (file) {
       const allowedTypes = [
@@ -492,6 +1011,11 @@ const ComprehensiveOwnerDetails = ({
       } else {
         updateField(fieldName, file);
         updateField(`${fieldName}Name`, file.name);
+      }
+
+      // 🔥 Explicitly clear error for this field
+      if (onClearError) {
+        onClearError(getErrorKey(fieldName));
       }
     }
   };
@@ -605,7 +1129,7 @@ const ComprehensiveOwnerDetails = ({
             <div className="space-y-2">
               <Label>Salutation *</Label>
               <Select
-                value={data.salutation}
+                value={data.salutation ? data.salutation.toLowerCase() : ""}
                 onValueChange={(v) => updateField("salutation", v)}
               >
                 <SelectTrigger
@@ -674,7 +1198,7 @@ const ComprehensiveOwnerDetails = ({
             <div className="space-y-2">
               <Label>Gender *</Label>
               <Select
-                value={data.gender}
+                value={data.gender ? data.gender.toLowerCase() : ""}
                 onValueChange={(v) => updateField("gender", v)}
               >
                 <SelectTrigger
@@ -1085,20 +1609,35 @@ const ComprehensiveOwnerDetails = ({
                   <div className="space-y-2">
                     <Label>Gewog *</Label>
                     <Select
-                      value={data.permGewog}
+                      value={
+                        permGewogOptions.some(
+                          (o) =>
+                            String(
+                              o.gewog_pk_code ||
+                                o.id ||
+                                o.pk_gewog_id ||
+                                o.curr_gewog_pk_code,
+                            ) === String(data.permGewog),
+                        )
+                          ? data.permGewog
+                          : ""
+                      }
                       onValueChange={(v) => updateField("permGewog", v)}
                     >
                       <SelectTrigger
                         className={getFieldStyle(!!fieldError("permGewog"))}
                       >
-                        <SelectValue placeholder="Select" />
+                        <SelectValue placeholder={data.permGewog || "Select"} />
                       </SelectTrigger>
                       <SelectContent>
                         {permGewogOptions.map((opt: any, i) => (
                           <SelectItem
                             key={i}
                             value={String(
-                              opt.id || opt.gewog_pk_code || opt.pk_gewog_id,
+                              opt.id ||
+                                opt.gewog_pk_code ||
+                                opt.pk_gewog_id ||
+                                opt.curr_gewog_pk_code,
                             )}
                           >
                             {opt.gewog || opt.gewog_name}
@@ -1321,13 +1860,25 @@ const ComprehensiveOwnerDetails = ({
                   <div className="space-y-2">
                     <Label>Gewog *</Label>
                     <Select
-                      value={data.currGewog}
+                      value={
+                        currGewogOptions.some(
+                          (o) =>
+                            String(
+                              o.gewog_pk_code ||
+                                o.id ||
+                                o.pk_gewog_id ||
+                                o.curr_gewog_pk_code,
+                            ) === String(data.currGewog),
+                        )
+                          ? data.currGewog
+                          : ""
+                      }
                       onValueChange={(v) => updateField("currGewog", v)}
                     >
                       <SelectTrigger
                         className={getFieldStyle(!!fieldError("currGewog"))}
                       >
-                        <SelectValue placeholder="Select" />
+                        <SelectValue placeholder={data.currGewog || "Select"} />
                       </SelectTrigger>
                       <SelectContent>
                         {currGewogOptions.map((opt: any, i) => (
@@ -1335,8 +1886,9 @@ const ComprehensiveOwnerDetails = ({
                             key={i}
                             value={String(
                               opt.id ||
-                                opt.curr_gewog_pk_code ||
-                                opt.pk_gewog_id,
+                                opt.gewog_pk_code ||
+                                opt.pk_gewog_id ||
+                                opt.curr_gewog_pk_code,
                             )}
                           >
                             {opt.gewog || opt.gewog_name}
@@ -2265,9 +2817,19 @@ const ComprehensiveOwnerDetails = ({
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent sideOffset={4}>
+                      {/* Added loop for numeric grades 1-20 to accommodate data like '6' */}
+                      {Array.from({ length: 20 }, (_, i) => i + 1).map(
+                        (num) => (
+                          <SelectItem key={num} value={String(num)}>
+                            {num}
+                          </SelectItem>
+                        ),
+                      )}
                       <SelectItem value="p1">P1</SelectItem>
                       <SelectItem value="p2">P2</SelectItem>
                       <SelectItem value="p3">P3</SelectItem>
+                      <SelectItem value="p4">P4</SelectItem>
+                      <SelectItem value="p5">P5</SelectItem>
                     </SelectContent>
                   </Select>
                   {fieldError("grade") && (
@@ -2281,41 +2843,16 @@ const ComprehensiveOwnerDetails = ({
                   <Label className="text-gray-800 font-semibold text-sm">
                     Organization Name <span className="text-red-500">*</span>
                   </Label>
-                  <Select
-                    value={data.organizationName}
-                    onValueChange={(v) => updateField("organizationName", v)}
-                  >
-                    <SelectTrigger
-                      className={getFieldStyle(
-                        !!fieldError("organizationName"),
-                      )}
-                    >
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4}>
-                      {organizationOptions.length > 0 ? (
-                        organizationOptions.map((opt: any, i) => (
-                          <SelectItem
-                            key={i}
-                            value={String(
-                              opt.lgal_constitution_pk_code ||
-                                opt.legal_const_pk_code ||
-                                opt.id ||
-                                i,
-                            )}
-                          >
-                            {opt.lgal_constitution ||
-                              opt.legal_const_name ||
-                              opt.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="loading" disabled>
-                          Loading...
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  {/* Changed to RestrictedInput as data is coming as a string name, not an ID */}
+                  <RestrictedInput
+                    allowed="alphanumeric"
+                    placeholder="Enter Organization Name"
+                    className={getFieldStyle(!!fieldError("organizationName"))}
+                    value={data.organizationName || ""}
+                    onChange={(e) =>
+                      updateField("organizationName", e.target.value)
+                    }
+                  />
                   {fieldError("organizationName") && (
                     <p className="text-xs text-red-500 mt-1">
                       {fieldError("organizationName")}
@@ -2440,6 +2977,25 @@ const ComprehensiveOwnerDetails = ({
     </div>
   );
 };
+
+// --- Helper to sanitize data for sessionStorage (removes File objects) ---
+function sanitizeForStorage(obj: any): any {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (obj instanceof File) return undefined; // Remove File objects completely
+  if (Array.isArray(obj)) {
+    return obj
+      .map((item) => sanitizeForStorage(item))
+      .filter((item) => item !== undefined);
+  }
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const sanitized = sanitizeForStorage(value);
+    if (sanitized !== undefined) {
+      result[key] = sanitized;
+    }
+  }
+  return result;
+}
 
 // --- Main Form Component ---
 export function BusinessDetailsForm({
@@ -2889,8 +3445,8 @@ export function BusinessDetailsForm({
         "Applicant must be at least 18 years old";
     }
 
-    // Family Tree Upload (NEW)
-    if (!data.familyTree) {
+    // Family Tree Upload (check file name, not the File object)
+    if (!data.familyTreeName) {
       errs[`${basePath}.familyTree`] = "Family tree document is required";
     }
 
@@ -2900,9 +3456,10 @@ export function BusinessDetailsForm({
     if (isRequired(data.bankAccount))
       errs[`${basePath}.bankAccount`] = "Bank account number is required";
 
-    // Passport Photo
-    if (!data.passportPhoto)
+    // Passport Photo (check file name)
+    if (!data.passportPhotoName) {
       errs[`${basePath}.passportPhoto`] = "Passport photo is required";
+    }
 
     // Permanent Address
     if (isRequired(data.permCountry))
@@ -2928,7 +3485,7 @@ export function BusinessDetailsForm({
         errs[`${basePath}.permGewog`] = "Province is required";
       if (isRequired(data.permVillage))
         errs[`${basePath}.permVillage`] = "Street name is required";
-      if (!data.permAddressProof)
+      if (!data.permAddressProofName)
         errs[`${basePath}.permAddressProof`] = "Address proof is required";
     }
 
@@ -2952,7 +3509,7 @@ export function BusinessDetailsForm({
         errs[`${basePath}.currGewog`] = "Province is required";
       if (isRequired(data.currVillage))
         errs[`${basePath}.currVillage`] = "Street name is required";
-      if (!data.currAddressProof)
+      if (!data.currAddressProofName)
         errs[`${basePath}.currAddressProof`] = "Address proof is required";
     }
 
@@ -2974,7 +3531,7 @@ export function BusinessDetailsForm({
         errs[`${basePath}.pepCategory`] = "PEP category is required";
       if (isRequired(data.pepSubCategory))
         errs[`${basePath}.pepSubCategory`] = "PEP sub-category is required";
-      if (!data.identificationProof)
+      if (!data.identificationProofName)
         errs[`${basePath}.identificationProof`] =
           "Identification proof is required";
     } else if (data.pepPerson === "no") {
@@ -2994,7 +3551,7 @@ export function BusinessDetailsForm({
             errs[`${relBase}.category`] = "PEP category is required";
           if (isRequired(pep.subCategory))
             errs[`${relBase}.subCategory`] = "PEP sub-category is required";
-          if (!pep.identificationProof)
+          if (!pep.identificationProofName)
             errs[`${relBase}.identificationProof`] =
               "Identification proof is required";
         });
@@ -3276,6 +3833,21 @@ export function BusinessDetailsForm({
       headOfNGO,
       attachments,
     };
+
+    // Sanitize data to remove File objects before saving to sessionStorage
+    const sanitizedData = sanitizeForStorage(data);
+
+    // Retrieve existing data from sessionStorage
+    const existingData = sessionStorage.getItem("businessLoanApplicationData");
+    const allData = existingData ? JSON.parse(existingData) : {};
+
+    // Merge and save to sessionStorage
+    const updatedData = { ...allData, ...sanitizedData };
+    sessionStorage.setItem(
+      "businessLoanApplicationData",
+      JSON.stringify(updatedData),
+    );
+
     onNext(data);
   };
 

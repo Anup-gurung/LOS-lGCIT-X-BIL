@@ -16,10 +16,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Upload, Plus, Trash2 } from "lucide-react";
 
 // Import for lookup functionality
-import {
-  mapCustomerDataToForm,
-  // getVerifiedCustomerDataFromSession, // Unused import removed
-} from "@/lib/mapCustomerData";
+import { mapCustomerDataToForm } from "@/lib/mapCustomerData";
 import DocumentPopup from "@/components/BILSearchStatus";
 
 import {
@@ -37,15 +34,19 @@ import {
 } from "@/services/api";
 
 // ================== Validation Helpers ==================
-const isRequired = (value: any) => !value || value.toString().trim() === "";
+// FIX: Updated isRequired to allow the number 0 as a valid input
+const isRequired = (value: any) => {
+  if (value === 0) return false;
+  return !value || value.toString().trim() === "";
+};
+
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidCID = (value: string) => /^\d{11}$/.test(value);
 const isValidTPN = (value: string) => /^\d{11}$/.test(value);
 const isValidMobile = (value: string) => /^(16|17|77)\d{6}$/.test(value);
 const isValidFixedLine = (value: string) => /^[2-8]\d{6,7}$/.test(value);
-// const isValidPhoneNumber = (value: string) => // Unused
-//   isValidMobile(value) || isValidFixedLine(value);
+
 const isLegalAge = (dateOfBirth: string): boolean => {
   if (!dateOfBirth) return false;
   const dob = new Date(dateOfBirth);
@@ -122,6 +123,152 @@ const RestrictedInput = ({
   );
 };
 // ================== END Restricted Input ==================
+
+// ================== Helper: findPkCodeByLabel ==================
+const findPkCodeByLabel = (
+  label: string,
+  options: any[],
+  labelFields: string[],
+): string => {
+  if (!label) return "";
+
+  const trimmedLabel = String(label).trim().toLowerCase();
+  const strippedLabel = trimmedLabel.replace(/\s+/g, "");
+  const inputWords = trimmedLabel.split(/\s+/).filter((w) => w.length > 0);
+
+  for (const option of options) {
+    for (const field of labelFields) {
+      const optionValue = String(option[field] || "");
+      const trimmedOption = optionValue.trim().toLowerCase();
+      const strippedOption = trimmedOption.replace(/\s+/g, "");
+      const optionWords = trimmedOption
+        .split(/\s+/)
+        .filter((w) => w.length > 0);
+
+      if (strippedOption === strippedLabel) {
+        return String(
+          option.bank_pk_code ||
+            option.country_pk_code ||
+            option.nationality_pk_code ||
+            option.identity_type_pk_code ||
+            option.marital_status_pk_code ||
+            option.occupation_pk_code ||
+            option.occ_pk_code ||
+            option.lgal_constitution_pk_code ||
+            option.dzongkhag_pk_code ||
+            option.gewog_pk_code ||
+            option.curr_gewog_pk_code ||
+            option.pk_gewog_id ||
+            option.pk_code ||
+            option.id ||
+            option.code ||
+            "",
+        );
+      }
+
+      if (trimmedOption === trimmedLabel) {
+        return String(
+          option.bank_pk_code ||
+            option.country_pk_code ||
+            option.nationality_pk_code ||
+            option.identity_type_pk_code ||
+            option.marital_status_pk_code ||
+            option.occupation_pk_code ||
+            option.occ_pk_code ||
+            option.lgal_constitution_pk_code ||
+            option.dzongkhag_pk_code ||
+            option.gewog_pk_code ||
+            option.curr_gewog_pk_code ||
+            option.pk_gewog_id ||
+            option.pk_code ||
+            option.id ||
+            option.code ||
+            "",
+        );
+      }
+
+      if (inputWords.length > 0 && optionWords.length > 0) {
+        const allWordsMatch = inputWords.every((word) =>
+          optionWords.some(
+            (optWord) => optWord.includes(word) || word.includes(optWord),
+          ),
+        );
+        if (allWordsMatch) {
+          return String(
+            option.bank_pk_code ||
+              option.country_pk_code ||
+              option.nationality_pk_code ||
+              option.identity_type_pk_code ||
+              option.marital_status_pk_code ||
+              option.occupation_pk_code ||
+              option.occ_pk_code ||
+              option.lgal_constitution_pk_code ||
+              option.dzongkhag_pk_code ||
+              option.gewog_pk_code ||
+              option.curr_gewog_pk_code ||
+              option.pk_gewog_id ||
+              option.pk_code ||
+              option.id ||
+              option.code ||
+              "",
+          );
+        }
+      }
+    }
+  }
+
+  if (trimmedLabel.length >= 4) {
+    for (const option of options) {
+      for (const field of labelFields) {
+        const optionLabel = String(option[field] || "")
+          .trim()
+          .toLowerCase();
+        if (
+          optionLabel.includes(trimmedLabel) ||
+          trimmedLabel.includes(optionLabel)
+        ) {
+          return String(
+            option.bank_pk_code ||
+              option.country_pk_code ||
+              option.nationality_pk_code ||
+              option.identity_type_pk_code ||
+              option.marital_status_pk_code ||
+              option.occupation_pk_code ||
+              option.occ_pk_code ||
+              option.lgal_constitution_pk_code ||
+              option.dzongkhag_pk_code ||
+              option.gewog_pk_code ||
+              option.curr_gewog_pk_code ||
+              option.pk_gewog_id ||
+              option.pk_code ||
+              option.id ||
+              option.code ||
+              "",
+          );
+        }
+      }
+    }
+  }
+
+  return label;
+};
+
+const mapEmployerType = (rawType: string): string => {
+  if (!rawType) return "";
+  const lower = rawType.toLowerCase();
+  if (lower.includes("government") || lower.includes("ministry"))
+    return "government";
+  if (
+    lower.includes("financial") ||
+    lower.includes("corporate") ||
+    lower.includes("limited") ||
+    lower.includes("non-bank") ||
+    lower.includes("company")
+  )
+    return "corporate";
+  if (lower.includes("private")) return "private";
+  return "private";
+};
 
 interface BusinessRepaymentSourceFormProps {
   onNext: (data: any) => void;
@@ -240,7 +387,6 @@ export function BusinessRepaymentSourceForm({
     proofFileName: formData?.businessIncome?.proofFileName || "",
   });
 
-  // NEW: State for business income specific errors
   const [businessErrors, setBusinessErrors] = useState<Record<string, string>>(
     {},
   );
@@ -305,10 +451,9 @@ export function BusinessRepaymentSourceForm({
     return false;
   };
 
-  // --- FIELD VALIDATION (individual) ---
+  // --- FIELD VALIDATION ---
   const validateField = (fieldName: string, value: any): string => {
     if (!value || value.toString().trim() === "") return "";
-
     switch (fieldName) {
       case "idNumber":
       case "spouseCid":
@@ -334,31 +479,35 @@ export function BusinessRepaymentSourceForm({
     return "";
   };
 
-  // --- REAL-TIME VALIDATION ON BLUR (clears error when valid) ---
   const handleBlurField = (index: number, field: string, value: any) => {
-    const errorMsg = validateField(field, value);
+    const formatError = validateField(field, value);
+
     setGuarantors((prev) => {
       const updated = [...prev];
       const currentErrors = updated[index].errors || {};
-      if (errorMsg) {
+
+      if (formatError) {
         updated[index] = {
           ...updated[index],
-          errors: { ...currentErrors, [field]: errorMsg },
+          errors: { ...currentErrors, [field]: formatError },
         };
       } else {
-        // Clear the error for this field if it exists
-        const newErrors = { ...currentErrors };
-        delete newErrors[field];
-        updated[index] = {
-          ...updated[index],
-          errors: newErrors,
-        };
+        const isEmpty = !value || value.toString().trim() === "";
+        if (isEmpty && currentErrors[field]) {
+          // Keep existing required error
+        } else {
+          const newErrors = { ...currentErrors };
+          delete newErrors[field];
+          updated[index] = {
+            ...updated[index],
+            errors: newErrors,
+          };
+        }
       }
       return updated;
     });
   };
 
-  // Load dropdown data
   useEffect(() => {
     const loadAllData = async () => {
       try {
@@ -407,7 +556,6 @@ export function BusinessRepaymentSourceForm({
     loadAllData();
   }, []);
 
-  // Dynamic Gewog loading
   useEffect(() => {
     const loadPermGewogs = async () => {
       const updated = [...guarantors];
@@ -420,6 +568,25 @@ export function BusinessRepaymentSourceForm({
             try {
               const opts = await fetchGewogsByDzongkhag(g.permDzongkhag);
               updated[i] = { ...updated[i], permGewogOptions: opts };
+
+              if (g.permGewog) {
+                const isId = opts.some(
+                  (o: any) =>
+                    String(o.gewog_pk_code || o.id) === String(g.permGewog),
+                );
+
+                if (!isId) {
+                  const converted = findPkCodeByLabel(g.permGewog, opts, [
+                    "gewog_name",
+                    "gewog",
+                    "name",
+                    "gewogName",
+                  ]);
+                  if (converted && converted !== g.permGewog) {
+                    updated[i].permGewog = converted;
+                  }
+                }
+              }
               needsUpdate = true;
             } catch (e) {
               console.error(e);
@@ -444,6 +611,25 @@ export function BusinessRepaymentSourceForm({
             try {
               const opts = await fetchGewogsByDzongkhag(g.currDzongkhag);
               updated[i] = { ...updated[i], currGewogOptions: opts };
+
+              if (g.currGewog) {
+                const isId = opts.some(
+                  (o: any) =>
+                    String(o.gewog_pk_code || o.id) === String(g.currGewog),
+                );
+
+                if (!isId) {
+                  const converted = findPkCodeByLabel(g.currGewog, opts, [
+                    "gewog_name",
+                    "gewog",
+                    "name",
+                    "gewogName",
+                  ]);
+                  if (converted && converted !== g.currGewog) {
+                    updated[i].currGewog = converted;
+                  }
+                }
+              }
               needsUpdate = true;
             } catch (e) {
               console.error(e);
@@ -456,7 +642,6 @@ export function BusinessRepaymentSourceForm({
     loadCurrGewogs();
   }, [guarantors.map((g) => `${g.currCountry}-${g.currDzongkhag}`).join(",")]);
 
-  // PEP Subcategory loading
   useEffect(() => {
     const loadPepSub = async () => {
       const updated = [...guarantors];
@@ -485,7 +670,6 @@ export function BusinessRepaymentSourceForm({
     loadPepSub();
   }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
 
-  // Identity Lookup Handlers
   const handleIdentityCheck = async (index: number) => {
     const guarantor = guarantors[index];
     const idType = guarantor.idType;
@@ -554,87 +738,283 @@ export function BusinessRepaymentSourceForm({
     }
   };
 
-  const handleLookupProceed = (index: number) => {
+  const handleLookupProceed = async (index: number) => {
     const guarantor = guarantors[index];
     if (guarantor.lookupStatus === "found" && guarantor.fetchedCustomerData) {
       const fetched = guarantor.fetchedCustomerData;
+
+      const mappedNationality = findPkCodeByLabel(
+        fetched.nationality,
+        nationalityOptions,
+        ["nationality", "name"],
+      );
+      const mappedMaritalStatus = findPkCodeByLabel(
+        fetched.maritalStatus,
+        maritalStatusOptions,
+        ["marital_status", "name"],
+      );
+      const mappedBankName = findPkCodeByLabel(fetched.bankName, banksOptions, [
+        "bank_name",
+        "name",
+        "bank",
+      ]);
+      const mappedPermCountry = findPkCodeByLabel(
+        fetched.permCountry,
+        countryOptions,
+        ["country_name", "country", "name"],
+      );
+      const mappedCurrCountry = findPkCodeByLabel(
+        fetched.currCountry,
+        countryOptions,
+        ["country_name", "country", "name"],
+      );
+      const mappedPermDzongkhag = findPkCodeByLabel(
+        fetched.permDzongkhag,
+        dzongkhagOptions,
+        ["dzongkhag_name", "dzongkhag", "name"],
+      );
+      const mappedCurrDzongkhag = findPkCodeByLabel(
+        fetched.currDzongkhag,
+        dzongkhagOptions,
+        ["dzongkhag_name", "dzongkhag", "name"],
+      );
+
+      const mappedOccupation = findPkCodeByLabel(
+        fetched.occupation || fetched.designation,
+        occupationOptions,
+        ["occ_name", "occupation", "name", "occ_pk_code"],
+      );
+
+      let mappedOrganizationName = findPkCodeByLabel(
+        fetched.organizationName,
+        organizationOptions,
+        ["lgal_constitution", "name"],
+      );
+      if (!mappedOrganizationName && fetched.organizationType) {
+        mappedOrganizationName = findPkCodeByLabel(
+          fetched.organizationType,
+          organizationOptions,
+          ["lgal_constitution", "name"],
+        );
+      }
+
+      const mappedEmployerType = mapEmployerType(
+        fetched.employerType || fetched.organizationType,
+      );
+      const determinedEmploymentStatus =
+        fetched.employmentStatus === "employed" ||
+        fetched.occupation ||
+        fetched.employerName
+          ? "employed"
+          : fetched.employmentStatus || "";
+
+      const rawPermGewog = fetched.permGewog || fetched.permanentGewog || "";
+      const rawCurrGewog = fetched.currGewog || fetched.currentGewog || "";
 
       const sanitized = {
         idType: guarantor.idType,
         idNumber: guarantor.idNumber,
         salutation: fetched.salutation || "",
-        guarantorName: fetched.name || "",
-        nationality: fetched.nationality ? String(fetched.nationality) : "",
+        guarantorName: fetched.fullName || fetched.applicantName || "",
+        nationality: mappedNationality || fetched.nationality || "",
         gender: fetched.gender || "",
-        idIssueDate: formatDateForInput(fetched.identificationIssueDate),
-        idExpiryDate: formatDateForInput(fetched.identificationExpiryDate),
+        idIssueDate: formatDateForInput(
+          fetched.identificationIssueDate || fetched.identityIssuedDate,
+        ),
+        idExpiryDate: formatDateForInput(
+          fetched.identificationExpiryDate || fetched.identityExpiryDate,
+        ),
         dateOfBirth: formatDateForInput(fetched.dateOfBirth),
-        tpnNo: fetched.tpn || "",
-        maritalStatus: fetched.maritalStatus
-          ? String(fetched.maritalStatus)
-          : "",
+        tpnNo: fetched.tpn || fetched.tpnNumber || "",
+        maritalStatus: mappedMaritalStatus || fetched.maritalStatus || "",
         spouseCid: fetched.spouseIdentificationNo || "",
         spouseName: fetched.spouseName || "",
         spouseContact: fetched.spouseContact || "",
         familyTree: fetched.familyTree || "",
-        bankName: fetched.bankName || "",
-        bankAccountNumber: fetched.bankAccount || "",
+        bankName: mappedBankName || fetched.bankName || "",
+        bankAccountNumber: fetched.bankAccount || fetched.bankAccountNo || "",
 
-        permCountry: fetched.permCountry ? String(fetched.permCountry) : "",
-        permDzongkhag: fetched.permDzongkhag
-          ? String(fetched.permDzongkhag)
-          : "",
-        permGewog: fetched.permGewog ? String(fetched.permGewog) : "",
-        permVillage: fetched.permVillage || "",
-        permThram: fetched.permThram || "",
-        permHouse: fetched.permHouse || "",
-        permCity: "",
-        permPostal: "",
+        permCountry:
+          mappedPermCountry ||
+          fetched.permCountry ||
+          fetched.permanentCountry ||
+          "",
+        permDzongkhag:
+          mappedPermDzongkhag ||
+          fetched.permDzongkhag ||
+          fetched.permanentDzongkhag ||
+          "",
+        permGewog: rawPermGewog,
+        permVillage:
+          fetched.permVillage ||
+          fetched.permanentStreet ||
+          fetched.permStreet ||
+          "",
+        permThram: fetched.permThram || fetched.thramNo || "",
+        permHouse: fetched.permHouse || fetched.houseNo || "",
+        permCity: fetched.permCity || "",
+        permPostal: fetched.permPostal || "",
+        permAddressProof: fetched.permAddressProof || "",
 
-        currCountry: fetched.currCountry ? String(fetched.currCountry) : "",
-        currDzongkhag: fetched.currDzongkhag
-          ? String(fetched.currDzongkhag)
-          : "",
-        currGewog: fetched.currGewog ? String(fetched.currGewog) : "",
-        currVillage: fetched.currVillage || "",
-        currHouse: fetched.currFlat || "",
-        currCity: "",
-        currPostal: "",
-        email: fetched.currEmail || "",
-        contact: fetched.currContact || "",
-        currAlternateContact: fetched.currAlternateContact || "",
+        currCountry:
+          mappedCurrCountry ||
+          fetched.currCountry ||
+          fetched.currentCountry ||
+          "",
+        currDzongkhag:
+          mappedCurrDzongkhag ||
+          fetched.currDzongkhag ||
+          fetched.currentDzongkhag ||
+          "",
+        currGewog: rawCurrGewog,
+        currVillage:
+          fetched.currVillage ||
+          fetched.currStreet ||
+          fetched.currentStreet ||
+          "",
+        currHouse:
+          fetched.currFlat ||
+          fetched.currHouse ||
+          fetched.currentBuildingNo ||
+          fetched.currBuildingNo ||
+          "",
+        currCity: fetched.currCity || "",
+        currPostal: fetched.currPostal || "",
+        email: fetched.currEmail || fetched.email || fetched.emailId || "",
+        contact:
+          fetched.currContact || fetched.contactNo || fetched.phone || "",
+        currAlternateContact:
+          fetched.currAlternateContact ||
+          fetched.alternateContactNo ||
+          fetched.alternatePhone ||
+          "",
+        currAddressProof: fetched.currAddressProof || "",
 
-        isPep: fetched.pepPerson || "",
+        isPep: fetched.pepPerson || fetched.pepDeclaration || "",
         pepCategory: fetched.pepCategory || "",
         pepSubCategory: fetched.pepSubCategory || "",
         pepUpload: fetched.identificationProof || "",
-        relatedToPep: fetched.pepRelated || "",
+        relatedToPep: fetched.pepRelated || fetched.relatedToAnyPep || "",
         relatedPeps: fetched.relatedPeps || [],
 
-        employmentStatus: fetched.employmentStatus || "",
+        employmentStatus: determinedEmploymentStatus,
         employeeId: fetched.employeeId || "",
-        occupation: fetched.occupation || "",
-        employerType: fetched.employerType || "",
+        occupation: mappedOccupation || fetched.occupation || "",
+        employerType: mappedEmployerType,
         designation: fetched.designation || "",
         grade: fetched.grade || "",
-        organizationName: fetched.organizationName || "",
-        orgLocation: fetched.orgLocation || "",
-        joiningDate: formatDateForInput(fetched.joiningDate),
-        serviceNature: fetched.serviceNature || "",
-        annualSalary: fetched.annualSalary || "",
+        organizationName:
+          mappedOrganizationName ||
+          fetched.organizationName ||
+          fetched.employerName ||
+          "",
+        orgLocation:
+          fetched.orgLocation ||
+          fetched.employerLocation ||
+          fetched.organizationLocation ||
+          "",
+        joiningDate: formatDateForInput(
+          fetched.joiningDate || fetched.appointmentDate,
+        ),
+        serviceNature: fetched.serviceNature || fetched.natureOfService || "",
+        annualSalary: fetched.annualSalary || fetched.annualIncome || "",
         contractEndDate: formatDateForInput(fetched.contractEndDate),
       };
+
+      let permGewogOptions: any[] = [];
+      let currGewogOptions: any[] = [];
+
+      if (
+        sanitized.permCountry &&
+        isBhutan(sanitized.permCountry) &&
+        sanitized.permDzongkhag
+      ) {
+        try {
+          permGewogOptions = await fetchGewogsByDzongkhag(
+            sanitized.permDzongkhag,
+          );
+          if (rawPermGewog) {
+            const converted = findPkCodeByLabel(
+              rawPermGewog,
+              permGewogOptions,
+              ["gewog_name", "gewog", "name", "gewogName"],
+            );
+            if (converted && converted !== rawPermGewog) {
+              sanitized.permGewog = converted;
+            } else {
+              const cleanedRaw = rawPermGewog
+                .toLowerCase()
+                .replace(/\s+gewog$/, "");
+              const matched = permGewogOptions.find((opt) =>
+                [opt.gewog_name, opt.gewog, opt.name].some(
+                  (field) =>
+                    field?.toLowerCase().replace(/\s+gewog$/, "") ===
+                    cleanedRaw,
+                ),
+              );
+              if (matched) {
+                sanitized.permGewog = String(
+                  matched.gewog_pk_code || matched.id,
+                );
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch permanent gewog options", e);
+        }
+      }
+
+      if (
+        sanitized.currCountry &&
+        isBhutan(sanitized.currCountry) &&
+        sanitized.currDzongkhag
+      ) {
+        try {
+          currGewogOptions = await fetchGewogsByDzongkhag(
+            sanitized.currDzongkhag,
+          );
+          if (rawCurrGewog) {
+            const converted = findPkCodeByLabel(
+              rawCurrGewog,
+              currGewogOptions,
+              ["gewog_name", "gewog", "name", "gewogName"],
+            );
+            if (converted && converted !== rawCurrGewog) {
+              sanitized.currGewog = converted;
+            } else {
+              const cleanedRaw = rawCurrGewog
+                .toLowerCase()
+                .replace(/\s+gewog$/, "");
+              const matched = currGewogOptions.find((opt) =>
+                [opt.gewog_name, opt.gewog, opt.name].some(
+                  (field) =>
+                    field?.toLowerCase().replace(/\s+gewog$/, "") ===
+                    cleanedRaw,
+                ),
+              );
+              if (matched) {
+                sanitized.currGewog = String(
+                  matched.gewog_pk_code || matched.id,
+                );
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch current gewog options", e);
+        }
+      }
 
       setGuarantors((prev) => {
         const updated = [...prev];
         updated[index] = {
           ...prev[index],
           ...sanitized,
-          permGewogOptions: prev[index].permGewogOptions,
-          currGewogOptions: prev[index].currGewogOptions,
+          permGewogOptions,
+          currGewogOptions,
           pepSubCategoryOptions: prev[index].pepSubCategoryOptions,
           relatedPepOptionsMap: prev[index].relatedPepOptionsMap,
           showLookupPopup: false,
+          errors: {},
         };
         return updated;
       });
@@ -650,7 +1030,207 @@ export function BusinessRepaymentSourceForm({
     }
   };
 
-  // Handlers
+  useEffect(() => {
+    if (nationalityOptions.length > 0) {
+      setGuarantors((prev) =>
+        prev.map((g) => {
+          if (
+            g.nationality &&
+            !nationalityOptions.some(
+              (opt) =>
+                String(opt.nationality_pk_code || opt.id) ===
+                String(g.nationality),
+            )
+          ) {
+            const converted = findPkCodeByLabel(
+              g.nationality,
+              nationalityOptions,
+              ["nationality", "name"],
+            );
+            return converted ? { ...g, nationality: converted } : g;
+          }
+          return g;
+        }),
+      );
+    }
+  }, [nationalityOptions]);
+
+  useEffect(() => {
+    if (maritalStatusOptions.length > 0) {
+      setGuarantors((prev) =>
+        prev.map((g) => {
+          if (
+            g.maritalStatus &&
+            !maritalStatusOptions.some(
+              (opt) =>
+                String(opt.marital_status_pk_code || opt.id) ===
+                String(g.maritalStatus),
+            )
+          ) {
+            const converted = findPkCodeByLabel(
+              g.maritalStatus,
+              maritalStatusOptions,
+              ["marital_status", "name"],
+            );
+            return converted ? { ...g, maritalStatus: converted } : g;
+          }
+          return g;
+        }),
+      );
+    }
+  }, [maritalStatusOptions]);
+
+  useEffect(() => {
+    if (banksOptions.length > 0) {
+      setGuarantors((prev) =>
+        prev.map((g) => {
+          if (
+            g.bankName &&
+            !banksOptions.some(
+              (opt) =>
+                String(opt.bank_pk_code || opt.id) === String(g.bankName),
+            )
+          ) {
+            const converted = findPkCodeByLabel(g.bankName, banksOptions, [
+              "bank_name",
+              "name",
+              "bank",
+            ]);
+            return converted ? { ...g, bankName: converted } : g;
+          }
+          return g;
+        }),
+      );
+    }
+  }, [banksOptions]);
+
+  useEffect(() => {
+    if (countryOptions.length > 0) {
+      setGuarantors((prev) =>
+        prev.map((g) => {
+          if (
+            g.permCountry &&
+            !countryOptions.some(
+              (opt) =>
+                String(opt.country_pk_code || opt.id) === String(g.permCountry),
+            )
+          ) {
+            const converted = findPkCodeByLabel(g.permCountry, countryOptions, [
+              "country_name",
+              "country",
+              "name",
+            ]);
+            if (converted) g.permCountry = converted;
+          }
+          if (
+            g.currCountry &&
+            !countryOptions.some(
+              (opt) =>
+                String(opt.country_pk_code || opt.id) === String(g.currCountry),
+            )
+          ) {
+            const converted = findPkCodeByLabel(g.currCountry, countryOptions, [
+              "country_name",
+              "country",
+              "name",
+            ]);
+            if (converted) g.currCountry = converted;
+          }
+          return g;
+        }),
+      );
+    }
+  }, [countryOptions]);
+
+  useEffect(() => {
+    if (dzongkhagOptions.length > 0) {
+      setGuarantors((prev) =>
+        prev.map((g) => {
+          if (
+            g.permDzongkhag &&
+            !dzongkhagOptions.some(
+              (opt) =>
+                String(opt.dzongkhag_pk_code || opt.id) ===
+                String(g.permDzongkhag),
+            )
+          ) {
+            const converted = findPkCodeByLabel(
+              g.permDzongkhag,
+              dzongkhagOptions,
+              ["dzongkhag_name", "dzongkhag", "name"],
+            );
+            if (converted) g.permDzongkhag = converted;
+          }
+          if (
+            g.currDzongkhag &&
+            !dzongkhagOptions.some(
+              (opt) =>
+                String(opt.dzongkhag_pk_code || opt.id) ===
+                String(g.currDzongkhag),
+            )
+          ) {
+            const converted = findPkCodeByLabel(
+              g.currDzongkhag,
+              dzongkhagOptions,
+              ["dzongkhag_name", "dzongkhag", "name"],
+            );
+            if (converted) g.currDzongkhag = converted;
+          }
+          return g;
+        }),
+      );
+    }
+  }, [dzongkhagOptions]);
+
+  useEffect(() => {
+    if (occupationOptions.length > 0) {
+      setGuarantors((prev) =>
+        prev.map((g) => {
+          if (
+            g.occupation &&
+            !occupationOptions.some(
+              (opt) =>
+                String(opt.occ_pk_code || opt.id) === String(g.occupation),
+            )
+          ) {
+            const converted = findPkCodeByLabel(
+              g.occupation,
+              occupationOptions,
+              ["occ_name", "occupation", "name"],
+            );
+            return converted ? { ...g, occupation: converted } : g;
+          }
+          return g;
+        }),
+      );
+    }
+  }, [occupationOptions]);
+
+  useEffect(() => {
+    if (organizationOptions.length > 0) {
+      setGuarantors((prev) =>
+        prev.map((g) => {
+          if (
+            g.organizationName &&
+            !organizationOptions.some(
+              (opt) =>
+                String(opt.lgal_constitution_pk_code || opt.id) ===
+                String(g.organizationName),
+            )
+          ) {
+            const converted = findPkCodeByLabel(
+              g.organizationName,
+              organizationOptions,
+              ["lgal_constitution", "name"],
+            );
+            return converted ? { ...g, organizationName: converted } : g;
+          }
+          return g;
+        }),
+      );
+    }
+  }, [organizationOptions]);
+
   const handleBusinessIncomeFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -661,7 +1241,6 @@ export function BusinessRepaymentSourceForm({
         proofFile: file,
         proofFileName: file.name,
       });
-      // Clear specific error if fixed
       if (businessErrors.proofFile) {
         const newErrors = { ...businessErrors };
         delete newErrors.proofFile;
@@ -683,6 +1262,9 @@ export function BusinessRepaymentSourceForm({
   const updateGuarantorField = (index: number, field: string, value: any) => {
     setGuarantors((prev) => {
       const updated = [...prev];
+      const newErrors = { ...updated[index].errors };
+      delete newErrors[field];
+
       updated[index] = {
         ...updated[index],
         [field]: value,
@@ -722,7 +1304,7 @@ export function BusinessRepaymentSourceForm({
         ...(field === "serviceNature" && value !== "contract"
           ? { contractEndDate: "" }
           : {}),
-        errors: { ...updated[index].errors, [field]: "" },
+        errors: newErrors,
       };
       return updated;
     });
@@ -911,7 +1493,6 @@ export function BusinessRepaymentSourceForm({
         "image/png",
       ];
       const maxSize = 5 * 1024 * 1024;
-
       if (!allowedTypes.includes(file.type)) return;
       if (file.size > maxSize) return;
 
@@ -928,16 +1509,13 @@ export function BusinessRepaymentSourceForm({
     }
   };
 
-  // Enhanced validation for all guarantors (used on submit)
   const validateAllGuarantors = (): boolean => {
     let isValid = true;
     const updatedGuarantors = [...guarantors];
 
     guarantors.forEach((guarantor, index) => {
-      // Start with existing errors (to preserve file upload errors)
       const updatedErrors = { ...guarantor.errors };
 
-      // Helper to set or clear a validation error
       const validateFieldAndSetError = (
         field: string,
         condition: boolean,
@@ -1024,7 +1602,6 @@ export function BusinessRepaymentSourceForm({
         "bankAccountNumber is required",
       );
 
-      // TPN (optional)
       if (guarantor.tpnNo && !isValidTPN(guarantor.tpnNo)) {
         updatedErrors.tpnNo = "TPN must be 11 digits";
       } else {
@@ -1095,7 +1672,6 @@ export function BusinessRepaymentSourceForm({
           isRequired(guarantor.permVillage),
           "Village/Street is required",
         );
-        // Thram, House optional
         delete updatedErrors.permCity;
         delete updatedErrors.permPostal;
         delete updatedErrors.permAddressProof;
@@ -1125,7 +1701,8 @@ export function BusinessRepaymentSourceForm({
           !guarantor.permAddressProof,
           "Address proof is required",
         );
-        // Postal optional
+        delete updatedErrors.permThram;
+        delete updatedErrors.permHouse;
       }
 
       // Current Address
@@ -1154,7 +1731,6 @@ export function BusinessRepaymentSourceForm({
           isRequired(guarantor.currVillage),
           "Village/Street is required",
         );
-        // currHouse optional
         delete updatedErrors.currCity;
         delete updatedErrors.currPostal;
         delete updatedErrors.currAddressProof;
@@ -1288,7 +1864,6 @@ export function BusinessRepaymentSourceForm({
             );
           });
         } else {
-          // Clear any related PEP errors
           Object.keys(updatedErrors).forEach((key) => {
             if (key.startsWith("relatedPeps.")) {
               delete updatedErrors[key];
@@ -1321,7 +1896,12 @@ export function BusinessRepaymentSourceForm({
         "Proof file is required",
       );
 
-      // Employment (if employed)
+      validateFieldAndSetError(
+        "employmentStatus",
+        isRequired(guarantor.employmentStatus),
+        "Employment status is required",
+      );
+
       if (guarantor.employmentStatus === "employed") {
         validateFieldAndSetError(
           "employeeId",
@@ -1383,7 +1963,6 @@ export function BusinessRepaymentSourceForm({
           delete updatedErrors.contractEndDate;
         }
       } else {
-        // Clear employment errors if not employed
         const employmentFields = [
           "employeeId",
           "occupation",
@@ -1400,7 +1979,6 @@ export function BusinessRepaymentSourceForm({
         employmentFields.forEach((f) => delete updatedErrors[f]);
       }
 
-      // Check if there are any errors for this guarantor
       if (Object.keys(updatedErrors).length > 0) {
         isValid = false;
         updatedGuarantors[index] = {
@@ -1408,7 +1986,6 @@ export function BusinessRepaymentSourceForm({
           errors: updatedErrors,
         };
       } else {
-        // No errors, clear the errors object
         updatedGuarantors[index] = {
           ...updatedGuarantors[index],
           errors: {},
@@ -1416,10 +1993,22 @@ export function BusinessRepaymentSourceForm({
       }
     });
 
-    // Update state to reflect errors
     setGuarantors(updatedGuarantors);
-
     return isValid;
+  };
+
+  const scrollToFirstError = () => {
+    // Small delay to ensure state updates & UI renders error borders
+    setTimeout(() => {
+      const errorElements = document.querySelectorAll(".border-red-500");
+      if (errorElements.length > 0) {
+        errorElements[0].scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        (errorElements[0] as HTMLElement).focus();
+      }
+    }, 100);
   };
 
   const handleNext = () => {
@@ -1451,16 +2040,27 @@ export function BusinessRepaymentSourceForm({
     }
 
     if (!isValid) {
-      // Errors are now in state, so the UI will update to show red borders/text
       alert("Please fix the errors highlighted in red before proceeding.");
+      scrollToFirstError();
       return;
     }
 
-    onNext({
+    const dataToSave = {
       businessIncome: businessIncomeData,
       isGuarantorApplicable,
       guarantors: isGuarantorApplicable === "Yes" ? guarantors : [],
-    });
+    };
+
+    const existingData = sessionStorage.getItem("businessLoanApplicationData");
+    const allData = existingData ? JSON.parse(existingData) : {};
+    const updatedData = { ...allData, ...dataToSave };
+
+    sessionStorage.setItem(
+      "businessLoanApplicationData",
+      JSON.stringify(updatedData),
+    );
+
+    onNext(dataToSave);
   };
 
   return (
@@ -1553,7 +2153,6 @@ export function BusinessRepaymentSourceForm({
           GUARANTOR INFORMATION
         </h2>
 
-        {/* Global Guarantor Question */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div>
             <Label className="text-gray-800 font-semibold text-sm mb-2 block">
@@ -1602,7 +2201,6 @@ export function BusinessRepaymentSourceForm({
                   key={index}
                   className="border-2 border-gray-100 rounded-xl p-6 relative bg-white shadow-sm"
                 >
-                  {/* Guarantor Header */}
                   <div className="flex justify-between items-center border-b border-gray-200 pb-4 mb-6">
                     <h3 className="text-xl font-bold text-[#003DA5]">
                       Guarantor #{index + 1}
@@ -1620,7 +2218,6 @@ export function BusinessRepaymentSourceForm({
                     )}
                   </div>
 
-                  {/* Identity Lookup Popup */}
                   {guarantor.showLookupPopup && (
                     <DocumentPopup
                       open={guarantor.showLookupPopup}
@@ -2014,7 +2611,8 @@ export function BusinessRepaymentSourceForm({
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                           <div>
                             <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                              Spouse Name
+                              Spouse Name{" "}
+                              <span className="text-red-500">*</span>
                             </Label>
                             <RestrictedInput
                               allowed="alpha"
@@ -2043,7 +2641,8 @@ export function BusinessRepaymentSourceForm({
                           </div>
                           <div>
                             <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                              Spouse CID No.
+                              Spouse CID No.{" "}
+                              <span className="text-red-500">*</span>
                             </Label>
                             <RestrictedInput
                               allowed="numeric"
@@ -2073,7 +2672,8 @@ export function BusinessRepaymentSourceForm({
                           </div>
                           <div>
                             <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                              Spouse Contact
+                              Spouse Contact{" "}
+                              <span className="text-red-500">*</span>
                             </Label>
                             <RestrictedInput
                               allowed="numeric"
@@ -2643,7 +3243,8 @@ export function BusinessRepaymentSourceForm({
                           </div>
                           <div>
                             <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                              Address Proof
+                              Address Proof{" "}
+                              <span className="text-red-500">*</span>
                             </Label>
                             <div
                               className={fileUploadStyle(
@@ -3045,7 +3646,8 @@ export function BusinessRepaymentSourceForm({
                       {!isCurrBhutan && (
                         <div>
                           <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                            Address Proof
+                            Address Proof{" "}
+                            <span className="text-red-500">*</span>
                           </Label>
                           <div
                             className={fileUploadStyle(
@@ -3204,7 +3806,7 @@ export function BusinessRepaymentSourceForm({
 
                           <div>
                             <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                              Upload ID
+                              Upload ID <span className="text-red-500">*</span>
                             </Label>
                             <div
                               className={fileUploadStyle(!!errors.pepUpload)}
@@ -3308,7 +3910,6 @@ export function BusinessRepaymentSourceForm({
                                       </Button>
                                     )}
                                   </div>
-
                                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="space-y-2">
                                       <Label className="text-gray-800 font-semibold text-sm mb-2 block">
@@ -3617,9 +4218,10 @@ export function BusinessRepaymentSourceForm({
 
                     {guarantor.employmentStatus === "employed" && (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Corrected fields with Red Asterisks to match validation */}
                         <div>
                           <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                            Employee ID
+                            Employee ID <span className="text-red-500">*</span>
                           </Label>
                           <RestrictedInput
                             allowed="alphanumeric"
@@ -3649,7 +4251,7 @@ export function BusinessRepaymentSourceForm({
 
                         <div>
                           <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                            Occupation
+                            Occupation <span className="text-red-500">*</span>
                           </Label>
                           <Select
                             value={guarantor.occupation}
@@ -3684,7 +4286,8 @@ export function BusinessRepaymentSourceForm({
 
                         <div>
                           <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                            Employer Type
+                            Employer Type{" "}
+                            <span className="text-red-500">*</span>
                           </Label>
                           <Select
                             value={guarantor.employerType}
@@ -3716,7 +4319,7 @@ export function BusinessRepaymentSourceForm({
 
                         <div>
                           <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                            Designation
+                            Designation <span className="text-red-500">*</span>
                           </Label>
                           <RestrictedInput
                             allowed="alpha"
@@ -3746,7 +4349,7 @@ export function BusinessRepaymentSourceForm({
 
                         <div>
                           <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                            Grade
+                            Grade <span className="text-red-500">*</span>
                           </Label>
                           <Select
                             value={guarantor.grade}
@@ -3760,9 +4363,19 @@ export function BusinessRepaymentSourceForm({
                               <SelectValue placeholder="[Select]" />
                             </SelectTrigger>
                             <SelectContent>
+                              {/* Numeric grades 1-20 + P1-P5 */}
+                              {Array.from({ length: 20 }, (_, i) => i + 1).map(
+                                (num) => (
+                                  <SelectItem key={num} value={String(num)}>
+                                    {num}
+                                  </SelectItem>
+                                ),
+                              )}
                               <SelectItem value="p1">P1</SelectItem>
                               <SelectItem value="p2">P2</SelectItem>
                               <SelectItem value="p3">P3</SelectItem>
+                              <SelectItem value="p4">P4</SelectItem>
+                              <SelectItem value="p5">P5</SelectItem>
                             </SelectContent>
                           </Select>
                           {errors.grade && (
@@ -3774,7 +4387,7 @@ export function BusinessRepaymentSourceForm({
 
                         <div>
                           <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                            Organization
+                            Organization <span className="text-red-500">*</span>
                           </Label>
                           <Select
                             value={guarantor.organizationName}
@@ -3817,7 +4430,8 @@ export function BusinessRepaymentSourceForm({
 
                         <div>
                           <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                            Org. Location
+                            Org. Location{" "}
+                            <span className="text-red-500">*</span>
                           </Label>
                           <RestrictedInput
                             allowed="alphanumeric"
@@ -3847,7 +4461,7 @@ export function BusinessRepaymentSourceForm({
 
                         <div>
                           <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                            Joining Date
+                            Joining Date <span className="text-red-500">*</span>
                           </Label>
                           <Input
                             type="date"
@@ -3871,7 +4485,8 @@ export function BusinessRepaymentSourceForm({
 
                         <div>
                           <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                            Nature of Service
+                            Nature of Service{" "}
+                            <span className="text-red-500">*</span>
                           </Label>
                           <Select
                             value={guarantor.serviceNature}
@@ -3907,7 +4522,8 @@ export function BusinessRepaymentSourceForm({
 
                         <div>
                           <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                            Annual Salary
+                            Annual Salary{" "}
+                            <span className="text-red-500">*</span>
                           </Label>
                           <Input
                             type="number"
@@ -3931,7 +4547,8 @@ export function BusinessRepaymentSourceForm({
                         {guarantor.serviceNature === "contract" && (
                           <div>
                             <Label className="text-gray-800 font-semibold text-sm mb-2 block">
-                              Contract End Date
+                              Contract End Date{" "}
+                              <span className="text-red-500">*</span>
                             </Label>
                             <Input
                               type="date"

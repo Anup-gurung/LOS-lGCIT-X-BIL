@@ -42,7 +42,7 @@ const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidCID = (value: string) => /^\d{11}$/.test(value);
 const isValidTPN = (value: string) => /^\d{11}$/.test(value);
-const isValidMobile = (value: string) => /^(16|17|77)\d{6}$/.test(value); // Only 8-digit mobile numbers starting with 16,17,77
+const isValidMobile = (value: string) => /^(16|17|77)\d{6}$/.test(value);
 const isValidFixedLine = (value: string) => /^[2-8]\d{6,7}$/.test(value);
 const isValidPhoneNumber = (value: string) =>
   isValidMobile(value) || isValidFixedLine(value);
@@ -96,23 +96,18 @@ const RestrictedInput = ({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let newValue = e.target.value;
 
-    // Filter based on allowed pattern
     if (allowed === "numeric") {
       newValue = newValue.replace(/[^0-9]/g, "");
     } else if (allowed === "alpha") {
-      // Allow letters, spaces, hyphens, apostrophes (for names)
       newValue = newValue.replace(/[^a-zA-Z\s\-']/g, "");
     } else if (allowed === "alphanumeric") {
-      // Allow letters, numbers, spaces, hyphens, underscores
       newValue = newValue.replace(/[^a-zA-Z0-9\s\-_]/g, "");
     }
 
-    // Apply maxLength
     if (maxLength && newValue.length > maxLength) {
       newValue = newValue.slice(0, maxLength);
     }
 
-    // Call original onChange with filtered value
     if (onChange) {
       onChange({ ...e, target: { ...e.target, value: newValue } });
     }
@@ -123,12 +118,146 @@ const RestrictedInput = ({
       value={value}
       onChange={handleChange}
       className={className}
-      maxLength={maxLength} // also pass to native input for browser hint
+      maxLength={maxLength}
       {...props}
     />
   );
 };
 // ================== END Restricted Input ==================
+
+// ================== Helper: findPkCodeByLabel (for label → ID conversion) ==================
+const findPkCodeByLabel = (
+  label: string,
+  options: any[],
+  labelFields: string[],
+): string => {
+  if (!label) return "";
+
+  const trimmedLabel = String(label).trim().toLowerCase();
+  const strippedLabel = trimmedLabel.replace(/\s+/g, "");
+  const inputWords = trimmedLabel.split(/\s+/).filter((w) => w.length > 0);
+
+  for (const option of options) {
+    for (const field of labelFields) {
+      const optionValue = String(option[field] || "");
+      const trimmedOption = optionValue.trim().toLowerCase();
+      const strippedOption = trimmedOption.replace(/\s+/g, "");
+      const optionWords = trimmedOption
+        .split(/\s+/)
+        .filter((w) => w.length > 0);
+
+      if (strippedOption === strippedLabel) {
+        return String(
+          option.occ_pk_code ||
+            option.occupation_pk_code ||
+            option.lgal_constitution_pk_code ||
+            option.legal_const_pk_code ||
+            option.bank_pk_code ||
+            option.country_pk_code ||
+            option.nationality_pk_code ||
+            option.identity_type_pk_code ||
+            option.marital_status_pk_code ||
+            option.dzongkhag_pk_code ||
+            option.gewog_pk_code ||
+            option.curr_gewog_pk_code ||
+            option.pk_gewog_id ||
+            option.pk_code ||
+            option.id ||
+            option.code ||
+            "",
+        );
+      }
+
+      if (trimmedOption === trimmedLabel) {
+        return String(
+          option.occ_pk_code ||
+            option.occupation_pk_code ||
+            option.lgal_constitution_pk_code ||
+            option.legal_const_pk_code ||
+            option.bank_pk_code ||
+            option.country_pk_code ||
+            option.nationality_pk_code ||
+            option.identity_type_pk_code ||
+            option.marital_status_pk_code ||
+            option.dzongkhag_pk_code ||
+            option.gewog_pk_code ||
+            option.curr_gewog_pk_code ||
+            option.pk_gewog_id ||
+            option.pk_code ||
+            option.id ||
+            option.code ||
+            "",
+        );
+      }
+
+      if (inputWords.length > 0 && optionWords.length > 0) {
+        const allWordsMatch = inputWords.every((word) =>
+          optionWords.some(
+            (optWord) => optWord.includes(word) || word.includes(optWord),
+          ),
+        );
+        if (allWordsMatch) {
+          return String(
+            option.occ_pk_code ||
+              option.occupation_pk_code ||
+              option.lgal_constitution_pk_code ||
+              option.legal_const_pk_code ||
+              option.bank_pk_code ||
+              option.country_pk_code ||
+              option.nationality_pk_code ||
+              option.identity_type_pk_code ||
+              option.marital_status_pk_code ||
+              option.dzongkhag_pk_code ||
+              option.gewog_pk_code ||
+              option.curr_gewog_pk_code ||
+              option.pk_gewog_id ||
+              option.pk_code ||
+              option.id ||
+              option.code ||
+              "",
+          );
+        }
+      }
+    }
+  }
+
+  if (trimmedLabel.length >= 4) {
+    for (const option of options) {
+      for (const field of labelFields) {
+        const optionLabel = String(option[field] || "")
+          .trim()
+          .toLowerCase();
+        if (
+          optionLabel.includes(trimmedLabel) ||
+          trimmedLabel.includes(optionLabel)
+        ) {
+          return String(
+            option.occ_pk_code ||
+              option.occupation_pk_code ||
+              option.lgal_constitution_pk_code ||
+              option.legal_const_pk_code ||
+              option.bank_pk_code ||
+              option.country_pk_code ||
+              option.nationality_pk_code ||
+              option.identity_type_pk_code ||
+              option.marital_status_pk_code ||
+              option.dzongkhag_pk_code ||
+              option.gewog_pk_code ||
+              option.curr_gewog_pk_code ||
+              option.pk_gewog_id ||
+              option.pk_code ||
+              option.id ||
+              option.code ||
+              "",
+          );
+        }
+      }
+    }
+  }
+
+  return "";
+};
+// ================== END Helper ==================
 
 // Helper to format dates to YYYY-MM-DD for input fields
 const formatDateForInput = (dateString: string | null | undefined) => {
@@ -153,7 +282,6 @@ const createEmptyRelatedPep = () => ({
 
 // Initialize empty co-borrower with all required fields
 const createEmptyCoBorrower = () => ({
-  // Personal Information
   identificationType: "",
   identificationNo: "",
   salutation: "",
@@ -174,7 +302,6 @@ const createEmptyCoBorrower = () => ({
   bankAccount: "",
   passportPhoto: "",
 
-  // Permanent Address
   permCountry: "",
   permDzongkhag: "",
   permGewog: "",
@@ -183,7 +310,6 @@ const createEmptyCoBorrower = () => ({
   permHouse: "",
   permAddressProof: "",
 
-  // Current Address
   currCountry: "",
   currDzongkhag: "",
   currGewog: "",
@@ -194,7 +320,6 @@ const createEmptyCoBorrower = () => ({
   currAlternateContact: "",
   currAddressProof: "",
 
-  // PEP Declaration
   pepPerson: "",
   pepCategory: "",
   pepSubCategory: "",
@@ -202,13 +327,10 @@ const createEmptyCoBorrower = () => ({
   pepRelated: "",
   relatedPeps: [createEmptyRelatedPep()],
 
-  // Related to BIL
   relatedToBil: "",
 
-  // Employment Status
   employmentStatus: "",
 
-  // Employment Details (if employed)
   employeeId: "",
   occupation: "",
   employerType: "",
@@ -221,14 +343,12 @@ const createEmptyCoBorrower = () => ({
   annualSalary: "",
   contractEndDate: "",
 
-  // Additional fields for married status
   isMarried: false,
   permGewogOptions: [],
   currGewogOptions: [],
   pepSubCategoryOptions: [],
   relatedPepOptionsMap: {},
 
-  // Lookup states
   showLookupPopup: false,
   lookupStatus: "searching" as "searching" | "found" | "not_found",
   fetchedCustomerData: null,
@@ -246,7 +366,6 @@ export function CoborrowerBusiness({
   onBack,
   formData,
 }: CoBorrowerDetailsFormProps) {
-  // New state to track if co-borrower is applicable
   const [isCoBorrowerApplicable, setIsCoBorrowerApplicable] = useState<string>(
     formData.isCoBorrowerApplicable || "no",
   );
@@ -255,7 +374,7 @@ export function CoborrowerBusiness({
     formData.coBorrowers || [createEmptyCoBorrower()],
   );
 
-  // Dropdown States (shared across all co-borrowers)
+  // Dropdown States
   const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([]);
   const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
   const [identificationTypeOptions, setIdentificationTypeOptions] = useState<
@@ -268,13 +387,11 @@ export function CoborrowerBusiness({
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
   const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
 
-  // Calculate date constraints
   const today = new Date().toISOString().split("T")[0];
   const eighteenYearsAgo = new Date();
   eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
   const maxDobDate = eighteenYearsAgo.toISOString().split("T")[0];
 
-  // --- HELPER: Determine if Married for a specific co-borrower ---
   const getIsMarried = (coBorrower: any) => {
     const status = coBorrower.maritalStatus;
     if (!status) return false;
@@ -396,8 +513,11 @@ export function CoborrowerBusiness({
         setOccupationOptions(options);
       } catch (error) {
         setOccupationOptions([
-          { id: "engineer", name: "Engineer" },
-          { id: "teacher", name: "Teacher" },
+          { occ_pk_code: "corporate_employee", occ_name: "Corporate Employee" },
+          { occ_pk_code: "engineer", occ_name: "Engineer" },
+          { occ_pk_code: "teacher", occ_name: "Teacher" },
+          { occ_pk_code: "manager", occ_name: "Manager" },
+          { occ_pk_code: "officer", occ_name: "Officer" },
         ]);
       }
     };
@@ -408,7 +528,20 @@ export function CoborrowerBusiness({
         const options = await fetchLegalConstitution();
         setOrganizationOptions(options);
       } catch (error) {
-        setOrganizationOptions([{ id: "org1", name: "Organization 1" }]);
+        setOrganizationOptions([
+          {
+            lgal_constitution_pk_code: "bhutan_insurance",
+            lgal_constitution: "Bhutan Insurance Limited",
+          },
+          {
+            lgal_constitution_pk_code: "org1",
+            lgal_constitution: "Organization 1",
+          },
+          {
+            lgal_constitution_pk_code: "bank_of_bhutan",
+            lgal_constitution: "Bank of Bhutan",
+          },
+        ]);
       }
     };
     loadOrganizations();
@@ -424,7 +557,7 @@ export function CoborrowerBusiness({
     loadPepCategories();
   }, []);
 
-  // Sync with formData when it changes
+  // Sync with formData
   useEffect(() => {
     if (formData && Object.keys(formData).length > 0) {
       const hasData = Object.values(formData).some((val) => {
@@ -445,7 +578,7 @@ export function CoborrowerBusiness({
     }
   }, [formData]);
 
-  // Load permanent gewogs for all co-borrowers
+  // Load permanent gewogs for all co-borrowers and map label to ID if needed
   useEffect(() => {
     const loadPermGewogs = async () => {
       const updatedCoBorrowers = [...coBorrowers];
@@ -463,6 +596,33 @@ export function CoborrowerBusiness({
               permGewogOptions: options,
             };
             needsUpdate = true;
+
+            if (coBorrower.permGewog && options.length > 0) {
+              const currentGewog = coBorrower.permGewog;
+              const isId = options.some(
+                (opt) =>
+                  String(
+                    opt.gewog_pk_code || opt.id || opt.code || opt.value,
+                  ) === currentGewog,
+              );
+              if (!isId) {
+                const matchedId = findPkCodeByLabel(currentGewog, options, [
+                  "gewog",
+                  "gewog_name",
+                  "name",
+                  "label",
+                ]);
+                if (matchedId && matchedId !== currentGewog) {
+                  updatedCoBorrowers[i] = {
+                    ...updatedCoBorrowers[i],
+                    permGewog: matchedId,
+                  };
+                  const errors = { ...updatedCoBorrowers[i].errors };
+                  delete errors.permGewog;
+                  updatedCoBorrowers[i].errors = errors;
+                }
+              }
+            }
           } catch (error) {
             console.error(
               `Failed to load permanent gewogs for co-borrower ${i}:`,
@@ -484,7 +644,7 @@ export function CoborrowerBusiness({
     loadPermGewogs();
   }, [coBorrowers.map((cb) => cb.permDzongkhag).join(",")]);
 
-  // Load current gewogs for all co-borrowers
+  // Load current gewogs for all co-borrowers and map label to ID if needed
   useEffect(() => {
     const loadCurrGewogs = async () => {
       const updatedCoBorrowers = [...coBorrowers];
@@ -502,6 +662,33 @@ export function CoborrowerBusiness({
               currGewogOptions: options,
             };
             needsUpdate = true;
+
+            if (coBorrower.currGewog && options.length > 0) {
+              const currentGewog = coBorrower.currGewog;
+              const isId = options.some(
+                (opt) =>
+                  String(
+                    opt.gewog_pk_code || opt.id || opt.code || opt.value,
+                  ) === currentGewog,
+              );
+              if (!isId) {
+                const matchedId = findPkCodeByLabel(currentGewog, options, [
+                  "gewog",
+                  "gewog_name",
+                  "name",
+                  "label",
+                ]);
+                if (matchedId && matchedId !== currentGewog) {
+                  updatedCoBorrowers[i] = {
+                    ...updatedCoBorrowers[i],
+                    currGewog: matchedId,
+                  };
+                  const errors = { ...updatedCoBorrowers[i].errors };
+                  delete errors.currGewog;
+                  updatedCoBorrowers[i].errors = errors;
+                }
+              }
+            }
           } catch (error) {
             console.error(
               `Failed to load current gewogs for co-borrower ${i}:`,
@@ -522,6 +709,107 @@ export function CoborrowerBusiness({
     };
     loadCurrGewogs();
   }, [coBorrowers.map((cb) => cb.currDzongkhag).join(",")]);
+
+  // --- Map occupation after occupationOptions load, and also when coBorrowers change (to handle lookup) ---
+  useEffect(() => {
+    if (occupationOptions.length === 0) return;
+    setCoBorrowers((prev) => {
+      const updated = [...prev];
+      let changed = false;
+      updated.forEach((cb, idx) => {
+        if (cb.occupation && typeof cb.occupation === "string") {
+          const isId = occupationOptions.some(
+            (opt) =>
+              String(
+                opt.occ_pk_code || opt.occupation_pk_code || opt.id || opt.code,
+              ) === cb.occupation,
+          );
+          if (!isId) {
+            const matchedId = findPkCodeByLabel(
+              cb.occupation,
+              occupationOptions,
+              ["occ_name", "occupation", "name", "label"],
+            );
+            if (matchedId && matchedId !== cb.occupation) {
+              updated[idx] = { ...updated[idx], occupation: matchedId };
+              if (updated[idx].errors) delete updated[idx].errors.occupation;
+              changed = true;
+            }
+          }
+        }
+      });
+      return changed ? updated : prev;
+    });
+  }, [occupationOptions, coBorrowers]);
+
+  // --- Map organizationName after organizationOptions load, and also when coBorrowers change ---
+  useEffect(() => {
+    if (organizationOptions.length === 0) return;
+    setCoBorrowers((prev) => {
+      const updated = [...prev];
+      let changed = false;
+      updated.forEach((cb, idx) => {
+        if (cb.organizationName && typeof cb.organizationName === "string") {
+          const isId = organizationOptions.some(
+            (opt) =>
+              String(
+                opt.lgal_constitution_pk_code ||
+                  opt.legal_const_pk_code ||
+                  opt.id ||
+                  opt.code,
+              ) === cb.organizationName,
+          );
+          if (!isId) {
+            const matchedId = findPkCodeByLabel(
+              cb.organizationName,
+              organizationOptions,
+              ["lgal_constitution", "legal_const_name", "name", "label"],
+            );
+            if (matchedId && matchedId !== cb.organizationName) {
+              updated[idx] = { ...updated[idx], organizationName: matchedId };
+              if (updated[idx].errors)
+                delete updated[idx].errors.organizationName;
+              changed = true;
+            }
+          }
+        }
+      });
+      return changed ? updated : prev;
+    });
+  }, [organizationOptions, coBorrowers]);
+
+  // Map bankName after banksOptions load
+  useEffect(() => {
+    if (banksOptions.length === 0) return;
+    setCoBorrowers((prev) => {
+      const updated = [...prev];
+      let changed = false;
+      updated.forEach((cb, idx) => {
+        if (cb.bankName && typeof cb.bankName === "string") {
+          const isId = banksOptions.some(
+            (opt) =>
+              String(
+                opt.bank_pk_code || opt.id || opt.code || opt.bank_code,
+              ) === cb.bankName,
+          );
+          if (!isId) {
+            const matchedId = findPkCodeByLabel(cb.bankName, banksOptions, [
+              "bank_name",
+              "name",
+              "label",
+              "bank",
+            ]);
+            if (matchedId && matchedId !== cb.bankName) {
+              updated[idx] = { ...updated[idx], bankName: matchedId };
+              if (updated[idx].errors) delete updated[idx].errors.bankName;
+              changed = true;
+            }
+          }
+        }
+      });
+      return changed ? updated : prev;
+    });
+  }, [banksOptions]);
 
   // Load PEP sub-categories for SELF PEP
   useEffect(() => {
@@ -590,7 +878,6 @@ export function CoborrowerBusiness({
       case "currContact":
       case "spouseContact":
       case "currAlternateContact":
-        // Updated to only allow Bhutanese mobile numbers (8 digits starting with 16/17/77)
         if (!isValidMobile(value))
           return "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
         break;
@@ -605,14 +892,12 @@ export function CoborrowerBusiness({
     return "";
   };
 
-  // Validate all fields for a co-borrower (used on submit)
   const validateCoBorrower = (
     coBorrower: any,
     index: number,
   ): Record<string, string> => {
     const newErrors: Record<string, string> = {};
 
-    // Personal Information
     const personalFields = [
       "identificationType",
       "identificationNo",
@@ -632,7 +917,6 @@ export function CoborrowerBusiness({
         newErrors[field] = `${field} is required`;
     });
 
-    // Specific format validations
     if (coBorrower.identificationNo && !isValidCID(coBorrower.identificationNo))
       newErrors.identificationNo = "CID must be 11 digits";
 
@@ -642,7 +926,6 @@ export function CoborrowerBusiness({
     if (coBorrower.dateOfBirth && !isLegalAge(coBorrower.dateOfBirth))
       newErrors.dateOfBirth = "Applicant must be at least 18 years old";
 
-    // Spouse fields if married
     if (getIsMarried(coBorrower)) {
       if (isRequired(coBorrower.spouseIdentificationNo))
         newErrors.spouseIdentificationNo = "Spouse CID is required";
@@ -665,21 +948,17 @@ export function CoborrowerBusiness({
           "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
     }
 
-    // Bank details
     if (isRequired(coBorrower.bankName))
       newErrors.bankName = "Bank name is required";
     if (isRequired(coBorrower.bankAccount))
       newErrors.bankAccount = "Bank account is required";
 
-    // Passport photo
     if (!coBorrower.passportPhoto)
       newErrors.passportPhoto = "Passport photo is required";
 
-    // Family tree
     if (!coBorrower.familyTree)
       newErrors.familyTree = "Family tree document is required";
 
-    // Permanent Address
     if (isRequired(coBorrower.permCountry))
       newErrors.permCountry = "Country is required";
 
@@ -712,7 +991,6 @@ export function CoborrowerBusiness({
         newErrors.permAddressProof = "Address proof is required";
     }
 
-    // Current Address
     if (isRequired(coBorrower.currCountry))
       newErrors.currCountry = "Country is required";
 
@@ -761,7 +1039,6 @@ export function CoborrowerBusiness({
       newErrors.currAlternateContact =
         "Enter a valid Bhutanese mobile number (8 digits starting with 16/17/77)";
 
-    // PEP Declaration
     if (isRequired(coBorrower.pepPerson))
       newErrors.pepPerson = "PEP status is required";
     if (coBorrower.pepPerson === "yes") {
@@ -798,11 +1075,9 @@ export function CoborrowerBusiness({
       }
     }
 
-    // Related to BIL
     if (isRequired(coBorrower.relatedToBil))
       newErrors.relatedToBil = "Please select an option";
 
-    // Employment
     if (isRequired(coBorrower.employmentStatus))
       newErrors.employmentStatus = "Employment status is required";
     if (coBorrower.employmentStatus === "employed") {
@@ -869,13 +1144,12 @@ export function CoborrowerBusiness({
     });
   };
 
-  // --- AUTOMATIC LOOKUP LOGIC (ORIGINAL SEARCH FEATURE) ---
+  // --- AUTOMATIC LOOKUP LOGIC ---
   const handleIdentityCheck = async (index: number) => {
     const coBorrower = coBorrowers[index];
     const idType = coBorrower.identificationType;
     const idNo = coBorrower.identificationNo;
 
-    // Only proceed if both fields are filled
     if (!idType || !idNo || idNo.trim() === "") return;
 
     setCoBorrowers((prev) => {
@@ -941,59 +1215,201 @@ export function CoborrowerBusiness({
     }
   };
 
-  const handleLookupProceed = (index: number) => {
+  const handleLookupProceed = async (index: number) => {
     const coBorrower = coBorrowers[index];
     if (coBorrower.lookupStatus === "found" && coBorrower.fetchedCustomerData) {
+      const fetched = coBorrower.fetchedCustomerData;
+
+      const mappedNationality = findPkCodeByLabel(
+        fetched.nationality,
+        nationalityOptions,
+        ["nationality", "name", "label"],
+      );
+      const mappedPermCountry = findPkCodeByLabel(
+        fetched.permCountry,
+        countryOptions,
+        ["country_name", "country", "name", "label"],
+      );
+      const mappedCurrCountry = findPkCodeByLabel(
+        fetched.currCountry,
+        countryOptions,
+        ["country_name", "country", "name", "label"],
+      );
+      const mappedPermDzongkhag = findPkCodeByLabel(
+        fetched.permDzongkhag,
+        dzongkhagOptions,
+        ["dzongkhag_name", "dzongkhag", "name", "label"],
+      );
+      const mappedCurrDzongkhag = findPkCodeByLabel(
+        fetched.currDzongkhag,
+        dzongkhagOptions,
+        ["dzongkhag_name", "dzongkhag", "name", "label"],
+      );
+      const mappedMaritalStatus = findPkCodeByLabel(
+        fetched.maritalStatus,
+        maritalStatusOptions,
+        ["marital_status", "name", "label"],
+      );
+      const mappedOccupation = findPkCodeByLabel(
+        fetched.occupation,
+        occupationOptions,
+        ["occ_name", "occupation", "name", "label"],
+      );
+      const mappedBank = findPkCodeByLabel(fetched.bankName, banksOptions, [
+        "bank_name",
+        "name",
+        "bank",
+        "label",
+      ]);
+      const mappedOrganization = findPkCodeByLabel(
+        fetched.organizationName,
+        organizationOptions,
+        ["lgal_constitution", "legal_const_name", "name", "label"],
+      );
+
+      let inferredEmploymentStatus = "unemployed";
+      const hasOccupation =
+        fetched.occupation && fetched.occupation.toLowerCase() !== "na";
+      const hasEmployeeId =
+        fetched.employeeId && fetched.employeeId.toLowerCase() !== "na";
+      const hasEmployer =
+        fetched.employerName && fetched.employerName.toLowerCase() !== "na";
+      const hasAnnualSalary = parseFloat(fetched.annualSalary) > 0;
+
+      if (hasOccupation || hasEmployeeId || hasEmployer || hasAnnualSalary) {
+        inferredEmploymentStatus = "employed";
+      }
+
+      let mappedEmployerType = "";
+      const rawOrgType = (fetched.organizationType || "").toLowerCase();
+      if (
+        rawOrgType.includes("government") ||
+        rawOrgType.includes("ministry")
+      ) {
+        mappedEmployerType = "government";
+      } else if (
+        rawOrgType.includes("financial") ||
+        rawOrgType.includes("corporate") ||
+        rawOrgType.includes("limited")
+      ) {
+        mappedEmployerType = "corporate";
+      } else if (rawOrgType.includes("private")) {
+        mappedEmployerType = "private";
+      } else if (inferredEmploymentStatus === "employed") {
+        mappedEmployerType = "private";
+      }
+
+      const mappedName = fetched.fullName || fetched.applicantName || "";
+
       const sanitizedData = {
-        ...coBorrower.fetchedCustomerData,
+        ...fetched,
+        nationality: mappedNationality || fetched.nationality,
+        permCountry: mappedPermCountry || fetched.permCountry,
+        currCountry: mappedCurrCountry || fetched.currCountry,
+        permDzongkhag: mappedPermDzongkhag || fetched.permDzongkhag,
+        currDzongkhag: mappedCurrDzongkhag || fetched.currDzongkhag,
+        maritalStatus: mappedMaritalStatus || fetched.maritalStatus,
+        occupation: mappedOccupation || fetched.occupation,
+        bankName: mappedBank || fetched.bankName,
+        organizationName: mappedOrganization || fetched.organizationName,
+
+        employmentStatus: inferredEmploymentStatus,
+        employerType: mappedEmployerType,
+
+        permGewog: fetched.permGewog ? String(fetched.permGewog) : "",
+        currGewog: fetched.currGewog ? String(fetched.currGewog) : "",
+
         identificationIssueDate: formatDateForInput(
-          coBorrower.fetchedCustomerData.identificationIssueDate,
+          fetched.identificationIssueDate,
         ),
         identificationExpiryDate: formatDateForInput(
-          coBorrower.fetchedCustomerData.identificationExpiryDate,
+          fetched.identificationExpiryDate,
         ),
-        dateOfBirth: formatDateForInput(
-          coBorrower.fetchedCustomerData.dateOfBirth,
-        ),
+        dateOfBirth: formatDateForInput(fetched.dateOfBirth),
+        joiningDate: formatDateForInput(fetched.joiningDate),
 
-        nationality: coBorrower.fetchedCustomerData.nationality
-          ? String(coBorrower.fetchedCustomerData.nationality)
-          : "",
-        permCountry: coBorrower.fetchedCustomerData.permCountry
-          ? String(coBorrower.fetchedCustomerData.permCountry)
-          : "",
-        permDzongkhag: coBorrower.fetchedCustomerData.permDzongkhag
-          ? String(coBorrower.fetchedCustomerData.permDzongkhag)
-          : "",
-        permGewog: coBorrower.fetchedCustomerData.permGewog
-          ? String(coBorrower.fetchedCustomerData.permGewog)
-          : "",
-        currCountry: coBorrower.fetchedCustomerData.currCountry
-          ? String(coBorrower.fetchedCustomerData.currCountry)
-          : "",
-        currDzongkhag: coBorrower.fetchedCustomerData.currDzongkhag
-          ? String(coBorrower.fetchedCustomerData.currDzongkhag)
-          : "",
-        currGewog: coBorrower.fetchedCustomerData.currGewog
-          ? String(coBorrower.fetchedCustomerData.currGewog)
-          : "",
-        maritalStatus: coBorrower.fetchedCustomerData.maritalStatus
-          ? String(coBorrower.fetchedCustomerData.maritalStatus)
-          : "",
-        occupation: coBorrower.fetchedCustomerData.occupation
-          ? String(coBorrower.fetchedCustomerData.occupation)
-          : "",
+        currAlternateContact: fetched.alternateContactNo || "",
+
+        name: mappedName,
+      };
+
+      let permGewogOptions: any[] = [];
+      let currGewogOptions: any[] = [];
+      let mappedPermGewog = sanitizedData.permGewog;
+      let mappedCurrGewog = sanitizedData.currGewog;
+
+      if (sanitizedData.permDzongkhag && sanitizedData.permGewog) {
+        try {
+          permGewogOptions = await fetchGewogsByDzongkhag(
+            sanitizedData.permDzongkhag,
+          );
+          if (permGewogOptions.length > 0) {
+            const isId = permGewogOptions.some(
+              (opt) =>
+                String(opt.gewog_pk_code || opt.id || opt.code || opt.value) ===
+                sanitizedData.permGewog,
+            );
+            if (!isId) {
+              const matchedId = findPkCodeByLabel(
+                sanitizedData.permGewog,
+                permGewogOptions,
+                ["gewog", "gewog_name", "name", "label"],
+              );
+              if (matchedId) {
+                mappedPermGewog = matchedId;
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch permanent gewog options", error);
+        }
+      }
+
+      if (sanitizedData.currDzongkhag && sanitizedData.currGewog) {
+        try {
+          currGewogOptions = await fetchGewogsByDzongkhag(
+            sanitizedData.currDzongkhag,
+          );
+          if (currGewogOptions.length > 0) {
+            const isId = currGewogOptions.some(
+              (opt) =>
+                String(opt.gewog_pk_code || opt.id || opt.code || opt.value) ===
+                sanitizedData.currGewog,
+            );
+            if (!isId) {
+              const matchedId = findPkCodeByLabel(
+                sanitizedData.currGewog,
+                currGewogOptions,
+                ["gewog", "gewog_name", "name", "label"],
+              );
+              if (matchedId) {
+                mappedCurrGewog = matchedId;
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch current gewog options", error);
+        }
+      }
+
+      const finalData = {
+        ...sanitizedData,
+        permGewog: mappedPermGewog,
+        currGewog: mappedCurrGewog,
+        permGewogOptions,
+        currGewogOptions,
       };
 
       setCoBorrowers((prev) => {
         const updated = [...prev];
         updated[index] = {
           ...prev[index],
-          ...sanitizedData,
+          ...finalData,
           identificationType: prev[index].identificationType,
           identificationNo: prev[index].identificationNo,
           relatedPeps: prev[index].relatedPeps || [createEmptyRelatedPep()],
           showLookupPopup: false,
+          fetchedCustomerData: null,
         };
         return updated;
       });
@@ -1031,7 +1447,6 @@ export function CoborrowerBusiness({
         (_: any, i: number) => i !== pepIndex,
       );
 
-      // Cleanup options map and errors
       const newOptionsMap: Record<number, any[]> = {
         ...updated[index].relatedPepOptionsMap,
       };
@@ -1044,7 +1459,6 @@ export function CoborrowerBusiness({
       });
 
       const errors = { ...updated[index].errors };
-      // Remove errors for removed pep
       Object.keys(errors).forEach((key) => {
         if (key.startsWith(`relatedPeps.${pepIndex}`)) {
           delete errors[key];
@@ -1076,14 +1490,12 @@ export function CoborrowerBusiness({
 
       updatedPeps[pepIndex] = { ...updatedPeps[pepIndex], [field]: value };
 
-      // Clear error for this field
       const errors = { ...updated[coBorrowerIndex].errors };
       const errorKey = `relatedPeps.${pepIndex}.${field}`;
       delete errors[errorKey];
 
-      // Special logic for Category change -> Fetch Sub Categories
       if (field === "category") {
-        updatedPeps[pepIndex].subCategory = ""; // Clear sub category
+        updatedPeps[pepIndex].subCategory = "";
         fetchPepSubCategoryByCategory(value)
           .then((options) => {
             setCoBorrowers((current) => {
@@ -1162,16 +1574,26 @@ export function CoborrowerBusiness({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // If co-borrower is not applicable, simply proceed to next step
     if (isCoBorrowerApplicable === "no") {
-      onNext({
+      const dataToSave = {
         isCoBorrowerApplicable: "no",
         coBorrowers: [],
-      });
+      };
+      // Save to sessionStorage
+      const existingData = sessionStorage.getItem(
+        "businessLoanApplicationData",
+      );
+      const allData = existingData ? JSON.parse(existingData) : {};
+      const updatedData = { ...allData, ...dataToSave };
+      sessionStorage.setItem(
+        "businessLoanApplicationData",
+        JSON.stringify(updatedData),
+      );
+
+      onNext(dataToSave);
       return;
     }
 
-    // Validate all co-borrowers
     const validatedCoBorrowers = coBorrowers.map((coBorrower, idx) => {
       const fieldErrors = validateCoBorrower(coBorrower, idx);
       return {
@@ -1183,7 +1605,6 @@ export function CoborrowerBusiness({
 
     setCoBorrowers(validatedCoBorrowers);
 
-    // Check if there are any errors
     const hasErrors = validatedCoBorrowers.some((coBorrower) =>
       Object.values(coBorrower.errors || {}).some(
         (error) => error && error !== "",
@@ -1191,10 +1612,22 @@ export function CoborrowerBusiness({
     );
 
     if (!hasErrors) {
-      onNext({
+      const dataToSave = {
         isCoBorrowerApplicable: "yes",
         coBorrowers: validatedCoBorrowers.map(({ errors, ...rest }) => rest),
-      });
+      };
+      // Save to sessionStorage
+      const existingData = sessionStorage.getItem(
+        "businessLoanApplicationData",
+      );
+      const allData = existingData ? JSON.parse(existingData) : {};
+      const updatedData = { ...allData, ...dataToSave };
+      sessionStorage.setItem(
+        "businessLoanApplicationData",
+        JSON.stringify(updatedData),
+      );
+
+      onNext(dataToSave);
     } else {
       alert("Please fix the errors before proceeding.");
     }
@@ -1238,7 +1671,6 @@ export function CoborrowerBusiness({
             }
           : {}),
       };
-      // Clear error for this field
       const errors = { ...updated[index].errors };
       delete errors[field];
       updated[index].errors = errors;
@@ -1246,7 +1678,6 @@ export function CoborrowerBusiness({
     });
   };
 
-  // Real-time validation on blur
   const handleBlurField = (index: number, field: string, value: any) => {
     const errorMsg = validateField(field, value);
     if (errorMsg) {
@@ -1261,7 +1692,6 @@ export function CoborrowerBusiness({
     }
   };
 
-  // Render a single co-borrower form section
   const renderCoBorrowerForm = (coBorrower: any, index: number) => {
     const isMarried = getIsMarried(coBorrower);
     const relatedPeps = coBorrower.relatedPeps || [createEmptyRelatedPep()];
@@ -1307,7 +1737,7 @@ export function CoborrowerBusiness({
           )}
         </div>
 
-        {/* Search Status Popup for this co-borrower (ORIGINAL SEARCH FEATURE) */}
+        {/* Search Status Popup */}
         {coBorrower.showLookupPopup && (
           <DocumentPopup
             open={coBorrower.showLookupPopup}
@@ -1409,7 +1839,7 @@ export function CoborrowerBusiness({
                     e.target.value,
                   )
                 }
-                onBlur={() => handleIdentityCheck(index)} // ORIGINAL SEARCH TRIGGER
+                onBlur={() => handleIdentityCheck(index)}
               />
               {errors.identificationNo && (
                 <p className="text-xs text-red-500 mt-1">
@@ -2278,7 +2708,6 @@ export function CoborrowerBusiness({
             </div>
           </div>
 
-          {/* Conditional grid - show Thram and House only for Bhutan */}
           {isBhutanPerm && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2.5">
@@ -2337,7 +2766,6 @@ export function CoborrowerBusiness({
             </div>
           )}
 
-          {/* Document Upload for Non-Bhutan Countries */}
           {!isBhutanPerm && coBorrower.permCountry && (
             <div className="space-y-2.5 border-t pt-4">
               <Label
@@ -2635,7 +3063,6 @@ export function CoborrowerBusiness({
             </div>
           </div>
 
-          {/* Conditional grid layout based on country */}
           {isBhutanCurr ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               <div className="space-y-2.5">
@@ -2859,7 +3286,6 @@ export function CoborrowerBusiness({
                   </div>
                 </div>
 
-                {/* Document Upload for Non-Bhutan Countries */}
                 <div className="space-y-2.5 border-t pt-4">
                   <Label
                     htmlFor={`currAddressProof-${index}`}
@@ -2915,7 +3341,6 @@ export function CoborrowerBusiness({
             PEP Declaration
           </h2>
 
-          {/* SELF PEP Question */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 border-b pb-6">
             <div className="space-y-2.5">
               <Label
@@ -3106,7 +3531,6 @@ export function CoborrowerBusiness({
             )}
           </div>
 
-          {/* RELATED PEP Question */}
           {coBorrower.pepPerson === "no" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 pt-6">
               <div className="space-y-2.5">
@@ -3140,7 +3564,6 @@ export function CoborrowerBusiness({
             </div>
           )}
 
-          {/* RELATED PEP MULTIPLE ENTRIES */}
           {coBorrower.pepPerson === "no" && coBorrower.pepRelated === "yes" && (
             <div className="space-y-6 pt-4">
               <div className="flex justify-between items-center">
@@ -3154,7 +3577,6 @@ export function CoborrowerBusiness({
                   key={pepIndex}
                   className="bg-gray-50 border border-gray-200 rounded-lg p-4 relative"
                 >
-                  {/* Remove Button */}
                   <div className="flex justify-between items-center mb-4">
                     <span className="font-semibold text-sm text-gray-600">
                       Person {pepIndex + 1}
@@ -3172,9 +3594,7 @@ export function CoborrowerBusiness({
                     )}
                   </div>
 
-                  {/* Grid Container for Inputs */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-2 items-start">
-                    {/* 1. Relationship Field */}
                     <div className="space-y-2.5 w-full">
                       <Label className="text-gray-800 font-semibold text-sm block h-5">
                         Relationship <span className="text-destructive">*</span>
@@ -3211,7 +3631,6 @@ export function CoborrowerBusiness({
                       )}
                     </div>
 
-                    {/* 2. Identification No Field */}
                     <div className="space-y-2.5 w-full">
                       <Label className="text-gray-800 font-semibold text-sm block h-5">
                         Identification No.{" "}
@@ -3241,7 +3660,6 @@ export function CoborrowerBusiness({
                       )}
                     </div>
 
-                    {/* 3. PEP Category Field */}
                     <div className="space-y-2.5 w-full">
                       <Label className="text-gray-800 font-semibold text-sm block h-5">
                         PEP Category <span className="text-destructive">*</span>
@@ -3303,7 +3721,6 @@ export function CoborrowerBusiness({
                       )}
                     </div>
 
-                    {/* 4. PEP Sub Category Field */}
                     <div className="space-y-2.5 w-full">
                       <Label className="text-gray-800 font-semibold text-sm block h-5">
                         PEP Sub Category
@@ -3559,7 +3976,7 @@ export function CoborrowerBusiness({
                   Occupation <span className="text-red-500">*</span>
                 </Label>
                 <Select
-                  value={coBorrower.occupation}
+                  value={coBorrower.occupation || ""}
                   onValueChange={(value) =>
                     updateCoBorrowerField(index, "occupation", value)
                   }
@@ -3588,7 +4005,7 @@ export function CoborrowerBusiness({
                           "Unknown";
 
                         return (
-                          <SelectItem key={key} value={label}>
+                          <SelectItem key={key} value={value}>
                             {label}
                           </SelectItem>
                         );
@@ -3676,21 +4093,19 @@ export function CoborrowerBusiness({
                 >
                   Grade <span className="text-red-500">*</span>
                 </Label>
-                <Select
-                  value={coBorrower.grade}
-                  onValueChange={(value) =>
-                    updateCoBorrowerField(index, "grade", value)
+                <RestrictedInput
+                  allowed="alphanumeric"
+                  id={`grade-${index}`}
+                  placeholder="Enter Grade"
+                  className={getFieldStyle(!!errors.grade)}
+                  value={coBorrower.grade || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(index, "grade", e.target.value)
                   }
-                >
-                  <SelectTrigger className={getFieldStyle(!!errors.grade)}>
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent sideOffset={4}>
-                    <SelectItem value="p1">P1</SelectItem>
-                    <SelectItem value="p2">P2</SelectItem>
-                    <SelectItem value="p3">P3</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onBlur={(e) =>
+                    handleBlurField(index, "grade", e.target.value)
+                  }
+                />
                 {errors.grade && (
                   <p className="text-xs text-red-500 mt-1">{errors.grade}</p>
                 )}
@@ -3704,7 +4119,7 @@ export function CoborrowerBusiness({
                   Organization Name <span className="text-red-500">*</span>
                 </Label>
                 <Select
-                  value={coBorrower.organizationName}
+                  value={coBorrower.organizationName || ""}
                   onValueChange={(value) =>
                     updateCoBorrowerField(index, "organizationName", value)
                   }
@@ -3864,7 +4279,6 @@ export function CoborrowerBusiness({
               </div>
             </div>
 
-            {/* Contract End Date - Only visible when Nature of Service is Contract */}
             {coBorrower.serviceNature === "contract" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2.5">
@@ -3938,12 +4352,10 @@ export function CoborrowerBusiness({
       {/* 2. Form Content (Visible only if Yes) */}
       {isCoBorrowerApplicable === "yes" && (
         <>
-          {/* Render all co-borrowers */}
           {coBorrowers.map((coBorrower, index) =>
             renderCoBorrowerForm(coBorrower, index),
           )}
 
-          {/* Add Co-Borrower Button */}
           <div className="flex justify-center">
             <Button
               type="button"

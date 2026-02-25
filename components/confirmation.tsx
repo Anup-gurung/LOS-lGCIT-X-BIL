@@ -156,15 +156,16 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
       spouseName: personalData.spouseName,
       spouseCid: personalData.spouseCid,
       spouseContact: personalData.spouseContact,
-      familyTreeDocs: personalData.familyTreeDocs,
+      familyTreeDocs: personalData.familyTree,
       bankName: personalData.bankName,
       bankAccount: personalData.bankAccount,
+      passportPhoto: personalData.passportPhoto,
       contact: personalData.currContact,
-      alternateContact: personalData.alternateContact,
+      alternatePhone: personalData.alternatePhone,
       email: personalData.currEmail,
       permCountry: personalData.permCountry,
       permDzongkhag: personalData.permDzongkhag,
-      permGewog: personalData.permGewog,
+      permanentGewog: personalData.permanentGewog,
       permVillage: personalData.permVillage,
       permThram: personalData.permThram,
       permHouse: personalData.permHouse,
@@ -183,7 +184,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
       pepCategory: personalData.pepCategory,
       pepSubCat2: personalData.pepSubCat2,
 
-      bilRelated: personalData.bilRelated,
+      relatedToBil: personalData.relatedToBil,
       empolymentStatus: personalData.employmentStatus,
       occupation: personalData.occupation,
       organizationName: personalData.organizationName,
@@ -194,7 +195,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
       designation: personalData.designation,
       grade: personalData.grade,
       employeeType: personalData.employeeType,
-      grossIncome: personalData.grossIncome,
+      grossIncome: personalData.annualIncome,
     },
 
     coBorrowerData: {
@@ -207,7 +208,8 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
       pep_related: coBorrowerData.pepRelated,
       identification_proof: coBorrowerData.identificationProof,
       relationship: coBorrowerData.relationship,
-      contact: coBorrowerData.contact,
+      contact: coBorrowerData.alternateContactNo,
+      alternatePhone: coBorrowerData.alternatePhone,
     },
 
     securityData: {
@@ -406,14 +408,23 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
             </>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
-            <Field
+            {/* <Field
               label="Family Tree Documents"
               value={
-                personalData.familyTreeDocs
-                  ? personalData.familyTreeDocs.name
+                personalData.familyTree
+                  ? personalData.familyTree.name
                   : ""
               }
-            />
+            /> */}
+
+            <Field
+            label="Family Tree Documents"
+            value={
+              personalData.familyTree
+                ? typeof personalData.familyTree === 'string' ? personalData.familyTree : personalData.familyTree.name
+                : ""
+            }
+          />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
@@ -425,14 +436,24 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
             <Field label="Bank Account" value={personalData.bankAccount} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
-            <Field
+            {/* <Field
               label="Passport Photo"
               value={
                 personalData.passportPhotoFile
                   ? personalData.passportPhotoFile.name
                   : ""
               }
-            />
+            /> */}
+
+          <Field
+            label="Passport Photo"
+            value={
+              personalData.passportPhoto
+                ? typeof personalData.passportPhoto === 'string' ? personalData.passportPhoto : personalData.passportPhoto.name
+                : ""
+            }
+          />
+            
           </div>
           <div>
             <div>
@@ -444,7 +465,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
                 <Field label="Contact" value={personalData.currContact} />
                 <Field
                   label="Alternate Contact"
-                  value={personalData.alternateContact}
+                  value={personalData.alternatePhone}
                 />
                 <Field label="Email" value={personalData.currEmail} />
               </div>
@@ -457,17 +478,17 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               <Field
                 label="Country"
-                value={personalData.permCountry}
+                value={personalData.permanentCountry}
                 capitalizeFirst={true}
               />
               <Field
                 label="Dzongkhag/State"
-                value={personalData.permDzongkhag}
+                value={personalData.permanentDzongkhag}
                 capitalizeFirst={true}
               />
               <Field
                 label="Gewog/Province"
-                value={personalData.permGewog}
+                value={personalData.permanentGewog}
                 capitalizeFirst={true}
               />
               <Field
@@ -478,7 +499,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
               <Field label="Thram No." value={personalData.permThram} />
               <Field label="House No." value={personalData.permHouse} />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
               <Field
                 label="Permanent Address Proof"
                 value={
@@ -487,7 +508,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
                     : ""
                 }
               />
-            </div>
+            </div> */}
           </div>
 
           <div className="mt-6 sm:mt-8">
@@ -497,17 +518,17 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               <Field
                 label="Country of Residence"
-                value={personalData.currCountry}
+                value={personalData.currentCountry}
                 capitalizeFirst={true}
               />
               <Field
                 label="Dzongkhag/State"
-                value={personalData.currDzongkhag}
+                value={personalData.currentDzongkhag}
                 capitalizeFirst={true}
               />
               <Field
                 label="Gewog/Province"
-                value={personalData.currGewog}
+                value={personalData.currentGewog}
                 capitalizeFirst={true}
               />
               <Field
@@ -517,7 +538,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
               />
               <Field label="Flat/House No." value={personalData.currFlat} />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
               <Field
                 label="Current Address Proof"
                 value={
@@ -526,7 +547,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
                     : ""
                 }
               />
-            </div>
+            </div> */}
           </div>
 
           <div>
@@ -603,7 +624,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
               <Field
                 label="BIL Related"
-                value={personalData.bilRelated}
+                value={personalData.relatedToBil}
                 capitalizeFirst={true}
               />
             </div>
@@ -670,6 +691,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
                   <Field
                     label="Nature of Service"
                     value={personalData.serviceNature || "No value"}
+                    capitalizeFirst={true}
                   />
 
                   {personalData.serviceNature?.toLowerCase() === "contract" && (
@@ -681,7 +703,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
 
                   <Field
                     label="Gross Income"
-                    value={personalData.grossIncome || "No value"}
+                    value={personalData.annualIncome || "No value"}
                   />
                 </div>
               </>
@@ -810,10 +832,10 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
           <h3 className="py-4 px-6 text-sm font-bold pt-15">Contact Details</h3>
           <hr />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
-            <Field label="Contact" value={coBorrower.currContact} />
+            <Field label="Contact" value={coBorrower.alternateContactNo} />
             <Field
               label="Alternate Contact"
-              value={coBorrower.currAlternateContact}
+              value={coBorrower.alternatePhone}
             />
             <Field label="Email" value={coBorrower.currEmail} />
           </div>
@@ -1009,6 +1031,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
                 <Field
                   label="Nature of Service"
                   value={coBorrower.serviceNature || "No value"}
+                  capitalizeFirst={true}
                 />
 
                 {coBorrower.serviceNature?.toLowerCase() === "contract" && (
@@ -1036,7 +1059,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
         {securityData.securityType?.toLowerCase() !== "not applicable" && (
           <>
             {/* COMMON HEADER */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 pb-6">
+            {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 pb-6">
               <Field
                 label="Security Type"
                 value={securityData.securityType || "N/A"}
@@ -1047,7 +1070,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
                 value={securityData.ownershipType || "N/A"}
                 capitalizeFirst
               />
-            </div>
+            </div> */}
 
             {/* ================= LAND ================= */}
             {securityData.securityType?.toLowerCase() === "land" && (
@@ -1070,7 +1093,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
                     <Field label="Thram No." value={securityData.thramNo} />
                     <Field label="Plot No." value={securityData.plotNo} />
-                    <Field label="Area (Sq.Ft)" value={securityData.Area} />
+                    <Field label="Area (Sq.Ft)" value={securityData.area} />
                     <Field label="Land Use Type" value={securityData.landUse} />
                     <Field label="Dzongkhag" value={securityData.dzongkhag} />
                     <Field label="Gewog" value={securityData.gewog} />
@@ -1081,7 +1104,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
                     <Field label="House No." value={securityData.houseNo} />
                     <Field
                       label="Security Proof Document"
-                      value={securityData.proofDoc}
+                      value={securityData.securityProof}
                     />
                   </div>
 
@@ -1494,6 +1517,7 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
                                   securityData.guarantorServiceNature ||
                                   "No value"
                                 }
+                                capitalizeFirst={true}
                               />
                               {securityData.guarantorServiceNature?.toLowerCase() ===
                                 "contract" && (
@@ -2919,8 +2943,9 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
                                 securityData.guarantorServiceNature ||
                                 "No value"
                               }
-                            />
+                              capitalizeFirst={true}
 
+                              />
                             {securityData.guarantorServiceNature?.toLowerCase() ===
                               "contract" && (
                               <Field
@@ -3059,11 +3084,8 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 pt-5">
             <Field
               label="Is Repayment Guarantor Applicable?"
-              value={
-                repaymentData?.incomeData?.repaymentGuarantor
-                  ? repaymentData?.incomeData?.repaymentGuarantor.incomeData.repaymentGuarantor.toUpperCase()
-                  : "N/A"
-              }
+              value={repaymentData.repaymentGuarantor}
+              capitalizeFirst={true}
             />
           </div>
 
@@ -3458,9 +3480,8 @@ export function Confirmation({ onNext, onBack, formData }: ConfirmationProps) {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
                       <Field
                         label="Nature of Service"
-                        value={
-                          repaymentData.guarantorServiceNature || "No value"
-                        }
+                        value={repaymentData.guarantorServiceNature || "No value"}
+                        capitalizeFirst={true}
                       />
 
                       {repaymentData.guarantorServiceNature?.toLowerCase() ===

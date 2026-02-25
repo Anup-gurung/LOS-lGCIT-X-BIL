@@ -809,6 +809,8 @@ const capitalizeWords = (value: string) => {
     .toLowerCase()
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
+
+const decimalRegex = /^\d+(\.\d{1,2})?$/;
 // const validateForm = () => {
 //   const newErrors: Record<string, string> = {};
 
@@ -1095,10 +1097,19 @@ if (!data.employmentStatus || data.employmentStatus.trim() === "") {
       newErrors.serviceNature = "Service nature is required";
     }
 
-    if (isEmpty(data.annualSalary))
+      if (!data.annualSalary || data.annualSalary.trim() === "") {
       newErrors.annualSalary = "Gross annual salary income is required";
-    else if (!isNumeric(data.annualSalary))
-      newErrors.annualSalary = "Income must be numeric";
+    } else {
+      const decimalRegex = /^\d+(\.\d{1,2})?$/;
+
+      if (!decimalRegex.test(data.annualSalary)) {
+        newErrors.annualSalary =
+          "Income must be a valid number (up to 2 decimal places)";
+      } else if (Number(data.annualSalary) <= 0) {
+        newErrors.annualSalary =
+          "Income must be greater than zero";
+      }
+    }
   }
 
   // ============================

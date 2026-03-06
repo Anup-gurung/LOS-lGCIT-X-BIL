@@ -95,9 +95,12 @@ function BusinessLoanApplicationContent() {
   const [selectedSubSectorCategory, setSelectedSubSectorCategory] =
     useState("");
 
-  // Derived values from selected sub‑sector
+  // Derived values from selected sub‑sector / category
   const [apiTenure, setApiTenure] = useState<number>(0);
   const [apiInterestRate, setApiInterestRate] = useState<number>(0);
+
+  // User input tenure values based on api limit
+  const [selectedYears, setSelectedYears] = useState<number | "">("");
 
   // ---------- Fetch REAL loan data from API ----------
   useEffect(() => {
@@ -126,16 +129,16 @@ function BusinessLoanApplicationContent() {
   }, []);
 
   // ---------- Cascading Dropdown Effects ----------
+  // When sector changes, load sub‑sectors
   useEffect(() => {
     if (selectedSector) {
       const sector = loanSectorOptions.find(
         (s) => s.loan_sector_id === parseInt(selectedSector),
       );
-      if (sector?.loanSubSector && Array.isArray(sector.loanSubSector)) {
-        setLoanSubSectorOptions(sector.loanSubSector);
-      } else {
-        setLoanSubSectorOptions([]);
-      }
+      const subSectors = Array.isArray(sector?.loanSubSector)
+        ? sector.loanSubSector
+        : [];
+      setLoanSubSectorOptions(subSectors);
       setSelectedSubSector("");
       setSelectedSubSectorCategory("");
       setApiTenure(0);
@@ -149,16 +152,16 @@ function BusinessLoanApplicationContent() {
     }
   }, [selectedSector, loanSectorOptions]);
 
+  // When sub‑sector changes, load categories and set initial tenure/rate from sub‑sector
   useEffect(() => {
     if (selectedSubSector) {
       const subSectorIndex = parseInt(selectedSubSector.split("-")[1]);
       const subSector = loanSubSectorOptions[subSectorIndex];
 
-      if (subSector?.loanSubSectorCategory) {
-        setSubSectorCategoryOptions(subSector.loanSubSectorCategory);
-      } else {
-        setSubSectorCategoryOptions([]);
-      }
+      const categories = Array.isArray(subSector?.loanSubSectorCategory)
+        ? subSector.loanSubSectorCategory
+        : [];
+      setSubSectorCategoryOptions(categories);
 
       if (subSector) {
         const tenure = parseFloat(subSector.loan_tenure || "0");
@@ -176,6 +179,44 @@ function BusinessLoanApplicationContent() {
     }
   }, [selectedSubSector, loanSubSectorOptions]);
 
+  // When category changes, update tenure/rate from category if available
+  useEffect(() => {
+    if (selectedSubSectorCategory) {
+      const categoryIndex = parseInt(selectedSubSectorCategory.split("-")[1]);
+      const category = subSectorCategoryOptions[categoryIndex];
+      if (category) {
+        const catTenure = parseFloat(category.loan_tenure || "0");
+        const catRate = parseFloat(category.interest_rate || "0");
+        if (!isNaN(catTenure) && catTenure > 0) setApiTenure(catTenure);
+        if (!isNaN(catRate) && catRate > 0) setApiInterestRate(catRate);
+      }
+    } else {
+      if (selectedSubSector) {
+        const subSectorIndex = parseInt(selectedSubSector.split("-")[1]);
+        const subSector = loanSubSectorOptions[subSectorIndex];
+        if (subSector) {
+          setApiTenure(parseFloat(subSector.loan_tenure || "0"));
+          setApiInterestRate(parseFloat(subSector.interest_rate || "0"));
+        }
+      }
+    }
+  }, [
+    selectedSubSectorCategory,
+    subSectorCategoryOptions,
+    selectedSubSector,
+    loanSubSectorOptions,
+  ]);
+
+  // Update selectedYears default when apiTenure changes
+  useEffect(() => {
+    if (apiTenure > 0) {
+      // Default to the maximum possible years based on apiTenure (which is in months)
+      setSelectedYears(Math.max(1, Math.floor(apiTenure / 12)));
+    } else {
+      setSelectedYears("");
+    }
+  }, [apiTenure]);
+
   // ---------- Helper to save data to sessionStorage ----------
   const saveToSession = (data: any) => {
     const existing = sessionStorage.getItem("businessLoanApplicationData");
@@ -185,6 +226,36 @@ function BusinessLoanApplicationContent() {
       "businessLoanApplicationData",
       JSON.stringify(merged),
     );
+  };
+
+  // ---------- Helper functions to get string values from IDs ----------
+  const getLoanTypeString = (value: string): string => {
+    if (!value) return "";
+    const id = parseInt(value.split("-")[0]);
+    const option = loanTypeOptions.find((opt) => opt.pk_id === id);
+    return option?.loan_type || "";
+  };
+
+  const getSectorString = (id: string): string => {
+    if (!id) return "";
+    const option = loanSectorOptions.find(
+      (opt) => opt.loan_sector_id === parseInt(id),
+    );
+    return option?.loan_sector || "";
+  };
+
+  const getSubSectorString = (value: string): string => {
+    if (!value) return "";
+    const index = parseInt(value.split("-")[1]);
+    const option = loanSubSectorOptions[index];
+    return option?.sub_sector || "";
+  };
+
+  const getCategoryString = (value: string): string => {
+    if (!value) return "";
+    const index = parseInt(value.split("-")[1]);
+    const option = subSectorCategoryOptions[index];
+    return option?.sub_cat_sector || "";
   };
 
   // ---------- Navigation Handlers ----------
@@ -226,13 +297,15 @@ function BusinessLoanApplicationContent() {
   // ---------- EMI Calculation ----------
   const calculateEMI = () => {
     const amount = parseFloat(totalLoanInput);
-    if (!amount || amount <= 0 || apiInterestRate <= 0 || apiTenure <= 0) {
+    const months = Number(selectedYears) * 12;
+
+    if (!amount || amount <= 0 || apiInterestRate <= 0 || months <= 0) {
       return "0.00";
     }
 
     const P = amount;
     const r = apiInterestRate / 12 / 100; // Monthly interest rate
-    const n = apiTenure; // Already in months
+    const n = months;
 
     // EMI formula
     const emi = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
@@ -252,12 +325,17 @@ function BusinessLoanApplicationContent() {
       selectedSubSector !== "" &&
       selectedSubSectorCategory !== "" &&
       totalLoanInput !== "" &&
-      parseFloat(totalLoanInput) > 0
+      parseFloat(totalLoanInput) > 0 &&
+      selectedYears !== "" &&
+      Number(selectedYears) > 0
     );
   };
 
   const selectedSectorId = selectedSector || "";
   const loanInfo = loanInfoContent[selectedSectorId] || loanInfoContent.default;
+
+  // Maximum allowed years calculated from API's tenure (months)
+  const maxAllowedYears = Math.max(0, Math.floor(apiTenure / 12));
 
   // ---------- Render ----------
   return (
@@ -503,7 +581,7 @@ function BusinessLoanApplicationContent() {
                       <div className="flex items-center gap-1.5 sm:gap-2.5 mb-2 sm:mb-3">
                         <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                         <span className="text-xs sm:text-sm font-semibold">
-                          Loan Tenure
+                          Max Loan Tenure
                         </span>
                       </div>
                       <p className="text-xl sm:text-3xl md:text-4xl font-bold">
@@ -546,6 +624,48 @@ function BusinessLoanApplicationContent() {
                     />
                   </div>
 
+                  {/* Dynamic User Tenure Selection */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-gray-800 font-semibold text-sm sm:text-base">
+                        Loan Tenure (Years){" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={String(selectedYears)}
+                        onValueChange={(val) => setSelectedYears(Number(val))}
+                        disabled={maxAllowedYears < 1}
+                      >
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="Select Years" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from(
+                            { length: maxAllowedYears },
+                            (_, i) => i + 1,
+                          ).map((year) => (
+                            <SelectItem key={year} value={String(year)}>
+                              {year} {year === 1 ? "Year" : "Years"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-gray-800 font-semibold text-sm sm:text-base">
+                        Loan Tenure (Months)
+                      </Label>
+                      <Input
+                        type="text"
+                        readOnly
+                        className="h-10 sm:h-12 border-gray-300 bg-gray-100 text-gray-600 focus-visible:ring-0"
+                        value={selectedYears ? Number(selectedYears) * 12 : ""}
+                        placeholder="Months"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label className="text-gray-800 font-semibold text-sm sm:text-base">
                       Purpose
@@ -562,7 +682,8 @@ function BusinessLoanApplicationContent() {
                   {/* EMI Display */}
                   {parseFloat(totalLoanInput) > 0 &&
                     apiInterestRate > 0 &&
-                    apiTenure > 0 && (
+                    selectedYears !== "" &&
+                    Number(selectedYears) > 0 && (
                       <div className="border-t border-gray-200 pt-4 sm:pt-6 md:pt-8 mt-4 sm:mt-6 md:mt-8">
                         <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] p-6 sm:p-8 md:p-12 rounded-xl sm:rounded-2xl text-center shadow-xl sm:shadow-2xl transform hover:scale-105 transition-transform duration-300">
                           <p className="text-sm sm:text-base md:text-lg text-white/95 mb-3 sm:mb-4 font-semibold tracking-wide">
@@ -660,14 +781,28 @@ function BusinessLoanApplicationContent() {
         open={showDocumentPopup}
         onOpenChange={setShowDocumentPopup}
         onProceed={() => {
+          // Get string values for selected options
+          const loanTypeString = getLoanTypeString(selectedLoanType);
+          const loanSectorString = getSectorString(selectedSector);
+          const loanSubSectorString = getSubSectorString(selectedSubSector);
+          const loanSubSectorCategoryString = getCategoryString(
+            selectedSubSectorCategory,
+          );
+
           const loanDetails = {
             loanType: selectedLoanType,
+            loanTypeString,
             loanSector: selectedSector,
+            loanSectorString,
             loanSubSector: selectedSubSector,
+            loanSubSectorString,
             loanSubSectorCategory: selectedSubSectorCategory,
+            loanSubSectorCategoryString,
             loanAmount: totalLoanInput,
             loanPurpose,
-            tenure: apiTenure,
+            maxApiTenureMonths: apiTenure,
+            selectedYears: selectedYears,
+            selectedMonths: Number(selectedYears) * 12,
             interestRate: apiInterestRate,
           };
 

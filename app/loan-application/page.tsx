@@ -70,6 +70,9 @@ function LoanApplicationContent() {
   const [apiInterestRate, setApiInterestRate] = useState<number>(0);
   const [purpose, setPurpose] = useState("");
 
+  // User input tenure values based on api limit
+  const [selectedYears, setSelectedYears] = useState<number | "">("");
+
   // Allowed loan sectors as per requirement
   const allowedLoanSectors = [
     "Housing Sector",
@@ -169,6 +172,16 @@ function LoanApplicationContent() {
     }
   }, [selectedSubSector, loanSubSectorOptions]);
 
+  // Update selectedYears default when apiTenure changes
+  useEffect(() => {
+    if (apiTenure > 0) {
+      // Default to the maximum possible years based on apiTenure (which is in months)
+      setSelectedYears(Math.max(1, Math.floor(apiTenure / 12)));
+    } else {
+      setSelectedYears("");
+    }
+  }, [apiTenure]);
+
   const handlePersonalDetailsNext = (data: any) => {
     const updatedFormData = { ...formData, ...data };
     setFormData(updatedFormData);
@@ -250,29 +263,20 @@ function LoanApplicationContent() {
   };
 
   const calculateEMI = () => {
-    // Return 0 if no loan amount is entered
-    if (
-      !totalLoanInput ||
-      totalLoanInput === "" ||
-      parseFloat(totalLoanInput) <= 0
-    ) {
+    const amount = parseFloat(totalLoanInput);
+    const months = Number(selectedYears) * 12;
+
+    if (!amount || amount <= 0 || apiInterestRate <= 0 || months <= 0) {
       return "0.00";
     }
 
-    const P = parseFloat(totalLoanInput);
-    const r =
-      (apiInterestRate > 0 ? apiInterestRate : interestRate[0]) / 12 / 100; // Monthly interest rate
-    const n = apiTenure > 0 ? apiTenure : tenure[0]; // Loan tenure in months
-
-    // If interest rate is 0, simply divide principal by tenure
-    if (r === 0) {
-      return (P / n).toFixed(2);
-    }
+    const P = amount;
+    const r = apiInterestRate / 12 / 100; // Monthly interest rate
+    const n = months;
 
     // EMI Formula: P × r × (1 + r)^n / ((1 + r)^n - 1)
     const emi = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
 
-    // Check for valid number
     if (isNaN(emi) || !isFinite(emi)) {
       return "0.00";
     }
@@ -288,6 +292,8 @@ function LoanApplicationContent() {
       selectedSubSectorCategory !== "" &&
       totalLoanInput !== "" &&
       parseFloat(totalLoanInput) > 0 &&
+      selectedYears !== "" &&
+      Number(selectedYears) > 0 &&
       purpose.trim() !== ""
     );
   };
@@ -296,7 +302,11 @@ function LoanApplicationContent() {
   // Prefer sector-specific copy; fall back to default when no sector match is found
   const loanInfo = loanInfoContent[selectedSectorId] || loanInfoContent.default;
 
+  // Maximum allowed years calculated from API's tenure (months)
+  const maxAllowedYears = Math.max(0, Math.floor(apiTenure / 12));
+
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-16 sm:pt-20 md:pt-24">
       <Header />
@@ -619,7 +629,7 @@ function LoanApplicationContent() {
                       <div className="flex items-center gap-1.5 sm:gap-2.5 mb-2 sm:mb-3">
                         <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                         <span className="text-xs sm:text-sm font-semibold">
-                          Loan Tenure
+                          Max Loan Tenure
                         </span>
                       </div>
                       <p className="text-xl sm:text-3xl md:text-4xl font-bold">
@@ -697,13 +707,8 @@ function LoanApplicationContent() {
 
                         // Keep digits only
                         const digitsOnly = withoutCommas.replace(/\D/g, "");
-                        console.log("Digits only value:", digitsOnly);
-                        // Format with commas
-                        const formatted = digitsOnly.replace(
-                          /\B(?=(\d{3})+(?!\d))/g,
-                          ",",
-                        );
-                        console.log("Formatted value:", formatted);
+
+                        // NOTE: It stores 'digitsOnly' but calculates formatting in case needed elsewhere.
                         setTotalLoanInput(digitsOnly);
                       }}
                       className={`h-10 sm:h-12 border text-sm sm:text-base
@@ -719,6 +724,48 @@ function LoanApplicationContent() {
                         {errors.totalLoan}
                       </p>
                     )}
+                  </div>
+
+                  {/* Dynamic User Tenure Selection */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-gray-800 font-semibold text-sm sm:text-base">
+                        Loan Tenure (Years){" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={String(selectedYears)}
+                        onValueChange={(val) => setSelectedYears(Number(val))}
+                        disabled={maxAllowedYears < 1}
+                      >
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                          <SelectValue placeholder="Select Years" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from(
+                            { length: maxAllowedYears },
+                            (_, i) => i + 1,
+                          ).map((year) => (
+                            <SelectItem key={year} value={String(year)}>
+                              {year} {year === 1 ? "Year" : "Years"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-gray-800 font-semibold text-sm sm:text-base">
+                        Loan Tenure (Months)
+                      </Label>
+                      <Input
+                        type="text"
+                        readOnly
+                        className="h-10 sm:h-12 border-gray-300 bg-gray-100 text-gray-600 focus-visible:ring-0"
+                        value={selectedYears ? Number(selectedYears) * 12 : ""}
+                        placeholder="Months"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -742,7 +789,8 @@ function LoanApplicationContent() {
                 {/* EMI Display - Now shown whenever a valid loan amount and sub‑sector data exist */}
                 {parseFloat(totalLoanInput) > 0 &&
                   apiInterestRate > 0 &&
-                  apiTenure > 0 && (
+                  selectedYears !== "" &&
+                  Number(selectedYears) > 0 && (
                     <div className="border-t border-gray-200 pt-4 sm:pt-6 md:pt-8 mt-4 sm:mt-6 md:mt-8">
                       <div className="bg-gradient-to-br from-[#FF9800] to-[#FF6F00] p-6 sm:p-8 md:p-12 rounded-xl sm:rounded-2xl text-center shadow-xl sm:shadow-2xl transform hover:scale-105 transition-transform duration-300">
                         <p className="text-sm sm:text-base md:text-lg text-white/95 mb-3 sm:mb-4 font-semibold tracking-wide">
@@ -823,7 +871,9 @@ function LoanApplicationContent() {
               selectedCategoryObj?.sub_cat_sector || selectedSubSectorCategory,
             loanAmount: totalLoanInput,
             loanPurpose: purpose,
-            tenure: apiTenure,
+            maxApiTenureMonths: apiTenure,
+            selectedYears: selectedYears,
+            selectedMonths: Number(selectedYears) * 12,
             interestRate: apiInterestRate,
           };
 

@@ -24,6 +24,7 @@ import {
   UserPlus,
   Users,
   UserCheck,
+  Loader2,
 } from "lucide-react";
 import {
   fetchCountry,
@@ -37,7 +38,6 @@ import {
   fetchLegalConstitution,
   fetchPepCategory,
   fetchPepSubCategoryByCategory,
-  // No loan‑related fetches here – they are passed as props
 } from "@/services/api";
 
 /* ----------------------- Types ----------------------- */
@@ -47,7 +47,6 @@ interface ConfirmationProps {
   onBack: () => void;
   formData: any; // full session data
 
-  // Loan options passed from parent (optional, but recommended)
   loanTypeOptions?: any[];
   loanSectorOptions?: any[];
   loanSubSectorOptions?: any[];
@@ -81,15 +80,12 @@ const extractId = (value: any): string => {
   if (!value) return "";
   const str = String(value);
   const parts = str.split("-");
-  return parts[0]; // take the first part before any hyphen
+  return parts[0];
 };
 
 /**
  * Finds the label for a given value from an options array.
- * @param options Array of option objects
- * @param value The stored value (may contain "-index")
- * @param valueKey The key in the option object that holds the ID (e.g. "pk_id", "loan_sector_id")
- * @param labelKey The key in the option object that holds the display label (e.g. "loan_type", "loan_sector")
+ * If the value is not found (or options are empty), returns the original value.
  */
 const getOptionLabel = (
   options: any[],
@@ -118,93 +114,297 @@ export function BusinessConfirmation({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ---------- Extract all data from the session (the provided structure) ----------
-  const session = formData || {};
+  // ---------- Enhanced Session Storage & Hydration ----------
+  const SESSION_STORAGE_KEY = "loanApplicationData";
+  const LOCAL_STORAGE_KEY = "loanApplicationData"; // fallback if you also use localStorage
+  const [loadedFormData, setLoadedFormData] = useState<any>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  // Loan details
+  useEffect(() => {
+    // Attempt to load data from storage if props are empty
+    const hasPropData = formData && Object.keys(formData).length > 0;
+
+    if (!hasPropData && typeof window !== "undefined") {
+      try {
+        // Try sessionStorage first
+        let stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          console.log("Loaded from sessionStorage:", parsed);
+          setLoadedFormData(parsed);
+        } else {
+          // Fallback to localStorage
+          stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            console.log("Loaded from localStorage:", parsed);
+            setLoadedFormData(parsed);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse stored data", e);
+      }
+    }
+    setIsHydrated(true);
+  }, [formData]);
+
+  const effectiveFormData = useMemo(() => {
+    // Priority: Data passed via Props (if navigating within app)
+    if (formData && Object.keys(formData).length > 0) {
+      return formData;
+    }
+    // Fallback: Data loaded from Session Storage (if page refreshed)
+    return loadedFormData || {};
+  }, [formData, loadedFormData]);
+
+  // Force re-render when options load (ensures labels update)
+  const [optionsLoaded, setOptionsLoaded] = useState(false);
+  useEffect(() => {
+    if (!optionsLoaded) setOptionsLoaded(true);
+  }, [
+    loanTypeOptions,
+    loanSectorOptions,
+    loanSubSectorOptions,
+    loanSubSectorCategoryOptions,
+  ]);
+
+  // ---------- Extract all data from the effective session ----------
+  const session = effectiveFormData;
+
+  // Loan details (top level – with fallback to nested loanData)
   const loanData = {
-    loanType: session.loanType || "",
-    loanSector: session.loanSector || "",
-    loanSubSector: session.loanSubSector || "",
-    loanSubSectorCategory: session.loanSubSectorCategory || "",
-    loanAmount: session.loanAmount || "",
-    loanPurpose: session.loanPurpose || "",
-    interestRate: session.interestRate || "",
-    tenure: session.tenure || "",
+    loanType: session.loanType || session.loanData?.loanType || "",
+    loanSector: session.loanSector || session.loanData?.loanSector || "",
+    loanSubSector:
+      session.loanSubSector || session.loanData?.loanSubSector || "",
+    loanSubSectorCategory:
+      session.loanSubSectorCategory ||
+      session.loanData?.loanSubSectorCategory ||
+      "",
+    loanAmount: session.loanAmount || session.loanData?.loanAmount || "",
+    loanPurpose: session.loanPurpose || session.loanData?.loanPurpose || "",
+    interestRate: session.interestRate || session.loanData?.interestRate || "",
+    tenure: session.tenure || session.loanData?.tenure || "",
   };
 
-  // Business details (top-level fields)
+  // Business details (inside businessDetail)
+  const businessDetail = session.businessDetail || {};
+  const businessAddress = businessDetail.businessAddress || {};
+
   const businessData = {
-    businessName: session.businessName || "",
-    establishmentDate: session.establishmentDate || "",
-    industryClassification: session.industryClassification || "",
-    // Business identification (not present in session – leave empty or map from elsewhere if needed)
-    identificationType: "",
-    identificationNumber: "",
-    identificationIssueDate: "",
-    identificationExpiryDate: "",
-    identificationProofFileName: "",
-    taxIdentifierType: session.taxIdentifierType || "",
-    taxIdentifierNumber: session.taxIdentifierNumber || "",
-    bankCurrentAccountNumber: session.bankCurrentAccountNumber || "",
-    bankSavingAccountNumber: session.bankSavingAccountNumber || "",
-    nameOfBank: session.nameOfBank || "",
-    grossAnnualIncome: session.grossAnnualIncome || "",
-    businessType: session.businessType || "",
+    businessName: businessDetail.businessName || "",
+    establishmentDate: businessDetail.establishmentDate || "",
+    industryClassification: businessDetail.industryClassification || "",
+    // Top‑level identification fields might differ based on how they were saved
+    identificationType:
+      session.identificationType || businessDetail.identificationType || "",
+    identificationNumber:
+      session.identificationNumber || businessDetail.identificationNumber || "",
+    identificationIssueDate:
+      session.identificationIssueDate ||
+      businessDetail.identificationIssueDate ||
+      "",
+    identificationExpiryDate:
+      session.identificationExpiryDate ||
+      businessDetail.identificationExpiryDate ||
+      "",
+    identificationProofFileName:
+      session.identificationProofFileName ||
+      businessDetail.identificationProofFileName ||
+      "",
+    taxIdentifierType:
+      session.taxIdentifierType || businessDetail.taxIdentifierType || "",
+    taxIdentifierNumber:
+      session.taxIdentifierNumber || businessDetail.taxIdentifierNumber || "",
+    bankCurrentAccountNumber:
+      session.bankCurrentAccountNumber ||
+      businessDetail.bankCurrentAccountNumber ||
+      "",
+    bankSavingAccountNumber:
+      session.bankSavingAccountNumber ||
+      businessDetail.bankSavingAccountNumber ||
+      "",
+    nameOfBank: session.nameOfBank || businessDetail.nameOfBank || "",
+    grossAnnualIncome: businessDetail.grossAnnualIncome || "",
+    businessType: businessDetail.businessType || "",
   };
 
-  // Business address
-  const businessAddress = session.businessAddress || {
-    country: "",
-    dzongkhag: "",
-    gewog: "",
-    villageStreet: "",
-    specificLocation: "",
-    contactNumber: "",
-    alternateContactNumber: "",
-    email: "",
+  // Attachments (not heavily used, but kept)
+  const attachments = session.attachments || {};
+
+  // Owner data (primary applicant) – normalize all field names with additional fallbacks
+  const rawOwner = session.ownerData || {};
+  const ownerData = {
+    // Personal / ID
+    identificationType:
+      rawOwner.idType ||
+      rawOwner.identificationType ||
+      session.identificationType ||
+      "",
+    identificationNo:
+      rawOwner.idNumber ||
+      rawOwner.identificationNo ||
+      session.identificationNumber ||
+      "",
+    identificationIssueDate:
+      rawOwner.identificationIssueDate ||
+      rawOwner.idIssueDate ||
+      session.identificationIssueDate ||
+      "",
+    identificationExpiryDate:
+      rawOwner.identificationExpiryDate ||
+      rawOwner.idExpiryDate ||
+      session.identificationExpiryDate ||
+      "",
+    salutation: rawOwner.salutation || "",
+    applicantName:
+      rawOwner.applicantName ||
+      rawOwner.fullName ||
+      session.applicantName ||
+      "",
+    nationality: rawOwner.nationality || session.nationality || "",
+    gender: rawOwner.gender || session.gender || "",
+    dateOfBirth: rawOwner.dateOfBirth || session.dateOfBirth || "",
+    tpn: rawOwner.tpn || rawOwner.tpnNumber || session.tpn || "",
+    maritalStatus: rawOwner.maritalStatus || session.maritalStatus || "",
+    shareholdingPercent: rawOwner.shareholdingPercent || "",
+
+    // Spouse
+    spouseIdentificationNo:
+      rawOwner.spouseIdentificationNo || rawOwner.spouseCid || "",
+    spouseName: rawOwner.spouseName || "",
+    spouseContact: rawOwner.spouseContact || "",
+
+    // File names
+    familyTreeName: rawOwner.familyTreeName || "",
+    passportPhotoName:
+      rawOwner.passportPhotoName || rawOwner.passportPhoto || "",
+
+    // Bank
+    bankName: rawOwner.bankName || session.bankName || "",
+    bankAccount:
+      rawOwner.bankAccount ||
+      rawOwner.bankAccountNo ||
+      session.bankAccount ||
+      "",
+
+    // Permanent address
+    permCountry: rawOwner.permCountry || session.permCountry || "",
+    permDzongkhag: rawOwner.permDzongkhag || session.permDzongkhag || "",
+    permGewog: rawOwner.permGewog || session.permGewog || "",
+    permVillage: rawOwner.permVillage || session.permVillage || "",
+    permThram: rawOwner.permThram || session.permThram || "",
+    permHouse: rawOwner.permHouse || session.permHouse || "",
+    permAddressProofName: rawOwner.permAddressProofName || "",
+
+    // Current address
+    currCountry: rawOwner.currCountry || session.currCountry || "",
+    currDzongkhag: rawOwner.currDzongkhag || session.currDzongkhag || "",
+    currGewog: rawOwner.currGewog || session.currGewog || "",
+    currVillage: rawOwner.currVillage || session.currVillage || "",
+    currFlat: rawOwner.currFlat || rawOwner.currHouse || session.currFlat || "",
+    currEmail: rawOwner.currEmail || rawOwner.email || session.email || "",
+    currContact:
+      rawOwner.currContact || rawOwner.contactNo || session.contactNo || "",
+    currAlternateContact:
+      rawOwner.currAlternateContact || session.alternateContact || "",
+    currAddressProofName: rawOwner.currAddressProofName || "",
+
+    // PEP
+    pepPerson: rawOwner.pepPerson || session.pepPerson || "",
+    pepCategory: rawOwner.pepCategory || session.pepCategory || "",
+    pepSubCategory: rawOwner.pepSubCategory || session.pepSubCategory || "",
+    pepRelated:
+      rawOwner.pepRelated || rawOwner.relatedToPep || session.pepRelated || "",
+    identificationProofName: rawOwner.identificationProofName || "",
+
+    // Employment
+    employmentStatus:
+      rawOwner.employmentStatus || session.employmentStatus || "",
+    employeeId: rawOwner.employeeId || "",
+    occupation: rawOwner.occupation || session.occupation || "",
+    employerType: rawOwner.employerType || "",
+    designation: rawOwner.designation || "",
+    grade: rawOwner.grade || "",
+    organizationName: rawOwner.organizationName || "",
+    orgLocation: rawOwner.orgLocation || "",
+    joiningDate: rawOwner.joiningDate || "",
+    serviceNature: rawOwner.serviceNature || rawOwner.natureOfService || "",
+    annualSalary: rawOwner.annualSalary || rawOwner.annualIncome || "",
+    contractEndDate: rawOwner.contractEndDate || "",
   };
 
-  // Attachments (if any)
-  const attachments = session.attachments || {
-    familyTree: null,
-    familyTreeName: "",
-    supportingDoc: null,
-    supportingDocName: "",
-    declarationConsent: false,
-  };
-
-  // Ownership / management data (directly from session)
-  const ownerData = session.ownerData || {};
+  // Partners / CEO / Board etc.
   const partners = session.partners || [];
   const ceo = session.ceo || {};
   const boardMembers = session.boardMembers || [];
   const shareholders = session.shareholders || [];
-  const trustees = session.trustees || [];
-  const president = session.president || {};
-  const headOfAgency = session.headOfAgency || {};
-  const headOfNGO = session.headOfNGO || {};
 
-  // Co‑borrowers (if needed – not displayed yet, but we keep them)
-  const coBorrowers = session.coBorrowers || [];
-
-  // Security details – take the first item (the UI currently shows only one)
-  const securityData = session.securityDetails?.[0] || {};
-
-  // Repayment source
+  // Repayment source (business income)
+  const businessIncome = session.businessIncome || {};
   const repaymentData = {
-    repaymentSourceType: session.businessIncome?.repaymentSourceType || "",
-    monthlyIncome: session.businessIncome?.amount || "",
-    proofFileName: session.businessIncome?.proofFileName || "",
+    repaymentSourceType: businessIncome.repaymentSourceType || "",
+    monthlyIncome: businessIncome.amount || "",
+    proofFileName: businessIncome.proofFileName || "",
   };
 
-  // Guarantors (repayment guarantors)
-  const guarantorsData = session.guarantors || [];
+  // Guarantors – normalize each
+  const rawGuarantors = session.guarantors || [];
+  const guarantorsData = rawGuarantors.map((g: any) => ({
+    ...g,
+    identificationType: g.idType || g.identificationType || "",
+    identificationNo: g.idNumber || g.identificationNo || "",
+    identificationIssueDate: g.identificationIssueDate || g.idIssueDate || "",
+    identificationExpiryDate:
+      g.identificationExpiryDate || g.idExpiryDate || "",
+    applicantName: g.guarantorName || g.applicantName || "",
+    bankName: g.bankName || "",
+    bankAccount: g.bankAccount || g.bankAccountNumber || "",
+    permCountry: g.permCountry || "",
+    permDzongkhag: g.permDzongkhag || "",
+    permGewog: g.permGewog || "",
+    permVillage: g.permVillage || "",
+    permThram: g.permThram || "",
+    permHouse: g.permHouse || "",
+    currCountry: g.currCountry || "",
+    currDzongkhag: g.currDzongkhag || "",
+    currGewog: g.currGewog || "",
+    currVillage: g.currVillage || "",
+    currHouse: g.currHouse || "",
+    currAlternateContact: g.currAlternateContact || "",
+    email: g.email || "",
+    contact: g.contact || "",
+    maritalStatus: g.maritalStatus || "",
+    nationality: g.nationality || "",
+    gender: g.gender || "",
+    dateOfBirth: g.dateOfBirth || "",
+    tpn: g.tpn || "",
+    isPep: g.isPep || "",
+    pepCategory: g.pepCategory || "",
+    pepSubCategory: g.pepSubCategory || "",
+    relatedToPep: g.relatedToPep || "",
+    employmentStatus: g.employmentStatus || "",
+    employeeId: g.employeeId || "",
+    occupation: g.occupation || "",
+    employerType: g.employerType || "",
+    designation: g.designation || "",
+    grade: g.grade || "",
+    organizationName: g.organizationName || "",
+    orgLocation: g.orgLocation || "",
+    joiningDate: g.joiningDate || "",
+    annualSalary: g.annualSalary || "",
+    proofFileName: g.proofFileName || "",
+    amount: g.amount || "",
+    repaymentSourceType: g.repaymentSourceType || "",
+  }));
 
-  // Additional guarantors (security guarantors) – not shown separately, but we keep them
-  const additionalGuarantors = session.additionalGuarantors || [];
+  // Security details (first item)
+  const securityData = session.securityDetails?.[0] || {};
 
-  // ---------- Fetch other dropdown options (country, banks, etc.) ----------
+  // Co‑borrowers (if any)
+  const coBorrowers = session.coBorrowers || [];
+
+  // ---------- Fetch dropdown options ----------
   const [countryOptions, setCountryOptions] = useState<any[]>([]);
   const [dzongkhagOptions, setDzongkhagOptions] = useState<any[]>([]);
   const [gewogOptions, setGewogOptions] = useState<any[]>([]);
@@ -306,7 +506,7 @@ export function BusinessConfirmation({
       spouseName: ownerData.spouseName,
       spouseCid: ownerData.spouseIdentificationNo,
       spouseContact: ownerData.spouseContact,
-      familyTreeDocs: ownerData.familyTree,
+      familyTreeDocs: ownerData.familyTreeName,
       bankName: ownerData.bankName,
       bankAccount: ownerData.bankAccount,
       contact: ownerData.currContact,
@@ -324,7 +524,7 @@ export function BusinessConfirmation({
       currVillage: ownerData.currVillage,
       currFlat: ownerData.currFlat,
       pep: ownerData.pepPerson,
-      proofDoc: ownerData.identificationProof,
+      proofDoc: ownerData.identificationProofName,
       pepSubCategory: ownerData.pepSubCategory,
       pepRelated: ownerData.pepRelated,
       pepRelationship: ownerData.pepRelationship,
@@ -342,7 +542,7 @@ export function BusinessConfirmation({
       designation: ownerData.designation,
       grade: ownerData.grade,
       employeeType: ownerData.employeeType,
-      grossIncome: ownerData.annualIncome,
+      grossIncome: ownerData.annualSalary,
     },
     coBorrowerData: coBorrowers[0] || {},
     securityData: {
@@ -377,14 +577,14 @@ export function BusinessConfirmation({
       });
 
       // Append files if they exist (adjust paths as needed)
-      if (ownerData.passportPhoto instanceof File) {
-        fd.append("passportPhoto", ownerData.passportPhoto);
+      if (rawOwner.passportPhoto instanceof File) {
+        fd.append("passportPhoto", rawOwner.passportPhoto);
       }
-      if (ownerData.currAddressProof instanceof File) {
-        fd.append("currentAddressProof", ownerData.currAddressProof);
+      if (rawOwner.currAddressProof instanceof File) {
+        fd.append("currentAddressProof", rawOwner.currAddressProof);
       }
-      if (ownerData.permAddressProof instanceof File) {
-        fd.append("permanentAddressProof", ownerData.permAddressProof);
+      if (rawOwner.permAddressProof instanceof File) {
+        fd.append("permanentAddressProof", rawOwner.permAddressProof);
       }
 
       const res = await fetch("https://bil.example.com/api/loan-applications", {
@@ -475,6 +675,16 @@ export function BusinessConfirmation({
   }
 
   /* -------------------- UI ----------------------- */
+
+  // Prevent rendering (flash of empty content) until hydration is complete
+  if (!isHydrated) {
+    return (
+      <div className="flex h-64 w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#003DA5]" />
+        <span className="ml-2 text-gray-600">Restoring session data...</span>
+      </div>
+    );
+  }
 
   return (
     <form
@@ -1504,24 +1714,20 @@ export function BusinessConfirmation({
                         />
                         <Field
                           label="Applicant Name"
-                          value={
-                            guarantor.guarantorName || guarantor.applicantName
-                          }
+                          value={guarantor.applicantName}
                         />
                         <Field
                           label="Identification Type"
                           value={getOptionLabel(
                             identificationTypeOptions,
-                            guarantor.idType || guarantor.identificationType,
+                            guarantor.identificationType,
                             "id",
                             "identification_type",
                           )}
                         />
                         <Field
                           label="Identification No."
-                          value={
-                            guarantor.idNumber || guarantor.identificationNo
-                          }
+                          value={guarantor.identificationNo}
                         />
                         <Field
                           label="Nationality"

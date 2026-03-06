@@ -40,18 +40,15 @@ import {
 import { getNdiDataFromSession } from "@/lib/mapNdiData";
 import { getVerifiedCustomerDataFromSession } from "@/lib/mapCustomerData";
 import { PlusCircle, Trash2 } from "lucide-react";
-// const [errors, setErrors] = useState<Record<string, string>>({});
-const isRequired = (value: any) =>
-  !value || value.toString().trim() === "";
+
+const isRequired = (value: any) => !value || value.toString().trim() === "";
 
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-const isValidNumber = (value: string) =>
-  /^\d+$/.test(value);
+const isValidNumber = (value: string) => /^\d+$/.test(value);
 
-const isValidDate = (date: string) =>
-  !isNaN(Date.parse(date));
+const isValidDate = (date: string) => !isNaN(Date.parse(date));
 
 interface PersonalDetailsFormProps {
   onNext: (data: any) => void;
@@ -60,13 +57,72 @@ interface PersonalDetailsFormProps {
   isFirstStep: boolean;
 }
 
-// Initialize empty related PEP entry
+// Initialize empty related PEP entry with comprehensive fields
 const createEmptyRelatedPep = () => ({
+  // PEP Info
   relationship: "",
   identificationNo: "",
   category: "",
   subCategory: "",
   identificationProof: "",
+
+  // Personal Info
+  identificationType: "",
+  salutation: "",
+  applicantName: "",
+  nationality: "",
+  gender: "",
+  identificationIssueDate: "",
+  identificationExpiryDate: "",
+  dateOfBirth: "",
+  taxIdentifierType: "",
+  tpn: "",
+  householdNumber: "",
+  maritalStatus: "",
+
+  // PEP Permanent Address
+  permCountry: "",
+  permDzongkhag: "",
+  permGewog: "",
+  permVillage: "",
+  permThram: "",
+  permHouse: "",
+  permAddressProof: "",
+
+  // PEP Current Address
+  currCountry: "",
+  currDzongkhag: "",
+  currGewog: "",
+  currVillage: "",
+  currFlat: "",
+  currAddressProof: "",
+  currEmail: "",
+  currContact: "",
+  currAlternateContact: "",
+
+  // Spouse Info
+  spouseIdentificationType: "",
+  spouseIdentificationNo: "",
+  spouseSalutation: "",
+  spouseName: "",
+  spouseNationality: "",
+  spouseGender: "",
+  spouseIdentificationIssueDate: "",
+  spouseIdentificationExpiryDate: "",
+  spouseTaxIdentifierType: "",
+  spouseTpn: "",
+  spouseDateOfBirth: "",
+  spouseHouseholdNumber: "",
+  spousePermCountry: "",
+  spousePermDzongkhag: "",
+  spousePermGewog: "",
+  spousePermVillage: "",
+  spousePermThram: "",
+  spousePermHouse: "",
+  spousePermAddressProof: "",
+  spouseEmail: "",
+  spouseContact: "",
+  spouseAlternateContact: "",
 });
 
 export function PersonalDetailsForm({
@@ -75,36 +131,36 @@ export function PersonalDetailsForm({
   formData,
 }: PersonalDetailsFormProps) {
   const [data, setData] = useState(() => {
-    console.log('========== PersonalDetail INIT ==========');
-    
+    console.log("========== PersonalDetail INIT ==========");
+
     // PRIORITY 1: Check for verified customer data (existing users)
     const verifiedData = getVerifiedCustomerDataFromSession();
     if (verifiedData && Object.keys(verifiedData).length > 0) {
-      console.log('✅ INIT: Loading verified customer data:', verifiedData);
+      console.log("✅ INIT: Loading verified customer data:", verifiedData);
       let initialData = { ...verifiedData };
-      
+
       if (!(initialData as any).relatedPeps) {
         (initialData as any).relatedPeps = [createEmptyRelatedPep()];
       }
-      console.log('========== Init Complete ==========\n');
+      console.log("========== Init Complete ==========\n");
       return initialData as any;
     }
 
     // PRIORITY 2: Check for NDI verified data (new users)
     const ndiData = getNdiDataFromSession();
     if (ndiData && Object.keys(ndiData).length > 0) {
-      console.log('✅ INIT: Loading NDI data:', ndiData);
+      console.log("✅ INIT: Loading NDI data:", ndiData);
       let initialData = { ...ndiData };
-      
+
       if (!(initialData as any).relatedPeps) {
         (initialData as any).relatedPeps = [createEmptyRelatedPep()];
       }
-      console.log('========== Init Complete ==========\n');
+      console.log("========== Init Complete ==========\n");
       return initialData as any;
     }
 
     // PRIORITY 3: Use formData from page
-    console.log('⚠️ INIT: No verified/NDI data, using formData:', formData);
+    console.log("⚠️ INIT: No verified/NDI data, using formData:", formData);
     let initialData = formData?.personalDetails || formData || {};
 
     // --- MIGRATION LOGIC FOR RELATED PEPS ---
@@ -112,6 +168,7 @@ export function PersonalDetailsForm({
       if ((initialData as any).pepRelated === "yes") {
         (initialData as any).relatedPeps = [
           {
+            ...createEmptyRelatedPep(),
             relationship: (initialData as any).pepRelationship || "",
             identificationNo: (initialData as any).pepIdentification || "",
             category: (initialData as any).pepCategory || "",
@@ -124,7 +181,7 @@ export function PersonalDetailsForm({
       }
     }
 
-    console.log('========== Init Complete ==========\n');
+    console.log("========== Init Complete ==========\n");
     return initialData as any;
   });
 
@@ -140,33 +197,56 @@ export function PersonalDetailsForm({
   const [dzongkhagOptions, setDzongkhagOptions] = useState<any[]>([]);
   const [permGewogOptions, setPermGewogOptions] = useState<any[]>([]);
   const [currGewogOptions, setCurrGewogOptions] = useState<any[]>([]);
+  const [spousePermGewogOptions, setSpousePermGewogOptions] = useState<any[]>(
+    [],
+  );
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
   const [pepSubCategoryOptions, setPepSubCategoryOptions] = useState<any[]>([]);
   const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
 
-  // Store options for related PEPs separately because each row might have a different Category selected
+  // Maps for dynamic dropdowns inside the Related PEPs loop
   const [relatedPepOptionsMap, setRelatedPepOptionsMap] = useState<
     Record<number, any[]>
   >({});
+  const [relatedPepSpouseGewogMap, setRelatedPepSpouseGewogMap] = useState<
+    Record<number, any[]>
+  >({});
+  const [relatedPepPermGewogMap, setRelatedPepPermGewogMap] = useState<
+    Record<number, any[]>
+  >({});
+  const [relatedPepCurrGewogMap, setRelatedPepCurrGewogMap] = useState<
+    Record<number, any[]>
+  >({});
 
-  // Calculate date constraints
   const today = new Date().toISOString().split("T")[0];
   const fifteenYearsAgo = new Date();
   fifteenYearsAgo.setFullYear(fifteenYearsAgo.getFullYear() - 15);
   const maxDobDate = fifteenYearsAgo.toISOString().split("T")[0];
 
-  // --- HELPER: Determine if Married ---
-  const getIsMarried = () => {
-    const status = data.maritalStatus;
-    if (!status) return false;
+  // --- HELPER: Nationality Check ---
+  const isNatBhutanese = (nationalityId: string) => {
+    if (!nationalityId) return false;
+    const n = nationalityOptions.find((opt) => {
+      const pkCode = String(
+        opt.nationality_pk_code || opt.id || opt.code || "",
+      );
+      return pkCode === String(nationalityId);
+    });
+    const label = n
+      ? n.nationality || n.name || n.label || ""
+      : String(nationalityId);
+    const lowerLabel = label.toLowerCase();
+    return lowerLabel.includes("bhutan") && !lowerLabel.includes("non");
+  };
 
-    // 1. Check against simple string (fallback data)
+  // --- HELPER: Determine if Married ---
+  const isMarriedStatus = (status: any) => {
+    if (!status) return false;
     const statusStr = String(status).toLowerCase();
     if (statusStr === "married") return true;
     if (statusStr === "unmarried") return false;
 
-    // 2. Check against loaded options
     const selectedOption = maritalStatusOptions.find((option) => {
       const val = String(
         option.marital_status_pk_code ||
@@ -187,262 +267,148 @@ export function PersonalDetailsForm({
       ).toLowerCase();
       return label.includes("married") && !label.includes("unmarried");
     }
-
     return false;
   };
 
-  const isMarried = getIsMarried();
+  const isMarried = isMarriedStatus(data.maritalStatus);
 
-  /**
-   * Helper to check if a country value represents Bhutan
-   * Handles both pk_code values and label values like "Bhutan"
-   */
   const isBhutanCountry = (countryValue: string, options: any[]): boolean => {
     if (!countryValue) return false;
-    
-    // Check if the value itself is "Bhutan" (case-insensitive)
-    if (String(countryValue).toLowerCase().includes('bhutan')) {
-      return true;
-    }
-    
-    // Check if the pk_code matches a Bhutan option
+    if (String(countryValue).toLowerCase().includes("bhutan")) return true;
     const matchedOption = options.find(
-      (c) => String(c.country_pk_code || c.id || c.code) === countryValue
+      (c) =>
+        String(c.country_pk_code || c.id || c.code) === String(countryValue),
     );
-    
     if (matchedOption) {
-      const label = (matchedOption.country || matchedOption.name || '').toLowerCase();
-      return label.includes('bhutan');
+      const label = (
+        matchedOption.country ||
+        matchedOption.name ||
+        ""
+      ).toLowerCase();
+      return label.includes("bhutan");
     }
-    
     return false;
   };
 
-  /**
-   * Helper to find pk_code from label by searching through available options
-   * This allows us to match stored label values to dropdown pk_codes
-   */
-  const findPkCodeByLabel = (label: string, options: any[], labelFields: string[]): string => {
-    if (!label) return '';
-    
+  const findPkCodeByLabel = (
+    label: string,
+    options: any[],
+    labelFields: string[],
+  ): string => {
+    if (!label) return "";
+
+    const getCode = (opt: any) =>
+      String(
+        opt.bank_pk_code ||
+          opt.country_pk_code ||
+          opt.nationality_pk_code ||
+          opt.identity_type_pk_code ||
+          opt.marital_status_pk_code ||
+          opt.occupation_pk_code ||
+          opt.dzongkhag_pk_code ||
+          opt.gewog_pk_code ||
+          opt.pep_category_pk_code ||
+          opt.pep_sub_category_pk_code ||
+          opt.lgal_constitution_pk_code ||
+          opt.legal_const_pk_code ||
+          opt.pk_code ||
+          opt.id ||
+          opt.code ||
+          "",
+      );
+
+    // 1. Exact match on code (in case it's already properly assigned)
+    for (const option of options) {
+      const code = getCode(option);
+      if (code && code === String(label)) {
+        return code;
+      }
+    }
+
     const labelLower = String(label).toLowerCase().trim();
-    
+    const cleanLabel = labelLower.replace(/[^a-z0-9]/g, "");
+
+    // 2. Strict match on label
     for (const option of options) {
       for (const field of labelFields) {
         const optionLabel = String(option[field] || "")
           .toLowerCase()
           .trim();
-        if (optionLabel === labelLower) {
-          // Found exact match, return the pk_code
-          return String(
-            option.bank_pk_code ||
-              option.country_pk_code ||
-              option.nationality_pk_code ||
-              option.identity_type_pk_code ||
-              option.marital_status_pk_code ||
-              option.occupation_pk_code ||
-              option.dzongkhag_pk_code ||
-              option.gewog_pk_code ||
-              option.pk_code ||
-              option.id ||
-              option.code ||
-              "",
-          );
+        const cleanOptionLabel = optionLabel.replace(/[^a-z0-9]/g, "");
+        if (cleanOptionLabel && cleanOptionLabel === cleanLabel) {
+          return getCode(option);
         }
       }
     }
 
-    // Second pass: substring match (only if label is long enough to avoid false positives)
-    if (labelLower.length >= 4) {
+    // 3. Partial match
+    if (cleanLabel.length >= 4) {
       for (const option of options) {
         for (const field of labelFields) {
           const optionLabel = String(option[field] || "")
             .toLowerCase()
             .trim();
-          if (optionLabel.includes(labelLower) || labelLower.includes(optionLabel)) {
-            // Found partial match, return the pk_code
-            return String(
-              option.bank_pk_code ||
-                option.country_pk_code ||
-                option.nationality_pk_code ||
-                option.identity_type_pk_code ||
-                option.marital_status_pk_code ||
-                option.occupation_pk_code ||
-                option.dzongkhag_pk_code ||
-                option.gewog_pk_code ||
-                option.pk_code ||
-                option.id ||
-                option.code ||
-                "",
-            );
+          const cleanOptionLabel = optionLabel.replace(/[^a-z0-9]/g, "");
+          if (cleanOptionLabel && cleanOptionLabel.includes(cleanLabel)) {
+            return getCode(option);
           }
         }
       }
     }
 
-    // No match found, return the label as-is (it might already be a pk_code)
-    return label;
+    return String(label);
   };
 
-  // Load NDI verified data or existing customer verified data from session on mount
   useEffect(() => {
-    // Check for existing customer verified data first
     const verifiedData = getVerifiedCustomerDataFromSession();
     if (verifiedData && Object.keys(verifiedData).length > 0) {
-      console.log('========== PersonalDetail - LOADING VERIFIED CUSTOMER DATA ==========');
-      console.log('Verified data:', verifiedData);
-      console.log('Key fields:');
-      console.log('  applicantName:', verifiedData.applicantName);
-      console.log('  salutation:', verifiedData.salutation);
-      console.log('  gender:', verifiedData.gender);
-      console.log('  maritalStatus:', verifiedData.maritalStatus);
-      console.log('  nationality:', verifiedData.nationality);
-      console.log('  identificationType:', verifiedData.identificationType);
-      console.log('  currEmail:', verifiedData.currEmail);
-      console.log('  currContact:', verifiedData.currContact);
-      console.log('  bankName:', verifiedData.bankName);
-      console.log('====================================================================\n');
-      
       setData((prevData: any) => ({
         ...verifiedData,
         ...prevData,
-        // Ensure relatedPeps is preserved
         relatedPeps: prevData.relatedPeps || [createEmptyRelatedPep()],
       }));
-      return; // Don't check NDI data if verified customer data exists
+      return;
     }
-    
-    // If no verified customer data, check for NDI data
     const ndiData = getNdiDataFromSession();
     if (ndiData && Object.keys(ndiData).length > 0) {
-      console.log('PersonalDetail - Loading NDI data:', ndiData);
       setData((prevData: any) => ({
         ...ndiData,
         ...prevData,
-        // Ensure relatedPeps is preserved
         relatedPeps: prevData.relatedPeps || [createEmptyRelatedPep()],
       }));
     }
   }, []);
 
-  // --- DATA FETCHING ---
   useEffect(() => {
-    const loadMaritalStatus = async () => {
-      try {
-        const options = await fetchMaritalStatus();
-        setMaritalStatusOptions(options);
-      } catch (error) {
-        setMaritalStatusOptions([
-          { id: "single", name: "Single" },
-          { id: "married", name: "Married" },
-          { id: "divorced", name: "Divorced" },
-          { id: "widowed", name: "Widowed" },
-          { id: "unmarried", name: "Unmarried" },
-        ]);
-      }
-    };
-    loadMaritalStatus();
-
-    const loadBanks = async () => {
-      try {
-        const options = await fetchBanks();
-        setBanksOptions(options);
-      } catch (error) {
-        setBanksOptions([
-          { id: "bob", name: "Bank of Bhutan" },
-          { id: "bnb", name: "Bhutan National Bank" },
-        ]);
-      }
-    };
-    loadBanks();
-
-    const loadNationality = async () => {
-      try {
-        const options = await fetchNationality();
-        setNationalityOptions(options);
-      } catch (error) {
-        setNationalityOptions([
-          { id: "bhutanese", name: "Bhutanese" },
-          { id: "indian", name: "Indian" },
-        ]);
-      }
-    };
-    loadNationality();
-
-    const loadIdentificationType = async () => {
-      try {
-        const options = await fetchIdentificationType();
-        setIdentificationTypeOptions(options);
-      } catch (error) {
-        setIdentificationTypeOptions([
-          { id: "cid", name: "Citizenship ID" },
-          { id: "passport", name: "Passport" },
-        ]);
-      }
-    };
-    loadIdentificationType();
-
-    const loadCountry = async () => {
-      try {
-        const options = await fetchCountry();
-        setCountryOptions(options);
-      } catch (error) {
-        setCountryOptions([
-          { id: "bhutan", name: "Bhutan" },
-          { id: "india", name: "India" },
-        ]);
-      }
-    };
-    loadCountry();
-
-    const loadDzongkhag = async () => {
-      try {
-        const options = await fetchDzongkhag();
-        setDzongkhagOptions(options);
-      } catch (error) {
-        setDzongkhagOptions([
-          { id: "thimphu", name: "Thimphu" },
-          { id: "paro", name: "Paro" },
-        ]);
-      }
-    };
-    loadDzongkhag();
-
-    const loadOccupation = async () => {
-      try {
-        const options = await fetchOccupations();
-        setOccupationOptions(options);
-      } catch (error) {
-        setOccupationOptions([
-          { id: "engineer", name: "Engineer" },
-          { id: "teacher", name: "Teacher" },
-        ]);
-      }
-    };
-    loadOccupation();
-
-    const loadOrganizations = async () => {
-      try {
-        const options = await fetchLegalConstitution();
-        setOrganizationOptions(options);
-      } catch (error) {
-        setOrganizationOptions([{ id: "org1", name: "Organization 1" }]);
-      }
-    };
-    loadOrganizations();
-
-    const loadPepCategories = async () => {
-      try {
-        const options = await fetchPepCategory();
-        setPepCategoryOptions(options || []);
-      } catch (error) {
-        setPepCategoryOptions([]);
-      }
-    };
-    loadPepCategories();
+    fetchMaritalStatus()
+      .then(setMaritalStatusOptions)
+      .catch(() => setMaritalStatusOptions([]));
+    fetchBanks()
+      .then(setBanksOptions)
+      .catch(() => setBanksOptions([]));
+    fetchNationality()
+      .then(setNationalityOptions)
+      .catch(() => setNationalityOptions([]));
+    fetchIdentificationType()
+      .then(setIdentificationTypeOptions)
+      .catch(() => setIdentificationTypeOptions([]));
+    fetchCountry()
+      .then(setCountryOptions)
+      .catch(() => setCountryOptions([]));
+    fetchDzongkhag()
+      .then(setDzongkhagOptions)
+      .catch(() => setDzongkhagOptions([]));
+    fetchOccupations()
+      .then(setOccupationOptions)
+      .catch(() => setOccupationOptions([]));
+    fetchLegalConstitution()
+      .then(setOrganizationOptions)
+      .catch(() => setOrganizationOptions([]));
+    fetchPepCategory()
+      .then(setPepCategoryOptions)
+      .catch(() => setPepCategoryOptions([]));
   }, []);
 
-  // Sync with formData when it changes
   useEffect(() => {
     if (
       formData &&
@@ -450,16 +416,14 @@ export function PersonalDetailsForm({
       Object.keys(formData).length > 0
     ) {
       const hasData = Object.entries(formData).some(([key, val]) => {
-        if (key === "personalDetails" && val && typeof val === "object") {
+        if (key === "personalDetails" && val && typeof val === "object")
           return Object.keys(val).length > 0;
-        }
         if (
           key === "coBorrowerDetails" ||
           key === "securityDetails" ||
           key === "repaymentSource"
-        ) {
+        )
           return false;
-        }
         if (typeof val === "string") return val.trim() !== "";
         if (typeof val === "boolean") return true;
         if (Array.isArray(val)) return val.length > 0;
@@ -473,12 +437,11 @@ export function PersonalDetailsForm({
             ...(formData.personalDetails || {}),
             ...formData,
           };
-
-          // Ensure relatedPeps array structure is preserved during sync
           if (!merged.relatedPeps) {
             if (merged.pepRelated === "yes") {
               merged.relatedPeps = [
                 {
+                  ...createEmptyRelatedPep(),
                   relationship: merged.pepRelationship || "",
                   identificationNo: merged.pepIdentification || "",
                   category: merged.pepCategory || "",
@@ -490,190 +453,334 @@ export function PersonalDetailsForm({
               merged.relatedPeps = [createEmptyRelatedPep()];
             }
           }
-
           return merged;
         });
       }
     }
   }, [formData]);
 
-  // Convert label values to pk_codes after dropdown options are loaded
   useEffect(() => {
     if (countryOptions.length > 0 && dzongkhagOptions.length > 0) {
       const updates: any = {};
-      
-      // Convert permanent address country label to pk_code
-      if (data.permCountry && !countryOptions.find(c => String(c.country_pk_code || c.id) === data.permCountry)) {
-        const pkCode = findPkCodeByLabel(data.permCountry, countryOptions, ['country', 'name', 'label']);
-        if (pkCode && pkCode !== data.permCountry) {
-          updates.permCountry = pkCode;
-        }
+      if (
+        data.permCountry &&
+        !countryOptions.find(
+          (c) => String(c.country_pk_code || c.id) === data.permCountry,
+        )
+      ) {
+        const pkCode = findPkCodeByLabel(data.permCountry, countryOptions, [
+          "country",
+          "name",
+          "label",
+        ]);
+        if (pkCode && pkCode !== data.permCountry) updates.permCountry = pkCode;
       }
-      
-      // Convert current address country label to pk_code
-      if (data.currCountry && !countryOptions.find(c => String(c.country_pk_code || c.id) === data.currCountry)) {
-        const pkCode = findPkCodeByLabel(data.currCountry, countryOptions, ['country', 'name', 'label']);
-        if (pkCode && pkCode !== data.currCountry) {
-          updates.currCountry = pkCode;
-        }
+      if (
+        data.currCountry &&
+        !countryOptions.find(
+          (c) => String(c.country_pk_code || c.id) === data.currCountry,
+        )
+      ) {
+        const pkCode = findPkCodeByLabel(data.currCountry, countryOptions, [
+          "country",
+          "name",
+          "label",
+        ]);
+        if (pkCode && pkCode !== data.currCountry) updates.currCountry = pkCode;
       }
-      
-      // Convert permanent dzongkhag label to pk_code
-      if (data.permDzongkhag && !dzongkhagOptions.find(d => String(d.dzongkhag_pk_code || d.id) === data.permDzongkhag)) {
-        const pkCode = findPkCodeByLabel(data.permDzongkhag, dzongkhagOptions, ['dzongkhag', 'name', 'label']);
-        if (pkCode && pkCode !== data.permDzongkhag) {
+      if (
+        data.permDzongkhag &&
+        !dzongkhagOptions.find(
+          (d) => String(d.dzongkhag_pk_code || d.id) === data.permDzongkhag,
+        )
+      ) {
+        const pkCode = findPkCodeByLabel(data.permDzongkhag, dzongkhagOptions, [
+          "dzongkhag",
+          "name",
+          "label",
+        ]);
+        if (pkCode && pkCode !== data.permDzongkhag)
           updates.permDzongkhag = pkCode;
-        }
       }
-      
-      // Convert current dzongkhag label to pk_code
-      if (data.currDzongkhag && !dzongkhagOptions.find(d => String(d.dzongkhag_pk_code || d.id) === data.currDzongkhag)) {
-        const pkCode = findPkCodeByLabel(data.currDzongkhag, dzongkhagOptions, ['dzongkhag', 'name', 'label']);
-        if (pkCode && pkCode !== data.currDzongkhag) {
+      if (
+        data.currDzongkhag &&
+        !dzongkhagOptions.find(
+          (d) => String(d.dzongkhag_pk_code || d.id) === data.currDzongkhag,
+        )
+      ) {
+        const pkCode = findPkCodeByLabel(data.currDzongkhag, dzongkhagOptions, [
+          "dzongkhag",
+          "name",
+          "label",
+        ]);
+        if (pkCode && pkCode !== data.currDzongkhag)
           updates.currDzongkhag = pkCode;
-        }
       }
-      
-      if (Object.keys(updates).length > 0) {
-        console.log('🔄 Converting label values to pk_codes:', updates);
+      if (
+        data.spousePermCountry &&
+        !countryOptions.find(
+          (c) => String(c.country_pk_code || c.id) === data.spousePermCountry,
+        )
+      ) {
+        const pkCode = findPkCodeByLabel(
+          data.spousePermCountry,
+          countryOptions,
+          ["country", "name", "label"],
+        );
+        if (pkCode && pkCode !== data.spousePermCountry)
+          updates.spousePermCountry = pkCode;
+      }
+      if (
+        data.spousePermDzongkhag &&
+        !dzongkhagOptions.find(
+          (d) =>
+            String(d.dzongkhag_pk_code || d.id) === data.spousePermDzongkhag,
+        )
+      ) {
+        const pkCode = findPkCodeByLabel(
+          data.spousePermDzongkhag,
+          dzongkhagOptions,
+          ["dzongkhag", "name", "label"],
+        );
+        if (pkCode && pkCode !== data.spousePermDzongkhag)
+          updates.spousePermDzongkhag = pkCode;
+      }
+      if (Object.keys(updates).length > 0)
         setData((prev: any) => ({ ...prev, ...updates }));
-      }
     }
-  }, [countryOptions, dzongkhagOptions, data.permCountry, data.currCountry, data.permDzongkhag, data.currDzongkhag]);
+  }, [
+    countryOptions,
+    dzongkhagOptions,
+    data.permCountry,
+    data.currCountry,
+    data.permDzongkhag,
+    data.currDzongkhag,
+    data.spousePermCountry,
+    data.spousePermDzongkhag,
+  ]);
 
-  // Convert other dropdown fields (identificationType, bankName, nationality, maritalStatus)
   useEffect(() => {
-    if (identificationTypeOptions.length > 0 || banksOptions.length > 0 || nationalityOptions.length > 0 || maritalStatusOptions.length > 0) {
+    if (
+      identificationTypeOptions.length > 0 ||
+      banksOptions.length > 0 ||
+      nationalityOptions.length > 0 ||
+      maritalStatusOptions.length > 0
+    ) {
       const updates: any = {};
-      
-      // Convert identificationType label to pk_code
-      if (identificationTypeOptions.length > 0 && data.identificationType && !identificationTypeOptions.find(i => String(i.identity_type_pk_code || i.identification_type_pk_code || i.id) === data.identificationType)) {
-        const pkCode = findPkCodeByLabel(data.identificationType, identificationTypeOptions, ['identity_type', 'identification_type', 'name', 'label']);
-        if (pkCode && pkCode !== data.identificationType) {
+      if (
+        identificationTypeOptions.length > 0 &&
+        data.identificationType &&
+        !identificationTypeOptions.find(
+          (i) =>
+            String(
+              i.identity_type_pk_code || i.identification_type_pk_code || i.id,
+            ) === data.identificationType,
+        )
+      ) {
+        const pkCode = findPkCodeByLabel(
+          data.identificationType,
+          identificationTypeOptions,
+          ["identity_type", "identification_type", "name", "label"],
+        );
+        if (pkCode && pkCode !== data.identificationType)
           updates.identificationType = pkCode;
-        }
       }
-      
-      // Convert bankName label to pk_code
-      if (banksOptions.length > 0 && data.bankName && !banksOptions.find(b => String(b.bank_pk_code || b.id) === data.bankName)) {
-        const pkCode = findPkCodeByLabel(data.bankName, banksOptions, ['bank', 'bank_name', 'name', 'label']);
-        if (pkCode && pkCode !== data.bankName) {
-          updates.bankName = pkCode;
-        }
+      if (
+        banksOptions.length > 0 &&
+        data.bankName &&
+        !banksOptions.find(
+          (b) => String(b.bank_pk_code || b.id) === data.bankName,
+        )
+      ) {
+        const pkCode = findPkCodeByLabel(data.bankName, banksOptions, [
+          "bank",
+          "bank_name",
+          "name",
+          "label",
+        ]);
+        if (pkCode && pkCode !== data.bankName) updates.bankName = pkCode;
       }
-      
-      // Convert nationality label to pk_code
-      if (nationalityOptions.length > 0 && data.nationality && !nationalityOptions.find(n => String(n.nationality_pk_code || n.id) === data.nationality)) {
-        const pkCode = findPkCodeByLabel(data.nationality, nationalityOptions, ['nationality', 'name', 'label']);
-        if (pkCode && pkCode !== data.nationality) {
-          updates.nationality = pkCode;
-        }
+      if (
+        nationalityOptions.length > 0 &&
+        data.nationality &&
+        !nationalityOptions.find(
+          (n) => String(n.nationality_pk_code || n.id) === data.nationality,
+        )
+      ) {
+        const pkCode = findPkCodeByLabel(data.nationality, nationalityOptions, [
+          "nationality",
+          "name",
+          "label",
+        ]);
+        if (pkCode && pkCode !== data.nationality) updates.nationality = pkCode;
       }
-      
-      // Convert maritalStatus label to pk_code
-      if (maritalStatusOptions.length > 0 && data.maritalStatus && !maritalStatusOptions.find(m => String(m.marital_status_pk_code || m.id) === data.maritalStatus)) {
-        const pkCode = findPkCodeByLabel(data.maritalStatus, maritalStatusOptions, ['marital_status', 'name', 'label']);
-        if (pkCode && pkCode !== data.maritalStatus) {
+      if (
+        maritalStatusOptions.length > 0 &&
+        data.maritalStatus &&
+        !maritalStatusOptions.find(
+          (m) =>
+            String(m.marital_status_pk_code || m.id) === data.maritalStatus,
+        )
+      ) {
+        const pkCode = findPkCodeByLabel(
+          data.maritalStatus,
+          maritalStatusOptions,
+          ["marital_status", "name", "label"],
+        );
+        if (pkCode && pkCode !== data.maritalStatus)
           updates.maritalStatus = pkCode;
-        }
       }
-      
-      if (Object.keys(updates).length > 0) {
-        console.log('🔄 Converting dropdown label values to pk_codes:', updates);
+      if (
+        identificationTypeOptions.length > 0 &&
+        data.spouseIdentificationType &&
+        !identificationTypeOptions.find(
+          (i) =>
+            String(
+              i.identity_type_pk_code || i.identification_type_pk_code || i.id,
+            ) === data.spouseIdentificationType,
+        )
+      ) {
+        const pkCode = findPkCodeByLabel(
+          data.spouseIdentificationType,
+          identificationTypeOptions,
+          ["identity_type", "identification_type", "name", "label"],
+        );
+        if (pkCode && pkCode !== data.spouseIdentificationType)
+          updates.spouseIdentificationType = pkCode;
+      }
+      if (
+        nationalityOptions.length > 0 &&
+        data.spouseNationality &&
+        !nationalityOptions.find(
+          (n) =>
+            String(n.nationality_pk_code || n.id) === data.spouseNationality,
+        )
+      ) {
+        const pkCode = findPkCodeByLabel(
+          data.spouseNationality,
+          nationalityOptions,
+          ["nationality", "name", "label"],
+        );
+        if (pkCode && pkCode !== data.spouseNationality)
+          updates.spouseNationality = pkCode;
+      }
+      if (Object.keys(updates).length > 0)
         setData((prev: any) => ({ ...prev, ...updates }));
-      }
     }
-  }, [identificationTypeOptions, banksOptions, nationalityOptions, maritalStatusOptions, data.identificationType, data.bankName, data.nationality, data.maritalStatus]);
+  }, [
+    identificationTypeOptions,
+    banksOptions,
+    nationalityOptions,
+    maritalStatusOptions,
+    data.identificationType,
+    data.bankName,
+    data.nationality,
+    data.maritalStatus,
+    data.spouseIdentificationType,
+    data.spouseNationality,
+  ]);
 
-  // Convert occupation label to pk_code after occupation options load
   useEffect(() => {
     if (occupationOptions.length > 0 && data.occupation) {
-      // Check if occupation is already a valid pk_code
-      const isValidPkCode = occupationOptions.find(o => 
-        String(o.occupation_pk_code || o.id) === data.occupation
+      const isValidPkCode = occupationOptions.find(
+        (o) => String(o.occupation_pk_code || o.id) === data.occupation,
       );
-      
       if (!isValidPkCode) {
-        // Try to find pk_code by label
-        const pkCode = findPkCodeByLabel(data.occupation, occupationOptions, ['occupation', 'name', 'label']);
-        if (pkCode && pkCode !== data.occupation) {
-          console.log(`🔄 Converting occupation: "${data.occupation}" -> "${pkCode}"`);
+        const pkCode = findPkCodeByLabel(data.occupation, occupationOptions, [
+          "occupation",
+          "name",
+          "label",
+        ]);
+        if (pkCode && pkCode !== data.occupation)
           setData((prev: any) => ({ ...prev, occupation: pkCode }));
-        }
       }
     }
   }, [occupationOptions, data.occupation]);
 
-  // Load permanent gewogs
+  // Load Gewogs
   useEffect(() => {
-    const loadPermGewogs = async () => {
-      if (data.permDzongkhag) {
-        try {
-          const options = await fetchGewogsByDzongkhag(data.permDzongkhag);
-          setPermGewogOptions(options);
-        } catch (error) {
-          setPermGewogOptions([]);
-        }
-      }
-    };
-    loadPermGewogs();
+    if (data.permDzongkhag)
+      fetchGewogsByDzongkhag(data.permDzongkhag)
+        .then(setPermGewogOptions)
+        .catch(() => setPermGewogOptions([]));
   }, [data.permDzongkhag]);
 
-  // Load current gewogs
   useEffect(() => {
-    const loadCurrGewogs = async () => {
-      if (data.currDzongkhag) {
-        try {
-          const options = await fetchGewogsByDzongkhag(data.currDzongkhag);
-          setCurrGewogOptions(options);
-        } catch (error) {
-          setCurrGewogOptions([]);
-        }
-      }
-    };
-    loadCurrGewogs();
+    if (data.currDzongkhag)
+      fetchGewogsByDzongkhag(data.currDzongkhag)
+        .then(setCurrGewogOptions)
+        .catch(() => setCurrGewogOptions([]));
   }, [data.currDzongkhag]);
 
-  // Convert gewog label values to pk_codes after gewog options are loaded
   useEffect(() => {
-    if (permGewogOptions.length > 0 && data.permGewog && !permGewogOptions.find(g => String(g.gewog_pk_code || g.id) === data.permGewog)) {
-      const pkCode = findPkCodeByLabel(data.permGewog, permGewogOptions, ['gewog', 'name', 'label']);
-      if (pkCode && pkCode !== data.permGewog) {
-        console.log('🔄 Converting permGewog label to pk_code:', data.permGewog, '->', pkCode);
+    if (data.spousePermDzongkhag)
+      fetchGewogsByDzongkhag(data.spousePermDzongkhag)
+        .then(setSpousePermGewogOptions)
+        .catch(() => setSpousePermGewogOptions([]));
+  }, [data.spousePermDzongkhag]);
+
+  useEffect(() => {
+    if (
+      permGewogOptions.length > 0 &&
+      data.permGewog &&
+      !permGewogOptions.find(
+        (g) => String(g.gewog_pk_code || g.id) === data.permGewog,
+      )
+    ) {
+      const pkCode = findPkCodeByLabel(data.permGewog, permGewogOptions, [
+        "gewog",
+        "name",
+        "label",
+      ]);
+      if (pkCode && pkCode !== data.permGewog)
         setData((prev: any) => ({ ...prev, permGewog: pkCode }));
-      }
     }
   }, [permGewogOptions, data.permGewog]);
 
   useEffect(() => {
-    if (currGewogOptions.length > 0 && data.currGewog && !currGewogOptions.find(g => String(g.gewog_pk_code || g.id) === data.currGewog)) {
-      const pkCode = findPkCodeByLabel(data.currGewog, currGewogOptions, ['gewog', 'name', 'label']);
-      if (pkCode && pkCode !== data.currGewog) {
-        console.log('🔄 Converting currGewog label to pk_code:', data.currGewog, '->', pkCode);
+    if (
+      currGewogOptions.length > 0 &&
+      data.currGewog &&
+      !currGewogOptions.find(
+        (g) => String(g.gewog_pk_code || g.id) === data.currGewog,
+      )
+    ) {
+      const pkCode = findPkCodeByLabel(data.currGewog, currGewogOptions, [
+        "gewog",
+        "name",
+        "label",
+      ]);
+      if (pkCode && pkCode !== data.currGewog)
         setData((prev: any) => ({ ...prev, currGewog: pkCode }));
-      }
     }
   }, [currGewogOptions, data.currGewog]);
 
-  // Load PEP sub-categories for SELF PEP
   useEffect(() => {
-    const loadPepSubCategories = async () => {
-      if (data.pepPerson === "yes" && data.pepCategory) {
-        try {
-          const options = await fetchPepSubCategoryByCategory(data.pepCategory);
-          if (!options || options.length === 0) {
-            throw new Error("Empty PEP sub-category list");
-          }
-          setPepSubCategoryOptions(options);
-        } catch (error) {
-          console.error("Failed to load PEP sub-categories:", error);
-          setPepSubCategoryOptions([]);
-        }
-      } else {
-        setPepSubCategoryOptions([]);
-      }
-    };
-    loadPepSubCategories();
+    if (
+      spousePermGewogOptions.length > 0 &&
+      data.spousePermGewog &&
+      !spousePermGewogOptions.find(
+        (g) => String(g.gewog_pk_code || g.id) === data.spousePermGewog,
+      )
+    ) {
+      const pkCode = findPkCodeByLabel(
+        data.spousePermGewog,
+        spousePermGewogOptions,
+        ["gewog", "name", "label"],
+      );
+      if (pkCode && pkCode !== data.spousePermGewog)
+        setData((prev: any) => ({ ...prev, spousePermGewog: pkCode }));
+    }
+  }, [spousePermGewogOptions, data.spousePermGewog]);
+
+  useEffect(() => {
+    if (data.pepPerson === "yes" && data.pepCategory) {
+      fetchPepSubCategoryByCategory(data.pepCategory)
+        .then(setPepSubCategoryOptions)
+        .catch(() => setPepSubCategoryOptions([]));
+    } else {
+      setPepSubCategoryOptions([]);
+    }
   }, [data.pepPerson, data.pepCategory]);
 
   const handleFileChange = (fieldName: string, file: File | null) => {
@@ -684,8 +791,6 @@ export function PersonalDetailsForm({
         "image/jpg",
         "image/png",
       ];
-      const maxSize = 5 * 1024 * 1024; // 5MB
-
       if (!allowedTypes.includes(file.type)) {
         setErrors({
           ...errors,
@@ -693,22 +798,23 @@ export function PersonalDetailsForm({
         });
         return;
       }
-
-      if (file.size > maxSize) {
+      if (file.size > 5 * 1024 * 1024) {
         setErrors({
           ...errors,
           [fieldName]: "File size must be less than 5MB",
         });
         return;
       }
-
-      setErrors({ ...errors, [fieldName]: "" });
+      setErrors((prev) => {
+        const updated = { ...prev };
+        delete updated[fieldName];
+        return updated;
+      });
       setData({ ...data, [fieldName]: file.name });
     }
   };
 
   // --- HANDLERS FOR MULTIPLE PEP DECLARATIONS ---
-
   const handleAddRelatedPep = () => {
     setData({
       ...data,
@@ -721,18 +827,47 @@ export function PersonalDetailsForm({
       (_: any, i: number) => i !== index,
     );
 
-    // Cleanup options map
+    // Cleanup dynamic maps
     const newOptionsMap: Record<number, any[]> = {};
+    const newSpouseGewogMap: Record<number, any[]> = {};
+    const newPermGewogMap: Record<number, any[]> = {};
+    const newCurrGewogMap: Record<number, any[]> = {};
+
     Object.keys(relatedPepOptionsMap).forEach((key) => {
       const keyNum = parseInt(key);
-      if (keyNum < index) {
-        newOptionsMap[keyNum] = relatedPepOptionsMap[keyNum];
-      } else if (keyNum > index) {
+      if (keyNum < index) newOptionsMap[keyNum] = relatedPepOptionsMap[keyNum];
+      else if (keyNum > index)
         newOptionsMap[keyNum - 1] = relatedPepOptionsMap[keyNum];
-      }
+    });
+
+    Object.keys(relatedPepSpouseGewogMap).forEach((key) => {
+      const keyNum = parseInt(key);
+      if (keyNum < index)
+        newSpouseGewogMap[keyNum] = relatedPepSpouseGewogMap[keyNum];
+      else if (keyNum > index)
+        newSpouseGewogMap[keyNum - 1] = relatedPepSpouseGewogMap[keyNum];
+    });
+
+    Object.keys(relatedPepPermGewogMap).forEach((key) => {
+      const keyNum = parseInt(key);
+      if (keyNum < index)
+        newPermGewogMap[keyNum] = relatedPepPermGewogMap[keyNum];
+      else if (keyNum > index)
+        newPermGewogMap[keyNum - 1] = relatedPepPermGewogMap[keyNum];
+    });
+
+    Object.keys(relatedPepCurrGewogMap).forEach((key) => {
+      const keyNum = parseInt(key);
+      if (keyNum < index)
+        newCurrGewogMap[keyNum] = relatedPepCurrGewogMap[keyNum];
+      else if (keyNum > index)
+        newCurrGewogMap[keyNum - 1] = relatedPepCurrGewogMap[keyNum];
     });
 
     setRelatedPepOptionsMap(newOptionsMap);
+    setRelatedPepSpouseGewogMap(newSpouseGewogMap);
+    setRelatedPepPermGewogMap(newPermGewogMap);
+    setRelatedPepCurrGewogMap(newCurrGewogMap);
     setData({ ...data, relatedPeps: updatedPeps });
   };
 
@@ -742,15 +877,11 @@ export function PersonalDetailsForm({
     value: string,
   ) => {
     const updatedPeps = [...(data.relatedPeps || [])];
-    if (!updatedPeps[index]) {
-      updatedPeps[index] = createEmptyRelatedPep();
-    }
-
+    if (!updatedPeps[index]) updatedPeps[index] = createEmptyRelatedPep();
     updatedPeps[index] = { ...updatedPeps[index], [field]: value };
 
-    // Special logic for Category change -> Fetch Sub Categories
     if (field === "category") {
-      updatedPeps[index].subCategory = ""; // Clear sub category
+      updatedPeps[index].subCategory = "";
       try {
         const options = await fetchPepSubCategoryByCategory(value);
         setRelatedPepOptionsMap((prev) => ({
@@ -758,15 +889,65 @@ export function PersonalDetailsForm({
           [index]: options || [],
         }));
       } catch (e) {
-        console.error("Failed to fetch PEP sub-categories:", e);
         setRelatedPepOptionsMap((prev) => ({ ...prev, [index]: [] }));
       }
     }
 
+    if (field === "spousePermDzongkhag") {
+      updatedPeps[index].spousePermGewog = "";
+      try {
+        const options = await fetchGewogsByDzongkhag(value);
+        setRelatedPepSpouseGewogMap((prev) => ({
+          ...prev,
+          [index]: options || [],
+        }));
+      } catch (e) {
+        setRelatedPepSpouseGewogMap((prev) => ({ ...prev, [index]: [] }));
+      }
+    }
+
+    if (field === "permDzongkhag") {
+      updatedPeps[index].permGewog = "";
+      try {
+        const options = await fetchGewogsByDzongkhag(value);
+        setRelatedPepPermGewogMap((prev) => ({
+          ...prev,
+          [index]: options || [],
+        }));
+      } catch (e) {
+        setRelatedPepPermGewogMap((prev) => ({ ...prev, [index]: [] }));
+      }
+    }
+
+    if (field === "currDzongkhag") {
+      updatedPeps[index].currGewog = "";
+      try {
+        const options = await fetchGewogsByDzongkhag(value);
+        setRelatedPepCurrGewogMap((prev) => ({
+          ...prev,
+          [index]: options || [],
+        }));
+      } catch (e) {
+        setRelatedPepCurrGewogMap((prev) => ({ ...prev, [index]: [] }));
+      }
+    }
+
     setData({ ...data, relatedPeps: updatedPeps });
+
+    if (!isRequired(value)) {
+      setErrors((prev) => {
+        const upd = { ...prev };
+        delete upd[`relatedPeps.${index}.${field}`];
+        return upd;
+      });
+    }
   };
 
-  const handleRelatedPepFileChange = (index: number, file: File | null) => {
+  const handleRelatedPepFileChange = (
+    index: number,
+    field: string,
+    file: File | null,
+  ) => {
     if (file) {
       const allowedTypes = [
         "application/pdf",
@@ -774,409 +955,464 @@ export function PersonalDetailsForm({
         "image/jpg",
         "image/png",
       ];
-      const maxSize = 5 * 1024 * 1024;
-
-      if (!allowedTypes.includes(file.type)) return;
-      if (file.size > maxSize) return;
-
+      if (!allowedTypes.includes(file.type) || file.size > 5 * 1024 * 1024)
+        return;
       const updatedPeps = [...(data.relatedPeps || [])];
-      if (!updatedPeps[index]) {
-        updatedPeps[index] = createEmptyRelatedPep();
-      }
-
-      updatedPeps[index] = {
-        ...updatedPeps[index],
-        identificationProof: file.name,
-      };
+      if (!updatedPeps[index]) updatedPeps[index] = createEmptyRelatedPep();
+      updatedPeps[index] = { ...updatedPeps[index], [field]: file.name };
       setData({ ...data, relatedPeps: updatedPeps });
+
+      setErrors((prev) => {
+        const upd = { ...prev };
+        delete upd[`relatedPeps.${index}.${field}`];
+        return upd;
+      });
     }
   };
+
+  // Utilities
   const isEmpty = (val: any) =>
-  val === undefined || val === null || String(val).trim() === "";
+    val === undefined || val === null || String(val).trim() === "";
+  const isEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+  const isNumeric = (val: string) => /^\d+$/.test(val);
+  const capitalizeWords = (value: string) =>
+    value.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 
-const isEmail = (val: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+  // Utility to clean up the input field classes
+  const getFieldStyle = (errorKey: string) => {
+    return `h-10 sm:h-12 w-full text-sm sm:text-base border ${
+      errors[errorKey]
+        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+    }`;
+  };
 
-const isNumeric = (val: string) =>
-  /^\d+$/.test(val);
+  const validateForm = () => {
+    let newErrors: Record<string, string> = {};
 
-const isAlphabetOnly = (value: string) => {
-  return /^[A-Za-z\s]+$/.test(value);
-};
+    // BASIC PERSONAL INFO
+    if (isEmpty(data.applicantName))
+      newErrors.applicantName = "Applicant name is required";
+    if (isEmpty(data.identificationType))
+      newErrors.identificationType = "Identification type is required";
+    if (isEmpty(data.identificationNo))
+      newErrors.identificationNo = "Identification number is required";
+    if (isEmpty(data.salutation))
+      newErrors.salutation = "Salutation is required";
+    if (isEmpty(data.nationality))
+      newErrors.nationality = "Nationality is required";
+    if (isEmpty(data.gender)) newErrors.gender = "Gender is required";
+    if (isEmpty(data.dateOfBirth))
+      newErrors.dateOfBirth = "Date of birth is required";
+    if (isEmpty(data.taxIdentifierType))
+      newErrors.taxIdentifierType = "Tax Identifier Type is required";
+    if (isEmpty(data.tpn)) newErrors.tpn = "TPN Number is required";
 
-const capitalizeWords = (value: string) => {
-  return value
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-};
-
-const decimalRegex = /^\d+(\.\d{1,2})?$/;
-// const validateForm = () => {
-//   const newErrors: Record<string, string> = {};
-
-//   if (isRequired(data.applicantName)) {
-//     newErrors.applicantName = "Full Name is required";
-//   }
-
-//   if (isRequired(data.email)) {
-//     newErrors.email = "Email is required";
-//   } else if (!isValidEmail(data.email)) {
-//     newErrors.email = "Invalid email format";
-//   }
-
-//   if (isRequired(data.mobileNo)) {
-//     newErrors.mobileNo = "Mobile number is required";
-//   } else if (!isValidNumber(data.mobileNo)) {
-//     newErrors.mobileNo = "Mobile number must contain digits only";
-//   }
-
-//   if (isRequired(data.identificationType)) {
-//     newErrors.identificationType = "Identification Type is required";
-//   }
-
-//   setErrors(newErrors);
-
-//   return Object.keys(newErrors).length === 0;
-// };
-
-const validateForm = () => {
-  let newErrors: Record<string, string> = {};
-
-  // ============================
-  // BASIC PERSONAL INFO
-  // ============================
-  if (isRequired(data.applicantName))
-    newErrors.applicantName = "Applicant name is required";
-
-  if (isEmpty(data.identificationType))
-    newErrors.identificationType = "Identification type is required";
-
-  if (isEmpty(data.identificationNo))
-    newErrors.identificationNo = "Identification number is required";
-
-  if (isEmpty(data.salutation))
-    newErrors.salutation = "Salutation is required";
-
-  if (isEmpty(data.nationality))
-    newErrors.nationality = "Nationality is required";
-
-  if (isEmpty(data.gender))
-    newErrors.gender = "Gender is required";
-
-  if (isEmpty(data.dateOfBirth))
-    newErrors.dateOfBirth = "Date of birth is required";
-
-  if (isEmpty(data.tpn))
-    newErrors.tpn = "TPN Number is required";
-
-  // ============================
-  // MARITAL STATUS
-  // ============================
-  if (isEmpty(data.maritalStatus))
-    newErrors.maritalStatus = "Please select a marital status"
-
-  if (isMarried) {
-    if (isEmpty(data.spouseIdentificationNo))
-      newErrors.spouseIdentificationNo = "Spouse Identification Number is required"
-
-    if (isEmpty(data.spouseName))
-      newErrors.spouseName = "Spouse name is required";
-
-    if (isEmpty(data.spouseContact))
-      newErrors.spouseContact = "Spouse Contact is required";
-  }
-  if (isEmpty(data.familyTree))
-    newErrors.familyTree = "No files uploaded"
-
-  if (isEmpty(data.identificationIssueDate))
-    newErrors.identificationIssueDate = "Identification Issue Date is required"
-
-  if (isEmpty(data.identificationExpiryDate))
-    newErrors.identificationExpiryDate = "Identification Expiry Date is required"
-  // ============================
-  // Bank Details
-  // ============================
-  // if(isEmpty(data.BankName))
-  //   newErrors.BankName = "Please select a Bank"
-  // if(isEmpty(data.BankAccountNo))
-  //   newErrors.BankAccountNo = "Enter Bank Saving Account Number"
-
-  // ============================
-  // PERMANENT ADDRESS
-  // ============================
-
- // =============================
-// PERMANENT ADDRESS VALIDATION
-// =============================
-
-if (!data.permCountry) {
-  newErrors.permCountry = "Country is required";
-}
-
-if (!data.permDzongkhag) {
-  newErrors.permDzongkhag = isBhutanCountry(data.permCountry, countryOptions)
-    ? "Dzongkhag is required"
-    : "State is required";
-}
-
-if (!data.permGewog) {
-  newErrors.permGewog = isBhutanCountry(data.permCountry, countryOptions)
-    ? "Gewog is required"
-    : "Province is required";
-}
-
-if (!data.permVillage || data.permVillage.trim() === "") {
-  newErrors.permVillage = isBhutanCountry(data.permCountry, countryOptions)
-    ? "Village is required"
-    : "Street is required";
-}
-
-// Bhutan-specific validation
-if (isBhutanCountry(data.permCountry, countryOptions)) {
-  if (!data.permThram || data.permThram.trim() === "") {
-    newErrors.permThram = "Thram number is required";
-  }
-
-  if (!data.permHouse || data.permHouse.trim() === "") {
-    newErrors.permHouse = "House number is required";
-  }
-}
-
-// Non-Bhutan validation
-if (
-  data.permCountry &&
-  !isBhutanCountry(data.permCountry, countryOptions)
-) {
-  if (!data.permAddressProof) {
-    newErrors.permAddressProof = "Address proof document is required";
-  }
-}
-
-  // ============================
-  // CURRENT ADDRESS
-  // ============================
-// =============================
-// CURRENT ADDRESS VALIDATION
-// =============================
-
-if (!data.currCountry) {
-  newErrors.currCountry = "Country is required";
-}
-
-if (!data.currDzongkhag) {
-  newErrors.currDzongkhag = isBhutanCountry(data.currCountry, countryOptions)
-    ? "Dzongkhag is required"
-    : "State is required";
-}
-
-if (!data.currGewog) {
-  newErrors.currGewog = isBhutanCountry(data.currCountry, countryOptions)
-    ? "Gewog is required"
-    : "Province is required";
-}
-
-if (!data.currVillage || data.currVillage.trim() === "") {
-  newErrors.currVillage = isBhutanCountry(data.currCountry, countryOptions)
-    ? "Village is required"
-    : "Street is required";
-}
-
-
-
-// Bhutan-specific validation
-if (isBhutanCountry(data.currCountry, countryOptions)) {
-  // if (!data.currThram || data.currThram.trim() === "") {
-  //   newErrors.currThram = "Thram number is required";
-  // }
-
-  // if (!data.currHouse || data.currHouse.trim() === "") {
-  //   newErrors.currHouse = "House number is required";
-  // }
-   if (isEmpty(data.currEmail))
-    newErrors.currEmail = "Email is required";
-  else if (!isEmail(data.currEmail))
-    newErrors.currEmail = "Invalid email format";
-
-  if (isEmpty(data.currContact))
-    newErrors.currContact = "Contact number is required";
-  else if (!isNumeric(data.currContact))
-    newErrors.currContact = "Contact must be numeric";
-  
-}
-
-// Non-Bhutan validation
-if (
-  data.currCountry &&
-  !isBhutanCountry(data.currCountry, countryOptions)
-) {
-  if (!data.currAddressProof) {
-    newErrors.currAddressProof =
-      "Address proof document is required";
-  }
-    if (isEmpty(data.currEmail))
-    newErrors.currEmail = "Email is required";
-  else if (!isEmail(data.currEmail))
-    newErrors.currEmail = "Invalid email format";
-
-  if (isEmpty(data.currContact))
-    newErrors.currContact = "Contact number is required";
-  else if (!isNumeric(data.currContact))
-    newErrors.currContact = "Contact must be numeric";
-}
-
-
-  // if (isEmpty(data.currAlternateContact))
-  //   newErrors.currAlternateContact = "Alternate contact number is required";
-  // else if (!isNumeric(data.currAlternateContact))
-  //   newErrors.currAlternateContact = "Alternate contact must be numeric";
-  // if (isRequired(data.currCountry)) newErrors.currCountry = "Required";
-  // if (isRequired(data.currDzongkhag)) newErrors.currDzongkhag = "Required";
-  // if (isRequired(data.currGewog)) newErrors.currGewog = "Required";
-  // if (isRequired(data.currVillage)) newErrors.currVillage = "Village is required";
-  if (isRequired(data.currFlat)) newErrors.currFlat = "Flat Number is required";
-  // ============================
-  // BANK DETAILS
-  // ============================
-  if (isEmpty(data.bankName))
-    newErrors.bankName = "Bank is required";
-
-  if (isEmpty(data.bankAccount))
-    newErrors.bankAccount = "Account number is required";
-  else if (!isNumeric(data.bankAccount))
-    newErrors.bankAccount = "Account number must be numeric";
-
-  if (!data.passportPhoto)
-    newErrors.passportPhoto = "No Passport-size photo is uploaded";
-
-
-  // ============================
-  // Spouse Information
-  // ============================
-
-
-
-  // ============================
-  // EMPLOYMENT
-  // ============================
-
-  // ============= Employment Status ==========
-if (!data.employmentStatus || data.employmentStatus.trim() === "") {
-  newErrors.employmentStatus = "Employment status is required";
-}
-
-  if (data.employmentStatus === "employed") {
-    if (isEmpty(data.employeeId))
-      newErrors.employeeId = "Employee ID is required";
-
-    if (isEmpty(data.occupation))
-      newErrors.occupation = "Occupation is required";
-
-    if (!data.employerType) {
-      newErrors.employerType = "Employer type is required";
+    if (isNatBhutanese(data.nationality) && isEmpty(data.householdNumber)) {
+      newErrors.householdNumber = "Household number is required";
     }
-      if (!data.designation) {
-        newErrors.designation = "Designation is required";
+
+    if (isEmpty(data.identificationIssueDate))
+      newErrors.identificationIssueDate =
+        "Identification Issue Date is required";
+    if (isEmpty(data.identificationExpiryDate))
+      newErrors.identificationExpiryDate =
+        "Identification Expiry Date is required";
+    if (isEmpty(data.maritalStatus))
+      newErrors.maritalStatus = "Please select a marital status";
+
+    // SPOUSE INFORMATION
+    if (isMarried) {
+      const spouseRequiredFields = [
+        {
+          field: "spouseIdentificationType",
+          msg: "Spouse Identification Type is required",
+        },
+        {
+          field: "spouseIdentificationNo",
+          msg: "Spouse Identification Number is required",
+        },
+        { field: "spouseSalutation", msg: "Spouse Salutation is required" },
+        { field: "spouseName", msg: "Spouse name is required" },
+        { field: "spouseNationality", msg: "Spouse Nationality is required" },
+        { field: "spouseGender", msg: "Spouse Gender is required" },
+        {
+          field: "spouseIdentificationIssueDate",
+          msg: "Spouse ID Issue Date is required",
+        },
+        {
+          field: "spouseIdentificationExpiryDate",
+          msg: "Spouse ID Expiry Date is required",
+        },
+        {
+          field: "spouseTaxIdentifierType",
+          msg: "Spouse Tax Identifier Type is required",
+        },
+        { field: "spouseTpn", msg: "Spouse TPN is required" },
+        { field: "spouseDateOfBirth", msg: "Spouse Date of Birth is required" },
+      ];
+
+      spouseRequiredFields.forEach(({ field, msg }) => {
+        if (isEmpty(data[field])) newErrors[field] = msg;
+      });
+
+      if (
+        isNatBhutanese(data.spouseNationality) &&
+        isEmpty(data.spouseHouseholdNumber)
+      ) {
+        newErrors.spouseHouseholdNumber = "Spouse Household number is required";
       }
 
-      if (!data.grade) {
-        newErrors.grade = "Grade is required";
+      if (isEmpty(data.spousePermCountry))
+        newErrors.spousePermCountry = "Spouse Country is required";
+
+      if (isBhutanCountry(data.spousePermCountry, countryOptions)) {
+        if (isEmpty(data.spousePermDzongkhag))
+          newErrors.spousePermDzongkhag = "Spouse Dzongkhag is required";
+        if (isEmpty(data.spousePermGewog))
+          newErrors.spousePermGewog = "Spouse Gewog is required";
+        if (isEmpty(data.spousePermVillage))
+          newErrors.spousePermVillage = "Spouse Village/Street is required";
+        if (isEmpty(data.spousePermThram))
+          newErrors.spousePermThram = "Spouse Thram No is required";
+        if (isEmpty(data.spousePermHouse))
+          newErrors.spousePermHouse = "Spouse House No is required";
+      } else if (data.spousePermCountry) {
+        if (isEmpty(data.spousePermDzongkhag))
+          newErrors.spousePermDzongkhag = "Spouse State is required";
+        if (isEmpty(data.spousePermGewog))
+          newErrors.spousePermGewog = "Spouse Province is required";
+        if (isEmpty(data.spousePermVillage))
+          newErrors.spousePermVillage = "Spouse Street is required";
+        if (isEmpty(data.spousePermAddressProof))
+          newErrors.spousePermAddressProof = "Spouse Address Proof is required";
       }
 
-    if (isEmpty(data.organizationName))
-      newErrors.organizationName = "Organization name is required";
+      if (isEmpty(data.spouseEmail)) {
+        newErrors.spouseEmail = "Spouse Email is required";
+      } else if (!isEmail(data.spouseEmail)) {
+        newErrors.spouseEmail = "Invalid email format";
+      }
 
-    if (!data.orgLocation || data.orgLocation.trim() === "") {
-      newErrors.orgLocation = "Organization location is required";
-    }
-
-    if (!data.joiningDate) {
-      newErrors.joiningDate = "Joining date is required";
-    }
-
-    if (!data.serviceNature) {
-      newErrors.serviceNature = "Service nature is required";
-    }
-
-      if (!data.annualSalary || data.annualSalary.trim() === "") {
-      newErrors.annualSalary = "Gross annual salary income is required";
-    } else {
-      const decimalRegex = /^\d+(\.\d{1,2})?$/;
-
-      if (!decimalRegex.test(data.annualSalary)) {
-        newErrors.annualSalary =
-          "Income must be a valid number (up to 2 decimal places)";
-      } else if (Number(data.annualSalary) <= 0) {
-        newErrors.annualSalary =
-          "Income must be greater than zero";
+      if (isEmpty(data.spouseContact)) {
+        newErrors.spouseContact = "Spouse Contact is required";
+      } else if (!isNumeric(data.spouseContact)) {
+        newErrors.spouseContact = "Contact must be numeric";
       }
     }
-  }
 
-  // ============================
-  // SELF PEP
-  // ============================
-  if (isEmpty(data.pepPerson))
-    newErrors.pepPerson = "Please specify if you are a PEP or not";
+    if (isEmpty(data.familyTree)) newErrors.familyTree = "No files uploaded";
 
-  if (data.pepPerson === "yes") {
-    if (isEmpty(data.pepCategory))
-      newErrors.pepCategory = "PEP category is required";
+    // PERMANENT ADDRESS
+    if (!data.permCountry) newErrors.permCountry = "Country is required";
+    if (!data.permDzongkhag)
+      newErrors.permDzongkhag = isBhutanCountry(
+        data.permCountry,
+        countryOptions,
+      )
+        ? "Dzongkhag is required"
+        : "State is required";
+    if (!data.permGewog)
+      newErrors.permGewog = isBhutanCountry(data.permCountry, countryOptions)
+        ? "Gewog is required"
+        : "Province is required";
+    if (isEmpty(data.permVillage))
+      newErrors.permVillage = isBhutanCountry(data.permCountry, countryOptions)
+        ? "Village is required"
+        : "Street is required";
 
-    if (isEmpty(data.pepSubCategory))
-      newErrors.pepSubCategory = "PEP sub category is required";
+    if (isBhutanCountry(data.permCountry, countryOptions)) {
+      if (isEmpty(data.permThram))
+        newErrors.permThram = "Thram number is required";
+      if (isEmpty(data.permHouse))
+        newErrors.permHouse = "House number is required";
+    } else if (data.permCountry) {
+      if (!data.permAddressProof)
+        newErrors.permAddressProof = "Address proof document is required";
+    }
 
-    if (!data.identificationProof)
-      newErrors.identificationProof = "Identification proof required, please upload the document";
-  }
+    // CURRENT ADDRESS
+    if (!data.currCountry) newErrors.currCountry = "Country is required";
+    if (!data.currDzongkhag)
+      newErrors.currDzongkhag = isBhutanCountry(
+        data.currCountry,
+        countryOptions,
+      )
+        ? "Dzongkhag is required"
+        : "State is required";
+    if (!data.currGewog)
+      newErrors.currGewog = isBhutanCountry(data.currCountry, countryOptions)
+        ? "Gewog is required"
+        : "Province is required";
+    if (isEmpty(data.currVillage))
+      newErrors.currVillage = isBhutanCountry(data.currCountry, countryOptions)
+        ? "Village is required"
+        : "Street is required";
+    if (isEmpty(data.currFlat)) newErrors.currFlat = "Flat Number is required";
 
-  // ============================
-  // RELATED PEP
-  // ============================
-// ============================
-// RELATED PEP
-// ============================
+    if (isEmpty(data.currEmail)) newErrors.currEmail = "Email is required";
+    else if (!isEmail(data.currEmail))
+      newErrors.currEmail = "Invalid email format";
+    if (isEmpty(data.currContact))
+      newErrors.currContact = "Contact number is required";
+    else if (!isNumeric(data.currContact))
+      newErrors.currContact = "Contact must be numeric";
 
-// ✅ Only validate related PEP if person is NOT PEP
-if (data.pepPerson === "no") {
-  if (isEmpty(data.pepRelated))
-    newErrors.pepRelated =
-      "Please specify if you are related to a PEP or not";
+    if (
+      data.currCountry &&
+      !isBhutanCountry(data.currCountry, countryOptions)
+    ) {
+      if (!data.currAddressProof)
+        newErrors.currAddressProof = "Address proof document is required";
+    }
 
-  if (data.pepRelated === "yes") {
-    relatedPeps.forEach((pep: any, index: number) => {
-      if (isEmpty(pep.relationship))
-        newErrors[`relatedPeps.${index}.relationship`] =
-          "Relationship is required";
+    // BANK DETAILS
+    if (isEmpty(data.bankName)) newErrors.bankName = "Bank is required";
+    if (isEmpty(data.bankAccount))
+      newErrors.bankAccount = "Account number is required";
+    else if (!isNumeric(data.bankAccount))
+      newErrors.bankAccount = "Account number must be numeric";
+    if (!data.passportPhoto)
+      newErrors.passportPhoto = "No Passport-size photo is uploaded";
 
-      if (isEmpty(pep.identificationNo))
-        newErrors[`relatedPeps.${index}.identificationNo`] =
-          "Identification number is required";
+    // EMPLOYMENT
+    if (isEmpty(data.employmentStatus))
+      newErrors.employmentStatus = "Employment status is required";
+    if (data.employmentStatus === "employed") {
+      if (isEmpty(data.employeeId))
+        newErrors.employeeId = "Employee ID is required";
+      if (isEmpty(data.occupation))
+        newErrors.occupation = "Occupation is required";
+      if (!data.employerType)
+        newErrors.employerType = "Employer type is required";
+      if (!data.designation) newErrors.designation = "Designation is required";
+      if (!data.grade) newErrors.grade = "Grade is required";
+      if (isEmpty(data.organizationName))
+        newErrors.organizationName = "Organization name is required";
+      if (isEmpty(data.orgLocation))
+        newErrors.orgLocation = "Organization location is required";
+      if (!data.joiningDate) newErrors.joiningDate = "Joining date is required";
+      if (!data.serviceNature)
+        newErrors.serviceNature = "Service nature is required";
+      if (isEmpty(data.annualSalary)) {
+        newErrors.annualSalary = "Gross annual salary income is required";
+      } else {
+        if (!/^\d+(\.\d{1,2})?$/.test(data.annualSalary))
+          newErrors.annualSalary = "Income must be a valid number";
+        else if (Number(data.annualSalary) <= 0)
+          newErrors.annualSalary = "Income must be greater than zero";
+      }
+    }
 
-      if (isEmpty(pep.category))
-        newErrors[`relatedPeps.${index}.category`] =
-          "Category is required";
+    // PEP
+    if (isEmpty(data.pepPerson))
+      newErrors.pepPerson = "Please specify if you are a PEP or not";
+    if (data.pepPerson === "yes") {
+      if (isEmpty(data.pepCategory))
+        newErrors.pepCategory = "PEP category is required";
+      if (isEmpty(data.pepSubCategory))
+        newErrors.pepSubCategory = "PEP sub category is required";
+      if (!data.identificationProof)
+        newErrors.identificationProof = "Identification proof required";
+    }
 
-      if (isEmpty(pep.subCategory))
-        newErrors[`relatedPeps.${index}.subCategory`] =
-          "Sub category is required";
+    // RELATED PEP - Comprehensive Validation
+    if (data.pepPerson === "no") {
+      if (isEmpty(data.pepRelated))
+        newErrors.pepRelated =
+          "Please specify if you are related to a PEP or not";
+      if (data.pepRelated === "yes") {
+        (data.relatedPeps || []).forEach((pep: any, index: number) => {
+          // PEP Metadata
+          if (isEmpty(pep.relationship))
+            newErrors[`relatedPeps.${index}.relationship`] = "Required";
+          if (isEmpty(pep.identificationNo))
+            newErrors[`relatedPeps.${index}.identificationNo`] = "Required";
+          if (isEmpty(pep.category))
+            newErrors[`relatedPeps.${index}.category`] = "Required";
+          if (isEmpty(pep.subCategory))
+            newErrors[`relatedPeps.${index}.subCategory`] = "Required";
+          if (isEmpty(pep.identificationProof))
+            newErrors[`relatedPeps.${index}.identificationProof`] = "Required";
 
-      if (isEmpty(pep.identificationProof))
-        newErrors[`relatedPeps.${index}.identificationProof`] =
-          "PEP Identification proof is required";
-    });
-  }
-}
-  if (isEmpty(data.relatedToBil))
-      newErrors.relatedToBil = "Please specify if you are related to BIL or not";
+          // Personal Info
+          if (isEmpty(pep.identificationType))
+            newErrors[`relatedPeps.${index}.identificationType`] = "Required";
+          if (isEmpty(pep.salutation))
+            newErrors[`relatedPeps.${index}.salutation`] = "Required";
+          if (isEmpty(pep.applicantName))
+            newErrors[`relatedPeps.${index}.applicantName`] = "Required";
+          if (isEmpty(pep.nationality))
+            newErrors[`relatedPeps.${index}.nationality`] = "Required";
+          if (isEmpty(pep.gender))
+            newErrors[`relatedPeps.${index}.gender`] = "Required";
+          if (isEmpty(pep.identificationIssueDate))
+            newErrors[`relatedPeps.${index}.identificationIssueDate`] =
+              "Required";
+          if (isEmpty(pep.identificationExpiryDate))
+            newErrors[`relatedPeps.${index}.identificationExpiryDate`] =
+              "Required";
+          if (isEmpty(pep.dateOfBirth))
+            newErrors[`relatedPeps.${index}.dateOfBirth`] = "Required";
+          if (isEmpty(pep.taxIdentifierType))
+            newErrors[`relatedPeps.${index}.taxIdentifierType`] = "Required";
+          if (isEmpty(pep.tpn))
+            newErrors[`relatedPeps.${index}.tpn`] = "Required";
+          if (isNatBhutanese(pep.nationality) && isEmpty(pep.householdNumber))
+            newErrors[`relatedPeps.${index}.householdNumber`] = "Required";
+          if (isEmpty(pep.maritalStatus))
+            newErrors[`relatedPeps.${index}.maritalStatus`] = "Required";
 
-  setErrors(newErrors);
+          // PEP Permanent Address
+          if (isEmpty(pep.permCountry))
+            newErrors[`relatedPeps.${index}.permCountry`] = "Required";
+          if (isBhutanCountry(pep.permCountry, countryOptions)) {
+            if (isEmpty(pep.permDzongkhag))
+              newErrors[`relatedPeps.${index}.permDzongkhag`] = "Required";
+            if (isEmpty(pep.permGewog))
+              newErrors[`relatedPeps.${index}.permGewog`] = "Required";
+            if (isEmpty(pep.permVillage))
+              newErrors[`relatedPeps.${index}.permVillage`] = "Required";
+            if (isEmpty(pep.permThram))
+              newErrors[`relatedPeps.${index}.permThram`] = "Required";
+            if (isEmpty(pep.permHouse))
+              newErrors[`relatedPeps.${index}.permHouse`] = "Required";
+          } else if (pep.permCountry) {
+            if (isEmpty(pep.permDzongkhag))
+              newErrors[`relatedPeps.${index}.permDzongkhag`] = "Required";
+            if (isEmpty(pep.permGewog))
+              newErrors[`relatedPeps.${index}.permGewog`] = "Required";
+            if (isEmpty(pep.permVillage))
+              newErrors[`relatedPeps.${index}.permVillage`] = "Required";
+            if (isEmpty(pep.permAddressProof))
+              newErrors[`relatedPeps.${index}.permAddressProof`] = "Required";
+          }
 
-  return Object.keys(newErrors).length === 0;
-};
+          // PEP Current Address
+          if (isEmpty(pep.currCountry))
+            newErrors[`relatedPeps.${index}.currCountry`] = "Required";
+          if (isBhutanCountry(pep.currCountry, countryOptions)) {
+            if (isEmpty(pep.currDzongkhag))
+              newErrors[`relatedPeps.${index}.currDzongkhag`] = "Required";
+            if (isEmpty(pep.currGewog))
+              newErrors[`relatedPeps.${index}.currGewog`] = "Required";
+            if (isEmpty(pep.currVillage))
+              newErrors[`relatedPeps.${index}.currVillage`] = "Required";
+            if (isEmpty(pep.currFlat))
+              newErrors[`relatedPeps.${index}.currFlat`] = "Required";
+          } else if (pep.currCountry) {
+            if (isEmpty(pep.currDzongkhag))
+              newErrors[`relatedPeps.${index}.currDzongkhag`] = "Required";
+            if (isEmpty(pep.currGewog))
+              newErrors[`relatedPeps.${index}.currGewog`] = "Required";
+            if (isEmpty(pep.currVillage))
+              newErrors[`relatedPeps.${index}.currVillage`] = "Required";
+            if (isEmpty(pep.currAddressProof))
+              newErrors[`relatedPeps.${index}.currAddressProof`] = "Required";
+          }
+
+          if (isEmpty(pep.currEmail)) {
+            newErrors[`relatedPeps.${index}.currEmail`] = "Required";
+          } else if (!isEmail(pep.currEmail)) {
+            newErrors[`relatedPeps.${index}.currEmail`] = "Invalid Format";
+          }
+
+          if (isEmpty(pep.currContact)) {
+            newErrors[`relatedPeps.${index}.currContact`] = "Required";
+          } else if (!isNumeric(pep.currContact)) {
+            newErrors[`relatedPeps.${index}.currContact`] = "Must be numeric";
+          }
+
+          // Spouse Info
+          if (isMarriedStatus(pep.maritalStatus)) {
+            if (isEmpty(pep.spouseIdentificationType))
+              newErrors[`relatedPeps.${index}.spouseIdentificationType`] =
+                "Required";
+            if (isEmpty(pep.spouseIdentificationNo))
+              newErrors[`relatedPeps.${index}.spouseIdentificationNo`] =
+                "Required";
+            if (isEmpty(pep.spouseSalutation))
+              newErrors[`relatedPeps.${index}.spouseSalutation`] = "Required";
+            if (isEmpty(pep.spouseName))
+              newErrors[`relatedPeps.${index}.spouseName`] = "Required";
+            if (isEmpty(pep.spouseNationality))
+              newErrors[`relatedPeps.${index}.spouseNationality`] = "Required";
+            if (isEmpty(pep.spouseGender))
+              newErrors[`relatedPeps.${index}.spouseGender`] = "Required";
+            if (isEmpty(pep.spouseIdentificationIssueDate))
+              newErrors[`relatedPeps.${index}.spouseIdentificationIssueDate`] =
+                "Required";
+            if (isEmpty(pep.spouseIdentificationExpiryDate))
+              newErrors[`relatedPeps.${index}.spouseIdentificationExpiryDate`] =
+                "Required";
+            if (isEmpty(pep.spouseTaxIdentifierType))
+              newErrors[`relatedPeps.${index}.spouseTaxIdentifierType`] =
+                "Required";
+            if (isEmpty(pep.spouseTpn))
+              newErrors[`relatedPeps.${index}.spouseTpn`] = "Required";
+            if (isEmpty(pep.spouseDateOfBirth))
+              newErrors[`relatedPeps.${index}.spouseDateOfBirth`] = "Required";
+            if (
+              isNatBhutanese(pep.spouseNationality) &&
+              isEmpty(pep.spouseHouseholdNumber)
+            )
+              newErrors[`relatedPeps.${index}.spouseHouseholdNumber`] =
+                "Required";
+
+            if (isEmpty(pep.spousePermCountry))
+              newErrors[`relatedPeps.${index}.spousePermCountry`] = "Required";
+            if (isBhutanCountry(pep.spousePermCountry, countryOptions)) {
+              if (isEmpty(pep.spousePermDzongkhag))
+                newErrors[`relatedPeps.${index}.spousePermDzongkhag`] =
+                  "Required";
+              if (isEmpty(pep.spousePermGewog))
+                newErrors[`relatedPeps.${index}.spousePermGewog`] = "Required";
+              if (isEmpty(pep.spousePermVillage))
+                newErrors[`relatedPeps.${index}.spousePermVillage`] =
+                  "Required";
+              if (isEmpty(pep.spousePermThram))
+                newErrors[`relatedPeps.${index}.spousePermThram`] = "Required";
+              if (isEmpty(pep.spousePermHouse))
+                newErrors[`relatedPeps.${index}.spousePermHouse`] = "Required";
+            } else if (pep.spousePermCountry) {
+              if (isEmpty(pep.spousePermDzongkhag))
+                newErrors[`relatedPeps.${index}.spousePermDzongkhag`] =
+                  "Required";
+              if (isEmpty(pep.spousePermGewog))
+                newErrors[`relatedPeps.${index}.spousePermGewog`] = "Required";
+              if (isEmpty(pep.spousePermVillage))
+                newErrors[`relatedPeps.${index}.spousePermVillage`] =
+                  "Required";
+              if (isEmpty(pep.spousePermAddressProof))
+                newErrors[`relatedPeps.${index}.spousePermAddressProof`] =
+                  "Required";
+            }
+
+            if (isEmpty(pep.spouseEmail))
+              newErrors[`relatedPeps.${index}.spouseEmail`] = "Required";
+            else if (!isEmail(pep.spouseEmail))
+              newErrors[`relatedPeps.${index}.spouseEmail`] = "Invalid Format";
+
+            if (isEmpty(pep.spouseContact))
+              newErrors[`relatedPeps.${index}.spouseContact`] = "Required";
+            else if (!isNumeric(pep.spouseContact))
+              newErrors[`relatedPeps.${index}.spouseContact`] =
+                "Must be numeric";
+          }
+        });
+      }
+    }
+
+    if (isEmpty(data.relatedToBil))
+      newErrors.relatedToBil =
+        "Please specify if you are related to BIL or not";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const validateDates = () => {
     const newErrors: Record<string, string> = {};
-
     if (data.identificationIssueDate && data.identificationIssueDate > today) {
       newErrors.identificationIssueDate = "Issue date cannot be in the future";
     }
@@ -1197,157 +1433,109 @@ if (data.pepPerson === "no") {
       newErrors.identificationExpiryDate =
         "Expiry date must be after issue date";
     }
-
-    setErrors({ ...errors, ...newErrors });
+    setErrors((prev) => ({ ...prev, ...newErrors }));
     return Object.keys(newErrors).length === 0;
   };
 
-  // const handleSubmit = (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   if (validateDates()) {
-  //     setShowCoBorrowerDialog(true);
-  //   }
-  // };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const isValidDates = validateDates();
+    const isValid = validateForm();
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    if (!isValid || !isValidDates) return;
 
-  const isValidDates = validateDates();
-  const isValid = validateForm();
+    try {
+      const verifiedData = getVerifiedCustomerDataFromSession();
+      const isExistingUser =
+        verifiedData && Object.keys(verifiedData).length > 0;
 
-    console.log("isValideDates:", isValidDates);
-  console.log("isValid:", isValid);
-  console.log("Errors:", errors);
-  console.log("Form data on submit:", data);
+      if (isExistingUser) {
+        setShowCoBorrowerDialog(true);
+        return;
+      }
 
-  if (!isValid || !isValidDates) {
-    console.log("Form blocked.");
-    return;
-  }
+      const submitData = new FormData();
+      submitData.append("data", JSON.stringify(data));
+      if (data.passportPhoto)
+        submitData.append("passportPhoto", data.passportPhoto);
+      if (data.currAddressProof)
+        submitData.append("currAddressProof", data.currAddressProof);
+      if (data.permAddressProof)
+        submitData.append("permAddressProof", data.permAddressProof);
+      if (data.spousePermAddressProof)
+        submitData.append(
+          "spousePermAddressProof",
+          data.spousePermAddressProof,
+        );
+      if (data.familyTree) submitData.append("familyTree", data.familyTree);
 
-  try {
-    // Check if this is an existing user (skip API call for existing users)
-    const verifiedData = getVerifiedCustomerDataFromSession();
-    const isExistingUser = verifiedData && Object.keys(verifiedData).length > 0;
+      const response = await fetch("http://localhost:3001/api/personal", {
+        method: "POST",
+        body: submitData,
+      });
 
-    if (isExistingUser) {
-      console.log("Existing user detected - skipping API call");
+      const result = await response.json();
+
+      if (!response.ok) {
+        if (result.error?.includes("already exists")) {
+          setShowCoBorrowerDialog(true);
+          return;
+        }
+        alert(result.error || "Something went wrong");
+        return;
+      }
+      alert("Personal details saved successfully!");
       setShowCoBorrowerDialog(true);
-      return;
+    } catch (error) {
+      alert("Failed to submit form");
     }
-
-    // Only proceed with API call for new users
-    const formData = new FormData();
-
-    // 1️⃣ Append JSON data
-    formData.append("data", JSON.stringify(data));
-
-    // 2️⃣ Append files (ONLY if they exist)
-    if (data.passportPhoto) {
-      formData.append("passportPhoto", data.passportPhoto);
-    }
-
-    if (data.currAddressProof) {
-      formData.append("currAddressProof", data.currAddressProof);
-    }
-
-    if (data.familyTree) {
-      formData.append("familyTree", data.familyTree);
-    }
-
-    // 3️⃣ Call backend API (only for new users)
-    const response = await fetch("http://localhost:3001/api/personal", {
-      method: "POST",
-      body: formData,
-    });
-
-    const result = await response.json();
-
- if (!response.ok) {
-  // If duplicate CID → allow progression
-  if (result.error?.includes("already exists")) {
-    console.log("CID already exists. Continuing to next step.");
-    setShowCoBorrowerDialog(true);
-    return;
-  }
-
-  // Other real errors
-  alert(result.error || "Something went wrong");
-  return;
-}
-
-    console.log("Saved successfully:", result);
-    alert("Personal details saved successfully!");
-
-    setShowCoBorrowerDialog(true);
-
-  } catch (error) {
-    console.error("Submit error:", error);
-    alert("Failed to submit form");
-  }
-};
+  };
 
   const handleCoBorrowerResponse = (hasCoBorrower: boolean) => {
     setShowCoBorrowerDialog(false);
     onNext({ personalDetails: data, hasCoBorrower });
   };
 
-  // Ensure relatedPeps is always an array
-  const relatedPeps = data.relatedPeps || [createEmptyRelatedPep()];
-
   return (
     <form
       onSubmit={handleSubmit}
       className="space-y-6 sm:space-y-8 md:space-y-10 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12"
     >
-      {/* Application Personal Information */}
+      {/* 1. Application Personal Information */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           Application Personal Information
         </h2>
 
-        {/* Identification Fields */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <div className="space-y-1.5 sm:space-y-2.5">
-            <Label
-              htmlFor="identificationType"
-              className="text-gray-800 font-semibold text-xs sm:text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
               Identification Type <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={findPkCodeByLabel(data.identificationType, identificationTypeOptions, ['identity_type', 'identification_type', 'name', 'label']) || data.identificationType}
+              value={
+                findPkCodeByLabel(
+                  data.identificationType,
+                  identificationTypeOptions,
+                  ["identity_type", "identification_type", "name", "label"],
+                ) || data.identificationType
+              }
               onValueChange={(value) => {
                 setData({ ...data, identificationType: value });
-
-                if (!isRequired(value)) {
+                if (!isRequired(value))
                   setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.identificationType;
-                    return updated;
+                    const upd = { ...prev };
+                    delete upd.identificationType;
+                    return upd;
                   });
-                }
               }}
             >
-            <SelectTrigger
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.identificationType
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#228822]"
-                }`}
-            >
-
+              <SelectTrigger className={getFieldStyle("identificationType")}>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
                 {identificationTypeOptions.length > 0 ? (
                   identificationTypeOptions.map((option, index) => {
-                    const key =
-                      option.identity_type_pk_code ||
-                      option.identification_type_pk_code ||
-                      option.id ||
-                      `id-${index}`;
                     const value = String(
                       option.identity_type_pk_code ||
                         option.identification_type_pk_code ||
@@ -1359,9 +1547,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                       option.identification_type ||
                       option.name ||
                       "Unknown";
-
                     return (
-                      <SelectItem key={key} value={value}>
+                      <SelectItem key={value} value={value}>
                         {label}
                       </SelectItem>
                     );
@@ -1381,75 +1568,48 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           <div className="space-y-1.5 sm:space-y-2.5">
-            <Label
-              htmlFor="identificationNo"
-              className="text-gray-800 font-semibold text-xs sm:text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
               Identification No. <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="identificationNo"
               placeholder="Enter identification No"
-              // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
               value={data.identificationNo || ""}
               onChange={(e) => {
                 const value = e.target.value;
-
-              setData({ ...data, identificationNo: value });
-
-              // Auto clear error when valid
-              if (!isRequired(value)) {
-                setErrors((prev) => {
-                  const updated = { ...prev };
-                  delete updated.identificationNo;
-                  return updated;
-                });
-              }
-            }}
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-              ${
-                errors.identificationNo
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              }`}
-              // required
+                setData({ ...data, identificationNo: value });
+                if (!isRequired(value))
+                  setErrors((prev) => {
+                    const upd = { ...prev };
+                    delete upd.identificationNo;
+                    return upd;
+                  });
+              }}
+              className={getFieldStyle("identificationNo")}
             />
             {errors.identificationNo && (
               <p className="text-xs text-red-500 mt-1">
                 {errors.identificationNo}
-              </p>)}
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5 sm:space-y-2.5">
-            <Label
-              htmlFor="salutation"
-              className="text-gray-800 font-semibold text-xs sm:text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
               Salutation <span className="text-red-500">*</span>
             </Label>
             <Select
               value={data.salutation}
               onValueChange={(value) => {
                 setData({ ...data, salutation: value });
-
-                if (!isRequired(value)) {
+                if (!isRequired(value))
                   setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.salutation;
-                    return updated;
+                    const upd = { ...prev };
+                    delete upd.salutation;
+                    return upd;
                   });
-                }
-              }}            >
-              <SelectTrigger 
-              // className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.salutation
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
-           
+              }}
+            >
+              <SelectTrigger className={getFieldStyle("salutation")}>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -1459,31 +1619,20 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <SelectItem value="dr">Dr.</SelectItem>
               </SelectContent>
             </Select>
-                {errors.salutation && (
-              <p className="text-xs text-red-500 mt-1">
-                {errors.salutation}
-              </p>)}
+            {errors.salutation && (
+              <p className="text-xs text-red-500 mt-1">{errors.salutation}</p>
+            )}
           </div>
 
           <div className="space-y-1.5 sm:space-y-2.5">
-            <Label
-              htmlFor="applicantName"
-              className="text-gray-800 font-semibold text-xs sm:text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
               Applicant Name <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="applicantName"
               placeholder="Enter Your Full Name"
               value={data.applicantName || ""}
-              // className={`h-10 sm:h-12 border-gray-300
-              //   focus:border-[#FF9800] focus:ring-[#FF9800]
-              //   text-sm sm:text-base
-              //   ${errors.applicantName ? "border-red-500" : ""}`}
               onChange={(e) => {
                 let value = e.target.value;
-
-                // Allow only alphabets and spaces
                 if (!/^[A-Za-z\s]*$/.test(value)) {
                   setErrors((prev) => ({
                     ...prev,
@@ -1491,36 +1640,22 @@ const handleSubmit = async (e: React.FormEvent) => {
                   }));
                   return;
                 }
-
-                // Auto capitalize first letters
                 value = capitalizeWords(value);
-
                 setData({ ...data, applicantName: value });
-
-                // Required validation
-                if (value.trim() === "") {
+                if (value.trim() === "")
                   setErrors((prev) => ({
                     ...prev,
                     applicantName: "Full name is required",
                   }));
-                  return;
-                }
-
-                // Clear error if valid
-                setErrors((prev) => {
-                  const updated = { ...prev };
-                  delete updated.applicantName;
-                  return updated;
-                });
+                else
+                  setErrors((prev) => {
+                    const upd = { ...prev };
+                    delete upd.applicantName;
+                    return upd;
+                  });
               }}
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.applicantName
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
+              className={getFieldStyle("applicantName")}
             />
-
             {errors.applicantName && (
               <p className="text-xs text-red-500 mt-1">
                 {errors.applicantName}
@@ -1531,45 +1666,31 @@ const handleSubmit = async (e: React.FormEvent) => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <div className="space-y-1.5 sm:space-y-2.5">
-            <Label
-              htmlFor="nationality"
-              className="text-gray-800 font-semibold text-xs sm:text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
               Nationality <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={findPkCodeByLabel(data.nationality, nationalityOptions, ['nationality', 'name', 'label'])}
+              value={findPkCodeByLabel(data.nationality, nationalityOptions, [
+                "nationality",
+                "name",
+                "label",
+              ])}
               onValueChange={(value) => {
                 setData({ ...data, nationality: value });
-
-                if (!isRequired(value)) {
+                if (!isRequired(value))
                   setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.nationality;
-                    return updated;
+                    const upd = { ...prev };
+                    delete upd.nationality;
+                    return upd;
                   });
-                }
-              }}  
+              }}
             >
-              <SelectTrigger 
-              // className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.nationality
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
+              <SelectTrigger className={getFieldStyle("nationality")}>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
                 {nationalityOptions.length > 0 ? (
                   nationalityOptions.map((option, index) => {
-                    const key =
-                      option.nationality_pk_code ||
-                      option.id ||
-                      option.code ||
-                      `nationality-${index}`;
                     const value = String(
                       option.nationality_pk_code ||
                         option.id ||
@@ -1581,9 +1702,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                       option.name ||
                       option.label ||
                       "Unknown";
-
                     return (
-                      <SelectItem key={key} value={value}>
+                      <SelectItem key={value} value={value}>
                         {label}
                       </SelectItem>
                     );
@@ -1595,42 +1715,28 @@ const handleSubmit = async (e: React.FormEvent) => {
                 )}
               </SelectContent>
             </Select>
-               {errors.nationality && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.nationality}
-                </p>
-              )}
+            {errors.nationality && (
+              <p className="text-xs text-red-500 mt-1">{errors.nationality}</p>
+            )}
           </div>
+
           <div className="space-y-2.5">
-            <Label
-              htmlFor="gender"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               Gender <span className="text-red-500">*</span>
             </Label>
             <Select
               value={data.gender}
               onValueChange={(value) => {
                 setData({ ...data, gender: value });
-
-                if (!isRequired(value)) {
+                if (!isRequired(value))
                   setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.gender;
-                    return updated;
+                    const upd = { ...prev };
+                    delete upd.gender;
+                    return upd;
                   });
-                }
-              }}              
-              >
-              <SelectTrigger 
-              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.gender
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
+              }}
+            >
+              <SelectTrigger className={getFieldStyle("gender")}>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -1639,38 +1745,28 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
-              {errors.gender && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.gender}
-                </p>
-              )}
+            {errors.gender && (
+              <p className="text-xs text-red-500 mt-1">{errors.gender}</p>
+            )}
           </div>
+
           <div className="space-y-1.5 sm:space-y-2.5">
-            <Label
-              htmlFor="identificationIssueDate"
-              className="text-gray-800 font-semibold text-xs sm:text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
               Identification Issue Date <span className="text-red-500">*</span>
             </Label>
             <Input
               type="date"
-              id="identificationIssueDate"
               max={today}
-              // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
               value={data.identificationIssueDate || ""}
               onChange={(e) => {
                 setData({ ...data, identificationIssueDate: e.target.value });
-                setErrors({ ...errors, identificationIssueDate: "" });
-                
+                setErrors((prev) => {
+                  const upd = { ...prev };
+                  delete upd.identificationIssueDate;
+                  return upd;
+                });
               }}
-              // required
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.identificationIssueDate
-                      ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              
+              className={getFieldStyle("identificationIssueDate")}
             />
             {errors.identificationIssueDate && (
               <p className="text-xs text-red-500 mt-1">
@@ -1678,30 +1774,24 @@ const handleSubmit = async (e: React.FormEvent) => {
               </p>
             )}
           </div>
+
           <div className="space-y-1.5 sm:space-y-2.5">
-            <Label
-              htmlFor="identificationExpiryDate"
-              className="text-gray-800 font-semibold text-xs sm:text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
               Identification Expiry Date <span className="text-red-500">*</span>
             </Label>
             <Input
               type="date"
-              id="identificationExpiryDate"
               min={today}
-              // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               value={data.identificationExpiryDate || ""}
               onChange={(e) => {
                 setData({ ...data, identificationExpiryDate: e.target.value });
-                setErrors({ ...errors, identificationExpiryDate: "" });
+                setErrors((prev) => {
+                  const upd = { ...prev };
+                  delete upd.identificationExpiryDate;
+                  return upd;
+                });
               }}
-              // required
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                  ${
-                    errors.identificationExpiryDate
-                        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
+              className={getFieldStyle("identificationExpiryDate")}
             />
             {errors.identificationExpiryDate && (
               <p className="text-xs text-red-500 mt-1">
@@ -1713,29 +1803,22 @@ const handleSubmit = async (e: React.FormEvent) => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <div className="space-y-2.5">
-            <Label
-              htmlFor="dateOfBirth"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               Date of Birth <span className="text-red-500">*</span>
             </Label>
             <Input
               type="date"
-              id="dateOfBirth"
               max={maxDobDate}
-              // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               value={data.dateOfBirth || ""}
               onChange={(e) => {
                 setData({ ...data, dateOfBirth: e.target.value });
-                setErrors({ ...errors, dateOfBirth: "" });
+                setErrors((prev) => {
+                  const upd = { ...prev };
+                  delete upd.dateOfBirth;
+                  return upd;
+                });
               }}
-              // required
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-     ${
-      errors.dateOfBirth
-          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-    }`}
+              className={getFieldStyle("dateOfBirth")}
             />
             {errors.dateOfBirth && (
               <p className="text-xs text-red-500 mt-1">{errors.dateOfBirth}</p>
@@ -1743,86 +1826,112 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           <div className="space-y-2.5">
-            <Label
-              htmlFor="tpn"
-              className="text-gray-800 font-semibold text-sm"
+            <Label className="text-gray-800 font-semibold text-sm">
+              Tax Identifier Type <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              value={data.taxIdentifierType}
+              onValueChange={(value) => {
+                setData({ ...data, taxIdentifierType: value });
+                if (!isRequired(value))
+                  setErrors((prev) => {
+                    const upd = { ...prev };
+                    delete upd.taxIdentifierType;
+                    return upd;
+                  });
+              }}
             >
+              <SelectTrigger className={getFieldStyle("taxIdentifierType")}>
+                <SelectValue placeholder="[Select]" />
+              </SelectTrigger>
+              <SelectContent sideOffset={4}>
+                <SelectItem value="BIT">BIT</SelectItem>
+                <SelectItem value="GST">GST</SelectItem>
+                <SelectItem value="CIT">CIT</SelectItem>
+                <SelectItem value="PIT">PIT</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.taxIdentifierType && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.taxIdentifierType}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2.5">
+            <Label className="text-gray-800 font-semibold text-sm">
               TPN No <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="tpn"
               placeholder="Enter TPN"
-              // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               value={data.tpn || ""}
               onChange={(e) => {
-                const value = e.target.value;
-
-              setData({ ...data, tpn: value });
-
-              // Auto clear error when valid
-              if (!isRequired(value)) {
-                setErrors((prev) => {
-                  const updated = { ...prev };
-                  delete updated.tpn;
-                  return updated;
-                });
-              }
-            }}              // required
-
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-              ${
-                errors.tpn
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              }`}
+                setData({ ...data, tpn: e.target.value });
+                if (!isRequired(e.target.value))
+                  setErrors((prev) => {
+                    const upd = { ...prev };
+                    delete upd.tpn;
+                    return upd;
+                  });
+              }}
+              className={getFieldStyle("tpn")}
             />
             {errors.tpn && (
               <p className="text-xs text-red-500 mt-1">{errors.tpn}</p>
             )}
           </div>
 
+          {isNatBhutanese(data.nationality) && (
+            <div className="space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-sm">
+                Household Number <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                placeholder="Enter Household Number"
+                value={data.householdNumber || ""}
+                onChange={(e) => {
+                  setData({ ...data, householdNumber: e.target.value });
+                  if (!isRequired(e.target.value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.householdNumber;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("householdNumber")}
+              />
+              {errors.householdNumber && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.householdNumber}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <div className="space-y-2.5">
-            <Label
-              htmlFor="maritalStatus"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               Marital Status <span className="text-red-500">*</span>
             </Label>
             <Select
               value={String(data.maritalStatus || "")}
               onValueChange={(value) => {
                 setData({ ...data, maritalStatus: value });
-
-                if (!isRequired(value)) {
+                if (!isRequired(value))
                   setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.maritalStatus;
-                    
-                    return updated;
+                    const upd = { ...prev };
+                    delete upd.maritalStatus;
+                    return upd;
                   });
-                }
               }}
             >
-              <SelectTrigger 
-              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.maritalStatus
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
+              <SelectTrigger className={getFieldStyle("maritalStatus")}>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
                 {maritalStatusOptions.length > 0 ? (
                   maritalStatusOptions.map((option, index) => {
-                    const key =
-                      option.marital_status_pk_code ||
-                      option.id ||
-                      option.value ||
-                      option.code ||
-                      `marital-${index}`;
                     const value = String(
                       option.marital_status_pk_code ||
                         option.id ||
@@ -1837,9 +1946,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                       option.description ||
                       option.value ||
                       "Unknown";
-
                     return (
-                      <SelectItem key={key} value={value}>
+                      <SelectItem key={value} value={value}>
                         {label}
                       </SelectItem>
                     );
@@ -1852,160 +1960,886 @@ const handleSubmit = async (e: React.FormEvent) => {
               </SelectContent>
             </Select>
             {errors.maritalStatus && (
-              <p className="text-xs text-red-500 mt-1">{errors.maritalStatus}</p>
+              <p className="text-xs text-red-500 mt-1">
+                {errors.maritalStatus}
+              </p>
             )}
           </div>
         </div>
 
-        {/* Conditional Spouse Details Section */}
+        {/* 2. Spouse Details Section */}
         {isMarried && (
-          <div className="mt-8 border-t pt-8">
+          <div className="mt-8 border-t pt-8 space-y-6">
             <h3 className="text-lg font-bold text-[#003DA5] mb-4">
               Spouse Personal Information
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               <div className="space-y-1.5 sm:space-y-2.5">
-                <Label
-                  htmlFor="spouseIdentificationNo"
-                  className="text-gray-800 font-semibold text-xs sm:text-sm"
-                >
-                  Spouse CID/ID No. <span className="text-red-500">*</span>
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Identification Type{" "}
+                  <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="spouseIdentificationNo"
-                  placeholder="Enter Spouse CID/ID"
-                  // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-                  value={data.spouseIdentificationNo || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-
-                  setData({ ...data, spouseIdentificationNo: value });
-
-                  // Auto clear error when valid
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.spouseIdentificationNo;
-                      return updated;
-                    });
+                <Select
+                  value={
+                    findPkCodeByLabel(
+                      data.spouseIdentificationType,
+                      identificationTypeOptions,
+                      ["identity_type", "identification_type", "name", "label"],
+                    ) || data.spouseIdentificationType
                   }
-                }}
-
-                    className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                    ${
-                      errors.spouseIdentificationNo
-                          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
-                              // required
-                                // className={`form-input ${errors.spouseIdentificationNo ? "border-red-500" : ""}`}
-
-                            />
-                  {errors.spouseIdentificationNo && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.spouseIdentificationNo}
-                    </p>
-                  )}
+                  onValueChange={(value) => {
+                    setData({ ...data, spouseIdentificationType: value });
+                    if (!isRequired(value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.spouseIdentificationType;
+                        return upd;
+                      });
+                  }}
+                >
+                  <SelectTrigger
+                    className={getFieldStyle("spouseIdentificationType")}
+                  >
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    {identificationTypeOptions.length > 0 ? (
+                      identificationTypeOptions.map((option, index) => {
+                        const value = String(
+                          option.identity_type_pk_code ||
+                            option.identification_type_pk_code ||
+                            option.id ||
+                            index,
+                        );
+                        const label =
+                          option.identity_type ||
+                          option.identification_type ||
+                          option.name ||
+                          "Unknown";
+                        return (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        Loading...
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {errors.spouseIdentificationType && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseIdentificationType}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5 sm:space-y-2.5">
-                <Label
-                  htmlFor="spouseName"
-                  className="text-gray-800 font-semibold text-xs sm:text-sm"
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse ID No. <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  placeholder="Enter Spouse CID/ID"
+                  value={data.spouseIdentificationNo || ""}
+                  onChange={(e) => {
+                    setData({
+                      ...data,
+                      spouseIdentificationNo: e.target.value,
+                    });
+                    if (!isRequired(e.target.value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.spouseIdentificationNo;
+                        return upd;
+                      });
+                  }}
+                  className={getFieldStyle("spouseIdentificationNo")}
+                />
+                {errors.spouseIdentificationNo && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseIdentificationNo}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Salutation <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={data.spouseSalutation}
+                  onValueChange={(value) => {
+                    setData({ ...data, spouseSalutation: value });
+                    if (!isRequired(value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.spouseSalutation;
+                        return upd;
+                      });
+                  }}
                 >
+                  <SelectTrigger className={getFieldStyle("spouseSalutation")}>
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    <SelectItem value="mr">Mr.</SelectItem>
+                    <SelectItem value="mrs">Mrs.</SelectItem>
+                    <SelectItem value="ms">Ms.</SelectItem>
+                    <SelectItem value="dr">Dr.</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.spouseSalutation && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseSalutation}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
                   Spouse Name <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="spouseName"
                   placeholder="Enter Spouse Full Name"
-                  // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
                   value={data.spouseName || ""}
                   onChange={(e) => {
-                      const value = e.target.value;
-
+                    let value = e.target.value;
+                    if (!/^[A-Za-z\s]*$/.test(value)) return;
+                    value = capitalizeWords(value);
                     setData({ ...data, spouseName: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
+                    if (!isRequired(value))
                       setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.spouseName;
-                        return updated;
+                        const upd = { ...prev };
+                        delete upd.spouseName;
+                        return upd;
                       });
-                    }
                   }}
-
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                      ${
-                        errors.spouseName
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      }`}
-                                // required
-                                  // className={`form-input ${errors.spouseName ? "border-red-500" : ""}`}
-
-                              />
-                    {errors.spouseName && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors.spouseName}
-                      </p>
-                    )}
+                  className={getFieldStyle("spouseName")}
+                />
+                {errors.spouseName && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseName}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5 sm:space-y-2.5">
-                <Label
-                  htmlFor="spouseContact"
-                  className="text-gray-800 font-semibold text-xs sm:text-sm"
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Nationality <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={findPkCodeByLabel(
+                    data.spouseNationality,
+                    nationalityOptions,
+                    ["nationality", "name", "label"],
+                  )}
+                  onValueChange={(value) => {
+                    setData({ ...data, spouseNationality: value });
+                    if (!isRequired(value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.spouseNationality;
+                        return upd;
+                      });
+                  }}
                 >
-                  Spouse Contact No. <span className="text-red-500">*</span>
+                  <SelectTrigger className={getFieldStyle("spouseNationality")}>
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    {nationalityOptions.length > 0 ? (
+                      nationalityOptions.map((option, index) => {
+                        const value = String(
+                          option.nationality_pk_code ||
+                            option.id ||
+                            option.code ||
+                            index,
+                        );
+                        const label =
+                          option.nationality ||
+                          option.name ||
+                          option.label ||
+                          "Unknown";
+                        return (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        Loading...
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {errors.spouseNationality && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseNationality}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Gender <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={data.spouseGender}
+                  onValueChange={(value) => {
+                    setData({ ...data, spouseGender: value });
+                    if (!isRequired(value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.spouseGender;
+                        return upd;
+                      });
+                  }}
+                >
+                  <SelectTrigger className={getFieldStyle("spouseGender")}>
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.spouseGender && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseGender}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse ID Issue Date <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="spouseContact"
-                  placeholder="Enter Contact Number"
-                  // className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-                  value={data.spouseContact || ""}
+                  type="date"
+                  max={today}
+                  value={data.spouseIdentificationIssueDate || ""}
                   onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, spouseContact: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.spouseContact;
-                        return updated;
-                      });
-                    }
+                    setData({
+                      ...data,
+                      spouseIdentificationIssueDate: e.target.value,
+                    });
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.spouseIdentificationIssueDate;
+                      return upd;
+                    });
                   }}
+                  className={getFieldStyle("spouseIdentificationIssueDate")}
+                />
+                {errors.spouseIdentificationIssueDate && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseIdentificationIssueDate}
+                  </p>
+                )}
+              </div>
 
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                      ${
-                        errors.spouseContact
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      }`}
-                                // required
-                                  // className={`form-input ${errors.spouseContact ? "border-red-500" : ""}`}
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse ID Expiry Date <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="date"
+                  min={today}
+                  value={data.spouseIdentificationExpiryDate || ""}
+                  onChange={(e) => {
+                    setData({
+                      ...data,
+                      spouseIdentificationExpiryDate: e.target.value,
+                    });
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.spouseIdentificationExpiryDate;
+                      return upd;
+                    });
+                  }}
+                  className={getFieldStyle("spouseIdentificationExpiryDate")}
+                />
+                {errors.spouseIdentificationExpiryDate && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseIdentificationExpiryDate}
+                  </p>
+                )}
+              </div>
 
-                              />
-                    {errors.spouseContact && (
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Tax Identifier Type{" "}
+                  <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={data.spouseTaxIdentifierType}
+                  onValueChange={(value) => {
+                    setData({ ...data, spouseTaxIdentifierType: value });
+                    if (!isRequired(value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.spouseTaxIdentifierType;
+                        return upd;
+                      });
+                  }}
+                >
+                  <SelectTrigger
+                    className={getFieldStyle("spouseTaxIdentifierType")}
+                  >
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    <SelectItem value="BIT">BIT</SelectItem>
+                    <SelectItem value="GST">GST</SelectItem>
+                    <SelectItem value="CIT">CIT</SelectItem>
+                    <SelectItem value="PIT">PIT</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.spouseTaxIdentifierType && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseTaxIdentifierType}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse TPN No <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  placeholder="Enter TPN"
+                  value={data.spouseTpn || ""}
+                  onChange={(e) => {
+                    setData({ ...data, spouseTpn: e.target.value });
+                    if (!isRequired(e.target.value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.spouseTpn;
+                        return upd;
+                      });
+                  }}
+                  className={getFieldStyle("spouseTpn")}
+                />
+                {errors.spouseTpn && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseTpn}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Date of Birth <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="date"
+                  max={maxDobDate}
+                  value={data.spouseDateOfBirth || ""}
+                  onChange={(e) => {
+                    setData({ ...data, spouseDateOfBirth: e.target.value });
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.spouseDateOfBirth;
+                      return upd;
+                    });
+                  }}
+                  className={getFieldStyle("spouseDateOfBirth")}
+                />
+                {errors.spouseDateOfBirth && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseDateOfBirth}
+                  </p>
+                )}
+              </div>
+
+              {isNatBhutanese(data.spouseNationality) && (
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Household Number{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder="Enter Household Number"
+                    value={data.spouseHouseholdNumber || ""}
+                    onChange={(e) => {
+                      setData({
+                        ...data,
+                        spouseHouseholdNumber: e.target.value,
+                      });
+                      if (!isRequired(e.target.value))
+                        setErrors((prev) => {
+                          const upd = { ...prev };
+                          delete upd.spouseHouseholdNumber;
+                          return upd;
+                        });
+                    }}
+                    className={getFieldStyle("spouseHouseholdNumber")}
+                  />
+                  {errors.spouseHouseholdNumber && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spouseHouseholdNumber}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Spouse Permanent Address */}
+            <div className="mt-6 pt-6 border-t border-dashed">
+              <h4 className="text-md font-semibold text-gray-700 mb-4">
+                Spouse Permanent Address
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Country <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={data.spousePermCountry || ""}
+                    onValueChange={(value) => {
+                      setData({ ...data, spousePermCountry: value });
+                      if (!isRequired(value))
+                        setErrors((prev) => {
+                          const upd = { ...prev };
+                          delete upd.spousePermCountry;
+                          return upd;
+                        });
+                    }}
+                  >
+                    <SelectTrigger
+                      className={getFieldStyle("spousePermCountry")}
+                    >
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent sideOffset={4}>
+                      {countryOptions.length > 0 ? (
+                        countryOptions.map((option, index) => {
+                          const value = String(
+                            option.country_pk_code ||
+                              option.id ||
+                              option.code ||
+                              index,
+                          );
+                          const label =
+                            option.country ||
+                            option.name ||
+                            option.label ||
+                            "Unknown";
+                          return (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          );
+                        })
+                      ) : (
+                        <SelectItem value="loading" disabled>
+                          Loading...
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {errors.spousePermCountry && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spousePermCountry}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    {isBhutanCountry(data.spousePermCountry, countryOptions)
+                      ? "Spouse Dzongkhag"
+                      : "Spouse State"}{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  {data.spousePermCountry &&
+                  !isBhutanCountry(data.spousePermCountry, countryOptions) ? (
+                    <Input
+                      placeholder="Enter State"
+                      value={data.spousePermDzongkhag || ""}
+                      onChange={(e) => {
+                        setData({
+                          ...data,
+                          spousePermDzongkhag: e.target.value,
+                        });
+                        if (!isRequired(e.target.value))
+                          setErrors((prev) => {
+                            const upd = { ...prev };
+                            delete upd.spousePermDzongkhag;
+                            return upd;
+                          });
+                      }}
+                      className={getFieldStyle("spousePermDzongkhag")}
+                    />
+                  ) : (
+                    <Select
+                      value={data.spousePermDzongkhag || ""}
+                      onValueChange={(value) => {
+                        setData({ ...data, spousePermDzongkhag: value });
+                        if (!isRequired(value))
+                          setErrors((prev) => {
+                            const upd = { ...prev };
+                            delete upd.spousePermDzongkhag;
+                            return upd;
+                          });
+                      }}
+                      disabled={
+                        !isBhutanCountry(data.spousePermCountry, countryOptions)
+                      }
+                    >
+                      <SelectTrigger
+                        className={getFieldStyle("spousePermDzongkhag")}
+                      >
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent sideOffset={4}>
+                        {dzongkhagOptions.length > 0 ? (
+                          dzongkhagOptions.map((option, index) => {
+                            const value = String(
+                              option.dzongkhag_pk_code ||
+                                option.id ||
+                                option.code ||
+                                index,
+                            );
+                            const label =
+                              option.dzongkhag ||
+                              option.name ||
+                              option.label ||
+                              "Unknown";
+                            return (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            );
+                          })
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            Loading...
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {errors.spousePermDzongkhag && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spousePermDzongkhag}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    {isBhutanCountry(data.spousePermCountry, countryOptions)
+                      ? "Spouse Gewog"
+                      : "Spouse Province"}{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  {data.spousePermCountry &&
+                  !isBhutanCountry(data.spousePermCountry, countryOptions) ? (
+                    <Input
+                      placeholder="Enter Province"
+                      value={data.spousePermGewog || ""}
+                      onChange={(e) => {
+                        setData({ ...data, spousePermGewog: e.target.value });
+                        if (!isRequired(e.target.value))
+                          setErrors((prev) => {
+                            const upd = { ...prev };
+                            delete upd.spousePermGewog;
+                            return upd;
+                          });
+                      }}
+                      className={getFieldStyle("spousePermGewog")}
+                    />
+                  ) : (
+                    <Select
+                      value={
+                        isBhutanCountry(data.spousePermCountry, countryOptions)
+                          ? data.spousePermGewog
+                          : ""
+                      }
+                      onValueChange={(value) => {
+                        setData({ ...data, spousePermGewog: value });
+                        if (!isRequired(value))
+                          setErrors((prev) => {
+                            const upd = { ...prev };
+                            delete upd.spousePermGewog;
+                            return upd;
+                          });
+                      }}
+                      disabled={
+                        !isBhutanCountry(data.spousePermCountry, countryOptions)
+                      }
+                    >
+                      <SelectTrigger
+                        className={getFieldStyle("spousePermGewog")}
+                      >
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent sideOffset={4}>
+                        {spousePermGewogOptions.length > 0 ? (
+                          spousePermGewogOptions.map((option, index) => {
+                            const value = String(
+                              option.gewog_pk_code ||
+                                option.id ||
+                                option.code ||
+                                index,
+                            );
+                            const label =
+                              option.gewog ||
+                              option.name ||
+                              option.label ||
+                              "Unknown";
+                            return (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            );
+                          })
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            {data.spousePermDzongkhag
+                              ? "Loading..."
+                              : "Select Dzongkhag first"}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {errors.spousePermGewog && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spousePermGewog}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    {isBhutanCountry(data.spousePermCountry, countryOptions)
+                      ? "Spouse Village/Street"
+                      : "Spouse Street"}{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder={
+                      isBhutanCountry(data.spousePermCountry, countryOptions)
+                        ? "Enter Village/Street"
+                        : "Enter Street"
+                    }
+                    value={data.spousePermVillage || ""}
+                    onChange={(e) => {
+                      setData({ ...data, spousePermVillage: e.target.value });
+                      if (!isRequired(e.target.value))
+                        setErrors((prev) => {
+                          const upd = { ...prev };
+                          delete upd.spousePermVillage;
+                          return upd;
+                        });
+                    }}
+                    className={getFieldStyle("spousePermVillage")}
+                    disabled={!data.spousePermCountry}
+                  />
+                  {errors.spousePermVillage && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spousePermVillage}
+                    </p>
+                  )}
+                </div>
+
+                {/* Conditional grid - show Thram and House only for Bhutan */}
+                {isBhutanCountry(data.spousePermCountry, countryOptions) && (
+                  <>
+                    <div className="space-y-1.5 sm:space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                        Spouse Thram No. <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        placeholder="Enter Thram No"
+                        value={data.spousePermThram || ""}
+                        onChange={(e) => {
+                          setData({ ...data, spousePermThram: e.target.value });
+                          if (!isRequired(e.target.value))
+                            setErrors((prev) => {
+                              const upd = { ...prev };
+                              delete upd.spousePermThram;
+                              return upd;
+                            });
+                        }}
+                        className={getFieldStyle("spousePermThram")}
+                      />
+                      {errors.spousePermThram && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.spousePermThram}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5 sm:space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                        Spouse House No. <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        placeholder="Enter House No"
+                        value={data.spousePermHouse || ""}
+                        onChange={(e) => {
+                          setData({ ...data, spousePermHouse: e.target.value });
+                          if (!isRequired(e.target.value))
+                            setErrors((prev) => {
+                              const upd = { ...prev };
+                              delete upd.spousePermHouse;
+                              return upd;
+                            });
+                        }}
+                        className={getFieldStyle("spousePermHouse")}
+                      />
+                      {errors.spousePermHouse && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.spousePermHouse}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Document Upload for Non-Bhutan Countries */}
+              {data.spousePermCountry &&
+                !isBhutanCountry(data.spousePermCountry, countryOptions) && (
+                  <div className="space-y-2.5 mt-4">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Upload Spouse Address Proof Document{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        id="spousePermAddressProof"
+                        className="hidden"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) =>
+                          handleFileChange(
+                            "spousePermAddressProof",
+                            e.target.files?.[0] || null,
+                          )
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-28 bg-transparent"
+                        onClick={() =>
+                          document
+                            .getElementById("spousePermAddressProof")
+                            ?.click()
+                        }
+                      >
+                        Choose File
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {data.spousePermAddressProof || "No file chosen"}
+                      </span>
+                    </div>
+                    {errors.spousePermAddressProof && (
                       <p className="text-xs text-red-500 mt-1">
-                        {errors.spouseContact}
+                        {errors.spousePermAddressProof}
                       </p>
                     )}
+                    <p className="text-xs text-gray-500">
+                      Allowed: PDF, JPG, PNG (Max 5MB)
+                    </p>
+                  </div>
+                )}
+            </div>
+
+            {/* Spouse Contact Details */}
+            <div className="mt-6 pt-6 border-t border-dashed">
+              <h4 className="text-md font-semibold text-gray-700 mb-4">
+                Spouse Contact Information
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Email <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="email"
+                    placeholder="Enter Spouse Email"
+                    value={data.spouseEmail || ""}
+                    onChange={(e) => {
+                      setData({ ...data, spouseEmail: e.target.value });
+                      if (
+                        !isRequired(e.target.value) &&
+                        isEmail(e.target.value)
+                      )
+                        setErrors((prev) => {
+                          const upd = { ...prev };
+                          delete upd.spouseEmail;
+                          return upd;
+                        });
+                    }}
+                    className={getFieldStyle("spouseEmail")}
+                  />
+                  {errors.spouseEmail && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spouseEmail}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Contact No. <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder="Enter Contact Number"
+                    value={data.spouseContact || ""}
+                    onChange={(e) => {
+                      setData({ ...data, spouseContact: e.target.value });
+                      if (!isRequired(e.target.value))
+                        setErrors((prev) => {
+                          const upd = { ...prev };
+                          delete upd.spouseContact;
+                          return upd;
+                        });
+                    }}
+                    className={getFieldStyle("spouseContact")}
+                  />
+                  {errors.spouseContact && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spouseContact}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Alternate Contact No.
+                  </Label>
+                  <Input
+                    placeholder="Enter Alternate Contact"
+                    value={data.spouseAlternateContact || ""}
+                    onChange={(e) => {
+                      setData({
+                        ...data,
+                        spouseAlternateContact: e.target.value,
+                      });
+                    }}
+                    className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  />
+                </div>
               </div>
             </div>
           </div>
         )}
 
+        {/* File Uploads (Family Tree, Bank, Passport) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t mt-4">
           <div className="space-y-2.5">
-            <Label
-              htmlFor="uploadFamilyTree"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               Upload Family Tree <span className="text-red-500">*</span>
             </Label>
             <div className="flex items-center gap-2">
@@ -2044,45 +2878,33 @@ const handleSubmit = async (e: React.FormEvent) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2.5">
-            <Label
-              htmlFor="bankName"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               Name of Bank <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={findPkCodeByLabel(data.bankName, banksOptions, ['bank_name', 'name', 'label']) || data.bankName}
+              value={
+                findPkCodeByLabel(data.bankName, banksOptions, [
+                  "bank_name",
+                  "name",
+                  "label",
+                ]) || data.bankName
+              }
               onValueChange={(value) => {
                 setData({ ...data, bankName: value });
-
-                if (!isRequired(value)) {
+                if (!isRequired(value))
                   setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.bankName;
-                    return updated;
+                    const upd = { ...prev };
+                    delete upd.bankName;
+                    return upd;
                   });
-                }
-              }}            >
-              <SelectTrigger 
-              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-               className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.bankName
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
+              }}
+            >
+              <SelectTrigger className={getFieldStyle("bankName")}>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
                 {banksOptions.length > 0 ? (
                   banksOptions.map((option, index) => {
-                    const key =
-                      option.bank_pk_code ||
-                      option.id ||
-                      option.code ||
-                      option.bank_code ||
-                      `bank-${index}`;
                     const value = String(
                       option.bank_pk_code ||
                         option.id ||
@@ -2097,9 +2919,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                       option.bankName ||
                       option.bank ||
                       "Unknown";
-
                     return (
-                      <SelectItem key={key} value={value}>
+                      <SelectItem key={value} value={value}>
                         {label}
                       </SelectItem>
                     );
@@ -2115,75 +2936,50 @@ const handleSubmit = async (e: React.FormEvent) => {
               <p className="text-xs text-red-500 mt-1">{errors.bankName}</p>
             )}
           </div>
+
           <div className="space-y-2.5">
-            <Label
-              htmlFor="bankAccount"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               Bank Saving Account No <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="bankAccount"
               placeholder="Enter saving account number"
               value={data.bankAccount || ""}
               inputMode="numeric"
               onChange={(e) => {
                 const rawValue = e.target.value;
-
-                // Remove spaces automatically
                 const valueWithoutSpaces = rawValue.replace(/\s/g, "");
-
-                // Check if contains anything other than digits
                 if (!/^\d*$/.test(valueWithoutSpaces)) {
                   setErrors((prev) => ({
                     ...prev,
                     bankAccount: "Only numeric is allowed",
                   }));
-
-                  // Keep only digits
                   const digitsOnly = valueWithoutSpaces.replace(/\D/g, "");
                   setData({ ...data, bankAccount: digitsOnly });
                   return;
                 }
-
-                // If empty
-                if (valueWithoutSpaces === "") {
+                if (valueWithoutSpaces === "")
                   setErrors((prev) => ({
                     ...prev,
                     bankAccount: "Bank account number is required",
                   }));
-                } else {
-                  // Clear error
+                else
                   setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.bankAccount;
-                    return updated;
+                    const upd = { ...prev };
+                    delete upd.bankAccount;
+                    return upd;
                   });
-                }
-
                 setData({ ...data, bankAccount: valueWithoutSpaces });
               }}
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.bankAccount
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
+              className={getFieldStyle("bankAccount")}
             />
-
             {errors.bankAccount && (
-              <p className="text-xs text-red-500 mt-1">
-                {errors.bankAccount}
-              </p>
+              <p className="text-xs text-red-500 mt-1">{errors.bankAccount}</p>
             )}
           </div>
         </div>
 
         <div className="space-y-2.5">
-          <Label
-            htmlFor="uploadPassport"
-            className="text-gray-800 font-semibold text-sm"
-          >
+          <Label className="text-gray-800 font-semibold text-sm">
             Upload Passport-size Photograph{" "}
             <span className="text-red-500">*</span>
           </Label>
@@ -2217,8 +3013,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         </div>
       </div>
 
-      {/* Permanent Address */}
-      {/* making sure that bhutanese addresses pops up first */}
+      {/* 3. Permanent Address */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           Permanent Address
@@ -2226,46 +3021,27 @@ const handleSubmit = async (e: React.FormEvent) => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <div className="space-y-2.5">
-            <Label
-              htmlFor="permCountry"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               Country <span className="text-red-500">*</span>
             </Label>
             <Select
-            value={data.permCountry || ""}
-             onValueChange={(value) => {
+              value={data.permCountry || ""}
+              onValueChange={(value) => {
                 setData({ ...data, permCountry: value });
-
-                if (!isRequired(value)) {
+                if (!isRequired(value))
                   setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.permCountry;
-                    return updated;
+                    const upd = { ...prev };
+                    delete upd.permCountry;
+                    return upd;
                   });
-                }
-              }}  
-              
+              }}
             >
-              <SelectTrigger 
-              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.permCountry
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
+              <SelectTrigger className={getFieldStyle("permCountry")}>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
                 {countryOptions.length > 0 ? (
                   countryOptions.map((option, index) => {
-                    const key =
-                      option.country_pk_code ||
-                      option.id ||
-                      option.code ||
-                      `perm-country-${index}`;
                     const value = String(
                       option.country_pk_code ||
                         option.id ||
@@ -2277,9 +3053,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                       option.name ||
                       option.label ||
                       "Unknown";
-
                     return (
-                      <SelectItem key={key} value={value}>
+                      <SelectItem key={value} value={value}>
                         {label}
                       </SelectItem>
                     );
@@ -2297,10 +3072,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           <div className="space-y-2.5">
-            <Label
-              htmlFor="permDzongkhag"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               {isBhutanCountry(data.permCountry, countryOptions)
                 ? "Dzongkhag"
                 : "State"}{" "}
@@ -2308,75 +3080,40 @@ const handleSubmit = async (e: React.FormEvent) => {
             </Label>
             {data.permCountry &&
             !isBhutanCountry(data.permCountry, countryOptions) ? (
-              <>
-                <Input
-                  id="permDzongkhag"
-                  placeholder="Enter State"
-                  value={data.permDzongkhag || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-
-                    setData({ ...data, permDzongkhag: value });
-
-                       // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permDzongkhag;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                    ${
-                      errors.permDzongkhag
-                        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
-                />
-
-                {/* {errors.permDzongkhag && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.permDzongkhag}
-                  </p>
-                )} */}
-              </>
+              <Input
+                placeholder="Enter State"
+                value={data.permDzongkhag || ""}
+                onChange={(e) => {
+                  setData({ ...data, permDzongkhag: e.target.value });
+                  if (!isRequired(e.target.value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.permDzongkhag;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("permDzongkhag")}
+              />
             ) : (
               <Select
                 value={data.permDzongkhag || ""}
                 onValueChange={(value) => {
-                    setData({ ...data, permDzongkhag: value });
-
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permDzongkhag;
-                        return updated;
-                      });
-                    }
-                  }} 
+                  setData({ ...data, permDzongkhag: value });
+                  if (!isRequired(value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.permDzongkhag;
+                      return upd;
+                    });
+                }}
                 disabled={!isBhutanCountry(data.permCountry, countryOptions)}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                             
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.permDzongkhag
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                >
+                <SelectTrigger className={getFieldStyle("permDzongkhag")}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
                   {dzongkhagOptions.length > 0 ? (
                     dzongkhagOptions.map((option, index) => {
-                      const key =
-                        option.dzongkhag_pk_code ||
-                        option.id ||
-                        option.code ||
-                        `perm-dzo-${index}`;
                       const value = String(
                         option.dzongkhag_pk_code ||
                           option.id ||
@@ -2388,9 +3125,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                         option.name ||
                         option.label ||
                         "Unknown";
-
                       return (
-                        <SelectItem key={key} value={value}>
+                        <SelectItem key={value} value={value}>
                           {label}
                         </SelectItem>
                       );
@@ -2404,15 +3140,14 @@ const handleSubmit = async (e: React.FormEvent) => {
               </Select>
             )}
             {errors.permDzongkhag && (
-              <p className="text-xs text-red-500 mt-1">{errors.permDzongkhag}</p>
+              <p className="text-xs text-red-500 mt-1">
+                {errors.permDzongkhag}
+              </p>
             )}
           </div>
 
           <div className="space-y-2.5">
-            <Label
-              htmlFor="permGewog"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               {isBhutanCountry(data.permCountry, countryOptions)
                 ? "Gewog"
                 : "Province"}{" "}
@@ -2420,75 +3155,44 @@ const handleSubmit = async (e: React.FormEvent) => {
             </Label>
             {data.permCountry &&
             !isBhutanCountry(data.permCountry, countryOptions) ? (
-            <>
               <Input
-                id="permGewog"
                 placeholder="Enter Province"
                 value={data.permGewog || ""}
                 onChange={(e) => {
-                  const value = e.target.value;
-
-                  setData({ ...data, permGewog: value });
-
-                  if (!isRequired(value)) {
+                  setData({ ...data, permGewog: e.target.value });
+                  if (!isRequired(e.target.value))
                     setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.permGewog;
-                      return updated;
+                      const upd = { ...prev };
+                      delete upd.permGewog;
+                      return upd;
                     });
-                  }
                 }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                  ${
-                    errors.permGewog
-                      ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
+                className={getFieldStyle("permGewog")}
               />
-
-              {/* {errors.permGewog && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.permGewog}
-                </p>
-              )} */}
-            </>
-
             ) : (
               <Select
-                value={isBhutanCountry(data.permCountry, countryOptions) ? data.permGewog : ""}
-                  onValueChange={(value) => {
-                      setData({ ...data, permGewog: value });
-
-                     // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permGewog;
-                        return updated;
-                      });
-                    }
-                  }}
+                value={
+                  isBhutanCountry(data.permCountry, countryOptions)
+                    ? data.permGewog
+                    : ""
+                }
+                onValueChange={(value) => {
+                  setData({ ...data, permGewog: value });
+                  if (!isRequired(value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.permGewog;
+                      return upd;
+                    });
+                }}
                 disabled={!isBhutanCountry(data.permCountry, countryOptions)}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.permGewog
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                >
+                <SelectTrigger className={getFieldStyle("permGewog")}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
                   {permGewogOptions.length > 0 ? (
                     permGewogOptions.map((option, index) => {
-                      const key =
-                        option.gewog_pk_code ||
-                        option.id ||
-                        option.code ||
-                        `perm-gewog-${index}`;
                       const value = String(
                         option.gewog_pk_code ||
                           option.id ||
@@ -2500,9 +3204,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                         option.name ||
                         option.label ||
                         "Unknown";
-
                       return (
-                        <SelectItem key={key} value={value}>
+                        <SelectItem key={value} value={value}>
                           {label}
                         </SelectItem>
                       );
@@ -2523,160 +3226,91 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           <div className="space-y-2.5">
-            <Label
-              htmlFor="permVillage"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               {isBhutanCountry(data.permCountry, countryOptions)
                 ? "Village/Street"
                 : "Street"}{" "}
               <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="permVillage"
               placeholder={
                 isBhutanCountry(data.permCountry, countryOptions)
                   ? "Enter Village/Street"
                   : "Enter Street"
               }
-              // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
               value={data.permVillage || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, permVillage: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permVillage;
-                        return updated;
-                      });
-                    }
-                  }}
-
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                      ${
-                        errors.permVillage
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      }`}
-                                // required
-                                  // className={`form-input ${errors.permVillage ? "border-red-500" : ""}`}
-                      disabled={!data.permCountry}
-                              />
-                    {errors.permVillage && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors.permVillage}
-                      </p>
-                    )}
-  
-            {/* /> */}
+              onChange={(e) => {
+                setData({ ...data, permVillage: e.target.value });
+                if (!isRequired(e.target.value))
+                  setErrors((prev) => {
+                    const upd = { ...prev };
+                    delete upd.permVillage;
+                    return upd;
+                  });
+              }}
+              className={getFieldStyle("permVillage")}
+              disabled={!data.permCountry}
+            />
+            {errors.permVillage && (
+              <p className="text-xs text-red-500 mt-1">{errors.permVillage}</p>
+            )}
           </div>
         </div>
 
-        {/* Conditional grid - show Thram and House only for Bhutan */}
         {isBhutanCountry(data.permCountry, countryOptions) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2.5">
-                <Label
-                  htmlFor="permThram"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  Thram No. <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="permThram"
-                  placeholder="Enter Thram No"
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  value={data.permThram || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, permThram: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permThram;
-                        return updated;
-                      });
-                    }
-                  }}
-
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                      ${
-                        errors.permThram
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      }`}
-                                // required
-                                  // className={`form-input ${errors.permThram ? "border-red-500" : ""}`}
-
-                              />
-                    {errors.permThram && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors.permThram}
-                      </p>
-                    )}
-              </div>
-
-              <div className="space-y-2.5">
-                <Label
-                  htmlFor="permHouse"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  House No. <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="permHouse"
-                  placeholder="Enter House No"
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  value={data.permHouse || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, permHouse: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.permHouse;
-                        return updated;
-                      });
-                    }
-                  }}
-
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                      ${
-                        errors.permHouse
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      }`}
-                                // required
-                                  // className={`form-input ${errors.permHouse ? "border-red-500" : ""}`}
-
-                              />
-                    {errors.permHouse && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors.permHouse}
-                      </p>
-                    )}
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-sm">
+                Thram No. <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                placeholder="Enter Thram No"
+                value={data.permThram || ""}
+                onChange={(e) => {
+                  setData({ ...data, permThram: e.target.value });
+                  if (!isRequired(e.target.value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.permThram;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("permThram")}
+              />
+              {errors.permThram && (
+                <p className="text-xs text-red-500 mt-1">{errors.permThram}</p>
+              )}
             </div>
-          )}
 
-        {/* Document Upload for Non-Bhutan Countries */}
+            <div className="space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-sm">
+                House No. <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                placeholder="Enter House No"
+                value={data.permHouse || ""}
+                onChange={(e) => {
+                  setData({ ...data, permHouse: e.target.value });
+                  if (!isRequired(e.target.value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.permHouse;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("permHouse")}
+              />
+              {errors.permHouse && (
+                <p className="text-xs text-red-500 mt-1">{errors.permHouse}</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {data.permCountry &&
           !isBhutanCountry(data.permCountry, countryOptions) && (
             <div className="space-y-2.5 border-t pt-4">
-              <Label
-                htmlFor="permAddressProof"
-                className="text-gray-800 font-semibold text-sm"
-              >
+              <Label className="text-gray-800 font-semibold text-sm">
                 Upload Address Proof Document{" "}
                 <span className="text-red-500">*</span>
               </Label>
@@ -2714,14 +3348,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </p>
               )}
               <p className="text-xs text-gray-500">
-                Please upload a valid address proof document for non-Bhutan
-                residence. Allowed: PDF, JPG, PNG (Max 5MB)
+                Allowed: PDF, JPG, PNG (Max 5MB)
               </p>
             </div>
           )}
       </div>
 
-      {/* Current/Residential Address */}
+      {/* 4. Current/Residential Address */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           Current/Residential Address
@@ -2729,45 +3362,27 @@ const handleSubmit = async (e: React.FormEvent) => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <div className="space-y-2.5">
-            <Label
-              htmlFor="currCountry"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               Country of Resident <span className="text-red-500">*</span>
             </Label>
             <Select
-            value={data.currCountry || ""}
-            onValueChange={(value) => {
-              setData({ ...data, currCountry: value });
-
-              if (!isRequired(value)) {
-                setErrors((prev) => {
-                  const updated = { ...prev };
-                  delete updated.currCountry;
-                  return updated;
-                });
-              }
-            }}
+              value={data.currCountry || ""}
+              onValueChange={(value) => {
+                setData({ ...data, currCountry: value });
+                if (!isRequired(value))
+                  setErrors((prev) => {
+                    const upd = { ...prev };
+                    delete upd.currCountry;
+                    return upd;
+                  });
+              }}
             >
-              <SelectTrigger 
-              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currCountry
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
+              <SelectTrigger className={getFieldStyle("currCountry")}>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
                 {countryOptions.length > 0 ? (
                   countryOptions.map((option, index) => {
-                    const key =
-                      option.country_pk_code ||
-                      option.id ||
-                      option.code ||
-                      `curr-country-${index}`;
                     const value = String(
                       option.country_pk_code ||
                         option.id ||
@@ -2779,9 +3394,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                       option.name ||
                       option.label ||
                       "Unknown";
-
                     return (
-                      <SelectItem key={key} value={value}>
+                      <SelectItem key={value} value={value}>
                         {label}
                       </SelectItem>
                     );
@@ -2794,15 +3408,12 @@ const handleSubmit = async (e: React.FormEvent) => {
               </SelectContent>
             </Select>
             {errors.currCountry && (
-                <p className="text-xs text-red-500 mt-1">{errors.currCountry}</p>
-              )}
+              <p className="text-xs text-red-500 mt-1">{errors.currCountry}</p>
+            )}
           </div>
 
           <div className="space-y-2.5">
-            <Label
-              htmlFor="currDzongkhag"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               {isBhutanCountry(data.currCountry, countryOptions)
                 ? "Dzongkhag"
                 : "State"}{" "}
@@ -2810,76 +3421,40 @@ const handleSubmit = async (e: React.FormEvent) => {
             </Label>
             {data.currCountry &&
             !isBhutanCountry(data.currCountry, countryOptions) ? (
-             <>
               <Input
-                id="currDzongkhag"
                 placeholder="Enter State"
-                // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 value={data.currDzongkhag || ""}
                 onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, currDzongkhag: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currDzongkhag;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                    ${
-                      errors.currDzongkhag
-                        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
-                  
+                  setData({ ...data, currDzongkhag: e.target.value });
+                  if (!isRequired(e.target.value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.currDzongkhag;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("currDzongkhag")}
               />
-              {errors.currDzongkhag && (
-            <p className="text-xs text-red-500 mt-1">{errors.currDzongkhag}</p>
-          )}
-              </>
             ) : (
               <Select
                 value={data.currDzongkhag || ""}
                 onValueChange={(value) => {
                   setData({ ...data, currDzongkhag: value });
-
-                  if (!isRequired(value)) {
+                  if (!isRequired(value))
                     setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.currDzongkhag;
-                      return updated;
+                      const upd = { ...prev };
+                      delete upd.currDzongkhag;
+                      return upd;
                     });
-                  }
                 }}
                 disabled={!isBhutanCountry(data.currCountry, countryOptions)}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currDzongkhag
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                >
+                <SelectTrigger className={getFieldStyle("currDzongkhag")}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
-              {errors.currDzongkhag && (
-                <p className="text-xs text-red-500 mt-1">{errors.currDzongkhag}</p>
-              )}
                 <SelectContent sideOffset={4}>
                   {dzongkhagOptions.length > 0 ? (
                     dzongkhagOptions.map((option, index) => {
-                      const key =
-                        option.dzongkhag_pk_code ||
-                        option.id ||
-                        option.code ||
-                        `curr-dzo-${index}`;
                       const value = String(
                         option.dzongkhag_pk_code ||
                           option.id ||
@@ -2891,9 +3466,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                         option.name ||
                         option.label ||
                         "Unknown";
-
                       return (
-                        <SelectItem key={key} value={value}>
+                        <SelectItem key={value} value={value}>
                           {label}
                         </SelectItem>
                       );
@@ -2906,13 +3480,15 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </SelectContent>
               </Select>
             )}
+            {errors.currDzongkhag && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.currDzongkhag}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2.5">
-            <Label
-              htmlFor="currGewog"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               {isBhutanCountry(data.currCountry, countryOptions)
                 ? "Gewog"
                 : "Province"}{" "}
@@ -2920,74 +3496,44 @@ const handleSubmit = async (e: React.FormEvent) => {
             </Label>
             {data.currCountry &&
             !isBhutanCountry(data.currCountry, countryOptions) ? (
-              <>
-            <Input
-              id="currGewog"
-              placeholder="Enter Province"
-              value={data.currGewog || ""}
-              onChange={(e) => {
-                const value = e.target.value;
-
-                setData({ ...data, currGewog: value });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.currGewog;
-                    return updated;
-                  });
-                }
-              }}
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currGewog
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-            />
-
-            {errors.currGewog && (
-              <p className="text-xs text-red-500 mt-1">{errors.currGewog}</p>
-            )}
-            </>
+              <Input
+                placeholder="Enter Province"
+                value={data.currGewog || ""}
+                onChange={(e) => {
+                  setData({ ...data, currGewog: e.target.value });
+                  if (!isRequired(e.target.value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.currGewog;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("currGewog")}
+              />
             ) : (
               <Select
-                value={isBhutanCountry(data.currCountry, countryOptions) ? data.currGewog : ""}
+                value={
+                  isBhutanCountry(data.currCountry, countryOptions)
+                    ? data.currGewog
+                    : ""
+                }
                 onValueChange={(value) => {
                   setData({ ...data, currGewog: value });
-
-                  if (!isRequired(value)) {
+                  if (!isRequired(value))
                     setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.currGewog;
-                      return updated;
+                      const upd = { ...prev };
+                      delete upd.currGewog;
+                      return upd;
                     });
-                  }
                 }}
                 disabled={!isBhutanCountry(data.currCountry, countryOptions)}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currGewog
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                >
+                <SelectTrigger className={getFieldStyle("currGewog")}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
-                {errors.currGewog && (
-                <p className="text-xs text-red-500 mt-1">{errors.currGewog}</p>
-              )}
                 <SelectContent sideOffset={4}>
                   {currGewogOptions.length > 0 ? (
                     currGewogOptions.map((option, index) => {
-                      const key =
-                        option.gewog_pk_code ||
-                        option.id ||
-                        option.code ||
-                        `curr-gewog-${index}`;
                       const value = String(
                         option.gewog_pk_code ||
                           option.id ||
@@ -2999,9 +3545,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                         option.name ||
                         option.label ||
                         "Unknown";
-
                       return (
-                        <SelectItem key={key} value={value}>
+                        <SelectItem key={value} value={value}>
                           {label}
                         </SelectItem>
                       );
@@ -3016,21 +3561,19 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </SelectContent>
               </Select>
             )}
+            {errors.currGewog && (
+              <p className="text-xs text-red-500 mt-1">{errors.currGewog}</p>
+            )}
           </div>
 
           <div className="space-y-2.5">
-            <Label
-              htmlFor="currVillage"
-              className="text-gray-800 font-semibold text-sm"
-            >
+            <Label className="text-gray-800 font-semibold text-sm">
               {isBhutanCountry(data.currCountry, countryOptions)
                 ? "Village/Street"
                 : "Street"}{" "}
               <span className="text-red-500">*</span>
             </Label>
-            <>
             <Input
-              id="currVillage"
               placeholder={
                 isBhutanCountry(data.currCountry, countryOptions)
                   ? "Enter Village/Street"
@@ -3038,302 +3581,187 @@ const handleSubmit = async (e: React.FormEvent) => {
               }
               value={data.currVillage || ""}
               onChange={(e) => {
-                const value = e.target.value;
-
-                setData({ ...data, currVillage: value });
-
-                if (!isRequired(value)) {
+                setData({ ...data, currVillage: e.target.value });
+                if (!isRequired(e.target.value))
                   setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.currVillage;
-                    return updated;
+                    const upd = { ...prev };
+                    delete upd.currVillage;
+                    return upd;
                   });
-                }
               }}
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currVillage
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
+              className={getFieldStyle("currVillage")}
               disabled={!data.currCountry}
             />
-
             {errors.currVillage && (
               <p className="text-xs text-red-500 mt-1">{errors.currVillage}</p>
             )}
-            </>
           </div>
         </div>
 
-        {/* Conditional grid layout based on country */}
         {isBhutanCountry(data.currCountry, countryOptions) && (
-            // Updated Grid to accommodate Alternate Contact
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-              <div className="space-y-2.5">
-                <Label
-                  htmlFor="currFlat"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  House/Building/ Flat No{" "}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="currFlat"
-                  placeholder="Enter Flat No"
-                  value={data.currFlat || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-
-                    setData({ ...data, currFlat: value });
-
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currFlat;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                    ${
-                      errors.currFlat
-                        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
-                />
-
-                {errors.currFlat && (
-                  <p className="text-xs text-red-500 mt-1">{errors.currFlat}</p>
-                )}
-              </div>
-
-              <div className="space-y-2.5">
-                <Label
-                  htmlFor="currEmail"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  Email Address <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="currEmail"
-                  type="email"
-                  placeholder="Enter Your Email"
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  value={data.currEmail || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-
-                    setData({ ...data, currEmail: value });
-
-                    if (!isRequired(value) && isEmail(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currEmail;
-                        return updated;
-                      });
-                    }
-                  }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currEmail
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                />
-                {errors.currEmail && (
-                  <p className="text-xs text-red-500 mt-1">{errors.currEmail}</p>
-                )}
-              </div>
-
-              <div className="space-y-2.5">
-                <Label
-                  htmlFor="currContact"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  Contact Number <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="currContact"
-                  placeholder="Enter Contact No"
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  value={data.currContact || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, currContact: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currContact;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                    ${
-                      errors.currContact
-                        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
-                />
-                {errors.currContact && (
-                  <p className="text-xs text-red-500 mt-1">{errors.currContact}</p>
-                )}
-              </div>
-
-              {/* NEW Alternate Contact Field for Bhutan */}
-              <div className="space-y-2.5">
-                <Label
-                  htmlFor="currAlternateContact"
-                  className="text-gray-800 font-semibold text-sm"
-                >
-                  Alternate Contact No
-                </Label>
-                <Input
-                  id="currAlternateContact"
-                  placeholder="Enter Contact No"
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  value={data.currAlternateContact || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, currAlternateContact: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currAlternateContact;
-                        return updated;
-                      });
-                    }
-                  }}
-                />
-
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            <div className="space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-sm">
+                House/Building/ Flat No <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                placeholder="Enter Flat No"
+                value={data.currFlat || ""}
+                onChange={(e) => {
+                  setData({ ...data, currFlat: e.target.value });
+                  if (!isRequired(e.target.value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.currFlat;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("currFlat")}
+              />
+              {errors.currFlat && (
+                <p className="text-xs text-red-500 mt-1">{errors.currFlat}</p>
+              )}
             </div>
-          )}
+
+            <div className="space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-sm">
+                Email Address <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="email"
+                placeholder="Enter Your Email"
+                value={data.currEmail || ""}
+                onChange={(e) => {
+                  setData({ ...data, currEmail: e.target.value });
+                  if (!isRequired(e.target.value) && isEmail(e.target.value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.currEmail;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("currEmail")}
+              />
+              {errors.currEmail && (
+                <p className="text-xs text-red-500 mt-1">{errors.currEmail}</p>
+              )}
+            </div>
+
+            <div className="space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-sm">
+                Contact Number <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                placeholder="Enter Contact No"
+                value={data.currContact || ""}
+                onChange={(e) => {
+                  setData({ ...data, currContact: e.target.value });
+                  if (!isRequired(e.target.value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.currContact;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("currContact")}
+              />
+              {errors.currContact && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.currContact}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-sm">
+                Alternate Contact No
+              </Label>
+              <Input
+                placeholder="Enter Contact No"
+                value={data.currAlternateContact || ""}
+                onChange={(e) =>
+                  setData({ ...data, currAlternateContact: e.target.value })
+                }
+                className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              />
+            </div>
+          </div>
+        )}
 
         {data.currCountry &&
           !isBhutanCountry(data.currCountry, countryOptions) && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2.5">
-                <Label
-                  htmlFor="currEmail"
-                  className="text-gray-800 font-semibold text-sm"
-                >
+                <Label className="text-gray-800 font-semibold text-sm">
                   Email Address <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="currEmail"
                   type="email"
                   placeholder="Enter Your Email"
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.currEmail || ""}
                   onChange={(e) => {
-                    const value = e.target.value;
-
-                    setData({ ...data, currEmail: value });
-
-                    if (!isRequired(value) && isEmail(value)) {
+                    setData({ ...data, currEmail: e.target.value });
+                    if (!isRequired(e.target.value) && isEmail(e.target.value))
                       setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currEmail;
-                        return updated;
+                        const upd = { ...prev };
+                        delete upd.currEmail;
+                        return upd;
                       });
-                    }
                   }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currEmail
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
+                  className={getFieldStyle("currEmail")}
                 />
                 {errors.currEmail && (
-                  <p className="text-xs text-red-500 mt-1">{errors.currEmail}</p>
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.currEmail}
+                  </p>
                 )}
               </div>
 
               <div className="space-y-2.5">
-                <Label
-                  htmlFor="currContact"
-                  className="text-gray-800 font-semibold text-sm"
-                >
+                <Label className="text-gray-800 font-semibold text-sm">
                   Contact Number <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="currContact"
                   placeholder="Enter Contact No"
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.currContact || ""}
                   onChange={(e) => {
-                    const value = e.target.value;
-
-                    setData({ ...data, currEmail: value });
-
-                    if (!isRequired(value) && isEmail(value)) {
+                    setData({ ...data, currContact: e.target.value });
+                    if (!isRequired(e.target.value))
                       setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currEmail;
-                        return updated;
+                        const upd = { ...prev };
+                        delete upd.currContact;
+                        return upd;
                       });
-                    }
                   }}
-                className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.currEmail
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
+                  className={getFieldStyle("currContact")}
                 />
-                {errors.currEmail && (
-                  <p className="text-xs text-red-500 mt-1">{errors.currEmail}</p>
+                {errors.currContact && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.currContact}
+                  </p>
                 )}
               </div>
 
               <div className="space-y-2.5">
-                <Label
-                  htmlFor="currAlternateContact"
-                  className="text-gray-800 font-semibold text-sm"
-                >
+                <Label className="text-gray-800 font-semibold text-sm">
                   Alternate Contact No
                 </Label>
                 <Input
-                  id="currAlternateContact"
                   placeholder="Enter Contact No"
-                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                   value={data.currAlternateContact || ""}
-                  onChange={(e) => {
-                      const value = e.target.value;
-
-                    setData({ ...data, currAlternateContact: value });
-
-                    // Auto clear error when valid
-                    if (!isRequired(value)) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.currAlternateContact;
-                        return updated;
-                      });
-                    }
-                  }}
+                  onChange={(e) =>
+                    setData({ ...data, currAlternateContact: e.target.value })
+                  }
+                  className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 />
               </div>
             </div>
           )}
 
-        {/* Document Upload for Non-Bhutan Countries */}
         {data.currCountry &&
           !isBhutanCountry(data.currCountry, countryOptions) && (
             <div className="space-y-2.5 border-t pt-4">
-              <Label
-                htmlFor="currAddressProof"
-                className="text-gray-800 font-semibold text-sm"
-              >
+              <Label className="text-gray-800 font-semibold text-sm">
                 Upload Address Proof Document{" "}
                 <span className="text-red-500">*</span>
               </Label>
@@ -3371,60 +3799,42 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </p>
               )}
               <p className="text-xs text-gray-500">
-                Please upload a valid address proof document for non-Bhutan
-                residence. Allowed: PDF, JPG, PNG (Max 5MB)
+                Allowed: PDF, JPG, PNG (Max 5MB)
               </p>
             </div>
           )}
       </div>
 
-      {/* PEP Declaration - UPDATED SECTION */}
+      {/* 5. PEP Declaration */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           PEP Declaration
         </h2>
 
-        {/* SELF PEP Question */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 border-b pb-6">
           <div className="space-y-2.5">
-            <Label
-              htmlFor="pepPerson"
-              className="text-gray-800 font-semibold text-sm"
-            >
-              Politically Exposed Person
+            <Label className="text-gray-800 font-semibold text-sm">
+              Politically Exposed Person{" "}
               <span className="text-destructive">*</span>
             </Label>
             <Select
               value={data.pepPerson}
               onValueChange={(value) => {
-                setData((prev: { pepRelated: any; relatedPeps: any; }) => ({
+                setData((prev: any) => ({
                   ...prev,
                   pepPerson: value,
-                  // ✅ If user is PEP → automatically set related to "no"
                   pepRelated: value === "yes" ? "no" : prev.pepRelated,
-                  // ✅ Clear related list if user becomes PEP
                   relatedPeps: value === "yes" ? [] : prev.relatedPeps,
                 }));
-
                 setErrors((prev) => {
-                  const updated = { ...prev };
-                  delete updated.pepPerson;
-                  if (value === "yes") {
-                    delete updated.pepRelated;
-                  }
-                  return updated;
+                  const upd = { ...prev };
+                  delete upd.pepPerson;
+                  if (value === "yes") delete upd.pepRelated;
+                  return upd;
                 });
               }}
             >
-              <SelectTrigger 
-              // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.pepPerson
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-              >
+              <SelectTrigger className={getFieldStyle("pepPerson")}>
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
@@ -3433,73 +3843,45 @@ const handleSubmit = async (e: React.FormEvent) => {
               </SelectContent>
             </Select>
             {errors.pepPerson && (
-                <p className="text-xs text-red-500 mt-1">{errors.pepPerson}</p>
-              )}
+              <p className="text-xs text-red-500 mt-1">{errors.pepPerson}</p>
+            )}
           </div>
 
           {data.pepPerson === "yes" && (
             <>
               <div className="space-y-2.5">
-                <Label
-                  htmlFor="pepCategory"
-                  className="text-gray-800 font-semibold text-sm"
-                >
+                <Label className="text-gray-800 font-semibold text-sm">
                   PEP Category<span className="text-destructive">*</span>
                 </Label>
                 <Select
                   value={data.pepCategory}
-                  // onValueChange={(value) =>
-                  //   setData({ ...data, pepCategory: value, pepSubCategory: "" })
-                  // }
                   onValueChange={(value) => {
-                  setData({
-                    ...data,
-                    pepCategory: value,
-                    pepSubCategory: "",
-                  });
-
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.pepCategory;
-                      return updated;
+                    setData({
+                      ...data,
+                      pepCategory: value,
+                      pepSubCategory: "",
                     });
-                  }
-                }}
+                    if (!isRequired(value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.pepCategory;
+                        return upd;
+                      });
+                  }}
                 >
-                  <SelectTrigger 
-                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.pepCategory
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                  >
+                  <SelectTrigger className={getFieldStyle("pepCategory")}>
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
                     {pepCategoryOptions.length > 0 ? (
                       pepCategoryOptions.map((option, index) => {
-                        const key =
-                          option.pep_category_pk_code ||
-                          option.id ||
-                          option.code ||
-                          `pep-cat-${index}`;
                         const value = String(
-                          option.pep_category_pk_code ||
-                            option.id ||
-                            option.code ||
-                            index,
+                          option.pep_category_pk_code || option.id || index,
                         );
                         const label =
-                          option.pep_category ||
-                          option.name ||
-                          option.label ||
-                          "Unknown";
-
+                          option.pep_category || option.name || "Unknown";
                         return (
-                          <SelectItem key={key} value={value}>
+                          <SelectItem key={value} value={value}>
                             {label}
                           </SelectItem>
                         );
@@ -3512,71 +3894,42 @@ const handleSubmit = async (e: React.FormEvent) => {
                   </SelectContent>
                 </Select>
                 {errors.pepCategory && (
-                <p className="text-xs text-red-500 mt-1">{errors.pepCategory}</p>
-              )}
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.pepCategory}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
-                <Label
-                  htmlFor="pepSubCategory"
-                  className="text-gray-800 font-semibold text-sm"
-                >
+                <Label className="text-gray-800 font-semibold text-sm">
                   PEP Sub Category<span className="text-destructive">*</span>
                 </Label>
                 <Select
                   value={data.pepSubCategory}
-                  // onValueChange={(value) =>
-                  //   setData({ ...data, pepSubCategory: value })
-                  // }
-                 onValueChange={(value) => {
-                  setData({
-                    ...data,
-                    pepSubCategory: value,
-                  });
-
-                  if (!isRequired(value)) {
-                    setErrors((prev) => {
-                      const updated = { ...prev };
-                      delete updated.pepSubCategory;
-                      return updated;
-                    });
-                  }
-                }}
+                  onValueChange={(value) => {
+                    setData({ ...data, pepSubCategory: value });
+                    if (!isRequired(value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.pepSubCategory;
+                        return upd;
+                      });
+                  }}
                   disabled={!data.pepCategory}
                 >
-                  <SelectTrigger 
-                  // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.pepSubCategory
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                  >
+                  <SelectTrigger className={getFieldStyle("pepSubCategory")}>
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
                     {pepSubCategoryOptions.length > 0 ? (
                       pepSubCategoryOptions.map((option, index) => {
-                        const key =
-                          option.pep_sub_category_pk_code ||
-                          option.id ||
-                          option.code ||
-                          `pep-sub-${index}`;
                         const value = String(
-                          option.pep_sub_category_pk_code ||
-                            option.id ||
-                            option.code ||
-                            index,
+                          option.pep_sub_category_pk_code || option.id || index,
                         );
                         const label =
-                          option.pep_sub_category ||
-                          option.name ||
-                          option.label ||
-                          "Unknown";
-
+                          option.pep_sub_category || option.name || "Unknown";
                         return (
-                          <SelectItem key={key} value={value}>
+                          <SelectItem key={value} value={value}>
                             {label}
                           </SelectItem>
                         );
@@ -3591,8 +3944,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                   </SelectContent>
                 </Select>
                 {errors.pepSubCategory && (
-                <p className="text-xs text-red-500 mt-1">{errors.pepSubCategory}</p>
-              )}
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.pepSubCategory}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
@@ -3628,64 +3983,41 @@ const handleSubmit = async (e: React.FormEvent) => {
                     {data.identificationProof || "No file chosen"}
                   </span>
                 </div>
-                {errors.IdentificationProof && (
+                {errors.identificationProof && (
                   <p className="text-xs text-red-500 mt-1">
-                    {errors.IdentificationProof}
+                    {errors.identificationProof}
                   </p>
                 )}
               </div>
-  
             </>
           )}
         </div>
 
-        {/* RELATED PEP Question */}
         {data.pepPerson === "no" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 pt-6">
             <div className="space-y-2.5">
-              <Label
-                htmlFor="pepRelated"
-                className="text-gray-800 font-semibold text-sm"
-              >
-                Are you related to any PEP?
+              <Label className="text-gray-800 font-semibold text-sm">
+                Are you related to any PEP?{" "}
                 <span className="text-destructive">*</span>
               </Label>
               <Select
                 value={data.pepRelated}
-                // onValueChange={(value) =>
-                //   setData({
-                //     ...data,
-                //     pepRelated: value,
-                //     relatedPeps:
-                //       value === "yes" ? [createEmptyRelatedPep()] : [],
-                //   })
-                // }
-
                 onValueChange={(value) => {
-                setData({
-                  ...data,
-                  pepRelated: value,
-                  relatedPepsd: value === "yes" ? [createEmptyRelatedPep()] : [],
-                });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.pepRelated;
-                    return updated;
+                  setData({
+                    ...data,
+                    pepRelated: value,
+                    relatedPeps:
+                      value === "yes" ? [createEmptyRelatedPep()] : [],
                   });
-                }
-              }}
+                  if (!isRequired(value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.pepRelated;
+                      return upd;
+                    });
+                }}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${
-                  errors.pepRelated
-                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                }`}
-                >
+                <SelectTrigger className={getFieldStyle("pepRelated")}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -3700,69 +4032,59 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
         )}
 
-        {/* RELATED PEP MULTIPLE ENTRIES */}
+        {/* COMPREHENSIVE RELATED PEP MULTIPLE ENTRIES */}
         {data.pepRelated === "yes" && (
-          <div className="space-y-6 pt-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-md font-bold text-gray-700">
+          <div className="space-y-8 pt-4">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="text-lg font-bold text-[#003DA5]">
                 Related PEP Details
               </h3>
             </div>
 
-            {relatedPeps.map((pep: any, index: number) => (
+            {(data.relatedPeps || []).map((pep: any, index: number) => (
               <div
                 key={index}
-                className="bg-gray-50 border border-gray-200 rounded-lg p-4 relative"
+                className="bg-gray-50 border border-gray-200 rounded-lg p-6 relative shadow-sm"
               >
-                {/* Remove Button */}
-                <div className="flex justify-between items-center mb-4">
-                  <span className="font-semibold text-sm text-gray-600">
+                <div className="flex justify-between items-center mb-6">
+                  <span className="text-md font-bold text-gray-700">
                     Person {index + 1}
                   </span>
-                  {relatedPeps.length > 1 && (
+                  {(data.relatedPeps || []).length > 1 && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRemoveRelatedPep(index)}
-                      className="h-8 w-8 p-0 hover:bg-red-50"
+                      className="hover:bg-red-50"
                     >
-                      <Trash2 className="h-4 w-4 text-red-500" />
+                      <Trash2 className="h-5 w-5 text-red-500" />
                     </Button>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-2">
+                {/* --- PEP Declaration Information --- */}
+                <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
+                  PEP Declaration Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                   <div className="space-y-2.5">
                     <Label className="text-gray-800 font-semibold text-sm">
                       Relationship <span className="text-destructive">*</span>
                     </Label>
-
                     <Select
                       value={pep.relationship || ""}
-                      onValueChange={(value) => {
-                        handleRelatedPepChange(index, "relationship", value);
-
-                        if (!isRequired(value)) {
-                          setErrors((prev) => {
-                            const updated = { ...prev };
-                            delete updated[`relatedPeps.${index}.relationship`];
-                            return updated;
-                          });
-                        }
-                      }}
+                      onValueChange={(value) =>
+                        handleRelatedPepChange(index, "relationship", value)
+                      }
                     >
                       <SelectTrigger
-                        className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                          ${
-                            errors[`relatedPeps.${index}.relationship`]
-                              ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                              : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                          }`}
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.relationship`,
+                        )}
                       >
                         <SelectValue placeholder="[Select]" />
                       </SelectTrigger>
-
                       <SelectContent sideOffset={4}>
                         <SelectItem value="spouse">Spouse</SelectItem>
                         <SelectItem value="parent">Parent</SelectItem>
@@ -3770,7 +4092,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                         <SelectItem value="child">Child</SelectItem>
                       </SelectContent>
                     </Select>
-
                     {errors[`relatedPeps.${index}.relationship`] && (
                       <p className="text-xs text-red-500 mt-1">
                         {errors[`relatedPeps.${index}.relationship`]}
@@ -3780,94 +4101,31 @@ const handleSubmit = async (e: React.FormEvent) => {
 
                   <div className="space-y-2.5">
                     <Label className="text-gray-800 font-semibold text-sm">
-                      Identification No. <span className="text-red-500">*</span>
-                    </Label>
-                    <>
-                      <Input
-                        placeholder="Enter Identification No"
-                        value={pep.identificationNo || ""}
-                        onChange={(e) => {
-                          const value = e.target.value;
-
-                          handleRelatedPepChange(index, "identificationNo", value);
-
-                          if (!isRequired(value)) {
-                            setErrors((prev) => {
-                              const updated = { ...prev };
-                              delete updated[`relatedPeps.${index}.identificationNo`];
-                              return updated;
-                            });
-                          }
-                        }}
-                        className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                          ${
-                            errors[`relatedPeps.${index}.identificationNo`]
-                              ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                              : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                          }`}
-                      />
-
-                      {errors[`relatedPeps.${index}.identificationNo`] && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors[`relatedPeps.${index}.identificationNo`]}
-                        </p>
-                      )}
-                    </>
-                  </div>
-                  <div className="space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-sm">
                       PEP Category <span className="text-destructive">*</span>
                     </Label>
                     <Select
                       value={pep.category || ""}
-                      // onValueChange={(value) =>
-                      //   handleRelatedPepChange(index, "category", value)
-                      // }
-
-                      onValueChange={(value) => {
-                        handleRelatedPepChange(index, "category", value);
-
-                        if (!isRequired(value)) {
-                          setErrors((prev) => {
-                            const updated = { ...prev };
-                            delete updated[`relatedPeps.${index}.category`];
-                            return updated;
-                          });
-                        }
-                      }}
+                      onValueChange={(value) =>
+                        handleRelatedPepChange(index, "category", value)
+                      }
                     >
-                      <SelectTrigger 
-                      // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                        ${
-                          errors[`relatedPeps.${index}.category`]
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        }`}
+                      <SelectTrigger
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.category`,
+                        )}
                       >
                         <SelectValue placeholder="[Select]" />
                       </SelectTrigger>
                       <SelectContent sideOffset={4}>
                         {pepCategoryOptions.length > 0 ? (
                           pepCategoryOptions.map((option, idx) => {
-                            const key =
-                              option.pep_category_pk_code ||
-                              option.id ||
-                              option.code ||
-                              `pep-cat-${idx}`;
                             const value = String(
-                              option.pep_category_pk_code ||
-                                option.id ||
-                                option.code ||
-                                idx,
+                              option.pep_category_pk_code || option.id || idx,
                             );
                             const label =
-                              option.pep_category ||
-                              option.name ||
-                              option.label ||
-                              "Unknown";
+                              option.pep_category || option.name || "Unknown";
                             return (
-                              <SelectItem key={key} value={value}>
+                              <SelectItem key={value} value={value}>
                                 {label}
                               </SelectItem>
                             );
@@ -3888,59 +4146,37 @@ const handleSubmit = async (e: React.FormEvent) => {
 
                   <div className="space-y-2.5">
                     <Label className="text-gray-800 font-semibold text-sm">
-                      PEP Sub Category
+                      PEP Sub Category{" "}
                       <span className="text-destructive">*</span>
                     </Label>
                     <Select
                       value={pep.subCategory || ""}
-                      // onValueChange={(value) =>
-                      //   handleRelatedPepChange(index, "subCategory", value)
-                      // }
-                      onValueChange={(value) => {
-                        handleRelatedPepChange(index, "subCategory", value);
-
-                        if (!isRequired(value)) {
-                          setErrors((prev) => {
-                            const updated = { ...prev };
-                            delete updated[`relatedPeps.${index}.subCategory`];
-                            return updated;
-                          });
-                        }
-                      }}
+                      onValueChange={(value) =>
+                        handleRelatedPepChange(index, "subCategory", value)
+                      }
                       disabled={!pep.category}
                     >
-                      <SelectTrigger 
-                      // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                      className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                        ${
-                          errors[`relatedPeps.${index}.subCategory`]
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        }`}
+                      <SelectTrigger
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.subCategory`,
+                        )}
                       >
                         <SelectValue placeholder="[Select]" />
                       </SelectTrigger>
                       <SelectContent sideOffset={4}>
                         {relatedPepOptionsMap[index]?.length > 0 ? (
                           relatedPepOptionsMap[index].map((option, idx) => {
-                            const key =
-                              option.pep_sub_category_pk_code ||
-                              option.id ||
-                              option.code ||
-                              `pep-rel-sub-${idx}`;
                             const value = String(
                               option.pep_sub_category_pk_code ||
                                 option.id ||
-                                option.code ||
                                 idx,
                             );
                             const label =
                               option.pep_sub_category ||
                               option.name ||
-                              option.label ||
                               "Unknown";
                             return (
-                              <SelectItem key={key} value={value}>
+                              <SelectItem key={value} value={value}>
                                 {label}
                               </SelectItem>
                             );
@@ -3958,49 +4194,2042 @@ const handleSubmit = async (e: React.FormEvent) => {
                       <p className="text-xs text-red-500 mt-1">
                         {errors[`relatedPeps.${index}.subCategory`]}
                       </p>
-                      )}
+                    )}
                   </div>
-                </div>
 
-                <div className="mt-4 space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-sm">
-                    Upload Identification Proof{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="file"
-                      id={`uploadId-${index}`}
-                      className="hidden"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) =>
-                        handleRelatedPepFileChange(
-                          index,
-                          e.target.files?.[0] || null,
-                        )
-                      }
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-28 bg-white"
-                      onClick={() =>
-                        document.getElementById(`uploadId-${index}`)?.click()
-                      }
-                    >
-                      Choose File
-                    </Button>
-                    <span className="text-sm text-muted-foreground truncate max-w-[200px]">
-                      {pep.identificationProof || "No file chosen"}
-                    </span>
-
-                  </div>
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Upload Identification Proof{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        id={`uploadId-${index}`}
+                        className="hidden"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) =>
+                          handleRelatedPepFileChange(
+                            index,
+                            "identificationProof",
+                            e.target.files?.[0] || null,
+                          )
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-28 bg-white"
+                        onClick={() =>
+                          document.getElementById(`uploadId-${index}`)?.click()
+                        }
+                      >
+                        Choose File
+                      </Button>
+                      <span className="text-sm text-muted-foreground truncate max-w-[150px]">
+                        {pep.identificationProof || "No file chosen"}
+                      </span>
+                    </div>
                     {errors[`relatedPeps.${index}.identificationProof`] && (
                       <p className="text-xs text-red-500 mt-1">
                         {errors[`relatedPeps.${index}.identificationProof`]}
                       </p>
                     )}
+                  </div>
+                </div>
+
+                {/* --- Personal Information --- */}
+                <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
+                  Personal Information
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Identification Type{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={
+                        findPkCodeByLabel(
+                          pep.identificationType,
+                          identificationTypeOptions,
+                          [
+                            "identity_type",
+                            "identification_type",
+                            "name",
+                            "label",
+                          ],
+                        ) || pep.identificationType
+                      }
+                      onValueChange={(value) =>
+                        handleRelatedPepChange(
+                          index,
+                          "identificationType",
+                          value,
+                        )
+                      }
+                    >
+                      <SelectTrigger
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.identificationType`,
+                        )}
+                      >
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent sideOffset={4}>
+                        {identificationTypeOptions.length > 0 ? (
+                          identificationTypeOptions.map((opt, i) => (
+                            <SelectItem
+                              key={i}
+                              value={String(
+                                opt.identity_type_pk_code || opt.id || i,
+                              )}
+                            >
+                              {opt.identity_type ||
+                                opt.identification_type ||
+                                "Unknown"}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            Loading...
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {errors[`relatedPeps.${index}.identificationType`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${index}.identificationType`]}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Identification No. <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder="Enter ID No"
+                      value={pep.identificationNo || ""}
+                      onChange={(e) =>
+                        handleRelatedPepChange(
+                          index,
+                          "identificationNo",
+                          e.target.value,
+                        )
+                      }
+                      className={getFieldStyle(
+                        `relatedPeps.${index}.identificationNo`,
+                      )}
+                    />
+                    {errors[`relatedPeps.${index}.identificationNo`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${index}.identificationNo`]}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Salutation <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={pep.salutation || ""}
+                      onValueChange={(value) =>
+                        handleRelatedPepChange(index, "salutation", value)
+                      }
+                    >
+                      <SelectTrigger
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.salutation`,
+                        )}
+                      >
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent sideOffset={4}>
+                        <SelectItem value="mr">Mr.</SelectItem>
+                        <SelectItem value="mrs">Mrs.</SelectItem>
+                        <SelectItem value="ms">Ms.</SelectItem>
+                        <SelectItem value="dr">Dr.</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {errors[`relatedPeps.${index}.salutation`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${index}.salutation`]}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Applicant Name <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder="Enter Full Name"
+                      value={pep.applicantName || ""}
+                      onChange={(e) => {
+                        let value = e.target.value;
+                        if (!/^[A-Za-z\s]*$/.test(value)) return;
+                        value = capitalizeWords(value);
+                        handleRelatedPepChange(index, "applicantName", value);
+                      }}
+                      className={getFieldStyle(
+                        `relatedPeps.${index}.applicantName`,
+                      )}
+                    />
+                    {errors[`relatedPeps.${index}.applicantName`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${index}.applicantName`]}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Nationality <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={
+                        findPkCodeByLabel(pep.nationality, nationalityOptions, [
+                          "nationality",
+                          "name",
+                          "label",
+                        ]) || pep.nationality
+                      }
+                      onValueChange={(value) =>
+                        handleRelatedPepChange(index, "nationality", value)
+                      }
+                    >
+                      <SelectTrigger
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.nationality`,
+                        )}
+                      >
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent sideOffset={4}>
+                        {nationalityOptions.length > 0 ? (
+                          nationalityOptions.map((opt, i) => (
+                            <SelectItem
+                              key={i}
+                              value={String(
+                                opt.nationality_pk_code || opt.id || i,
+                              )}
+                            >
+                              {opt.nationality || opt.name || "Unknown"}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            Loading...
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {errors[`relatedPeps.${index}.nationality`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${index}.nationality`]}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Gender <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={pep.gender || ""}
+                      onValueChange={(value) =>
+                        handleRelatedPepChange(index, "gender", value)
+                      }
+                    >
+                      <SelectTrigger
+                        className={getFieldStyle(`relatedPeps.${index}.gender`)}
+                      >
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent sideOffset={4}>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {errors[`relatedPeps.${index}.gender`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${index}.gender`]}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Identification Issue Date{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      max={today}
+                      value={pep.identificationIssueDate || ""}
+                      onChange={(e) =>
+                        handleRelatedPepChange(
+                          index,
+                          "identificationIssueDate",
+                          e.target.value,
+                        )
+                      }
+                      className={getFieldStyle(
+                        `relatedPeps.${index}.identificationIssueDate`,
+                      )}
+                    />
+                    {errors[`relatedPeps.${index}.identificationIssueDate`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${index}.identificationIssueDate`]}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Identification Expiry Date{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      min={today}
+                      value={pep.identificationExpiryDate || ""}
+                      onChange={(e) =>
+                        handleRelatedPepChange(
+                          index,
+                          "identificationExpiryDate",
+                          e.target.value,
+                        )
+                      }
+                      className={getFieldStyle(
+                        `relatedPeps.${index}.identificationExpiryDate`,
+                      )}
+                    />
+                    {errors[
+                      `relatedPeps.${index}.identificationExpiryDate`
+                    ] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {
+                          errors[
+                            `relatedPeps.${index}.identificationExpiryDate`
+                          ]
+                        }
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Date of Birth <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      max={maxDobDate}
+                      value={pep.dateOfBirth || ""}
+                      onChange={(e) =>
+                        handleRelatedPepChange(
+                          index,
+                          "dateOfBirth",
+                          e.target.value,
+                        )
+                      }
+                      className={getFieldStyle(
+                        `relatedPeps.${index}.dateOfBirth`,
+                      )}
+                    />
+                    {errors[`relatedPeps.${index}.dateOfBirth`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${index}.dateOfBirth`]}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Tax Identifier Type{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={pep.taxIdentifierType || ""}
+                      onValueChange={(value) =>
+                        handleRelatedPepChange(
+                          index,
+                          "taxIdentifierType",
+                          value,
+                        )
+                      }
+                    >
+                      <SelectTrigger
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.taxIdentifierType`,
+                        )}
+                      >
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent sideOffset={4}>
+                        <SelectItem value="BIT">BIT</SelectItem>
+                        <SelectItem value="GST">GST</SelectItem>
+                        <SelectItem value="CIT">CIT</SelectItem>
+                        <SelectItem value="PIT">PIT</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {errors[`relatedPeps.${index}.taxIdentifierType`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${index}.taxIdentifierType`]}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      TPN No <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder="Enter TPN"
+                      value={pep.tpn || ""}
+                      onChange={(e) =>
+                        handleRelatedPepChange(index, "tpn", e.target.value)
+                      }
+                      className={getFieldStyle(`relatedPeps.${index}.tpn`)}
+                    />
+                    {errors[`relatedPeps.${index}.tpn`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${index}.tpn`]}
+                      </p>
+                    )}
+                  </div>
+
+                  {isNatBhutanese(pep.nationality) && (
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Household Number <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        placeholder="Enter Household No"
+                        value={pep.householdNumber || ""}
+                        onChange={(e) =>
+                          handleRelatedPepChange(
+                            index,
+                            "householdNumber",
+                            e.target.value,
+                          )
+                        }
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.householdNumber`,
+                        )}
+                      />
+                      {errors[`relatedPeps.${index}.householdNumber`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${index}.householdNumber`]}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Marital Status <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={String(pep.maritalStatus || "")}
+                      onValueChange={(value) =>
+                        handleRelatedPepChange(index, "maritalStatus", value)
+                      }
+                    >
+                      <SelectTrigger
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.maritalStatus`,
+                        )}
+                      >
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent sideOffset={4}>
+                        {maritalStatusOptions.length > 0 ? (
+                          maritalStatusOptions.map((opt, i) => (
+                            <SelectItem
+                              key={i}
+                              value={String(
+                                opt.marital_status_pk_code || opt.id || i,
+                              )}
+                            >
+                              {opt.marital_status || opt.name || "Unknown"}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            Loading...
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {errors[`relatedPeps.${index}.maritalStatus`] && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors[`relatedPeps.${index}.maritalStatus`]}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {/* --- Spouse Information --- */}
+                {isMarriedStatus(pep.maritalStatus) && (
+                  <div className="mt-8 border-t border-dashed pt-8">
+                    <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
+                      Spouse Personal Information
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse Identification Type{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={
+                            findPkCodeByLabel(
+                              pep.spouseIdentificationType,
+                              identificationTypeOptions,
+                              ["identity_type", "identification_type", "name"],
+                            ) || pep.spouseIdentificationType
+                          }
+                          onValueChange={(value) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spouseIdentificationType",
+                              value,
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.spouseIdentificationType`,
+                            )}
+                          >
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {identificationTypeOptions.length > 0 ? (
+                              identificationTypeOptions.map((opt, i) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.identity_type_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.identity_type ||
+                                    opt.identification_type ||
+                                    "Unknown"}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="loading" disabled>
+                                Loading...
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {errors[
+                          `relatedPeps.${index}.spouseIdentificationType`
+                        ] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {
+                              errors[
+                                `relatedPeps.${index}.spouseIdentificationType`
+                              ]
+                            }
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse ID No. <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter ID No"
+                          value={pep.spouseIdentificationNo || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spouseIdentificationNo",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.spouseIdentificationNo`,
+                          )}
+                        />
+                        {errors[
+                          `relatedPeps.${index}.spouseIdentificationNo`
+                        ] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {
+                              errors[
+                                `relatedPeps.${index}.spouseIdentificationNo`
+                              ]
+                            }
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse Salutation{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={pep.spouseSalutation || ""}
+                          onValueChange={(value) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spouseSalutation",
+                              value,
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.spouseSalutation`,
+                            )}
+                          >
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            <SelectItem value="mr">Mr.</SelectItem>
+                            <SelectItem value="mrs">Mrs.</SelectItem>
+                            <SelectItem value="ms">Ms.</SelectItem>
+                            <SelectItem value="dr">Dr.</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {errors[`relatedPeps.${index}.spouseSalutation`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.spouseSalutation`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse Name <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter Full Name"
+                          value={pep.spouseName || ""}
+                          onChange={(e) => {
+                            let value = e.target.value;
+                            if (!/^[A-Za-z\s]*$/.test(value)) return;
+                            value = capitalizeWords(value);
+                            handleRelatedPepChange(index, "spouseName", value);
+                          }}
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.spouseName`,
+                          )}
+                        />
+                        {errors[`relatedPeps.${index}.spouseName`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.spouseName`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse Nationality{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={
+                            findPkCodeByLabel(
+                              pep.spouseNationality,
+                              nationalityOptions,
+                              ["nationality", "name"],
+                            ) || pep.spouseNationality
+                          }
+                          onValueChange={(value) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spouseNationality",
+                              value,
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.spouseNationality`,
+                            )}
+                          >
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {nationalityOptions.length > 0 ? (
+                              nationalityOptions.map((opt, i) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.nationality_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.nationality || opt.name || "Unknown"}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="loading" disabled>
+                                Loading...
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {errors[`relatedPeps.${index}.spouseNationality`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.spouseNationality`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse Gender <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={pep.spouseGender || ""}
+                          onValueChange={(value) =>
+                            handleRelatedPepChange(index, "spouseGender", value)
+                          }
+                        >
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.spouseGender`,
+                            )}
+                          >
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {errors[`relatedPeps.${index}.spouseGender`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.spouseGender`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse ID Issue Date{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          type="date"
+                          max={today}
+                          value={pep.spouseIdentificationIssueDate || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spouseIdentificationIssueDate",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.spouseIdentificationIssueDate`,
+                          )}
+                        />
+                        {errors[
+                          `relatedPeps.${index}.spouseIdentificationIssueDate`
+                        ] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {
+                              errors[
+                                `relatedPeps.${index}.spouseIdentificationIssueDate`
+                              ]
+                            }
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse ID Expiry Date{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          type="date"
+                          min={today}
+                          value={pep.spouseIdentificationExpiryDate || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spouseIdentificationExpiryDate",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.spouseIdentificationExpiryDate`,
+                          )}
+                        />
+                        {errors[
+                          `relatedPeps.${index}.spouseIdentificationExpiryDate`
+                        ] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {
+                              errors[
+                                `relatedPeps.${index}.spouseIdentificationExpiryDate`
+                              ]
+                            }
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse Tax Identifier{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={pep.spouseTaxIdentifierType || ""}
+                          onValueChange={(value) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spouseTaxIdentifierType",
+                              value,
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.spouseTaxIdentifierType`,
+                            )}
+                          >
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            <SelectItem value="BIT">BIT</SelectItem>
+                            <SelectItem value="GST">GST</SelectItem>
+                            <SelectItem value="CIT">CIT</SelectItem>
+                            <SelectItem value="PIT">PIT</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {errors[
+                          `relatedPeps.${index}.spouseTaxIdentifierType`
+                        ] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {
+                              errors[
+                                `relatedPeps.${index}.spouseTaxIdentifierType`
+                              ]
+                            }
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse TPN No <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter TPN"
+                          value={pep.spouseTpn || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spouseTpn",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.spouseTpn`,
+                          )}
+                        />
+                        {errors[`relatedPeps.${index}.spouseTpn`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.spouseTpn`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse Date of Birth{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          type="date"
+                          max={maxDobDate}
+                          value={pep.spouseDateOfBirth || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spouseDateOfBirth",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.spouseDateOfBirth`,
+                          )}
+                        />
+                        {errors[`relatedPeps.${index}.spouseDateOfBirth`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.spouseDateOfBirth`]}
+                          </p>
+                        )}
+                      </div>
+
+                      {isNatBhutanese(pep.spouseNationality) && (
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Household Number{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Enter Household No"
+                            value={pep.spouseHouseholdNumber || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                "spouseHouseholdNumber",
+                                e.target.value,
+                              )
+                            }
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.spouseHouseholdNumber`,
+                            )}
+                          />
+                          {errors[
+                            `relatedPeps.${index}.spouseHouseholdNumber`
+                          ] && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {
+                                errors[
+                                  `relatedPeps.${index}.spouseHouseholdNumber`
+                                ]
+                              }
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <h5 className="text-sm font-bold text-gray-700 mb-4">
+                      Spouse Permanent Address
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse Country <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={pep.spousePermCountry || ""}
+                          onValueChange={(value) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spousePermCountry",
+                              value,
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.spousePermCountry`,
+                            )}
+                          >
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {countryOptions.length > 0 ? (
+                              countryOptions.map((opt, i) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.country_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.country || opt.name || "Unknown"}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="loading" disabled>
+                                Loading...
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {errors[`relatedPeps.${index}.spousePermCountry`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.spousePermCountry`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          {isBhutanCountry(
+                            pep.spousePermCountry,
+                            countryOptions,
+                          )
+                            ? "Spouse Dzongkhag"
+                            : "Spouse State"}{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        {pep.spousePermCountry &&
+                        !isBhutanCountry(
+                          pep.spousePermCountry,
+                          countryOptions,
+                        ) ? (
+                          <Input
+                            placeholder="Enter State"
+                            value={pep.spousePermDzongkhag || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                "spousePermDzongkhag",
+                                e.target.value,
+                              )
+                            }
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.spousePermDzongkhag`,
+                            )}
+                          />
+                        ) : (
+                          <Select
+                            value={pep.spousePermDzongkhag || ""}
+                            onValueChange={(value) =>
+                              handleRelatedPepChange(
+                                index,
+                                "spousePermDzongkhag",
+                                value,
+                              )
+                            }
+                            disabled={
+                              !isBhutanCountry(
+                                pep.spousePermCountry,
+                                countryOptions,
+                              )
+                            }
+                          >
+                            <SelectTrigger
+                              className={getFieldStyle(
+                                `relatedPeps.${index}.spousePermDzongkhag`,
+                              )}
+                            >
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              {dzongkhagOptions.length > 0 ? (
+                                dzongkhagOptions.map((opt, i) => (
+                                  <SelectItem
+                                    key={i}
+                                    value={String(
+                                      opt.dzongkhag_pk_code || opt.id || i,
+                                    )}
+                                  >
+                                    {opt.dzongkhag || opt.name || "Unknown"}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="loading" disabled>
+                                  Loading...
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {errors[`relatedPeps.${index}.spousePermDzongkhag`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.spousePermDzongkhag`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          {isBhutanCountry(
+                            pep.spousePermCountry,
+                            countryOptions,
+                          )
+                            ? "Spouse Gewog"
+                            : "Spouse Province"}{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        {pep.spousePermCountry &&
+                        !isBhutanCountry(
+                          pep.spousePermCountry,
+                          countryOptions,
+                        ) ? (
+                          <Input
+                            placeholder="Enter Province"
+                            value={pep.spousePermGewog || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                "spousePermGewog",
+                                e.target.value,
+                              )
+                            }
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.spousePermGewog`,
+                            )}
+                          />
+                        ) : (
+                          <Select
+                            value={pep.spousePermGewog || ""}
+                            onValueChange={(value) =>
+                              handleRelatedPepChange(
+                                index,
+                                "spousePermGewog",
+                                value,
+                              )
+                            }
+                            disabled={
+                              !isBhutanCountry(
+                                pep.spousePermCountry,
+                                countryOptions,
+                              )
+                            }
+                          >
+                            <SelectTrigger
+                              className={getFieldStyle(
+                                `relatedPeps.${index}.spousePermGewog`,
+                              )}
+                            >
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              {relatedPepSpouseGewogMap[index]?.length > 0 ? (
+                                relatedPepSpouseGewogMap[index].map(
+                                  (opt, i) => (
+                                    <SelectItem
+                                      key={i}
+                                      value={String(
+                                        opt.gewog_pk_code || opt.id || i,
+                                      )}
+                                    >
+                                      {opt.gewog || opt.name || "Unknown"}
+                                    </SelectItem>
+                                  ),
+                                )
+                              ) : (
+                                <SelectItem value="loading" disabled>
+                                  {pep.spousePermDzongkhag
+                                    ? "Loading..."
+                                    : "Select Dzongkhag first"}
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {errors[`relatedPeps.${index}.spousePermGewog`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.spousePermGewog`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          {isBhutanCountry(
+                            pep.spousePermCountry,
+                            countryOptions,
+                          )
+                            ? "Spouse Village/Street"
+                            : "Spouse Street"}{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter Location"
+                          value={pep.spousePermVillage || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spousePermVillage",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.spousePermVillage`,
+                          )}
+                          disabled={!pep.spousePermCountry}
+                        />
+                        {errors[`relatedPeps.${index}.spousePermVillage`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.spousePermVillage`]}
+                          </p>
+                        )}
+                      </div>
+
+                      {isBhutanCountry(
+                        pep.spousePermCountry,
+                        countryOptions,
+                      ) && (
+                        <>
+                          <div className="space-y-2.5">
+                            <Label className="text-gray-800 font-semibold text-sm">
+                              Spouse Thram No.{" "}
+                              <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                              placeholder="Enter Thram No"
+                              value={pep.spousePermThram || ""}
+                              onChange={(e) =>
+                                handleRelatedPepChange(
+                                  index,
+                                  "spousePermThram",
+                                  e.target.value,
+                                )
+                              }
+                              className={getFieldStyle(
+                                `relatedPeps.${index}.spousePermThram`,
+                              )}
+                            />
+                            {errors[`relatedPeps.${index}.spousePermThram`] && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors[`relatedPeps.${index}.spousePermThram`]}
+                              </p>
+                            )}
+                          </div>
+                          <div className="space-y-2.5">
+                            <Label className="text-gray-800 font-semibold text-sm">
+                              Spouse House No.{" "}
+                              <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                              placeholder="Enter House No"
+                              value={pep.spousePermHouse || ""}
+                              onChange={(e) =>
+                                handleRelatedPepChange(
+                                  index,
+                                  "spousePermHouse",
+                                  e.target.value,
+                                )
+                              }
+                              className={getFieldStyle(
+                                `relatedPeps.${index}.spousePermHouse`,
+                              )}
+                            />
+                            {errors[`relatedPeps.${index}.spousePermHouse`] && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors[`relatedPeps.${index}.spousePermHouse`]}
+                              </p>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {pep.spousePermCountry &&
+                      !isBhutanCountry(
+                        pep.spousePermCountry,
+                        countryOptions,
+                      ) && (
+                        <div className="space-y-2.5 mb-8">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Upload Address Proof Document{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              id={`spouseProof-${index}`}
+                              className="hidden"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={(e) =>
+                                handleRelatedPepFileChange(
+                                  index,
+                                  "spousePermAddressProof",
+                                  e.target.files?.[0] || null,
+                                )
+                              }
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="w-28 bg-white"
+                              onClick={() =>
+                                document
+                                  .getElementById(`spouseProof-${index}`)
+                                  ?.click()
+                              }
+                            >
+                              Choose File
+                            </Button>
+                            <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                              {pep.spousePermAddressProof || "No file chosen"}
+                            </span>
+                          </div>
+                          {errors[
+                            `relatedPeps.${index}.spousePermAddressProof`
+                          ] && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {
+                                errors[
+                                  `relatedPeps.${index}.spousePermAddressProof`
+                                ]
+                              }
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                    <h5 className="text-sm font-bold text-gray-700 mb-4">
+                      Spouse Contact Information
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse Email <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          type="email"
+                          placeholder="Enter Email"
+                          value={pep.spouseEmail || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spouseEmail",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.spouseEmail`,
+                          )}
+                        />
+                        {errors[`relatedPeps.${index}.spouseEmail`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.spouseEmail`]}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Spouse Contact No.{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter Contact No"
+                          value={pep.spouseContact || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spouseContact",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.spouseContact`,
+                          )}
+                        />
+                        {errors[`relatedPeps.${index}.spouseContact`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.spouseContact`]}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Alternate Contact No.
+                        </Label>
+                        <Input
+                          placeholder="Enter Alternate Contact"
+                          value={pep.spouseAlternateContact || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "spouseAlternateContact",
+                              e.target.value,
+                            )
+                          }
+                          className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* --- PEP Permanent Address --- */}
+                <div className="mt-8 border-t border-dashed pt-8">
+                  <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
+                    Permanent Address
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Country <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={pep.permCountry || ""}
+                        onValueChange={(value) =>
+                          handleRelatedPepChange(index, "permCountry", value)
+                        }
+                      >
+                        <SelectTrigger
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.permCountry`,
+                          )}
+                        >
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          {countryOptions.length > 0 ? (
+                            countryOptions.map((opt, i) => (
+                              <SelectItem
+                                key={i}
+                                value={String(
+                                  opt.country_pk_code || opt.id || i,
+                                )}
+                              >
+                                {opt.country || opt.name || "Unknown"}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="loading" disabled>
+                              Loading...
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {errors[`relatedPeps.${index}.permCountry`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${index}.permCountry`]}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        {isBhutanCountry(pep.permCountry, countryOptions)
+                          ? "Dzongkhag"
+                          : "State"}{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      {pep.permCountry &&
+                      !isBhutanCountry(pep.permCountry, countryOptions) ? (
+                        <Input
+                          placeholder="Enter State"
+                          value={pep.permDzongkhag || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "permDzongkhag",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.permDzongkhag`,
+                          )}
+                        />
+                      ) : (
+                        <Select
+                          value={pep.permDzongkhag || ""}
+                          onValueChange={(value) =>
+                            handleRelatedPepChange(
+                              index,
+                              "permDzongkhag",
+                              value,
+                            )
+                          }
+                          disabled={
+                            !isBhutanCountry(pep.permCountry, countryOptions)
+                          }
+                        >
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.permDzongkhag`,
+                            )}
+                          >
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {dzongkhagOptions.length > 0 ? (
+                              dzongkhagOptions.map((opt, i) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.dzongkhag_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.dzongkhag || opt.name || "Unknown"}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="loading" disabled>
+                                Loading...
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {errors[`relatedPeps.${index}.permDzongkhag`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${index}.permDzongkhag`]}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        {isBhutanCountry(pep.permCountry, countryOptions)
+                          ? "Gewog"
+                          : "Province"}{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      {pep.permCountry &&
+                      !isBhutanCountry(pep.permCountry, countryOptions) ? (
+                        <Input
+                          placeholder="Enter Province"
+                          value={pep.permGewog || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "permGewog",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.permGewog`,
+                          )}
+                        />
+                      ) : (
+                        <Select
+                          value={pep.permGewog || ""}
+                          onValueChange={(value) =>
+                            handleRelatedPepChange(index, "permGewog", value)
+                          }
+                          disabled={
+                            !isBhutanCountry(pep.permCountry, countryOptions)
+                          }
+                        >
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.permGewog`,
+                            )}
+                          >
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {relatedPepPermGewogMap[index]?.length > 0 ? (
+                              relatedPepPermGewogMap[index].map((opt, i) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.gewog_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.gewog || opt.name || "Unknown"}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="loading" disabled>
+                                {pep.permDzongkhag
+                                  ? "Loading..."
+                                  : "Select Dzongkhag first"}
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {errors[`relatedPeps.${index}.permGewog`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${index}.permGewog`]}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        {isBhutanCountry(pep.permCountry, countryOptions)
+                          ? "Village/Street"
+                          : "Street"}{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        placeholder="Enter Location"
+                        value={pep.permVillage || ""}
+                        onChange={(e) =>
+                          handleRelatedPepChange(
+                            index,
+                            "permVillage",
+                            e.target.value,
+                          )
+                        }
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.permVillage`,
+                        )}
+                        disabled={!pep.permCountry}
+                      />
+                      {errors[`relatedPeps.${index}.permVillage`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${index}.permVillage`]}
+                        </p>
+                      )}
+                    </div>
+
+                    {isBhutanCountry(pep.permCountry, countryOptions) && (
+                      <>
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Thram No. <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Enter Thram No"
+                            value={pep.permThram || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                "permThram",
+                                e.target.value,
+                              )
+                            }
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.permThram`,
+                            )}
+                          />
+                          {errors[`relatedPeps.${index}.permThram`] && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors[`relatedPeps.${index}.permThram`]}
+                            </p>
+                          )}
+                        </div>
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            House No. <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Enter House No"
+                            value={pep.permHouse || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                "permHouse",
+                                e.target.value,
+                              )
+                            }
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.permHouse`,
+                            )}
+                          />
+                          {errors[`relatedPeps.${index}.permHouse`] && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors[`relatedPeps.${index}.permHouse`]}
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {pep.permCountry &&
+                    !isBhutanCountry(pep.permCountry, countryOptions) && (
+                      <div className="space-y-2.5 mb-8">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Upload Address Proof Document{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            id={`pepPermProof-${index}`}
+                            className="hidden"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) =>
+                              handleRelatedPepFileChange(
+                                index,
+                                "permAddressProof",
+                                e.target.files?.[0] || null,
+                              )
+                            }
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-28 bg-white"
+                            onClick={() =>
+                              document
+                                .getElementById(`pepPermProof-${index}`)
+                                ?.click()
+                            }
+                          >
+                            Choose File
+                          </Button>
+                          <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                            {pep.permAddressProof || "No file chosen"}
+                          </span>
+                        </div>
+                        {errors[`relatedPeps.${index}.permAddressProof`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.permAddressProof`]}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                </div>
+
+                {/* --- PEP Current/Residential Address --- */}
+                <div className="mt-8 border-t border-dashed pt-8">
+                  <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
+                    Current/Residential Address
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Country <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={pep.currCountry || ""}
+                        onValueChange={(value) =>
+                          handleRelatedPepChange(index, "currCountry", value)
+                        }
+                      >
+                        <SelectTrigger
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.currCountry`,
+                          )}
+                        >
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          {countryOptions.length > 0 ? (
+                            countryOptions.map((opt, i) => (
+                              <SelectItem
+                                key={i}
+                                value={String(
+                                  opt.country_pk_code || opt.id || i,
+                                )}
+                              >
+                                {opt.country || opt.name || "Unknown"}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="loading" disabled>
+                              Loading...
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {errors[`relatedPeps.${index}.currCountry`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${index}.currCountry`]}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        {isBhutanCountry(pep.currCountry, countryOptions)
+                          ? "Dzongkhag"
+                          : "State"}{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      {pep.currCountry &&
+                      !isBhutanCountry(pep.currCountry, countryOptions) ? (
+                        <Input
+                          placeholder="Enter State"
+                          value={pep.currDzongkhag || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "currDzongkhag",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.currDzongkhag`,
+                          )}
+                        />
+                      ) : (
+                        <Select
+                          value={pep.currDzongkhag || ""}
+                          onValueChange={(value) =>
+                            handleRelatedPepChange(
+                              index,
+                              "currDzongkhag",
+                              value,
+                            )
+                          }
+                          disabled={
+                            !isBhutanCountry(pep.currCountry, countryOptions)
+                          }
+                        >
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.currDzongkhag`,
+                            )}
+                          >
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {dzongkhagOptions.length > 0 ? (
+                              dzongkhagOptions.map((opt, i) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.dzongkhag_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.dzongkhag || opt.name || "Unknown"}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="loading" disabled>
+                                Loading...
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {errors[`relatedPeps.${index}.currDzongkhag`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${index}.currDzongkhag`]}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        {isBhutanCountry(pep.currCountry, countryOptions)
+                          ? "Gewog"
+                          : "Province"}{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      {pep.currCountry &&
+                      !isBhutanCountry(pep.currCountry, countryOptions) ? (
+                        <Input
+                          placeholder="Enter Province"
+                          value={pep.currGewog || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "currGewog",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.currGewog`,
+                          )}
+                        />
+                      ) : (
+                        <Select
+                          value={pep.currGewog || ""}
+                          onValueChange={(value) =>
+                            handleRelatedPepChange(index, "currGewog", value)
+                          }
+                          disabled={
+                            !isBhutanCountry(pep.currCountry, countryOptions)
+                          }
+                        >
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              `relatedPeps.${index}.currGewog`,
+                            )}
+                          >
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {relatedPepCurrGewogMap[index]?.length > 0 ? (
+                              relatedPepCurrGewogMap[index].map((opt, i) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.gewog_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.gewog || opt.name || "Unknown"}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="loading" disabled>
+                                {pep.currDzongkhag
+                                  ? "Loading..."
+                                  : "Select Dzongkhag first"}
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {errors[`relatedPeps.${index}.currGewog`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${index}.currGewog`]}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        {isBhutanCountry(pep.currCountry, countryOptions)
+                          ? "Village/Street"
+                          : "Street"}{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        placeholder="Enter Location"
+                        value={pep.currVillage || ""}
+                        onChange={(e) =>
+                          handleRelatedPepChange(
+                            index,
+                            "currVillage",
+                            e.target.value,
+                          )
+                        }
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.currVillage`,
+                        )}
+                        disabled={!pep.currCountry}
+                      />
+                      {errors[`relatedPeps.${index}.currVillage`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${index}.currVillage`]}
+                        </p>
+                      )}
+                    </div>
+
+                    {isBhutanCountry(pep.currCountry, countryOptions) && (
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Flat No. <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter Flat No"
+                          value={pep.currFlat || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              "currFlat",
+                              e.target.value,
+                            )
+                          }
+                          className={getFieldStyle(
+                            `relatedPeps.${index}.currFlat`,
+                          )}
+                        />
+                        {errors[`relatedPeps.${index}.currFlat`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.currFlat`]}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {pep.currCountry &&
+                    !isBhutanCountry(pep.currCountry, countryOptions) && (
+                      <div className="space-y-2.5 mb-8">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Upload Address Proof Document{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            id={`pepCurrProof-${index}`}
+                            className="hidden"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) =>
+                              handleRelatedPepFileChange(
+                                index,
+                                "currAddressProof",
+                                e.target.files?.[0] || null,
+                              )
+                            }
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-28 bg-white"
+                            onClick={() =>
+                              document
+                                .getElementById(`pepCurrProof-${index}`)
+                                ?.click()
+                            }
+                          >
+                            Choose File
+                          </Button>
+                          <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                            {pep.currAddressProof || "No file chosen"}
+                          </span>
+                        </div>
+                        {errors[`relatedPeps.${index}.currAddressProof`] && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors[`relatedPeps.${index}.currAddressProof`]}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                  <h5 className="text-sm font-bold text-gray-700 mb-4">
+                    Contact Information
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Email <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="email"
+                        placeholder="Enter Email"
+                        value={pep.currEmail || ""}
+                        onChange={(e) =>
+                          handleRelatedPepChange(
+                            index,
+                            "currEmail",
+                            e.target.value,
+                          )
+                        }
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.currEmail`,
+                        )}
+                      />
+                      {errors[`relatedPeps.${index}.currEmail`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${index}.currEmail`]}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Contact No. <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        placeholder="Enter Contact No"
+                        value={pep.currContact || ""}
+                        onChange={(e) =>
+                          handleRelatedPepChange(
+                            index,
+                            "currContact",
+                            e.target.value,
+                          )
+                        }
+                        className={getFieldStyle(
+                          `relatedPeps.${index}.currContact`,
+                        )}
+                      />
+                      {errors[`relatedPeps.${index}.currContact`] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors[`relatedPeps.${index}.currContact`]}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Alternate Contact No.
+                      </Label>
+                      <Input
+                        placeholder="Enter Alternate Contact"
+                        value={pep.currAlternateContact || ""}
+                        onChange={(e) =>
+                          handleRelatedPepChange(
+                            index,
+                            "currAlternateContact",
+                            e.target.value,
+                          )
+                        }
+                        className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -4018,43 +6247,28 @@ const handleSubmit = async (e: React.FormEvent) => {
         )}
       </div>
 
-      {/* Related to BIL */}
+      {/* 6. Related to BIL */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           Related to BIL
         </h2>
-
         <div className="space-y-2.5">
-          <Label
-            htmlFor="relatedToBil"
-            className="text-gray-800 font-semibold text-sm"
-          >
+          <Label className="text-gray-800 font-semibold text-sm">
             Related to BIL <span className="text-red-500">*</span>
           </Label>
           <Select
             value={data.relatedToBil}
-            // onValueChange={(value) => setData({ ...data, relatedToBil: value })}
             onValueChange={(value) => {
-                setData({
-                  ...data,
-                  relatedToBil: value,
+              setData({ ...data, relatedToBil: value });
+              if (!isRequired(value))
+                setErrors((prev) => {
+                  const upd = { ...prev };
+                  delete upd.relatedToBil;
+                  return upd;
                 });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.relatedToBil;
-                    return updated;
-                  });
-                }
-              }}
+            }}
           >
-            <SelectTrigger 
-            // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
-                ${errors.relatedToBil ? "border-red-500" : "border-gray-300"}
-                focus:border-[#FF9800] focus:ring-[#FF9800]`}
-            >
+            <SelectTrigger className={getFieldStyle("relatedToBil")}>
               <SelectValue placeholder="Select" />
             </SelectTrigger>
             <SelectContent sideOffset={4}>
@@ -4068,37 +6282,28 @@ const handleSubmit = async (e: React.FormEvent) => {
         </div>
       </div>
 
-      {/* Employment Status */}
+      {/* 7. Employment Status */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           Employment Status
         </h2>
-
         <div className="space-y-4">
           <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
             Employment Status <span className="text-red-500">*</span>
           </Label>
           <RadioGroup
-           className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8 border rounded-md p-3 border-transparent"
-              value={data.employmentStatus}
-              onValueChange={(value) => {
-                setData({ ...data, employmentStatus: value });
-
-                if (!isRequired(value)) {
-                  setErrors((prev) => {
-                    const updated = { ...prev };
-                    delete updated.employmentStatus;
-                    return updated;
-                  });
-                }
-              }}
-              // className={`flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8 border rounded-md p-3
-              //   ${
-              //     errors.employmentStatus
-              //       ? "border-red-500"
-              //       : "border-transparent"
-              //   }`}
-            >
+            className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8 border rounded-md p-3 border-transparent"
+            value={data.employmentStatus}
+            onValueChange={(value) => {
+              setData({ ...data, employmentStatus: value });
+              if (!isRequired(value))
+                setErrors((prev) => {
+                  const upd = { ...prev };
+                  delete upd.employmentStatus;
+                  return upd;
+                });
+            }}
+          >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="employed" id="employed" />
               <Label
@@ -4135,91 +6340,58 @@ const handleSubmit = async (e: React.FormEvent) => {
         </div>
       </div>
 
-      {/* Employment Details */}
+      {/* 8. Employment Details */}
       {data.employmentStatus === "employed" && (
         <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
             Employment Details
           </h2>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             <div className="space-y-2.5">
-              <Label
-                htmlFor="employeeId"
-                className="text-gray-800 font-semibold text-sm"
-              >
+              <Label className="text-gray-800 font-semibold text-sm">
                 Employee ID <span className="text-red-500">*</span>
               </Label>
               <Input
-                id="employeeId"
                 placeholder="Enter ID"
-                // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 value={data.employeeId || ""}
                 onChange={(e) => {
-                const value = e.target.value;
-                setData({ ...data, employeeId: value });
-
-                          if (value.trim() !== "") {
-                            setErrors((prev) => {
-                              const updated = { ...prev };
-                              delete updated.employeeId;
-                              return updated;
-                            });
-                          }
-                        }}
-                        className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                          ${
-                            errors.employeeId
-                              ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                              : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                          }`}
+                  setData({ ...data, employeeId: e.target.value });
+                  if (e.target.value.trim() !== "")
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.employeeId;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("employeeId")}
               />
               {errors.employeeId && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.employeeId}
-                  </p>
-                )}
+                <p className="text-xs text-red-500 mt-1">{errors.employeeId}</p>
+              )}
             </div>
+
             <div className="space-y-2.5">
-              <Label
-                htmlFor="occupation"
-                className="text-gray-800 font-semibold text-sm"
-              >
+              <Label className="text-gray-800 font-semibold text-sm">
                 Occupation <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={data.occupation}
                 onValueChange={(value) => {
-                    setData({ ...data, occupation: value });
-
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.occupation;
-                        return updated;
-                      });
-                    }
-                  }}
+                  setData({ ...data, occupation: value });
+                  if (value)
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.occupation;
+                      return upd;
+                    });
+                }}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                 className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${
-                    errors.occupation
-                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
-                >
+                <SelectTrigger className={getFieldStyle("occupation")}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
                   {occupationOptions.length > 0 ? (
                     occupationOptions.map((option, index) => {
-                      const key =
-                        option.occ_pk_code ||
-                        option.occupation_pk_code ||
-                        option.id ||
-                        `occupation-${index}`;
                       const value = String(
                         option.occ_pk_code ||
                           option.occupation_pk_code ||
@@ -4231,9 +6403,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                         option.occupation ||
                         option.name ||
                         "Unknown";
-
                       return (
-                        <SelectItem key={key} value={label}>
+                        <SelectItem key={value} value={value}>
                           {label}
                         </SelectItem>
                       );
@@ -4246,42 +6417,27 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </SelectContent>
               </Select>
               {errors.occupation && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.occupation}
-                  </p>
-                )}
+                <p className="text-xs text-red-500 mt-1">{errors.occupation}</p>
+              )}
             </div>
 
             <div className="space-y-2.5">
-              <Label
-                htmlFor="employerType"
-                className="text-gray-800 font-semibold text-sm"
-              >
+              <Label className="text-gray-800 font-semibold text-sm">
                 Type of Employer <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={data.employerType}
                 onValueChange={(value) => {
-                    setData({ ...data, employerType: value });
-
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.employerType;
-                        return updated;
-                      });
-                    }
-                  }}
+                  setData({ ...data, employerType: value });
+                  if (value)
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.employerType;
+                      return upd;
+                    });
+                }}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                 className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${
-                    errors.employerType
-                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
-                >
+                <SelectTrigger className={getFieldStyle("employerType")}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -4290,35 +6446,30 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <SelectItem value="corporate">Corporate</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.employerType && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.employerType}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2.5">
-              <Label
-                htmlFor="designation"
-                className="text-gray-800 font-semibold text-sm"
-              >
+              <Label className="text-gray-800 font-semibold text-sm">
                 Designation <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={data.designation}
                 onValueChange={(value) => {
-                    setData({ ...data, designation: value });
-
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.designation;
-                        return updated;
-                      });
-                    }
-                  }}
+                  setData({ ...data, designation: value });
+                  if (value)
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.designation;
+                      return upd;
+                    });
+                }}
               >
-                <SelectTrigger 
-                // className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${errors.designation ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
-                >
+                <SelectTrigger className={getFieldStyle("designation")}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -4328,39 +6479,29 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </SelectContent>
               </Select>
               {errors.designation && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.designation}
-                  </p>
-                )}
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.designation}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2.5">
-              <Label
-                htmlFor="grade"
-                className="text-gray-800 font-semibold text-sm"
-              >
+              <Label className="text-gray-800 font-semibold text-sm">
                 Grade <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={data.grade}
-                // onValueChange={(value) => setData({ ...data, grade: value })}
                 onValueChange={(value) => {
-                    setData({ ...data, grade: value });
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.grade;
-                        return updated;
-                      });
-                    }
-                  }}
+                  setData({ ...data, grade: value });
+                  if (value)
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.grade;
+                      return upd;
+                    });
+                }}
               >
-                <SelectTrigger
-                //  className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${errors.grade ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
-                >
+                <SelectTrigger className={getFieldStyle("grade")}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -4381,52 +6522,32 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </SelectContent>
               </Select>
               {errors.grade && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.grade}
-                  </p>
-                )}
+                <p className="text-xs text-red-500 mt-1">{errors.grade}</p>
+              )}
             </div>
 
             <div className="space-y-2.5">
-              <Label
-                htmlFor="organizationName"
-                className="text-gray-800 font-semibold text-sm"
-              >
+              <Label className="text-gray-800 font-semibold text-sm">
                 Organization Name <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={data.organizationName}
-                // onValueChange={(value) =>
-                //   setData({ ...data, organizationName: value })
-                // }
                 onValueChange={(value) => {
-                    setData({ ...data, organizationName: value });
-                    
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.organizationName;
-                        return updated;
-                      }
-                      );
-                    }
-                  }}
+                  setData({ ...data, organizationName: value });
+                  if (value)
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.organizationName;
+                      return upd;
+                    });
+                }}
               >
-                <SelectTrigger 
-                className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${errors.organizationName ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
-                >
+                <SelectTrigger className={getFieldStyle("organizationName")}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
                   {organizationOptions.length > 0 ? (
                     organizationOptions.map((option, index) => {
-                      const key =
-                        option.lgal_constitution_pk_code ||
-                        option.legal_const_pk_code ||
-                        option.id ||
-                        `org-${index}`;
                       const value = String(
                         option.lgal_constitution_pk_code ||
                           option.legal_const_pk_code ||
@@ -4438,9 +6559,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                         option.legal_const_name ||
                         option.name ||
                         "Unknown";
-
                       return (
-                        <SelectItem key={key} value={value}>
+                        <SelectItem key={value} value={value}>
                           {label}
                         </SelectItem>
                       );
@@ -4453,120 +6573,82 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </SelectContent>
               </Select>
               {errors.organizationName && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.organizationName}
-                  </p>
-                )}
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.organizationName}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2.5">
-              <Label
-                htmlFor="orgLocation"
-                className="text-gray-800 font-semibold text-sm"
-              >
+              <Label className="text-gray-800 font-semibold text-sm">
                 Organization Location <span className="text-red-500">*</span>
               </Label>
               <Input
-                id="orgLocation"
                 placeholder="Enter Full Name"
-                // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 value={data.orgLocation || ""}
-                // onChange={(e) =>
-                //   setData({ ...data, orgLocation: e.target.value })
-                // }
                 onChange={(e) => {
-                    const value = e.target.value;
-                    setData({ ...data, orgLocation: value });
-
-                    if (value.trim() !== "") {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.orgLocation;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                    ${errors.orgLocation ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
+                  setData({ ...data, orgLocation: e.target.value });
+                  if (e.target.value.trim() !== "")
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.orgLocation;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("orgLocation")}
               />
               {errors.orgLocation && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.orgLocation}
-                  </p>
-                )}
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.orgLocation}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2.5">
-              <Label
-                htmlFor="joiningDate"
-                className="text-gray-800 font-semibold text-sm"
-              >
+              <Label className="text-gray-800 font-semibold text-sm">
                 Service Joining Date <span className="text-red-500">*</span>
               </Label>
               <Input
                 type="date"
-                id="joiningDate"
                 max={today}
-                // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                 value={data.joiningDate || ""}
-                // onChange={(e) =>
-                //   setData({ ...data, joiningDate: e.target.value })
-                // }
                 onChange={(e) => {
-                    const value = e.target.value;
-                    setData({ ...data, joiningDate: value });
-
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.joiningDate;
-                        return updated;
-                      });
-                    }
-                  }}
-                  className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                    ${errors.joiningDate ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
+                  setData({ ...data, joiningDate: e.target.value });
+                  if (e.target.value)
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.joiningDate;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("joiningDate")}
               />
               {errors.joiningDate && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.joiningDate}
-                  </p>
-                )}
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.joiningDate}
+                </p>
+              )}
             </div>
-
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
             <div className="space-y-2.5">
-              <Label
-                htmlFor="serviceNature"
-                className="text-gray-800 font-semibold text-sm"
-              >
+              <Label className="text-gray-800 font-semibold text-sm">
                 Nature of Service <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={data.serviceNature}
-                // onValueChange={(value) =>
-                //   setData({ ...data, serviceNature: value })
-                // }
                 onValueChange={(value) => {
-                    setData({ ...data, serviceNature: value });
-
-                    if (value) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.serviceNature;
-                        return updated;
-                      });
-                    } }
-                  }
+                  setData({ ...data, serviceNature: value });
+                  if (value)
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.serviceNature;
+                      return upd;
+                    });
+                }}
               >
-                <SelectTrigger 
-                className={`h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${errors.serviceNature ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}>
+                <SelectTrigger className={getFieldStyle("serviceNature")}>
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
@@ -4576,100 +6658,74 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </SelectContent>
               </Select>
               {errors.serviceNature && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.serviceNature}
-                  </p>
-                )}
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.serviceNature}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2.5">
-              <Label
-                htmlFor="annualSalary"
-                className="text-gray-800 font-semibold text-sm"
-              >
+              <Label className="text-gray-800 font-semibold text-sm">
                 Gross Annual Salary Income{" "}
                 <span className="text-red-500">*</span>
               </Label>
               <Input
                 type="number"
-                id="annualSalary"
                 placeholder="Enter Annual Salary"
-                className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                  ${errors.annualSalary ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  }`}
+                className={getFieldStyle("annualSalary")}
                 value={data.annualSalary || ""}
-                // onChange={(e) =>
-                //   setData({ ...data, annualSalary: e.target.value })
-                // }
                 onChange={(e) => {
-                    const value = e.target.value;
-                    setData({ ...data, annualSalary: value });
-
-                    if (value.trim() !== "" && !isNaN(Number(value))) {
-                      setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.annualSalary;
-                        return updated;
-                      });
-                    }
-                  }}
+                  const value = e.target.value;
+                  setData({ ...data, annualSalary: value });
+                  if (value.trim() !== "" && !isNaN(Number(value)))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.annualSalary;
+                      return upd;
+                    });
+                }}
               />
               {errors.annualSalary && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.annualSalary}
-                  </p>  
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.annualSalary}
+                </p>
               )}
             </div>
           </div>
 
-          {/* Contract End Date - Only visible when Nature of Service is Contract */}
           {data.serviceNature === "contract" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
               <div className="space-y-2.5">
-                <Label
-                  htmlFor="contractEndDate"
-                  className="text-gray-800 font-semibold text-sm"
-                >
+                <Label className="text-gray-800 font-semibold text-sm">
                   Contract End Date <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   type="date"
-                  id="contractEndDate"
                   min={today}
-                  // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  
                   value={data.contractEndDate || ""}
-                  // onChange={(e) =>
-                  //   setData({ ...data, contractEndDate: e.target.value })
-                  // }
                   onChange={(e) => {
-                    const value = e.target.value;
-                    setData({ ...data, contractEndDate: value });
-
-                    if (value) {
+                    setData({ ...data, contractEndDate: e.target.value });
+                    if (e.target.value)
                       setErrors((prev) => {
-                        const updated = { ...prev };
-                        delete updated.contractEndDate;
-                        return updated;
+                        const upd = { ...prev };
+                        delete upd.contractEndDate;
+                        return upd;
                       });
-                    }
                   }}
-                  className={`h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]
-                    ${errors.contractEndDate ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    }`}
-                  // required
+                  className={getFieldStyle("contractEndDate")}
                 />
                 {errors.contractEndDate && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.contractEndDate}
-                    </p>
-                  )}
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.contractEndDate}
+                  </p>
+                )}
               </div>
             </div>
           )}
         </div>
       )}
 
+      {/* Footer Navigation */}
       <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 md:gap-6 pt-3 sm:pt-4">
         <Button
           type="button"

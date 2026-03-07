@@ -56,11 +56,70 @@ const formatDateForInput = (dateString: string | null | undefined) => {
 
 // Initialize empty related PEP entry
 const createEmptyRelatedPep = () => ({
+  // PEP Info
   relationship: "",
   identificationNo: "",
   category: "",
   subCategory: "",
   identificationProof: "",
+
+  // Personal Info
+  identificationType: "",
+  salutation: "",
+  applicantName: "",
+  nationality: "",
+  gender: "",
+  identificationIssueDate: "",
+  identificationExpiryDate: "",
+  dateOfBirth: "",
+  taxIdentifierType: "",
+  tpn: "",
+  householdNumber: "",
+  maritalStatus: "",
+
+  // PEP Permanent Address
+  permCountry: "",
+  permDzongkhag: "",
+  permGewog: "",
+  permVillage: "",
+  permThram: "",
+  permHouse: "",
+  permAddressProof: "",
+
+  // PEP Current Address
+  currCountry: "",
+  currDzongkhag: "",
+  currGewog: "",
+  currVillage: "",
+  currFlat: "",
+  currAddressProof: "",
+  currEmail: "",
+  currContact: "",
+  currAlternateContact: "",
+
+  // Spouse Info
+  spouseIdentificationType: "",
+  spouseIdentificationNo: "",
+  spouseSalutation: "",
+  spouseName: "",
+  spouseNationality: "",
+  spouseGender: "",
+  spouseIdentificationIssueDate: "",
+  spouseIdentificationExpiryDate: "",
+  spouseTaxIdentifierType: "",
+  spouseTpn: "",
+  spouseDateOfBirth: "",
+  spouseHouseholdNumber: "",
+  spousePermCountry: "",
+  spousePermDzongkhag: "",
+  spousePermGewog: "",
+  spousePermVillage: "",
+  spousePermThram: "",
+  spousePermHouse: "",
+  spousePermAddressProof: "",
+  spouseEmail: "",
+  spouseContact: "",
+  spouseAlternateContact: "",
 });
 
 // Initialize empty co-borrower with all required fields
@@ -76,15 +135,37 @@ const createEmptyCoBorrower = () => ({
   identificationExpiryDate: "",
   dateOfBirth: "",
   tpn: "",
+  householdNumber: "",
   relationship: "",
   maritalStatus: "",
-  spouseIdentificationNo: "",
-  spouseName: "",
-  spouseContact: "",
   familyTree: "",
   bankName: "",
   bankAccount: "",
   passportPhoto: "",
+
+  // Spouse Info
+  spouseIdentificationType: "",
+  spouseIdentificationNo: "",
+  spouseSalutation: "",
+  spouseName: "",
+  spouseNationality: "",
+  spouseGender: "",
+  spouseIdentificationIssueDate: "",
+  spouseIdentificationExpiryDate: "",
+  spouseTaxIdentifierType: "",
+  spouseTpn: "",
+  spouseDateOfBirth: "",
+  spouseHouseholdNumber: "",
+  spousePermCountry: "",
+  spousePermDzongkhag: "",
+  spousePermGewog: "",
+  spousePermVillage: "",
+  spousePermThram: "",
+  spousePermHouse: "",
+  spousePermAddressProof: "",
+  spouseEmail: "",
+  spouseContact: "",
+  spouseAlternateContact: "",
 
   // Permanent Address
   permCountry: "",
@@ -137,8 +218,14 @@ const createEmptyCoBorrower = () => ({
   isMarried: false,
   permGewogOptions: [],
   currGewogOptions: [],
+  spousePermGewogOptions: [],
   pepSubCategoryOptions: [],
+
+  // Dynamic Options Maps for Related PEPs
   relatedPepOptionsMap: {},
+  relatedPepSpouseGewogMap: {},
+  relatedPepPermGewogMap: {},
+  relatedPepCurrGewogMap: {},
 
   // Lookup states
   showLookupPopup: false,
@@ -175,7 +262,41 @@ export function CoBorrowerDetailsForm({
   fifteenYearsAgo.setFullYear(fifteenYearsAgo.getFullYear() - 15);
   const maxDobDate = fifteenYearsAgo.toISOString().split("T")[0];
 
-  // --- HELPER: Determine if Married for a specific co-borrower ---
+  // --- HELPER: Nationality Check ---
+  const isNatBhutanese = (nationalityId: string) => {
+    if (!nationalityId) return false;
+    const n = nationalityOptions.find((opt) => {
+      const pkCode = String(
+        opt.nationality_pk_code || opt.id || opt.code || "",
+      );
+      return pkCode === String(nationalityId);
+    });
+    const label = n
+      ? n.nationality || n.name || n.label || ""
+      : String(nationalityId);
+    const lowerLabel = label.toLowerCase();
+    return lowerLabel.includes("bhutan") && !lowerLabel.includes("non");
+  };
+
+  const isBhutanCountry = (countryValue: string, options: any[]): boolean => {
+    if (!countryValue) return false;
+    if (String(countryValue).toLowerCase().includes("bhutan")) return true;
+    const matchedOption = options.find(
+      (c) =>
+        String(c.country_pk_code || c.id || c.code) === String(countryValue),
+    );
+    if (matchedOption) {
+      const label = (
+        matchedOption.country ||
+        matchedOption.name ||
+        ""
+      ).toLowerCase();
+      return label.includes("bhutan");
+    }
+    return false;
+  };
+
+  // --- HELPER: Determine if Married ---
   const getIsMarried = (coBorrower: any) => {
     const status = coBorrower.maritalStatus;
     if (!status) return false;
@@ -210,119 +331,33 @@ export function CoBorrowerDetailsForm({
 
   // --- DATA FETCHING ---
   useEffect(() => {
-    const loadMaritalStatus = async () => {
-      try {
-        const options = await fetchMaritalStatus();
-        setMaritalStatusOptions(options);
-      } catch (error) {
-        setMaritalStatusOptions([
-          { id: "single", name: "Single" },
-          { id: "married", name: "Married" },
-          { id: "divorced", name: "Divorced" },
-          { id: "widowed", name: "Widowed" },
-          { id: "unmarried", name: "Unmarried" },
-        ]);
-      }
-    };
-    loadMaritalStatus();
-
-    const loadBanks = async () => {
-      try {
-        const options = await fetchBanks();
-        setBanksOptions(options);
-      } catch (error) {
-        setBanksOptions([
-          { id: "bob", name: "Bank of Bhutan" },
-          { id: "bnb", name: "Bhutan National Bank" },
-        ]);
-      }
-    };
-    loadBanks();
-
-    const loadNationality = async () => {
-      try {
-        const options = await fetchNationality();
-        setNationalityOptions(options);
-      } catch (error) {
-        setNationalityOptions([
-          { id: "bhutanese", name: "Bhutanese" },
-          { id: "indian", name: "Indian" },
-        ]);
-      }
-    };
-    loadNationality();
-
-    const loadIdentificationType = async () => {
-      try {
-        const options = await fetchIdentificationType();
-        setIdentificationTypeOptions(options);
-      } catch (error) {
-        setIdentificationTypeOptions([
-          { id: "cid", name: "Citizenship ID" },
-          { id: "passport", name: "Passport" },
-        ]);
-      }
-    };
-    loadIdentificationType();
-
-    const loadCountry = async () => {
-      try {
-        const options = await fetchCountry();
-        setCountryOptions(options);
-      } catch (error) {
-        setCountryOptions([
-          { id: "bhutan", name: "Bhutan" },
-          { id: "india", name: "India" },
-        ]);
-      }
-    };
-    loadCountry();
-
-    const loadDzongkhag = async () => {
-      try {
-        const options = await fetchDzongkhag();
-        setDzongkhagOptions(options);
-      } catch (error) {
-        setDzongkhagOptions([
-          { id: "thimphu", name: "Thimphu" },
-          { id: "paro", name: "Paro" },
-        ]);
-      }
-    };
-    loadDzongkhag();
-
-    const loadOccupation = async () => {
-      try {
-        const options = await fetchOccupations();
-        setOccupationOptions(options);
-      } catch (error) {
-        setOccupationOptions([
-          { id: "engineer", name: "Engineer" },
-          { id: "teacher", name: "Teacher" },
-        ]);
-      }
-    };
-    loadOccupation();
-
-    const loadOrganizations = async () => {
-      try {
-        const options = await fetchLegalConstitution();
-        setOrganizationOptions(options);
-      } catch (error) {
-        setOrganizationOptions([{ id: "org1", name: "Organization 1" }]);
-      }
-    };
-    loadOrganizations();
-
-    const loadPepCategories = async () => {
-      try {
-        const options = await fetchPepCategory();
-        setPepCategoryOptions(options || []);
-      } catch (error) {
-        setPepCategoryOptions([]);
-      }
-    };
-    loadPepCategories();
+    fetchMaritalStatus()
+      .then(setMaritalStatusOptions)
+      .catch(() => setMaritalStatusOptions([]));
+    fetchBanks()
+      .then(setBanksOptions)
+      .catch(() => setBanksOptions([]));
+    fetchNationality()
+      .then(setNationalityOptions)
+      .catch(() => setNationalityOptions([]));
+    fetchIdentificationType()
+      .then(setIdentificationTypeOptions)
+      .catch(() => setIdentificationTypeOptions([]));
+    fetchCountry()
+      .then(setCountryOptions)
+      .catch(() => setCountryOptions([]));
+    fetchDzongkhag()
+      .then(setDzongkhagOptions)
+      .catch(() => setDzongkhagOptions([]));
+    fetchOccupations()
+      .then(setOccupationOptions)
+      .catch(() => setOccupationOptions([]));
+    fetchLegalConstitution()
+      .then(setOrganizationOptions)
+      .catch(() => setOrganizationOptions([]));
+    fetchPepCategory()
+      .then(setPepCategoryOptions)
+      .catch(() => setPepCategoryOptions([]));
   }, []);
 
   // Sync with formData when it changes
@@ -360,10 +395,6 @@ export function CoBorrowerDetailsForm({
             };
             needsUpdate = true;
           } catch (error) {
-            console.error(
-              `Failed to load permanent gewogs for co-borrower ${i}:`,
-              error,
-            );
             updatedCoBorrowers[i] = {
               ...updatedCoBorrowers[i],
               permGewogOptions: [],
@@ -399,10 +430,6 @@ export function CoBorrowerDetailsForm({
             };
             needsUpdate = true;
           } catch (error) {
-            console.error(
-              `Failed to load current gewogs for co-borrower ${i}:`,
-              error,
-            );
             updatedCoBorrowers[i] = {
               ...updatedCoBorrowers[i],
               currGewogOptions: [],
@@ -419,6 +446,41 @@ export function CoBorrowerDetailsForm({
     loadCurrGewogs();
   }, [coBorrowers.map((cb) => cb.currDzongkhag).join(",")]);
 
+  // Load spouse perm gewogs for all co-borrowers
+  useEffect(() => {
+    const loadSpousePermGewogs = async () => {
+      const updatedCoBorrowers = [...coBorrowers];
+      let needsUpdate = false;
+
+      for (let i = 0; i < coBorrowers.length; i++) {
+        const coBorrower = coBorrowers[i];
+        if (coBorrower.spousePermDzongkhag) {
+          try {
+            const options = await fetchGewogsByDzongkhag(
+              coBorrower.spousePermDzongkhag,
+            );
+            updatedCoBorrowers[i] = {
+              ...updatedCoBorrowers[i],
+              spousePermGewogOptions: options,
+            };
+            needsUpdate = true;
+          } catch (error) {
+            updatedCoBorrowers[i] = {
+              ...updatedCoBorrowers[i],
+              spousePermGewogOptions: [],
+            };
+            needsUpdate = true;
+          }
+        }
+      }
+
+      if (needsUpdate) {
+        setCoBorrowers(updatedCoBorrowers);
+      }
+    };
+    loadSpousePermGewogs();
+  }, [coBorrowers.map((cb) => cb.spousePermDzongkhag).join(",")]);
+
   // Load PEP sub-categories for SELF PEP
   useEffect(() => {
     const loadPepSubCategories = async () => {
@@ -432,19 +494,12 @@ export function CoBorrowerDetailsForm({
             const options = await fetchPepSubCategoryByCategory(
               coBorrower.pepCategory,
             );
-            if (!options || options.length === 0) {
-              throw new Error("Empty PEP sub-category list");
-            }
             updatedCoBorrowers[i] = {
               ...updatedCoBorrowers[i],
-              pepSubCategoryOptions: options,
+              pepSubCategoryOptions: options || [],
             };
             needsUpdate = true;
           } catch (error) {
-            console.error(
-              `Failed to load PEP sub-categories for co-borrower ${i}:`,
-              error,
-            );
             updatedCoBorrowers[i] = {
               ...updatedCoBorrowers[i],
               pepSubCategoryOptions: [],
@@ -620,22 +675,36 @@ export function CoBorrowerDetailsForm({
         (_: any, i: number) => i !== pepIndex,
       );
 
-      // Cleanup options map
-      const newOptionsMap: Record<number, any[]> = {
-        ...updated[index].relatedPepOptionsMap,
+      // Cleanup options maps
+      const cleanMap = (mapObj: Record<number, any[]>) => {
+        const newMap: Record<number, any[]> = { ...mapObj };
+        Object.keys(newMap).forEach((key) => {
+          const keyNum = parseInt(key);
+          if (keyNum > pepIndex) {
+            newMap[keyNum - 1] = newMap[keyNum];
+            delete newMap[keyNum];
+          } else if (keyNum === pepIndex) {
+            delete newMap[keyNum];
+          }
+        });
+        return newMap;
       };
-      Object.keys(newOptionsMap).forEach((key) => {
-        const keyNum = parseInt(key);
-        if (keyNum > pepIndex) {
-          newOptionsMap[keyNum - 1] = newOptionsMap[keyNum];
-          delete newOptionsMap[keyNum];
-        }
-      });
 
       updated[index] = {
         ...updated[index],
         relatedPeps: updatedPeps,
-        relatedPepOptionsMap: newOptionsMap,
+        relatedPepOptionsMap: cleanMap(
+          updated[index].relatedPepOptionsMap || {},
+        ),
+        relatedPepSpouseGewogMap: cleanMap(
+          updated[index].relatedPepSpouseGewogMap || {},
+        ),
+        relatedPepPermGewogMap: cleanMap(
+          updated[index].relatedPepPermGewogMap || {},
+        ),
+        relatedPepCurrGewogMap: cleanMap(
+          updated[index].relatedPepCurrGewogMap || {},
+        ),
       };
       return updated;
     });
@@ -656,9 +725,9 @@ export function CoBorrowerDetailsForm({
 
       updatedPeps[pepIndex] = { ...updatedPeps[pepIndex], [field]: value };
 
-      // Special logic for Category change -> Fetch Sub Categories
+      // Dynamic Fetches
       if (field === "category") {
-        updatedPeps[pepIndex].subCategory = ""; // Clear sub category
+        updatedPeps[pepIndex].subCategory = "";
         fetchPepSubCategoryByCategory(value)
           .then((options) => {
             setCoBorrowers((current) => {
@@ -673,20 +742,64 @@ export function CoBorrowerDetailsForm({
               return currentUpdated;
             });
           })
-          .catch((e) => {
-            console.error("Failed to fetch PEP sub-categories:", e);
+          .catch(() => {});
+      }
+
+      if (field === "spousePermDzongkhag") {
+        updatedPeps[pepIndex].spousePermGewog = "";
+        fetchGewogsByDzongkhag(value)
+          .then((options) => {
             setCoBorrowers((current) => {
               const currentUpdated = [...current];
               currentUpdated[coBorrowerIndex] = {
                 ...currentUpdated[coBorrowerIndex],
-                relatedPepOptionsMap: {
-                  ...currentUpdated[coBorrowerIndex].relatedPepOptionsMap,
-                  [pepIndex]: [],
+                relatedPepSpouseGewogMap: {
+                  ...currentUpdated[coBorrowerIndex].relatedPepSpouseGewogMap,
+                  [pepIndex]: options || [],
                 },
               };
               return currentUpdated;
             });
-          });
+          })
+          .catch(() => {});
+      }
+
+      if (field === "permDzongkhag") {
+        updatedPeps[pepIndex].permGewog = "";
+        fetchGewogsByDzongkhag(value)
+          .then((options) => {
+            setCoBorrowers((current) => {
+              const currentUpdated = [...current];
+              currentUpdated[coBorrowerIndex] = {
+                ...currentUpdated[coBorrowerIndex],
+                relatedPepPermGewogMap: {
+                  ...currentUpdated[coBorrowerIndex].relatedPepPermGewogMap,
+                  [pepIndex]: options || [],
+                },
+              };
+              return currentUpdated;
+            });
+          })
+          .catch(() => {});
+      }
+
+      if (field === "currDzongkhag") {
+        updatedPeps[pepIndex].currGewog = "";
+        fetchGewogsByDzongkhag(value)
+          .then((options) => {
+            setCoBorrowers((current) => {
+              const currentUpdated = [...current];
+              currentUpdated[coBorrowerIndex] = {
+                ...currentUpdated[coBorrowerIndex],
+                relatedPepCurrGewogMap: {
+                  ...currentUpdated[coBorrowerIndex].relatedPepCurrGewogMap,
+                  [pepIndex]: options || [],
+                },
+              };
+              return currentUpdated;
+            });
+          })
+          .catch(() => {});
       }
 
       updated[coBorrowerIndex] = {
@@ -700,6 +813,7 @@ export function CoBorrowerDetailsForm({
   const handleRelatedPepFileChange = (
     coBorrowerIndex: number,
     pepIndex: number,
+    field: string,
     file: File | null,
   ) => {
     if (file) {
@@ -723,7 +837,7 @@ export function CoBorrowerDetailsForm({
 
         updatedPeps[pepIndex] = {
           ...updatedPeps[pepIndex],
-          identificationProof: file.name,
+          [field]: file.name,
         };
         updated[coBorrowerIndex] = {
           ...updated[coBorrowerIndex],
@@ -758,13 +872,11 @@ export function CoBorrowerDetailsForm({
       : null;
 
     if (issueDate && issueDate > today) {
-      newErrors.identificationIssueDate =
-        "Issue date cannot be in the future";
+      newErrors.identificationIssueDate = "Issue date cannot be in the future";
     }
 
     if (expiryDate && expiryDate < today) {
-      newErrors.identificationExpiryDate =
-        "Expiry date cannot be in the past";
+      newErrors.identificationExpiryDate = "Expiry date cannot be in the past";
     }
 
     if (dobDate) {
@@ -781,12 +893,6 @@ export function CoBorrowerDetailsForm({
       newErrors.identificationExpiryDate =
         "Expiry date must be after issue date";
     }
-
-    console.log("Today:", today);
-    console.log("Issue Date:", issueDate);
-    console.log("Expiry Date:", expiryDate);
-    console.log("DOB Date:", dobDate);
-    console.log("Validation Errors:", newErrors);
 
     return newErrors;
   };
@@ -858,7 +964,6 @@ export function CoBorrowerDetailsForm({
       });
     }
   };
-  
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -869,7 +974,7 @@ export function CoBorrowerDetailsForm({
 
       return {
         ...coBorrower,
-        errors: dateErrors, // 🔥 replace, do NOT merge
+        errors: dateErrors, // replace, do NOT merge
         isMarried: getIsMarried(coBorrower),
       };
     });
@@ -882,15 +987,18 @@ export function CoBorrowerDetailsForm({
 
     if (!hasErrors) {
       const coBorrowerData = { coBorrowers: validatedCoBorrowers };
-      
+
       // Retrieve existing data from sessionStorage
-      const existingData = sessionStorage.getItem('loanApplicationData');
+      const existingData = sessionStorage.getItem("loanApplicationData");
       const allData = existingData ? JSON.parse(existingData) : {};
-      
+
       // Merge and save to sessionStorage
       const updatedData = { ...allData, ...coBorrowerData };
-      sessionStorage.setItem('loanApplicationData', JSON.stringify(updatedData));
-      
+      sessionStorage.setItem(
+        "loanApplicationData",
+        JSON.stringify(updatedData),
+      );
+
       onNext(coBorrowerData);
     }
   };
@@ -1299,6 +1407,32 @@ export function CoBorrowerDetailsForm({
                 required
               />
             </div>
+
+            {/* Conditional Household Number */}
+            {isNatBhutanese(coBorrower.nationality) && (
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`co-householdNumber-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Household Number <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id={`co-householdNumber-${index}`}
+                  placeholder="Enter Household Number"
+                  className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  value={coBorrower.householdNumber || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(
+                      index,
+                      "householdNumber",
+                      e.target.value,
+                    )
+                  }
+                  required
+                />
+              </div>
+            )}
           </div>
 
           {/* Final Status Row */}
@@ -1389,23 +1523,54 @@ export function CoBorrowerDetailsForm({
 
           {/* Conditional Spouse Details Section */}
           {isMarried && (
-            <div className="mt-8 border-t pt-8">
+            <div className="mt-8 border-t pt-8 space-y-6">
               <h3 className="text-lg font-bold text-[#003DA5] mb-4">
                 Spouse Personal Information
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                 <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label
-                    htmlFor={`spouseIdentificationNo-${index}`}
-                    className="text-gray-800 font-semibold text-xs sm:text-sm"
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Identification Type{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={coBorrower.spouseIdentificationType}
+                    onValueChange={(value) =>
+                      updateCoBorrowerField(
+                        index,
+                        "spouseIdentificationType",
+                        value,
+                      )
+                    }
                   >
-                    Spouse CID/ID No. <span className="text-red-500">*</span>
+                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent sideOffset={4}>
+                      {identificationTypeOptions.map((opt, i) => (
+                        <SelectItem
+                          key={i}
+                          value={String(
+                            opt.identity_type_pk_code || opt.id || i,
+                          )}
+                        >
+                          {opt.identity_type ||
+                            opt.identification_type ||
+                            "Unknown"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse ID No. <span className="text-red-500">*</span>
                   </Label>
                   <Input
-                    id={`spouseIdentificationNo-${index}`}
                     placeholder="Enter Spouse CID/ID"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
                     value={coBorrower.spouseIdentificationNo || ""}
                     onChange={(e) =>
                       updateCoBorrowerField(
@@ -1414,50 +1579,560 @@ export function CoBorrowerDetailsForm({
                         e.target.value,
                       )
                     }
-                    required
                   />
                 </div>
 
                 <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label
-                    htmlFor={`spouseName-${index}`}
-                    className="text-gray-800 font-semibold text-xs sm:text-sm"
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Salutation <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={coBorrower.spouseSalutation}
+                    onValueChange={(value) =>
+                      updateCoBorrowerField(index, "spouseSalutation", value)
+                    }
                   >
+                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mr">Mr.</SelectItem>
+                      <SelectItem value="mrs">Mrs.</SelectItem>
+                      <SelectItem value="ms">Ms.</SelectItem>
+                      <SelectItem value="dr">Dr.</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
                     Spouse Name <span className="text-red-500">*</span>
                   </Label>
                   <Input
-                    id={`spouseName-${index}`}
                     placeholder="Enter Spouse Full Name"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
+                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
                     value={coBorrower.spouseName || ""}
                     onChange={(e) =>
                       updateCoBorrowerField(index, "spouseName", e.target.value)
                     }
-                    required
                   />
                 </div>
 
                 <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label
-                    htmlFor={`spouseContact-${index}`}
-                    className="text-gray-800 font-semibold text-xs sm:text-sm"
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Nationality <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={coBorrower.spouseNationality}
+                    onValueChange={(value) =>
+                      updateCoBorrowerField(index, "spouseNationality", value)
+                    }
                   >
-                    Spouse Contact No. <span className="text-red-500">*</span>
+                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {nationalityOptions.map((opt, i) => (
+                        <SelectItem
+                          key={i}
+                          value={String(opt.nationality_pk_code || opt.id || i)}
+                        >
+                          {opt.nationality || opt.name || "Unknown"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Gender <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={coBorrower.spouseGender}
+                    onValueChange={(value) =>
+                      updateCoBorrowerField(index, "spouseGender", value)
+                    }
+                  >
+                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse ID Issue Date <span className="text-red-500">*</span>
                   </Label>
                   <Input
-                    id={`spouseContact-${index}`}
-                    placeholder="Enter Contact Number"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base"
-                    value={coBorrower.spouseContact || ""}
+                    type="date"
+                    max={today}
+                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                    value={coBorrower.spouseIdentificationIssueDate || ""}
                     onChange={(e) =>
                       updateCoBorrowerField(
                         index,
-                        "spouseContact",
+                        "spouseIdentificationIssueDate",
                         e.target.value,
                       )
                     }
-                    required
                   />
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse ID Expiry Date{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    min={today}
+                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                    value={coBorrower.spouseIdentificationExpiryDate || ""}
+                    onChange={(e) =>
+                      updateCoBorrowerField(
+                        index,
+                        "spouseIdentificationExpiryDate",
+                        e.target.value,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Tax Identifier Type{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={coBorrower.spouseTaxIdentifierType}
+                    onValueChange={(value) =>
+                      updateCoBorrowerField(
+                        index,
+                        "spouseTaxIdentifierType",
+                        value,
+                      )
+                    }
+                  >
+                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BIT">BIT</SelectItem>
+                      <SelectItem value="GST">GST</SelectItem>
+                      <SelectItem value="CIT">CIT</SelectItem>
+                      <SelectItem value="PIT">PIT</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse TPN No <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder="Enter TPN"
+                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                    value={coBorrower.spouseTpn || ""}
+                    onChange={(e) =>
+                      updateCoBorrowerField(index, "spouseTpn", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Date of Birth <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    max={maxDobDate}
+                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                    value={coBorrower.spouseDateOfBirth || ""}
+                    onChange={(e) =>
+                      updateCoBorrowerField(
+                        index,
+                        "spouseDateOfBirth",
+                        e.target.value,
+                      )
+                    }
+                  />
+                </div>
+
+                {isNatBhutanese(coBorrower.spouseNationality) && (
+                  <div className="space-y-1.5 sm:space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      Spouse Household Number{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder="Enter Household Number"
+                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                      value={coBorrower.spouseHouseholdNumber || ""}
+                      onChange={(e) =>
+                        updateCoBorrowerField(
+                          index,
+                          "spouseHouseholdNumber",
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Spouse Permanent Address */}
+              <div className="mt-6 pt-6 border-t border-dashed">
+                <h4 className="text-md font-semibold text-gray-700 mb-4">
+                  Spouse Permanent Address
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+                  <div className="space-y-1.5 sm:space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      Spouse Country <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={coBorrower.spousePermCountry}
+                      onValueChange={(value) =>
+                        updateCoBorrowerField(index, "spousePermCountry", value)
+                      }
+                    >
+                      <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countryOptions.map((opt, i) => (
+                          <SelectItem
+                            key={i}
+                            value={String(opt.country_pk_code || opt.id || i)}
+                          >
+                            {opt.country || opt.name || "Unknown"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5 sm:space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      {isBhutanCountry(
+                        coBorrower.spousePermCountry,
+                        countryOptions,
+                      )
+                        ? "Spouse Dzongkhag"
+                        : "Spouse State"}{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    {coBorrower.spousePermCountry &&
+                    !isBhutanCountry(
+                      coBorrower.spousePermCountry,
+                      countryOptions,
+                    ) ? (
+                      <Input
+                        placeholder="Enter State"
+                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                        value={coBorrower.spousePermDzongkhag || ""}
+                        onChange={(e) =>
+                          updateCoBorrowerField(
+                            index,
+                            "spousePermDzongkhag",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    ) : (
+                      <Select
+                        value={coBorrower.spousePermDzongkhag}
+                        onValueChange={(value) =>
+                          updateCoBorrowerField(
+                            index,
+                            "spousePermDzongkhag",
+                            value,
+                          )
+                        }
+                        disabled={
+                          !isBhutanCountry(
+                            coBorrower.spousePermCountry,
+                            countryOptions,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {dzongkhagOptions.map((opt, i) => (
+                            <SelectItem
+                              key={i}
+                              value={String(
+                                opt.dzongkhag_pk_code || opt.id || i,
+                              )}
+                            >
+                              {opt.dzongkhag || opt.name || "Unknown"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 sm:space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      {isBhutanCountry(
+                        coBorrower.spousePermCountry,
+                        countryOptions,
+                      )
+                        ? "Spouse Gewog"
+                        : "Spouse Province"}{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    {coBorrower.spousePermCountry &&
+                    !isBhutanCountry(
+                      coBorrower.spousePermCountry,
+                      countryOptions,
+                    ) ? (
+                      <Input
+                        placeholder="Enter Province"
+                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                        value={coBorrower.spousePermGewog || ""}
+                        onChange={(e) =>
+                          updateCoBorrowerField(
+                            index,
+                            "spousePermGewog",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    ) : (
+                      <Select
+                        value={coBorrower.spousePermGewog}
+                        onValueChange={(value) =>
+                          updateCoBorrowerField(index, "spousePermGewog", value)
+                        }
+                        disabled={
+                          !isBhutanCountry(
+                            coBorrower.spousePermCountry,
+                            countryOptions,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {coBorrower.spousePermGewogOptions?.length > 0 ? (
+                            coBorrower.spousePermGewogOptions.map(
+                              (opt: any, i: number) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.gewog_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.gewog || opt.name || "Unknown"}
+                                </SelectItem>
+                              ),
+                            )
+                          ) : (
+                            <SelectItem value="loading" disabled>
+                              {coBorrower.spousePermDzongkhag
+                                ? "Loading..."
+                                : "Select Dzongkhag first"}
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 sm:space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      {isBhutanCountry(
+                        coBorrower.spousePermCountry,
+                        countryOptions,
+                      )
+                        ? "Spouse Village/Street"
+                        : "Spouse Street"}{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder={
+                        isBhutanCountry(
+                          coBorrower.spousePermCountry,
+                          countryOptions,
+                        )
+                          ? "Enter Village/Street"
+                          : "Enter Street"
+                      }
+                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                      value={coBorrower.spousePermVillage || ""}
+                      onChange={(e) =>
+                        updateCoBorrowerField(
+                          index,
+                          "spousePermVillage",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!coBorrower.spousePermCountry}
+                    />
+                  </div>
+
+                  {isBhutanCountry(
+                    coBorrower.spousePermCountry,
+                    countryOptions,
+                  ) && (
+                    <>
+                      <div className="space-y-1.5 sm:space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                          Spouse Thram No.{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter Thram No"
+                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                          value={coBorrower.spousePermThram || ""}
+                          onChange={(e) =>
+                            updateCoBorrowerField(
+                              index,
+                              "spousePermThram",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5 sm:space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                          Spouse House No.{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter House No"
+                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                          value={coBorrower.spousePermHouse || ""}
+                          onChange={(e) =>
+                            updateCoBorrowerField(
+                              index,
+                              "spousePermHouse",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {coBorrower.spousePermCountry &&
+                  !isBhutanCountry(
+                    coBorrower.spousePermCountry,
+                    countryOptions,
+                  ) && (
+                    <div className="space-y-2.5 mt-4">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Upload Spouse Address Proof Document{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          id={`spousePermAddressProof-${index}`}
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) =>
+                            handleFileChange(
+                              index,
+                              "spousePermAddressProof",
+                              e.target.files?.[0] || null,
+                            )
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-28 bg-transparent"
+                          onClick={() =>
+                            document
+                              .getElementById(`spousePermAddressProof-${index}`)
+                              ?.click()
+                          }
+                        >
+                          Choose File
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          {coBorrower.spousePermAddressProof ||
+                            "No file chosen"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+              </div>
+
+              {/* Spouse Contact Details */}
+              <div className="mt-6 pt-6 border-t border-dashed">
+                <h4 className="text-md font-semibold text-gray-700 mb-4">
+                  Spouse Contact Information
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+                  <div className="space-y-1.5 sm:space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      Spouse Email <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="email"
+                      placeholder="Enter Spouse Email"
+                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                      value={coBorrower.spouseEmail || ""}
+                      onChange={(e) =>
+                        updateCoBorrowerField(
+                          index,
+                          "spouseEmail",
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 sm:space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      Spouse Contact No. <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder="Enter Contact Number"
+                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                      value={coBorrower.spouseContact || ""}
+                      onChange={(e) =>
+                        updateCoBorrowerField(
+                          index,
+                          "spouseContact",
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 sm:space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      Spouse Alternate Contact No.
+                    </Label>
+                    <Input
+                      placeholder="Enter Alternate Contact"
+                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                      value={coBorrower.spouseAlternateContact || ""}
+                      onChange={(e) =>
+                        updateCoBorrowerField(
+                          index,
+                          "spouseAlternateContact",
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1694,26 +2369,13 @@ export function CoBorrowerDetailsForm({
                 htmlFor={`permDzongkhag-${index}`}
                 className="text-gray-800 font-semibold text-sm"
               >
-                {coBorrower.permCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      coBorrower.permCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
+                {isBhutanCountry(coBorrower.permCountry, countryOptions)
                   ? "Dzongkhag"
                   : "State"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
               {coBorrower.permCountry &&
-              !countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    coBorrower.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) ? (
+              !isBhutanCountry(coBorrower.permCountry, countryOptions) ? (
                 <Input
                   id={`permDzongkhag-${index}`}
                   placeholder="Enter State"
@@ -1734,15 +2396,7 @@ export function CoBorrowerDetailsForm({
                     updateCoBorrowerField(index, "permDzongkhag", value)
                   }
                   disabled={
-                    coBorrower.permCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    ) === undefined
+                    !isBhutanCountry(coBorrower.permCountry, countryOptions)
                   }
                 >
                   <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
@@ -1789,26 +2443,13 @@ export function CoBorrowerDetailsForm({
                 htmlFor={`permGewog-${index}`}
                 className="text-gray-800 font-semibold text-sm"
               >
-                {coBorrower.permCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      coBorrower.permCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
+                {isBhutanCountry(coBorrower.permCountry, countryOptions)
                   ? "Gewog"
                   : "Province"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
               {coBorrower.permCountry &&
-              !countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    coBorrower.permCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) ? (
+              !isBhutanCountry(coBorrower.permCountry, countryOptions) ? (
                 <Input
                   id={`permGewog-${index}`}
                   placeholder="Enter Province"
@@ -1821,15 +2462,7 @@ export function CoBorrowerDetailsForm({
               ) : (
                 <Select
                   value={
-                    coBorrower.permCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
+                    isBhutanCountry(coBorrower.permCountry, countryOptions)
                       ? coBorrower.permGewog
                       : ""
                   }
@@ -1837,15 +2470,7 @@ export function CoBorrowerDetailsForm({
                     updateCoBorrowerField(index, "permGewog", value)
                   }
                   disabled={
-                    !coBorrower.permCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.permCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
+                    !isBhutanCountry(coBorrower.permCountry, countryOptions)
                   }
                 >
                   <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
@@ -1896,15 +2521,7 @@ export function CoBorrowerDetailsForm({
                 htmlFor={`permVillage-${index}`}
                 className="text-gray-800 font-semibold text-sm"
               >
-                {coBorrower.permCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      coBorrower.permCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
+                {isBhutanCountry(coBorrower.permCountry, countryOptions)
                   ? "Village/Street"
                   : "Street"}{" "}
                 <span className="text-red-500">*</span>
@@ -1912,15 +2529,7 @@ export function CoBorrowerDetailsForm({
               <Input
                 id={`permVillage-${index}`}
                 placeholder={
-                  coBorrower.permCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        coBorrower.permCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
+                  isBhutanCountry(coBorrower.permCountry, countryOptions)
                     ? "Enter Village/Street"
                     : "Enter Street"
                 }
@@ -1935,82 +2544,49 @@ export function CoBorrowerDetailsForm({
           </div>
 
           {/* Conditional grid - show Thram and House only for Bhutan */}
-          {coBorrower.permCountry &&
-            countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  coBorrower.permCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`permThram-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Thram No. <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`permThram-${index}`}
-                    placeholder="Enter Thram No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.permThram || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(index, "permThram", e.target.value)
-                    }
-                    disabled={
-                      !coBorrower.permCountry ||
-                      !countryOptions.find(
-                        (c) =>
-                          String(c.country_pk_code || c.id || c.code) ===
-                            coBorrower.permCountry &&
-                          (c.country || c.name || "")
-                            .toLowerCase()
-                            .includes("bhutan"),
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`permHouse-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    House No. <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`permHouse-${index}`}
-                    placeholder="Enter House No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.permHouse || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(index, "permHouse", e.target.value)
-                    }
-                    disabled={
-                      !coBorrower.permCountry ||
-                      !countryOptions.find(
-                        (c) =>
-                          String(c.country_pk_code || c.id || c.code) ===
-                            coBorrower.permCountry &&
-                          (c.country || c.name || "")
-                            .toLowerCase()
-                            .includes("bhutan"),
-                      )
-                    }
-                  />
-                </div>
+          {isBhutanCountry(coBorrower.permCountry, countryOptions) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`permThram-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Thram No. <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id={`permThram-${index}`}
+                  placeholder="Enter Thram No"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={coBorrower.permThram || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(index, "permThram", e.target.value)
+                  }
+                />
               </div>
-            )}
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`permHouse-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  House No. <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id={`permHouse-${index}`}
+                  placeholder="Enter House No"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={coBorrower.permHouse || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(index, "permHouse", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+          )}
 
           {/* Document Upload for Non-Bhutan Countries */}
           {coBorrower.permCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  coBorrower.permCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) && (
+            !isBhutanCountry(coBorrower.permCountry, countryOptions) && (
               <div className="space-y-2.5 border-t pt-4">
                 <Label
                   htmlFor={`permAddressProof-${index}`}
@@ -2126,26 +2702,13 @@ export function CoBorrowerDetailsForm({
                 htmlFor={`currDzongkhag-${index}`}
                 className="text-gray-800 font-semibold text-sm"
               >
-                {coBorrower.currCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      coBorrower.currCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
+                {isBhutanCountry(coBorrower.currCountry, countryOptions)
                   ? "Dzongkhag"
                   : "State"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
               {coBorrower.currCountry &&
-              !countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    coBorrower.currCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) ? (
+              !isBhutanCountry(coBorrower.currCountry, countryOptions) ? (
                 <Input
                   id={`currDzongkhag-${index}`}
                   placeholder="Enter State"
@@ -2162,15 +2725,7 @@ export function CoBorrowerDetailsForm({
               ) : (
                 <Select
                   value={
-                    coBorrower.currCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.currCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
+                    isBhutanCountry(coBorrower.currCountry, countryOptions)
                       ? coBorrower.currDzongkhag
                       : ""
                   }
@@ -2178,15 +2733,7 @@ export function CoBorrowerDetailsForm({
                     updateCoBorrowerField(index, "currDzongkhag", value)
                   }
                   disabled={
-                    !coBorrower.currCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.currCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
+                    !isBhutanCountry(coBorrower.currCountry, countryOptions)
                   }
                 >
                   <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
@@ -2233,26 +2780,13 @@ export function CoBorrowerDetailsForm({
                 htmlFor={`currGewog-${index}`}
                 className="text-gray-800 font-semibold text-sm"
               >
-                {coBorrower.currCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      coBorrower.currCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
+                {isBhutanCountry(coBorrower.currCountry, countryOptions)
                   ? "Gewog"
                   : "Province"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
               {coBorrower.currCountry &&
-              !countryOptions.find(
-                (c) =>
-                  String(c.country_pk_code || c.id || c.code) ===
-                    coBorrower.currCountry &&
-                  (c.country || c.name || "").toLowerCase().includes("bhutan"),
-              ) ? (
+              !isBhutanCountry(coBorrower.currCountry, countryOptions) ? (
                 <Input
                   id={`currGewog-${index}`}
                   placeholder="Enter Province"
@@ -2265,15 +2799,7 @@ export function CoBorrowerDetailsForm({
               ) : (
                 <Select
                   value={
-                    coBorrower.currCountry &&
-                    countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.currCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
+                    isBhutanCountry(coBorrower.currCountry, countryOptions)
                       ? coBorrower.currGewog
                       : ""
                   }
@@ -2281,15 +2807,7 @@ export function CoBorrowerDetailsForm({
                     updateCoBorrowerField(index, "currGewog", value)
                   }
                   disabled={
-                    !coBorrower.currCountry ||
-                    !countryOptions.find(
-                      (c) =>
-                        String(c.country_pk_code || c.id || c.code) ===
-                          coBorrower.currCountry &&
-                        (c.country || c.name || "")
-                          .toLowerCase()
-                          .includes("bhutan"),
-                    )
+                    !isBhutanCountry(coBorrower.currCountry, countryOptions)
                   }
                 >
                   <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
@@ -2340,15 +2858,7 @@ export function CoBorrowerDetailsForm({
                 htmlFor={`currVillage-${index}`}
                 className="text-gray-800 font-semibold text-sm"
               >
-                {coBorrower.currCountry &&
-                countryOptions.find(
-                  (c) =>
-                    String(c.country_pk_code || c.id || c.code) ===
-                      coBorrower.currCountry &&
-                    (c.country || c.name || "")
-                      .toLowerCase()
-                      .includes("bhutan"),
-                )
+                {isBhutanCountry(coBorrower.currCountry, countryOptions)
                   ? "Village/Street"
                   : "Street"}{" "}
                 <span className="text-red-500">*</span>
@@ -2356,15 +2866,7 @@ export function CoBorrowerDetailsForm({
               <Input
                 id={`currVillage-${index}`}
                 placeholder={
-                  coBorrower.currCountry &&
-                  countryOptions.find(
-                    (c) =>
-                      String(c.country_pk_code || c.id || c.code) ===
-                        coBorrower.currCountry &&
-                      (c.country || c.name || "")
-                        .toLowerCase()
-                        .includes("bhutan"),
-                  )
+                  isBhutanCountry(coBorrower.currCountry, countryOptions)
                     ? "Enter Village/Street"
                     : "Enter Street"
                 }
@@ -2379,108 +2881,92 @@ export function CoBorrowerDetailsForm({
           </div>
 
           {/* Conditional grid layout based on country */}
-          {coBorrower.currCountry &&
-            countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  coBorrower.currCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) && (
-              // Updated Grid to accommodate Alternate Contact
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`currFlat-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    House/Building/ Flat No{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`currFlat-${index}`}
-                    placeholder="Enter Flat No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.currFlat || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(index, "currFlat", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`currEmail-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Email Address <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`currEmail-${index}`}
-                    type="email"
-                    placeholder="Enter Your Email"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.currEmail || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(index, "currEmail", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`currContact-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Contact Number <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id={`currContact-${index}`}
-                    placeholder="Enter Contact No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.currContact || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(
-                        index,
-                        "currContact",
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                {/* NEW Alternate Contact Field for Bhutan */}
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor={`currAlternateContact-${index}`}
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Alternate Contact No
-                  </Label>
-                  <Input
-                    id={`currAlternateContact-${index}`}
-                    placeholder="Enter Contact No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={coBorrower.currAlternateContact || ""}
-                    onChange={(e) =>
-                      updateCoBorrowerField(
-                        index,
-                        "currAlternateContact",
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
+          {isBhutanCountry(coBorrower.currCountry, countryOptions) && (
+            // Updated Grid to accommodate Alternate Contact
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`currFlat-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  House/Building/ Flat No{" "}
+                  <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id={`currFlat-${index}`}
+                  placeholder="Enter Flat No"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={coBorrower.currFlat || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(index, "currFlat", e.target.value)
+                  }
+                />
               </div>
-            )}
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`currEmail-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Email Address <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id={`currEmail-${index}`}
+                  type="email"
+                  placeholder="Enter Your Email"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={coBorrower.currEmail || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(index, "currEmail", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`currContact-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Contact Number <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id={`currContact-${index}`}
+                  placeholder="Enter Contact No"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={coBorrower.currContact || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(index, "currContact", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor={`currAlternateContact-${index}`}
+                  className="text-gray-800 font-semibold text-sm"
+                >
+                  Alternate Contact No
+                </Label>
+                <Input
+                  id={`currAlternateContact-${index}`}
+                  placeholder="Enter Contact No"
+                  className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                  value={coBorrower.currAlternateContact || ""}
+                  onChange={(e) =>
+                    updateCoBorrowerField(
+                      index,
+                      "currAlternateContact",
+                      e.target.value,
+                    )
+                  }
+                />
+              </div>
+            </div>
+          )}
 
           {coBorrower.currCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  coBorrower.currCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            !isBhutanCountry(coBorrower.currCountry, countryOptions) && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2.5">
                   <Label
                     htmlFor={`currEmail-${index}`}
@@ -2548,12 +3034,7 @@ export function CoBorrowerDetailsForm({
 
           {/* Document Upload for Non-Bhutan Countries */}
           {coBorrower.currCountry &&
-            !countryOptions.find(
-              (c) =>
-                String(c.country_pk_code || c.id || c.code) ===
-                  coBorrower.currCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
-            ) && (
+            !isBhutanCountry(coBorrower.currCountry, countryOptions) && (
               <div className="space-y-2.5 border-t pt-4">
                 <Label
                   htmlFor={`currAddressProof-${index}`}
@@ -2824,9 +3305,9 @@ export function CoBorrowerDetailsForm({
 
           {/* RELATED PEP MULTIPLE ENTRIES */}
           {coBorrower.pepPerson === "no" && coBorrower.pepRelated === "yes" && (
-            <div className="space-y-6 pt-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-md font-bold text-gray-700">
+            <div className="space-y-8 pt-4">
+              <div className="flex justify-between items-center border-b pb-2">
+                <h3 className="text-lg font-bold text-[#003DA5]">
                   Related PEP Details
                 </h3>
               </div>
@@ -2834,11 +3315,11 @@ export function CoBorrowerDetailsForm({
               {relatedPeps.map((pep: any, pepIndex: number) => (
                 <div
                   key={pepIndex}
-                  className="bg-gray-50 border border-gray-200 rounded-lg p-4 relative"
+                  className="bg-gray-50 border border-gray-200 rounded-lg p-6 relative shadow-sm"
                 >
                   {/* Remove Button */}
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="font-semibold text-sm text-gray-600">
+                  <div className="flex justify-between items-center mb-6">
+                    <span className="text-md font-bold text-gray-700">
                       Person {pepIndex + 1}
                     </span>
                     {relatedPeps.length > 1 && (
@@ -2847,18 +3328,21 @@ export function CoBorrowerDetailsForm({
                         variant="ghost"
                         size="sm"
                         onClick={() => handleRemoveRelatedPep(index, pepIndex)}
-                        className="h-8 w-8 p-0 hover:bg-red-50"
+                        className="hover:bg-red-50"
                       >
-                        <Trash2 className="h-4 w-4 text-red-500" />
+                        <Trash2 className="h-5 w-5 text-red-500" />
                       </Button>
                     )}
                   </div>
 
-                  {/* Grid Container for Inputs */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-2 items-start">
+                  {/* --- PEP Declaration Information --- */}
+                  <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
+                    PEP Declaration Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                     {/* 1. Relationship Field */}
                     <div className="space-y-2.5 w-full">
-                      <Label className="text-gray-800 font-semibold text-sm block h-5">
+                      <Label className="text-gray-800 font-semibold text-sm">
                         Relationship <span className="text-destructive">*</span>
                       </Label>
                       <Select
@@ -2872,7 +3356,7 @@ export function CoBorrowerDetailsForm({
                           )
                         }
                       >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
@@ -2884,30 +3368,9 @@ export function CoBorrowerDetailsForm({
                       </Select>
                     </div>
 
-                    {/* 2. Identification No Field - FIXED spacing */}
+                    {/* 2. PEP Category Field */}
                     <div className="space-y-2.5 w-full">
-                      <Label className="text-gray-800 font-semibold text-sm block h-5">
-                        Identification No.{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        placeholder="Enter ID No"
-                        className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        value={pep.identificationNo || ""}
-                        onChange={(e) =>
-                          handleRelatedPepChange(
-                            index,
-                            pepIndex,
-                            "identificationNo",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-
-                    {/* 3. PEP Category Field */}
-                    <div className="space-y-2.5 w-full">
-                      <Label className="text-gray-800 font-semibold text-sm block h-5">
+                      <Label className="text-gray-800 font-semibold text-sm">
                         PEP Category <span className="text-destructive">*</span>
                       </Label>
                       <Select
@@ -2921,7 +3384,7 @@ export function CoBorrowerDetailsForm({
                           )
                         }
                       >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
@@ -2958,9 +3421,9 @@ export function CoBorrowerDetailsForm({
                       </Select>
                     </div>
 
-                    {/* 4. PEP Sub Category Field */}
+                    {/* 3. PEP Sub Category Field */}
                     <div className="space-y-2.5 w-full">
-                      <Label className="text-gray-800 font-semibold text-sm block h-5">
+                      <Label className="text-gray-800 font-semibold text-sm">
                         PEP Sub Category
                         <span className="text-destructive">*</span>
                       </Label>
@@ -2976,7 +3439,7 @@ export function CoBorrowerDetailsForm({
                         }
                         disabled={!pep.category}
                       >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
@@ -3017,43 +3480,1632 @@ export function CoBorrowerDetailsForm({
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* 4. Identification Proof */}
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Upload Identification Proof{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          id={`uploadId-${index}-${pepIndex}`}
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) =>
+                            handleRelatedPepFileChange(
+                              index,
+                              pepIndex,
+                              "identificationProof",
+                              e.target.files?.[0] || null,
+                            )
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-28 bg-white"
+                          onClick={() =>
+                            document
+                              .getElementById(`uploadId-${index}-${pepIndex}`)
+                              ?.click()
+                          }
+                        >
+                          Choose File
+                        </Button>
+                        <span className="text-sm text-muted-foreground truncate max-w-[150px]">
+                          {pep.identificationProof || "No file chosen"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="mt-6 space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-sm">
-                      Upload Identification Proof{" "}
-                      <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        id={`uploadId-${index}-${pepIndex}`}
-                        className="hidden"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) =>
-                          handleRelatedPepFileChange(
+                  {/* --- Personal Information --- */}
+                  <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
+                    Personal Information
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Identification Type{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={pep.identificationType}
+                        onValueChange={(value) =>
+                          handleRelatedPepChange(
                             index,
                             pepIndex,
-                            e.target.files?.[0] || null,
+                            "identificationType",
+                            value,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          {identificationTypeOptions.map((opt, i) => (
+                            <SelectItem
+                              key={i}
+                              value={String(
+                                opt.identity_type_pk_code || opt.id || i,
+                              )}
+                            >
+                              {opt.identity_type ||
+                                opt.identification_type ||
+                                "Unknown"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Identification No.{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        placeholder="Enter ID No"
+                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                        value={pep.identificationNo || ""}
+                        onChange={(e) =>
+                          handleRelatedPepChange(
+                            index,
+                            pepIndex,
+                            "identificationNo",
+                            e.target.value,
                           )
                         }
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-28 bg-white"
-                        onClick={() =>
-                          document
-                            .getElementById(`uploadId-${index}-${pepIndex}`)
-                            ?.click()
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Salutation <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={pep.salutation || ""}
+                        onValueChange={(value) =>
+                          handleRelatedPepChange(
+                            index,
+                            pepIndex,
+                            "salutation",
+                            value,
+                          )
                         }
                       >
-                        Choose File
-                      </Button>
-                      <span className="text-sm text-muted-foreground truncate max-w-[200px]">
-                        {pep.identificationProof || "No file chosen"}
-                      </span>
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          <SelectItem value="mr">Mr.</SelectItem>
+                          <SelectItem value="mrs">Mrs.</SelectItem>
+                          <SelectItem value="ms">Ms.</SelectItem>
+                          <SelectItem value="dr">Dr.</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Applicant Name <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        placeholder="Enter Full Name"
+                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                        value={pep.applicantName || ""}
+                        onChange={(e) =>
+                          handleRelatedPepChange(
+                            index,
+                            pepIndex,
+                            "applicantName",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Nationality <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={pep.nationality}
+                        onValueChange={(value) =>
+                          handleRelatedPepChange(
+                            index,
+                            pepIndex,
+                            "nationality",
+                            value,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          {nationalityOptions.map((opt, i) => (
+                            <SelectItem
+                              key={i}
+                              value={String(
+                                opt.nationality_pk_code || opt.id || i,
+                              )}
+                            >
+                              {opt.nationality || opt.name || "Unknown"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Gender <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={pep.gender || ""}
+                        onValueChange={(value) =>
+                          handleRelatedPepChange(
+                            index,
+                            pepIndex,
+                            "gender",
+                            value,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Identification Issue Date{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="date"
+                        max={today}
+                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                        value={pep.identificationIssueDate || ""}
+                        onChange={(e) =>
+                          handleRelatedPepChange(
+                            index,
+                            pepIndex,
+                            "identificationIssueDate",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Identification Expiry Date{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="date"
+                        min={today}
+                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                        value={pep.identificationExpiryDate || ""}
+                        onChange={(e) =>
+                          handleRelatedPepChange(
+                            index,
+                            pepIndex,
+                            "identificationExpiryDate",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Date of Birth <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="date"
+                        max={maxDobDate}
+                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                        value={pep.dateOfBirth || ""}
+                        onChange={(e) =>
+                          handleRelatedPepChange(
+                            index,
+                            pepIndex,
+                            "dateOfBirth",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Tax Identifier Type{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={pep.taxIdentifierType || ""}
+                        onValueChange={(value) =>
+                          handleRelatedPepChange(
+                            index,
+                            pepIndex,
+                            "taxIdentifierType",
+                            value,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          <SelectItem value="BIT">BIT</SelectItem>
+                          <SelectItem value="GST">GST</SelectItem>
+                          <SelectItem value="CIT">CIT</SelectItem>
+                          <SelectItem value="PIT">PIT</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        TPN No <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        placeholder="Enter TPN"
+                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                        value={pep.tpn || ""}
+                        onChange={(e) =>
+                          handleRelatedPepChange(
+                            index,
+                            pepIndex,
+                            "tpn",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+
+                    {isNatBhutanese(pep.nationality) && (
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Household Number{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter Household No"
+                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                          value={pep.householdNumber || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              pepIndex,
+                              "householdNumber",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    )}
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Marital Status <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={String(pep.maritalStatus || "")}
+                        onValueChange={(value) =>
+                          handleRelatedPepChange(
+                            index,
+                            pepIndex,
+                            "maritalStatus",
+                            value,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          {maritalStatusOptions.map((opt, i) => (
+                            <SelectItem
+                              key={i}
+                              value={String(
+                                opt.marital_status_pk_code || opt.id || i,
+                              )}
+                            >
+                              {opt.marital_status || opt.name || "Unknown"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* --- Spouse Information --- */}
+                  {/* Checks if PEP is married */}
+                  {["married"].includes(
+                    String(pep.maritalStatus).toLowerCase(),
+                  ) && (
+                    <div className="mt-8 border-t border-dashed pt-8">
+                      <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
+                        Spouse Personal Information
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse Identification Type{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Select
+                            value={pep.spouseIdentificationType}
+                            onValueChange={(value) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseIdentificationType",
+                                value,
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              {identificationTypeOptions.map((opt, i) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.identity_type_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.identity_type ||
+                                    opt.identification_type ||
+                                    "Unknown"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse ID No.{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Enter ID No"
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.spouseIdentificationNo || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseIdentificationNo",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse Salutation{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Select
+                            value={pep.spouseSalutation || ""}
+                            onValueChange={(value) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseSalutation",
+                                value,
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              <SelectItem value="mr">Mr.</SelectItem>
+                              <SelectItem value="mrs">Mrs.</SelectItem>
+                              <SelectItem value="ms">Ms.</SelectItem>
+                              <SelectItem value="dr">Dr.</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse Name <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Enter Full Name"
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.spouseName || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseName",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse Nationality{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Select
+                            value={pep.spouseNationality}
+                            onValueChange={(value) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseNationality",
+                                value,
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              {nationalityOptions.map((opt, i) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.nationality_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.nationality || opt.name || "Unknown"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse Gender{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Select
+                            value={pep.spouseGender || ""}
+                            onValueChange={(value) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseGender",
+                                value,
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              <SelectItem value="male">Male</SelectItem>
+                              <SelectItem value="female">Female</SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse ID Issue Date{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            type="date"
+                            max={today}
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.spouseIdentificationIssueDate || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseIdentificationIssueDate",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse ID Expiry Date{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            type="date"
+                            min={today}
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.spouseIdentificationExpiryDate || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseIdentificationExpiryDate",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse Tax Identifier{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Select
+                            value={pep.spouseTaxIdentifierType || ""}
+                            onValueChange={(value) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseTaxIdentifierType",
+                                value,
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              <SelectItem value="BIT">BIT</SelectItem>
+                              <SelectItem value="GST">GST</SelectItem>
+                              <SelectItem value="CIT">CIT</SelectItem>
+                              <SelectItem value="PIT">PIT</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse TPN No{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Enter TPN"
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.spouseTpn || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseTpn",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse Date of Birth{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            type="date"
+                            max={maxDobDate}
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.spouseDateOfBirth || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseDateOfBirth",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+
+                        {isNatBhutanese(pep.spouseNationality) && (
+                          <div className="space-y-2.5">
+                            <Label className="text-gray-800 font-semibold text-sm">
+                              Household Number{" "}
+                              <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                              placeholder="Enter Household No"
+                              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                              value={pep.spouseHouseholdNumber || ""}
+                              onChange={(e) =>
+                                handleRelatedPepChange(
+                                  index,
+                                  pepIndex,
+                                  "spouseHouseholdNumber",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <h5 className="text-sm font-bold text-gray-700 mb-4">
+                        Spouse Permanent Address
+                      </h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse Country{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Select
+                            value={pep.spousePermCountry || ""}
+                            onValueChange={(value) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spousePermCountry",
+                                value,
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              {countryOptions.map((opt, i) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.country_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.country || opt.name || "Unknown"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            {isBhutanCountry(
+                              pep.spousePermCountry,
+                              countryOptions,
+                            )
+                              ? "Spouse Dzongkhag"
+                              : "Spouse State"}{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          {pep.spousePermCountry &&
+                          !isBhutanCountry(
+                            pep.spousePermCountry,
+                            countryOptions,
+                          ) ? (
+                            <Input
+                              placeholder="Enter State"
+                              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                              value={pep.spousePermDzongkhag || ""}
+                              onChange={(e) =>
+                                handleRelatedPepChange(
+                                  index,
+                                  pepIndex,
+                                  "spousePermDzongkhag",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          ) : (
+                            <Select
+                              value={pep.spousePermDzongkhag || ""}
+                              onValueChange={(value) =>
+                                handleRelatedPepChange(
+                                  index,
+                                  pepIndex,
+                                  "spousePermDzongkhag",
+                                  value,
+                                )
+                              }
+                              disabled={
+                                !isBhutanCountry(
+                                  pep.spousePermCountry,
+                                  countryOptions,
+                                )
+                              }
+                            >
+                              <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                                <SelectValue placeholder="[Select]" />
+                              </SelectTrigger>
+                              <SelectContent sideOffset={4}>
+                                {dzongkhagOptions.map((opt, i) => (
+                                  <SelectItem
+                                    key={i}
+                                    value={String(
+                                      opt.dzongkhag_pk_code || opt.id || i,
+                                    )}
+                                  >
+                                    {opt.dzongkhag || opt.name || "Unknown"}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            {isBhutanCountry(
+                              pep.spousePermCountry,
+                              countryOptions,
+                            )
+                              ? "Spouse Gewog"
+                              : "Spouse Province"}{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          {pep.spousePermCountry &&
+                          !isBhutanCountry(
+                            pep.spousePermCountry,
+                            countryOptions,
+                          ) ? (
+                            <Input
+                              placeholder="Enter Province"
+                              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                              value={pep.spousePermGewog || ""}
+                              onChange={(e) =>
+                                handleRelatedPepChange(
+                                  index,
+                                  pepIndex,
+                                  "spousePermGewog",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          ) : (
+                            <Select
+                              value={pep.spousePermGewog || ""}
+                              onValueChange={(value) =>
+                                handleRelatedPepChange(
+                                  index,
+                                  pepIndex,
+                                  "spousePermGewog",
+                                  value,
+                                )
+                              }
+                              disabled={
+                                !isBhutanCountry(
+                                  pep.spousePermCountry,
+                                  countryOptions,
+                                )
+                              }
+                            >
+                              <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                                <SelectValue placeholder="[Select]" />
+                              </SelectTrigger>
+                              <SelectContent sideOffset={4}>
+                                {coBorrower.relatedPepSpouseGewogMap?.[pepIndex]
+                                  ?.length > 0 ? (
+                                  coBorrower.relatedPepSpouseGewogMap[
+                                    pepIndex
+                                  ].map((opt: any, i: number) => (
+                                    <SelectItem
+                                      key={i}
+                                      value={String(
+                                        opt.gewog_pk_code || opt.id || i,
+                                      )}
+                                    >
+                                      {opt.gewog || opt.name || "Unknown"}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="loading" disabled>
+                                    {pep.spousePermDzongkhag
+                                      ? "Loading..."
+                                      : "Select Dzongkhag first"}
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            {isBhutanCountry(
+                              pep.spousePermCountry,
+                              countryOptions,
+                            )
+                              ? "Spouse Village/Street"
+                              : "Spouse Street"}{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Enter Location"
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.spousePermVillage || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spousePermVillage",
+                                e.target.value,
+                              )
+                            }
+                            disabled={!pep.spousePermCountry}
+                          />
+                        </div>
+
+                        {isBhutanCountry(
+                          pep.spousePermCountry,
+                          countryOptions,
+                        ) && (
+                          <>
+                            <div className="space-y-2.5">
+                              <Label className="text-gray-800 font-semibold text-sm">
+                                Spouse Thram No.{" "}
+                                <span className="text-red-500">*</span>
+                              </Label>
+                              <Input
+                                placeholder="Enter Thram No"
+                                className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                                value={pep.spousePermThram || ""}
+                                onChange={(e) =>
+                                  handleRelatedPepChange(
+                                    index,
+                                    pepIndex,
+                                    "spousePermThram",
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2.5">
+                              <Label className="text-gray-800 font-semibold text-sm">
+                                Spouse House No.{" "}
+                                <span className="text-red-500">*</span>
+                              </Label>
+                              <Input
+                                placeholder="Enter House No"
+                                className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                                value={pep.spousePermHouse || ""}
+                                onChange={(e) =>
+                                  handleRelatedPepChange(
+                                    index,
+                                    pepIndex,
+                                    "spousePermHouse",
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {pep.spousePermCountry &&
+                        !isBhutanCountry(
+                          pep.spousePermCountry,
+                          countryOptions,
+                        ) && (
+                          <div className="space-y-2.5 mb-8">
+                            <Label className="text-gray-800 font-semibold text-sm">
+                              Upload Address Proof Document{" "}
+                              <span className="text-red-500">*</span>
+                            </Label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="file"
+                                id={`spouseProof-${index}-${pepIndex}`}
+                                className="hidden"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) =>
+                                  handleRelatedPepFileChange(
+                                    index,
+                                    pepIndex,
+                                    "spousePermAddressProof",
+                                    e.target.files?.[0] || null,
+                                  )
+                                }
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-28 bg-white"
+                                onClick={() =>
+                                  document
+                                    .getElementById(
+                                      `spouseProof-${index}-${pepIndex}`,
+                                    )
+                                    ?.click()
+                                }
+                              >
+                                Choose File
+                              </Button>
+                              <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                {pep.spousePermAddressProof || "No file chosen"}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                      <h5 className="text-sm font-bold text-gray-700 mb-4">
+                        Spouse Contact Information
+                      </h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse Email <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            type="email"
+                            placeholder="Enter Email"
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.spouseEmail || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseEmail",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Spouse Contact No.{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Enter Contact No"
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.spouseContact || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseContact",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Alternate Contact No.
+                          </Label>
+                          <Input
+                            placeholder="Enter Alternate Contact"
+                            className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                            value={pep.spouseAlternateContact || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "spouseAlternateContact",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* --- PEP Permanent Address --- */}
+                  <div className="mt-8 border-t border-dashed pt-8">
+                    <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
+                      Permanent Address
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Country <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={pep.permCountry || ""}
+                          onValueChange={(value) =>
+                            handleRelatedPepChange(
+                              index,
+                              pepIndex,
+                              "permCountry",
+                              value,
+                            )
+                          }
+                        >
+                          <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {countryOptions.map((opt, i) => (
+                              <SelectItem
+                                key={i}
+                                value={String(
+                                  opt.country_pk_code || opt.id || i,
+                                )}
+                              >
+                                {opt.country || opt.name || "Unknown"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          {isBhutanCountry(pep.permCountry, countryOptions)
+                            ? "Dzongkhag"
+                            : "State"}{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        {pep.permCountry &&
+                        !isBhutanCountry(pep.permCountry, countryOptions) ? (
+                          <Input
+                            placeholder="Enter State"
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.permDzongkhag || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "permDzongkhag",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        ) : (
+                          <Select
+                            value={pep.permDzongkhag || ""}
+                            onValueChange={(value) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "permDzongkhag",
+                                value,
+                              )
+                            }
+                            disabled={
+                              !isBhutanCountry(pep.permCountry, countryOptions)
+                            }
+                          >
+                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              {dzongkhagOptions.map((opt, i) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.dzongkhag_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.dzongkhag || opt.name || "Unknown"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          {isBhutanCountry(pep.permCountry, countryOptions)
+                            ? "Gewog"
+                            : "Province"}{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        {pep.permCountry &&
+                        !isBhutanCountry(pep.permCountry, countryOptions) ? (
+                          <Input
+                            placeholder="Enter Province"
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.permGewog || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "permGewog",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        ) : (
+                          <Select
+                            value={pep.permGewog || ""}
+                            onValueChange={(value) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "permGewog",
+                                value,
+                              )
+                            }
+                            disabled={
+                              !isBhutanCountry(pep.permCountry, countryOptions)
+                            }
+                          >
+                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              {coBorrower.relatedPepPermGewogMap?.[pepIndex]
+                                ?.length > 0 ? (
+                                coBorrower.relatedPepPermGewogMap[pepIndex].map(
+                                  (opt: any, i: number) => (
+                                    <SelectItem
+                                      key={i}
+                                      value={String(
+                                        opt.gewog_pk_code || opt.id || i,
+                                      )}
+                                    >
+                                      {opt.gewog || opt.name || "Unknown"}
+                                    </SelectItem>
+                                  ),
+                                )
+                              ) : (
+                                <SelectItem value="loading" disabled>
+                                  {pep.permDzongkhag
+                                    ? "Loading..."
+                                    : "Select Dzongkhag first"}
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          {isBhutanCountry(pep.permCountry, countryOptions)
+                            ? "Village/Street"
+                            : "Street"}{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter Location"
+                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                          value={pep.permVillage || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              pepIndex,
+                              "permVillage",
+                              e.target.value,
+                            )
+                          }
+                          disabled={!pep.permCountry}
+                        />
+                      </div>
+
+                      {isBhutanCountry(pep.permCountry, countryOptions) && (
+                        <>
+                          <div className="space-y-2.5">
+                            <Label className="text-gray-800 font-semibold text-sm">
+                              Thram No. <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                              placeholder="Enter Thram No"
+                              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                              value={pep.permThram || ""}
+                              onChange={(e) =>
+                                handleRelatedPepChange(
+                                  index,
+                                  pepIndex,
+                                  "permThram",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2.5">
+                            <Label className="text-gray-800 font-semibold text-sm">
+                              House No. <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                              placeholder="Enter House No"
+                              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                              value={pep.permHouse || ""}
+                              onChange={(e) =>
+                                handleRelatedPepChange(
+                                  index,
+                                  pepIndex,
+                                  "permHouse",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {pep.permCountry &&
+                      !isBhutanCountry(pep.permCountry, countryOptions) && (
+                        <div className="space-y-2.5 mb-8">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Upload Address Proof Document{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              id={`pepPermProof-${index}-${pepIndex}`}
+                              className="hidden"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={(e) =>
+                                handleRelatedPepFileChange(
+                                  index,
+                                  pepIndex,
+                                  "permAddressProof",
+                                  e.target.files?.[0] || null,
+                                )
+                              }
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="w-28 bg-white"
+                              onClick={() =>
+                                document
+                                  .getElementById(
+                                    `pepPermProof-${index}-${pepIndex}`,
+                                  )
+                                  ?.click()
+                              }
+                            >
+                              Choose File
+                            </Button>
+                            <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                              {pep.permAddressProof || "No file chosen"}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                  </div>
+
+                  {/* --- PEP Current/Residential Address --- */}
+                  <div className="mt-8 border-t border-dashed pt-8">
+                    <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
+                      Current/Residential Address
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Country <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={pep.currCountry || ""}
+                          onValueChange={(value) =>
+                            handleRelatedPepChange(
+                              index,
+                              pepIndex,
+                              "currCountry",
+                              value,
+                            )
+                          }
+                        >
+                          <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {countryOptions.map((opt, i) => (
+                              <SelectItem
+                                key={i}
+                                value={String(
+                                  opt.country_pk_code || opt.id || i,
+                                )}
+                              >
+                                {opt.country || opt.name || "Unknown"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          {isBhutanCountry(pep.currCountry, countryOptions)
+                            ? "Dzongkhag"
+                            : "State"}{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        {pep.currCountry &&
+                        !isBhutanCountry(pep.currCountry, countryOptions) ? (
+                          <Input
+                            placeholder="Enter State"
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.currDzongkhag || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "currDzongkhag",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        ) : (
+                          <Select
+                            value={pep.currDzongkhag || ""}
+                            onValueChange={(value) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "currDzongkhag",
+                                value,
+                              )
+                            }
+                            disabled={
+                              !isBhutanCountry(pep.currCountry, countryOptions)
+                            }
+                          >
+                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              {dzongkhagOptions.map((opt, i) => (
+                                <SelectItem
+                                  key={i}
+                                  value={String(
+                                    opt.dzongkhag_pk_code || opt.id || i,
+                                  )}
+                                >
+                                  {opt.dzongkhag || opt.name || "Unknown"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          {isBhutanCountry(pep.currCountry, countryOptions)
+                            ? "Gewog"
+                            : "Province"}{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        {pep.currCountry &&
+                        !isBhutanCountry(pep.currCountry, countryOptions) ? (
+                          <Input
+                            placeholder="Enter Province"
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.currGewog || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "currGewog",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        ) : (
+                          <Select
+                            value={pep.currGewog || ""}
+                            onValueChange={(value) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "currGewog",
+                                value,
+                              )
+                            }
+                            disabled={
+                              !isBhutanCountry(pep.currCountry, countryOptions)
+                            }
+                          >
+                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              {coBorrower.relatedPepCurrGewogMap?.[pepIndex]
+                                ?.length > 0 ? (
+                                coBorrower.relatedPepCurrGewogMap[pepIndex].map(
+                                  (opt: any, i: number) => (
+                                    <SelectItem
+                                      key={i}
+                                      value={String(
+                                        opt.gewog_pk_code || opt.id || i,
+                                      )}
+                                    >
+                                      {opt.gewog || opt.name || "Unknown"}
+                                    </SelectItem>
+                                  ),
+                                )
+                              ) : (
+                                <SelectItem value="loading" disabled>
+                                  {pep.currDzongkhag
+                                    ? "Loading..."
+                                    : "Select Dzongkhag first"}
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          {isBhutanCountry(pep.currCountry, countryOptions)
+                            ? "Village/Street"
+                            : "Street"}{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter Location"
+                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                          value={pep.currVillage || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              pepIndex,
+                              "currVillage",
+                              e.target.value,
+                            )
+                          }
+                          disabled={!pep.currCountry}
+                        />
+                      </div>
+
+                      {isBhutanCountry(pep.currCountry, countryOptions) && (
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Flat No. <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Enter Flat No"
+                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                            value={pep.currFlat || ""}
+                            onChange={(e) =>
+                              handleRelatedPepChange(
+                                index,
+                                pepIndex,
+                                "currFlat",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {pep.currCountry &&
+                      !isBhutanCountry(pep.currCountry, countryOptions) && (
+                        <div className="space-y-2.5 mb-8">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Upload Address Proof Document{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              id={`pepCurrProof-${index}-${pepIndex}`}
+                              className="hidden"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={(e) =>
+                                handleRelatedPepFileChange(
+                                  index,
+                                  pepIndex,
+                                  "currAddressProof",
+                                  e.target.files?.[0] || null,
+                                )
+                              }
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="w-28 bg-white"
+                              onClick={() =>
+                                document
+                                  .getElementById(
+                                    `pepCurrProof-${index}-${pepIndex}`,
+                                  )
+                                  ?.click()
+                              }
+                            >
+                              Choose File
+                            </Button>
+                            <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                              {pep.currAddressProof || "No file chosen"}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                    <h5 className="text-sm font-bold text-gray-700 mb-4">
+                      Contact Information
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Email <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          type="email"
+                          placeholder="Enter Email"
+                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                          value={pep.currEmail || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              pepIndex,
+                              "currEmail",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Contact No. <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter Contact No"
+                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                          value={pep.currContact || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              pepIndex,
+                              "currContact",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Alternate Contact No.
+                        </Label>
+                        <Input
+                          placeholder="Enter Alternate Contact"
+                          className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          value={pep.currAlternateContact || ""}
+                          onChange={(e) =>
+                            handleRelatedPepChange(
+                              index,
+                              pepIndex,
+                              "currAlternateContact",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

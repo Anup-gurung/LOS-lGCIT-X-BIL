@@ -29,6 +29,9 @@ import {
 import { mapCustomerDataToForm } from "@/lib/mapCustomerData";
 import DocumentPopup from "@/components/BILSearchStatus";
 
+// ================== IndexedDB File Storage (external) ==================
+import { storeFile, deleteFile } from "@/lib/indexDB";
+
 import {
   fetchCountry,
   fetchDzongkhag,
@@ -48,7 +51,6 @@ const isRequired = (value: any) => !value || value.toString().trim() === "";
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidCID = (value: string) => /^\d{11}$/.test(value);
-const isValidTPN = (value: string) => /^\d{11}$/.test(value);
 const isValidMobile = (value: string) => /^(16|17|77)\d{6}$/.test(value);
 const isValidFixedLine = (value: string) => /^[2-8]\d{6,7}$/.test(value);
 const isValidPhoneNumber = (value: string) =>
@@ -84,12 +86,49 @@ const formatDateForInput = (dateString: string | null | undefined) => {
 };
 
 const createEmptyRelatedPep = () => ({
+  // Relationship & PEP-specific
   relationship: "",
-  identificationNo: "",
   category: "",
   subCategory: "",
-  identificationProof: null,
+  identificationProof: "", // file ID
   identificationProofName: "",
+
+  // Personal Information
+  identificationType: "",
+  identificationNo: "",
+  identificationIssueDate: "",
+  identificationExpiryDate: "",
+  salutation: "",
+  applicantName: "",
+  nationality: "",
+  gender: "",
+  dateOfBirth: "",
+  taxIdentifierType: "",
+  tpn: "",
+  householdNumber: "",
+  maritalStatus: "",
+
+  // Permanent Address
+  permCountry: "",
+  permDzongkhag: "",
+  permGewog: "",
+  permVillage: "",
+  permThram: "",
+  permHouse: "",
+  permAddressProof: "",
+  permAddressProofName: "",
+
+  // Current Address
+  currCountry: "",
+  currDzongkhag: "",
+  currGewog: "",
+  currVillage: "",
+  currFlat: "",
+  currEmail: "",
+  currContact: "",
+  currAlternateContact: "",
+  currAddressProof: "",
+  currAddressProofName: "",
 });
 
 // --- Uniform Styling (Orange Focus, Red Error) ---
@@ -101,11 +140,6 @@ const getFieldStyle = (hasError: boolean) => {
   }
   return `${baseStyle} border-gray-300 focus:border-[#FF9800] focus-visible:border-[#FF9800]`;
 };
-
-const fileUploadStyle = (hasError: boolean) =>
-  `h-11 w-full bg-white border rounded-lg flex items-center px-3 justify-between cursor-pointer hover:bg-gray-50 transition-colors text-sm ${
-    hasError ? "border-red-500" : "border-gray-300"
-  }`;
 
 // --- Helper to check if a marital status value means "married" using options ---
 const isMarriedStatusFromOptions = (
@@ -258,6 +292,39 @@ const findPkCodeByLabel = (
   return label; // Return original if no match found
 };
 
+// --- Helper to convert an ID to its label using options ---
+const findLabelById = (
+  id: string,
+  options: any[],
+  labelFields: string[],
+): string => {
+  if (!id) return "";
+  const option = options.find(
+    (opt) =>
+      String(
+        opt.id ||
+          opt.pk_code ||
+          opt.bank_pk_code ||
+          opt.country_pk_code ||
+          opt.nationality_pk_code ||
+          opt.identity_type_pk_code ||
+          opt.marital_status_pk_code ||
+          opt.occupation_pk_code ||
+          opt.dzongkhag_pk_code ||
+          opt.gewog_pk_code ||
+          opt.curr_gewog_pk_code ||
+          opt.pk_gewog_id ||
+          opt.pep_category_pk_code ||
+          opt.pep_sub_category_pk_code,
+      ) === String(id),
+  );
+  if (!option) return id; // fallback to the ID itself
+  for (const field of labelFields) {
+    if (option[field]) return String(option[field]);
+  }
+  return id;
+};
+
 // ================== Restricted Input Component ==================
 type AllowedPattern = "numeric" | "alpha" | "alphanumeric" | "text";
 
@@ -329,13 +396,18 @@ const ComprehensiveOwnerDetails = ({
   onClearError,
   onSetError,
   onValidateField,
+  // New conditional rendering props
+  hidePepDeclaration = false,
+  hideEmployment = false,
+  hideBank = false,
+  hideFamilyTree = false,
 }: {
   data: any;
   onUpdate: (newData: any) => void;
   countryOptions: any[];
   dzongkhagOptions: any[];
   identificationTypeOptions: any[];
-  maritalStatusOptions: any[]; // added
+  maritalStatusOptions: any[];
   title?: string;
   isPartner?: boolean;
   onRemove?: () => void;
@@ -344,6 +416,10 @@ const ComprehensiveOwnerDetails = ({
   onClearError?: (fieldPath: string) => void;
   onSetError?: (fieldPath: string, error: string) => void;
   onValidateField?: (fieldPath: string, value: any, fullData?: any) => string;
+  hidePepDeclaration?: boolean;
+  hideEmployment?: boolean;
+  hideBank?: boolean;
+  hideFamilyTree?: boolean;
 }) => {
   // Local Options State (remaining ones)
   const [banksOptions, setBanksOptions] = useState<any[]>([]);
@@ -360,6 +436,11 @@ const ComprehensiveOwnerDetails = ({
     Record<number, any[]>
   >({});
 
+  // Spouse dynamic options
+  const [spousePermGewogOptions, setSpousePermGewogOptions] = useState<any[]>(
+    [],
+  );
+
   const [isExpanded, setIsExpanded] = useState(true);
 
   // --- Lookup state ---
@@ -373,6 +454,197 @@ const ComprehensiveOwnerDetails = ({
 
   // Unique identifier for this person (used as session key)
   const personId = data.id;
+
+  // Function to determine if current nationality is Bhutanese
+  const isNatBhutanese = (nationalityId: string) => {
+    if (!nationalityId) return false;
+    const n = nationalityOptions.find(
+      (opt) =>
+        String(opt.id || opt.nationality_pk_code) === String(nationalityId),
+    );
+
+    const label = n ? n.nationality || n.name || "" : String(nationalityId);
+    const lowerLabel = label.toLowerCase();
+
+    // Check if it includes "bhutan" but explicitly exclude "non" (e.g., "non-bhutanese")
+    return lowerLabel.includes("bhutan") && !lowerLabel.includes("non");
+  };
+  // ---- Helper: convert person data to storable version (IDs -> labels) ----
+  const convertPersonToStorable = (personData: any) => {
+    const result: any = { ...personData };
+
+    // Identification Type
+    if (result.identificationType) {
+      result.identificationType = findLabelById(
+        result.identificationType,
+        identificationTypeOptions,
+        ["identification_type", "identity_type", "name"],
+      );
+    }
+
+    // Nationality
+    if (result.nationality) {
+      result.nationality = findLabelById(
+        result.nationality,
+        nationalityOptions,
+        ["nationality", "name"],
+      );
+    }
+
+    // Marital Status
+    if (result.maritalStatus) {
+      result.maritalStatus = findLabelById(
+        result.maritalStatus,
+        maritalStatusOptions,
+        ["marital_status", "name"],
+      );
+    }
+
+    // Bank Name
+    if (result.bankName) {
+      result.bankName = findLabelById(result.bankName, banksOptions, [
+        "bank_name",
+        "name",
+      ]);
+    }
+
+    // Permanent Country
+    if (result.permCountry) {
+      result.permCountry = findLabelById(result.permCountry, countryOptions, [
+        "country_name",
+        "country",
+      ]);
+    }
+
+    // Permanent Dzongkhag (if Bhutan)
+    if (result.permDzongkhag) {
+      result.permDzongkhag = findLabelById(
+        result.permDzongkhag,
+        dzongkhagOptions,
+        ["dzongkhag_name", "dzongkhag"],
+      );
+    }
+
+    // Permanent Gewog (if available)
+    if (result.permGewog && permGewogOptions.length > 0) {
+      result.permGewog = findLabelById(result.permGewog, permGewogOptions, [
+        "gewog_name",
+        "gewog",
+      ]);
+    }
+
+    // Current Country
+    if (result.currCountry) {
+      result.currCountry = findLabelById(result.currCountry, countryOptions, [
+        "country_name",
+        "country",
+      ]);
+    }
+
+    // Current Dzongkhag
+    if (result.currDzongkhag) {
+      result.currDzongkhag = findLabelById(
+        result.currDzongkhag,
+        dzongkhagOptions,
+        ["dzongkhag_name", "dzongkhag"],
+      );
+    }
+
+    // Current Gewog
+    if (result.currGewog && currGewogOptions.length > 0) {
+      result.currGewog = findLabelById(result.currGewog, currGewogOptions, [
+        "gewog_name",
+        "gewog",
+      ]);
+    }
+
+    // Occupation
+    if (result.occupation) {
+      result.occupation = findLabelById(result.occupation, occupationOptions, [
+        "occ_name",
+        "occupation",
+      ]);
+    }
+
+    // PEP Category
+    if (result.pepCategory) {
+      result.pepCategory = findLabelById(
+        result.pepCategory,
+        pepCategoryOptions,
+        ["pep_category", "name"],
+      );
+    }
+
+    // PEP SubCategory
+    if (result.pepSubCategory && pepSubCategoryOptions.length > 0) {
+      result.pepSubCategory = findLabelById(
+        result.pepSubCategory,
+        pepSubCategoryOptions,
+        ["pep_sub_category", "name"],
+      );
+    }
+
+    // Related PEPs (nested)
+    if (result.relatedPeps && Array.isArray(result.relatedPeps)) {
+      result.relatedPeps = result.relatedPeps.map((pep: any, idx: number) => {
+        const pepCopy = { ...pep };
+        if (pepCopy.category) {
+          pepCopy.category = findLabelById(
+            pepCopy.category,
+            pepCategoryOptions,
+            ["pep_category", "name"],
+          );
+        }
+        if (pepCopy.subCategory && relatedPepOptionsMap[idx]) {
+          pepCopy.subCategory = findLabelById(
+            pepCopy.subCategory,
+            relatedPepOptionsMap[idx],
+            ["pep_sub_category", "name"],
+          );
+        }
+        return pepCopy;
+      });
+    }
+
+    // Spouse fields (if any)
+    if (result.spouseIdentificationType) {
+      result.spouseIdentificationType = findLabelById(
+        result.spouseIdentificationType,
+        identificationTypeOptions,
+        ["identification_type", "identity_type", "name"],
+      );
+    }
+    if (result.spouseNationality) {
+      result.spouseNationality = findLabelById(
+        result.spouseNationality,
+        nationalityOptions,
+        ["nationality", "name"],
+      );
+    }
+    if (result.spousePermCountry) {
+      result.spousePermCountry = findLabelById(
+        result.spousePermCountry,
+        countryOptions,
+        ["country_name", "country"],
+      );
+    }
+    if (result.spousePermDzongkhag) {
+      result.spousePermDzongkhag = findLabelById(
+        result.spousePermDzongkhag,
+        dzongkhagOptions,
+        ["dzongkhag_name", "dzongkhag"],
+      );
+    }
+    if (result.spousePermGewog && spousePermGewogOptions.length > 0) {
+      result.spousePermGewog = findLabelById(
+        result.spousePermGewog,
+        spousePermGewogOptions,
+        ["gewog_name", "gewog"],
+      );
+    }
+
+    return result;
+  };
 
   // Load stored data from session on mount
   useEffect(() => {
@@ -388,21 +660,23 @@ const ComprehensiveOwnerDetails = ({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personId]); // run only when personId changes (on mount)
+  }, [personId]);
 
   const getErrorKey = (field: string) =>
     basePath ? `${basePath}.${field}` : field;
   const fieldError = (field: string) => errors[getErrorKey(field)];
 
   // Helper to update parent state AND validate the field in real time,
-  // and also write the updated data to session storage.
+  // and also write the updated data to session storage (after converting IDs to labels).
   const updateField = (field: string, value: any) => {
     const newData = { ...data, [field]: value };
     onUpdate(newData);
     if (personId) {
+      // Convert to storable (labels) before saving
+      const storableData = convertPersonToStorable(newData);
       sessionStorage.setItem(
         `verifiedPersonData_${personId}`,
-        JSON.stringify(newData),
+        JSON.stringify(storableData),
       );
     }
     if (onValidateField && onSetError && onClearError) {
@@ -595,8 +869,10 @@ const ComprehensiveOwnerDetails = ({
         grade: fetchedCustomerData.grade
           ? String(fetchedCustomerData.grade)
           : "",
-        // FIX: Map alternate contact number to the form's expected field
+        // Map alternate contact number to the form's expected field
         currAlternateContact: fetchedCustomerData.alternateContactNo || "",
+        taxIdentifierType: fetchedCustomerData.taxIdentifierType || "",
+        householdNumber: fetchedCustomerData.householdNumber || "",
       };
 
       const newData = {
@@ -608,9 +884,11 @@ const ComprehensiveOwnerDetails = ({
 
       onUpdate(newData);
       if (personId) {
+        // Also store in session (converted to labels)
+        const storableData = convertPersonToStorable(newData);
         sessionStorage.setItem(
           `verifiedPersonData_${personId}`,
-          JSON.stringify(newData),
+          JSON.stringify(storableData),
         );
       }
     }
@@ -971,14 +1249,28 @@ const ComprehensiveOwnerDetails = ({
   };
 
   const handleRemoveRelatedPep = (index: number) => {
+    // If there is a file associated with this PEP entry, delete it from IndexedDB
+    const fileId = data.relatedPeps?.[index]?.identificationProof;
+    if (fileId) {
+      deleteFile(fileId).catch(console.error);
+    }
     const newPeps = data.relatedPeps.filter((_: any, i: number) => i !== index);
     updateField("relatedPeps", newPeps);
   };
 
-  const handleRelatedPepFileChange = (index: number, file: File | null) => {
+  const handleRelatedPepFileChange = async (
+    index: number,
+    file: File | null,
+  ) => {
     if (file) {
-      updateRelatedPep(index, "identificationProof", file);
-      updateRelatedPep(index, "identificationProofName", file.name);
+      try {
+        const fileId = await storeFile(file);
+        updateRelatedPep(index, "identificationProof", fileId);
+        updateRelatedPep(index, "identificationProofName", file.name);
+      } catch (error) {
+        console.error("Failed to store file in IndexedDB", error);
+        alert("File upload failed. Please try again.");
+      }
     }
   };
 
@@ -986,7 +1278,7 @@ const ComprehensiveOwnerDetails = ({
     return isMarriedStatusFromOptions(data.maritalStatus, maritalStatusOptions);
   };
 
-  const handleFileChange = (fieldName: string, file: File | null) => {
+  const handleFileChange = async (fieldName: string, file: File | null) => {
     if (file) {
       const allowedTypes = [
         "application/pdf",
@@ -1005,17 +1297,23 @@ const ComprehensiveOwnerDetails = ({
         return;
       }
 
-      if (fieldName === "passportPhoto") {
-        updateField("passportPhoto", file);
-        updateField("passportPhotoName", file.name);
-      } else {
-        updateField(fieldName, file);
-        updateField(`${fieldName}Name`, file.name);
-      }
+      try {
+        const fileId = await storeFile(file);
+        if (fieldName === "passportPhoto") {
+          updateField("passportPhoto", fileId);
+          updateField("passportPhotoName", file.name);
+        } else {
+          updateField(fieldName, fileId);
+          updateField(`${fieldName}Name`, file.name);
+        }
 
-      // 🔥 Explicitly clear error for this field
-      if (onClearError) {
-        onClearError(getErrorKey(fieldName));
+        // 🔥 Explicitly clear error for this field
+        if (onClearError) {
+          onClearError(getErrorKey(fieldName));
+        }
+      } catch (error) {
+        console.error("Failed to store file in IndexedDB", error);
+        alert("File upload failed. Please try again.");
       }
     }
   };
@@ -1034,6 +1332,51 @@ const ComprehensiveOwnerDetails = ({
       }
     }
   };
+
+  // --- Spouse gewog options fetch ---
+  useEffect(() => {
+    if (data.spousePermDzongkhag) {
+      let dzongkhagId = data.spousePermDzongkhag;
+      const isId = /^\d+$/.test(dzongkhagId);
+      if (!isId && dzongkhagOptions.length > 0) {
+        const resolved = findPkCodeByLabel(dzongkhagId, dzongkhagOptions, [
+          "dzongkhag_name",
+          "dzongkhag",
+        ]);
+        if (resolved) dzongkhagId = resolved;
+      }
+      fetchGewogsByDzongkhag(dzongkhagId)
+        .then((res) => setSpousePermGewogOptions(res?.data?.data || res || []))
+        .catch(() => setSpousePermGewogOptions([]));
+    } else {
+      setSpousePermGewogOptions([]);
+    }
+  }, [data.spousePermDzongkhag, dzongkhagOptions]);
+
+  // Convert spouse gewog label to ID
+  useEffect(() => {
+    if (spousePermGewogOptions.length > 0 && data.spousePermGewog) {
+      const isId = spousePermGewogOptions.some(
+        (opt) =>
+          String(
+            opt.gewog_pk_code ||
+              opt.id ||
+              opt.pk_gewog_id ||
+              opt.curr_gewog_pk_code,
+          ) === String(data.spousePermGewog),
+      );
+      if (!isId) {
+        const matchedId = findPkCodeByLabel(
+          data.spousePermGewog,
+          spousePermGewogOptions,
+          ["gewog_name", "gewog", "name", "label"],
+        );
+        if (matchedId && matchedId !== data.spousePermGewog) {
+          updateField("spousePermGewog", matchedId);
+        }
+      }
+    }
+  }, [spousePermGewogOptions, data.spousePermGewog]);
 
   return (
     <div className="border border-gray-200 rounded-lg p-6 bg-gray-50/50 mb-6 relative">
@@ -1086,18 +1429,31 @@ const ComprehensiveOwnerDetails = ({
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
-                  {identificationTypeOptions.map((opt: any, i) => (
-                    <SelectItem
-                      key={i}
-                      value={String(
-                        opt.id ||
-                          opt.identification_type_id ||
-                          opt.identity_type_pk_code,
-                      )}
-                    >
-                      {opt.identification_type || opt.identity_type}
-                    </SelectItem>
-                  ))}
+                  {identificationTypeOptions
+                    .filter((opt: any) => {
+                      const label = (
+                        opt.identification_type ||
+                        opt.identity_type ||
+                        ""
+                      ).toLowerCase();
+                      // Show all options except "trade license number" and "company registration number"
+                      return !(
+                        label.includes("trade license number") ||
+                        label.includes("company registration number")
+                      );
+                    })
+                    .map((opt: any, i) => (
+                      <SelectItem
+                        key={i}
+                        value={String(
+                          opt.id ||
+                            opt.identification_type_id ||
+                            opt.identity_type_pk_code,
+                        )}
+                      >
+                        {opt.identification_type || opt.identity_type}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
               {fieldError("identificationType") && (
@@ -1273,6 +1629,30 @@ const ComprehensiveOwnerDetails = ({
             </div>
 
             <div className="space-y-2">
+              <Label>Tax Identifier Type *</Label>
+              <Select
+                value={data.taxIdentifierType}
+                onValueChange={(v) => updateField("taxIdentifierType", v)}
+              >
+                <SelectTrigger
+                  className={getFieldStyle(!!fieldError("taxIdentifierType"))}
+                >
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BIT">BIT</SelectItem>
+                  <SelectItem value="GST">GST</SelectItem>
+                  <SelectItem value="CIT">CIT</SelectItem>
+                  <SelectItem value="PIT">PIT</SelectItem>
+                </SelectContent>
+              </Select>
+              {fieldError("taxIdentifierType") && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fieldError("taxIdentifierType")}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
               <Label>TPN No *</Label>
               <RestrictedInput
                 allowed="numeric"
@@ -1285,6 +1665,26 @@ const ComprehensiveOwnerDetails = ({
                 <p className="text-xs text-red-500 mt-1">{fieldError("tpn")}</p>
               )}
             </div>
+
+            {/* Household Number - conditionally shown */}
+            {isNatBhutanese(data.nationality) && (
+              <div className="space-y-2">
+                <Label>Household Number *</Label>
+                <RestrictedInput
+                  allowed="alphanumeric"
+                  className={getFieldStyle(!!fieldError("householdNumber"))}
+                  value={data.householdNumber}
+                  onChange={(e) =>
+                    updateField("householdNumber", e.target.value)
+                  }
+                />
+                {fieldError("householdNumber") && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {fieldError("householdNumber")}
+                  </p>
+                )}
+              </div>
+            )}
 
             {isPartner && (
               <div className="space-y-2">
@@ -1340,15 +1740,63 @@ const ComprehensiveOwnerDetails = ({
             </div>
           </div>
 
-          {/* Spouse Section (if married) */}
+          {/* Spouse Section (if married) - EXPANDED */}
           {isMarried() && (
             <div className="mt-4 border-t pt-4">
               <h5 className="font-semibold text-[#003DA5] mb-4">
                 Spouse Personal Information
               </h5>
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="space-y-2">
-                  <Label>Spouse CID/ID No. *</Label>
+                  <Label>Spouse Identification Type *</Label>
+                  <Select
+                    value={data.spouseIdentificationType}
+                    onValueChange={(v) =>
+                      handleSpouseChange("spouseIdentificationType", v)
+                    }
+                  >
+                    <SelectTrigger
+                      className={getFieldStyle(
+                        !!fieldError("spouseIdentificationType"),
+                      )}
+                    >
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {identificationTypeOptions
+                        .filter((opt: any) => {
+                          const label = (
+                            opt.identification_type ||
+                            opt.identity_type ||
+                            ""
+                          ).toLowerCase();
+                          return !(
+                            label.includes("trade license number") ||
+                            label.includes("company registration number")
+                          );
+                        })
+                        .map((opt: any, i) => (
+                          <SelectItem
+                            key={i}
+                            value={String(
+                              opt.id ||
+                                opt.identification_type_id ||
+                                opt.identity_type_pk_code,
+                            )}
+                          >
+                            {opt.identification_type || opt.identity_type}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {fieldError("spouseIdentificationType") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("spouseIdentificationType")}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Spouse ID No. *</Label>
                   <RestrictedInput
                     allowed="numeric"
                     maxLength={11}
@@ -1370,6 +1818,38 @@ const ComprehensiveOwnerDetails = ({
                   )}
                 </div>
                 <div className="space-y-2">
+                  <Label>Spouse Salutation *</Label>
+                  <Select
+                    value={
+                      data.spouseSalutation
+                        ? data.spouseSalutation.toLowerCase()
+                        : ""
+                    }
+                    onValueChange={(v) =>
+                      handleSpouseChange("spouseSalutation", v)
+                    }
+                  >
+                    <SelectTrigger
+                      className={getFieldStyle(
+                        !!fieldError("spouseSalutation"),
+                      )}
+                    >
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mr">Mr.</SelectItem>
+                      <SelectItem value="mrs">Mrs.</SelectItem>
+                      <SelectItem value="ms">Ms.</SelectItem>
+                      <SelectItem value="dasho">Dasho</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {fieldError("spouseSalutation") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("spouseSalutation")}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
                   <Label>Spouse Name *</Label>
                   <RestrictedInput
                     allowed="alpha"
@@ -1386,156 +1866,725 @@ const ComprehensiveOwnerDetails = ({
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Spouse Contact No. *</Label>
-                  <RestrictedInput
-                    allowed="numeric"
-                    maxLength={8}
-                    className={getFieldStyle(!!fieldError("spouseContact"))}
-                    value={data.spouseContact}
-                    onChange={(e) =>
-                      handleSpouseChange("spouseContact", e.target.value)
+                  <Label>Spouse Nationality *</Label>
+                  <Select
+                    value={data.spouseNationality}
+                    onValueChange={(v) =>
+                      handleSpouseChange("spouseNationality", v)
                     }
-                  />
-                  {fieldError("spouseContact") && (
+                  >
+                    <SelectTrigger
+                      className={getFieldStyle(
+                        !!fieldError("spouseNationality"),
+                      )}
+                    >
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {nationalityOptions.map((opt: any, i) => (
+                        <SelectItem
+                          key={i}
+                          value={String(opt.id || opt.nationality_pk_code)}
+                        >
+                          {opt.nationality || opt.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {fieldError("spouseNationality") && (
                     <p className="text-xs text-red-500 mt-1">
-                      {fieldError("spouseContact")}
+                      {fieldError("spouseNationality")}
                     </p>
                   )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Spouse Gender *</Label>
+                  <Select
+                    value={
+                      data.spouseGender ? data.spouseGender.toLowerCase() : ""
+                    }
+                    onValueChange={(v) => handleSpouseChange("spouseGender", v)}
+                  >
+                    <SelectTrigger
+                      className={getFieldStyle(!!fieldError("spouseGender"))}
+                    >
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {fieldError("spouseGender") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("spouseGender")}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Spouse ID Issue Date *</Label>
+                  <Input
+                    type="date"
+                    className={getFieldStyle(
+                      !!fieldError("spouseIdentificationIssueDate"),
+                    )}
+                    value={formatDateForInput(
+                      data.spouseIdentificationIssueDate,
+                    )}
+                    onChange={(e) =>
+                      handleSpouseChange(
+                        "spouseIdentificationIssueDate",
+                        e.target.value,
+                      )
+                    }
+                  />
+                  {fieldError("spouseIdentificationIssueDate") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("spouseIdentificationIssueDate")}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Spouse ID Expiry Date *</Label>
+                  <Input
+                    type="date"
+                    className={getFieldStyle(
+                      !!fieldError("spouseIdentificationExpiryDate"),
+                    )}
+                    value={formatDateForInput(
+                      data.spouseIdentificationExpiryDate,
+                    )}
+                    onChange={(e) =>
+                      handleSpouseChange(
+                        "spouseIdentificationExpiryDate",
+                        e.target.value,
+                      )
+                    }
+                  />
+                  {fieldError("spouseIdentificationExpiryDate") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("spouseIdentificationExpiryDate")}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Spouse Tax Identifier Type *</Label>
+                  <Select
+                    value={data.spouseTaxIdentifierType}
+                    onValueChange={(v) =>
+                      handleSpouseChange("spouseTaxIdentifierType", v)
+                    }
+                  >
+                    <SelectTrigger
+                      className={getFieldStyle(
+                        !!fieldError("spouseTaxIdentifierType"),
+                      )}
+                    >
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BIT">BIT</SelectItem>
+                      <SelectItem value="GST">GST</SelectItem>
+                      <SelectItem value="CIT">CIT</SelectItem>
+                      <SelectItem value="PIT">PIT</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {fieldError("spouseTaxIdentifierType") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("spouseTaxIdentifierType")}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Spouse TPN No *</Label>
+                  <RestrictedInput
+                    allowed="numeric"
+                    maxLength={11}
+                    className={getFieldStyle(!!fieldError("spouseTpn"))}
+                    value={data.spouseTpn}
+                    onChange={(e) =>
+                      handleSpouseChange("spouseTpn", e.target.value)
+                    }
+                  />
+                  {fieldError("spouseTpn") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("spouseTpn")}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Spouse Date of Birth *</Label>
+                  <Input
+                    type="date"
+                    className={getFieldStyle(!!fieldError("spouseDateOfBirth"))}
+                    value={formatDateForInput(data.spouseDateOfBirth)}
+                    onChange={(e) =>
+                      handleSpouseChange("spouseDateOfBirth", e.target.value)
+                    }
+                  />
+                  {fieldError("spouseDateOfBirth") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("spouseDateOfBirth")}
+                    </p>
+                  )}
+                </div>
+                {/* Spouse Household Number - conditional */}
+                {isNatBhutanese(data.spouseNationality) && (
+                  <div className="space-y-2">
+                    <Label>Spouse Household Number *</Label>
+                    <RestrictedInput
+                      allowed="alphanumeric"
+                      className={getFieldStyle(
+                        !!fieldError("spouseHouseholdNumber"),
+                      )}
+                      value={data.spouseHouseholdNumber}
+                      onChange={(e) =>
+                        handleSpouseChange(
+                          "spouseHouseholdNumber",
+                          e.target.value,
+                        )
+                      }
+                    />
+                    {fieldError("spouseHouseholdNumber") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("spouseHouseholdNumber")}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Spouse Permanent Address */}
+              <div className="mt-6 pt-4 border-t">
+                <h6 className="font-semibold text-[#003DA5] mb-4">
+                  Spouse Permanent Address
+                </h6>
+                <div className="grid md:grid-cols-4 gap-6">
+                  <div className="space-y-2">
+                    <Label>Spouse Country *</Label>
+                    <Select
+                      value={data.spousePermCountry}
+                      onValueChange={(v) =>
+                        handleSpouseChange("spousePermCountry", v)
+                      }
+                    >
+                      <SelectTrigger
+                        className={getFieldStyle(
+                          !!fieldError("spousePermCountry"),
+                        )}
+                      >
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countryOptions.map((opt: any, i) => (
+                          <SelectItem
+                            key={i}
+                            value={String(
+                              opt.id || opt.country_pk_code || opt.country_id,
+                            )}
+                          >
+                            {opt.country_name || opt.country}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldError("spousePermCountry") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("spousePermCountry")}
+                      </p>
+                    )}
+                  </div>
+
+                  {isBhutan(data.spousePermCountry) ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Spouse Dzongkhag *</Label>
+                        <Select
+                          value={data.spousePermDzongkhag}
+                          onValueChange={(v) =>
+                            handleSpouseChange("spousePermDzongkhag", v)
+                          }
+                        >
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              !!fieldError("spousePermDzongkhag"),
+                            )}
+                          >
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dzongkhagOptions.map((opt: any, i) => (
+                              <SelectItem
+                                key={i}
+                                value={String(
+                                  opt.id ||
+                                    opt.dzongkhag_pk_code ||
+                                    opt.pk_dzongkhag_id,
+                                )}
+                              >
+                                {opt.dzongkhag || opt.dzongkhag_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {fieldError("spousePermDzongkhag") && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {fieldError("spousePermDzongkhag")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Spouse Gewog *</Label>
+                        <Select
+                          value={
+                            spousePermGewogOptions.some(
+                              (o) =>
+                                String(
+                                  o.gewog_pk_code ||
+                                    o.id ||
+                                    o.pk_gewog_id ||
+                                    o.curr_gewog_pk_code,
+                                ) === String(data.spousePermGewog),
+                            )
+                              ? data.spousePermGewog
+                              : ""
+                          }
+                          onValueChange={(v) =>
+                            handleSpouseChange("spousePermGewog", v)
+                          }
+                        >
+                          <SelectTrigger
+                            className={getFieldStyle(
+                              !!fieldError("spousePermGewog"),
+                            )}
+                          >
+                            <SelectValue
+                              placeholder={data.spousePermGewog || "Select"}
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {spousePermGewogOptions.map((opt: any, i) => (
+                              <SelectItem
+                                key={i}
+                                value={String(
+                                  opt.id ||
+                                    opt.gewog_pk_code ||
+                                    opt.pk_gewog_id ||
+                                    opt.curr_gewog_pk_code,
+                                )}
+                              >
+                                {opt.gewog || opt.gewog_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {fieldError("spousePermGewog") && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {fieldError("spousePermGewog")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Spouse Village/Street *</Label>
+                        <RestrictedInput
+                          allowed="alphanumeric"
+                          className={getFieldStyle(
+                            !!fieldError("spousePermVillage"),
+                          )}
+                          value={data.spousePermVillage}
+                          onChange={(e) =>
+                            handleSpouseChange(
+                              "spousePermVillage",
+                              e.target.value,
+                            )
+                          }
+                        />
+                        {fieldError("spousePermVillage") && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {fieldError("spousePermVillage")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Spouse Thram No. *</Label>
+                        <RestrictedInput
+                          allowed="alphanumeric"
+                          className={getFieldStyle(
+                            !!fieldError("spousePermThram"),
+                          )}
+                          value={data.spousePermThram}
+                          onChange={(e) =>
+                            handleSpouseChange(
+                              "spousePermThram",
+                              e.target.value,
+                            )
+                          }
+                        />
+                        {fieldError("spousePermThram") && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {fieldError("spousePermThram")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Spouse House No. *</Label>
+                        <RestrictedInput
+                          allowed="alphanumeric"
+                          className={getFieldStyle(
+                            !!fieldError("spousePermHouse"),
+                          )}
+                          value={data.spousePermHouse}
+                          onChange={(e) =>
+                            handleSpouseChange(
+                              "spousePermHouse",
+                              e.target.value,
+                            )
+                          }
+                        />
+                        {fieldError("spousePermHouse") && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {fieldError("spousePermHouse")}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Spouse State *</Label>
+                        <RestrictedInput
+                          allowed="alpha"
+                          className={getFieldStyle(
+                            !!fieldError("spousePermDzongkhag"),
+                          )}
+                          value={data.spousePermDzongkhag}
+                          onChange={(e) =>
+                            handleSpouseChange(
+                              "spousePermDzongkhag",
+                              e.target.value,
+                            )
+                          }
+                        />
+                        {fieldError("spousePermDzongkhag") && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {fieldError("spousePermDzongkhag")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Spouse Province *</Label>
+                        <RestrictedInput
+                          allowed="alpha"
+                          className={getFieldStyle(
+                            !!fieldError("spousePermGewog"),
+                          )}
+                          value={data.spousePermGewog}
+                          onChange={(e) =>
+                            handleSpouseChange(
+                              "spousePermGewog",
+                              e.target.value,
+                            )
+                          }
+                        />
+                        {fieldError("spousePermGewog") && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {fieldError("spousePermGewog")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Spouse Street Name *</Label>
+                        <RestrictedInput
+                          allowed="alphanumeric"
+                          className={getFieldStyle(
+                            !!fieldError("spousePermVillage"),
+                          )}
+                          value={data.spousePermVillage}
+                          onChange={(e) =>
+                            handleSpouseChange(
+                              "spousePermVillage",
+                              e.target.value,
+                            )
+                          }
+                        />
+                        {fieldError("spousePermVillage") && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {fieldError("spousePermVillage")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2.5 md:col-span-2">
+                        <Label>Spouse Address Proof *</Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            id={`spouse-perm-proof-${data.id || "owner"}`}
+                            className="hidden"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) {
+                                handleSpouseChange(
+                                  "spousePermAddressProof",
+                                  e.target.files[0],
+                                );
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className={`w-28 ${fieldError("spousePermAddressProof") ? "border-red-500" : "bg-transparent"}`}
+                            onClick={() =>
+                              document
+                                .getElementById(
+                                  `spouse-perm-proof-${data.id || "owner"}`,
+                                )
+                                ?.click()
+                            }
+                          >
+                            Choose File
+                          </Button>
+                          <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                            {data.spousePermAddressProofName ||
+                              "No file chosen"}
+                          </span>
+                        </div>
+                        {fieldError("spousePermAddressProof") && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {fieldError("spousePermAddressProof")}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500">
+                          Please upload a valid address proof document for
+                          non-Bhutan residence. Allowed: PDF, JPG, PNG (Max 5MB)
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Spouse Contact Address (Email, Contact, Alternate) */}
+              <div className="mt-6 pt-4 border-t">
+                <h6 className="font-semibold text-[#003DA5] mb-4">
+                  Spouse Contact Information
+                </h6>
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <Label>Spouse Email *</Label>
+                    <Input
+                      type="email"
+                      className={getFieldStyle(!!fieldError("spouseEmail"))}
+                      value={data.spouseEmail}
+                      onChange={(e) =>
+                        handleSpouseChange("spouseEmail", e.target.value)
+                      }
+                    />
+                    {fieldError("spouseEmail") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("spouseEmail")}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Spouse Contact No. *</Label>
+                    <RestrictedInput
+                      allowed="numeric"
+                      maxLength={8}
+                      className={getFieldStyle(!!fieldError("spouseContact"))}
+                      value={data.spouseContact}
+                      onChange={(e) =>
+                        handleSpouseChange("spouseContact", e.target.value)
+                      }
+                    />
+                    {fieldError("spouseContact") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("spouseContact")}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Spouse Alternate Contact No.</Label>
+                    <RestrictedInput
+                      allowed="numeric"
+                      maxLength={8}
+                      className={getFieldStyle(
+                        !!fieldError("spouseAlternateContact"),
+                      )}
+                      value={data.spouseAlternateContact}
+                      onChange={(e) =>
+                        handleSpouseChange(
+                          "spouseAlternateContact",
+                          e.target.value,
+                        )
+                      }
+                    />
+                    {fieldError("spouseAlternateContact") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {fieldError("spouseAlternateContact")}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Family Tree Upload */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t mt-4">
-            <div className="space-y-2.5">
-              <Label className="text-gray-800 font-semibold text-sm">
-                Upload Family Tree <span className="text-red-500">*</span>
-              </Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="file"
-                  id={`family-tree-${data.id || "owner"}`}
-                  className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) =>
-                    handleFileChange("familyTree", e.target.files?.[0] || null)
-                  }
+          {/* Family Tree Upload - conditionally rendered */}
+          {!hideFamilyTree && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t mt-4">
+              <div className="space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-sm">
+                  Upload Family Tree <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    id={`family-tree-${data.id || "owner"}`}
+                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) =>
+                      handleFileChange(
+                        "familyTree",
+                        e.target.files?.[0] || null,
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-28 bg-transparent"
+                    onClick={() =>
+                      document
+                        .getElementById(`family-tree-${data.id || "owner"}`)
+                        ?.click()
+                    }
+                  >
+                    Choose File
+                  </Button>
+
+                  <span className="text-sm text-muted-foreground">
+                    {data.familyTreeName || "No file chosen"}
+                  </span>
+                </div>
+                {fieldError("familyTree") && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {fieldError("familyTree")}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500">
+                  Allowed: PDF, JPG, PNG (Max 5MB)
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Bank Details - conditionally rendered */}
+          {!hideBank && (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t">
+              <div className="space-y-2">
+                <Label>Name of Bank *</Label>
+                <Select
+                  value={data.bankName}
+                  onValueChange={(v) => updateField("bankName", v)}
+                >
+                  <SelectTrigger
+                    className={getFieldStyle(!!fieldError("bankName"))}
+                  >
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {banksOptions.map((option: any, index: number) => {
+                      const value = String(
+                        option.bank_pk_code ||
+                          option.id ||
+                          option.code ||
+                          option.bank_code ||
+                          index,
+                      );
+                      const label =
+                        option.bank_name ||
+                        option.name ||
+                        option.label ||
+                        option.bankName ||
+                        option.bank ||
+                        "Unknown";
+                      return (
+                        <SelectItem key={index} value={value}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                {fieldError("bankName") && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {fieldError("bankName")}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Saving Account No *</Label>
+                <RestrictedInput
+                  allowed="alphanumeric"
+                  className={getFieldStyle(!!fieldError("bankAccount"))}
+                  value={data.bankAccount}
+                  onChange={(e) => updateField("bankAccount", e.target.value)}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-28 bg-transparent"
-                  onClick={() =>
-                    document
-                      .getElementById(`family-tree-${data.id || "owner"}`)
-                      ?.click()
-                  }
-                >
-                  Choose File
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  {data.familyTreeName || "No file chosen"}
-                </span>
+                {fieldError("bankAccount") && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {fieldError("bankAccount")}
+                  </p>
+                )}
               </div>
-              {fieldError("familyTree") && (
-                <p className="text-xs text-red-500 mt-1">
-                  {fieldError("familyTree")}
-                </p>
-              )}
-            </div>
-          </div>
 
-          {/* Bank Details */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t">
-            <div className="space-y-2">
-              <Label>Name of Bank *</Label>
-              <Select
-                value={data.bankName}
-                onValueChange={(v) => updateField("bankName", v)}
-              >
-                <SelectTrigger
-                  className={getFieldStyle(!!fieldError("bankName"))}
-                >
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  {banksOptions.map((option: any, index: number) => {
-                    const value = String(
-                      option.bank_pk_code ||
-                        option.id ||
-                        option.code ||
-                        option.bank_code ||
-                        index,
-                    );
-                    const label =
-                      option.bank_name ||
-                      option.name ||
-                      option.label ||
-                      option.bankName ||
-                      option.bank ||
-                      "Unknown";
-                    return (
-                      <SelectItem key={index} value={value}>
-                        {label}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              {fieldError("bankName") && (
-                <p className="text-xs text-red-500 mt-1">
-                  {fieldError("bankName")}
+              <div className="space-y-2.5">
+                <Label>Upload Passport-size Photograph *</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    id={`passport-${data.id || "owner"}`}
+                    className="hidden"
+                    accept=".jpg,.jpeg,.png"
+                    onChange={(e) =>
+                      handleFileChange(
+                        "passportPhoto",
+                        e.target.files?.[0] || null,
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={`w-28 ${fieldError("passportPhoto") ? "border-red-500" : "bg-transparent"}`}
+                    onClick={() =>
+                      document
+                        .getElementById(`passport-${data.id || "owner"}`)
+                        ?.click()
+                    }
+                  >
+                    Choose File
+                  </Button>
+                  <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                    {data.passportPhotoName || "No file chosen"}
+                  </span>
+                </div>
+                {fieldError("passportPhoto") && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {fieldError("passportPhoto")}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500">
+                  Allowed: JPG, PNG (Max 5MB)
                 </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Saving Account No *</Label>
-              <RestrictedInput
-                allowed="alphanumeric"
-                className={getFieldStyle(!!fieldError("bankAccount"))}
-                value={data.bankAccount}
-                onChange={(e) => updateField("bankAccount", e.target.value)}
-              />
-              {fieldError("bankAccount") && (
-                <p className="text-xs text-red-500 mt-1">
-                  {fieldError("bankAccount")}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Upload Passport-size Photograph *</Label>
-              <div
-                className={fileUploadStyle(!!fieldError("passportPhoto"))}
-                onClick={() =>
-                  document
-                    .getElementById(`passport-${data.id || "owner"}`)
-                    ?.click()
-                }
-              >
-                <span className="text-gray-500 truncate">
-                  {data.passportPhotoName || "Choose File"}
-                </span>
-                <Upload className="h-4 w-4 text-[#003DA5]" />
               </div>
-              <input
-                type="file"
-                id={`passport-${data.id || "owner"}`}
-                className="hidden"
-                accept=".jpg,.jpeg,.png"
-                onChange={(e) =>
-                  handleFileChange("passportPhoto", e.target.files?.[0] || null)
-                }
-              />
-              {fieldError("passportPhoto") && (
-                <p className="text-xs text-red-500 mt-1">
-                  {fieldError("passportPhoto")}
-                </p>
-              )}
             </div>
-          </div>
+          )}
 
           {/* 2. Permanent Address */}
           <div className="space-y-4 pt-4 border-t">
@@ -1744,42 +2793,49 @@ const ComprehensiveOwnerDetails = ({
                       </p>
                     )}
                   </div>
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-2.5 md:col-span-2">
                     <Label>Upload Address Proof *</Label>
-                    <div
-                      className={fileUploadStyle(
-                        !!fieldError("permAddressProof"),
-                      )}
-                      onClick={() =>
-                        document
-                          .getElementById(`perm-proof-${data.id || "owner"}`)
-                          ?.click()
-                      }
-                    >
-                      <span className="text-gray-500 truncate">
-                        {data.permAddressProofName || "Choose File"}
-                      </span>
-                      <Upload className="h-4 w-4 text-[#003DA5]" />
-                    </div>
-                    <input
-                      type="file"
-                      id={`perm-proof-${data.id || "owner"}`}
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files?.[0]) {
-                          updateField("permAddressProof", e.target.files[0]);
-                          updateField(
-                            "permAddressProofName",
-                            e.target.files[0].name,
-                          );
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        id={`perm-proof-${data.id || "owner"}`}
+                        className="hidden"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) {
+                            handleFileChange(
+                              "permAddressProof",
+                              e.target.files[0],
+                            );
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className={`w-28 ${fieldError("permAddressProof") ? "border-red-500" : "bg-transparent"}`}
+                        onClick={() =>
+                          document
+                            .getElementById(`perm-proof-${data.id || "owner"}`)
+                            ?.click()
                         }
-                      }}
-                    />
+                      >
+                        Choose File
+                      </Button>
+                      <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                        {data.permAddressProofName || "No file chosen"}
+                      </span>
+                    </div>
                     {fieldError("permAddressProof") && (
                       <p className="text-xs text-red-500 mt-1">
                         {fieldError("permAddressProof")}
                       </p>
                     )}
+                    <p className="text-xs text-gray-500">
+                      Please upload a valid address proof document for
+                      non-Bhutan residence. Allowed: PDF, JPG, PNG (Max 5MB)
+                    </p>
                   </div>
                 </>
               )}
@@ -1981,42 +3037,49 @@ const ComprehensiveOwnerDetails = ({
                       </p>
                     )}
                   </div>
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-2.5 md:col-span-2">
                     <Label>Upload Address Proof *</Label>
-                    <div
-                      className={fileUploadStyle(
-                        !!fieldError("currAddressProof"),
-                      )}
-                      onClick={() =>
-                        document
-                          .getElementById(`curr-proof-${data.id || "owner"}`)
-                          ?.click()
-                      }
-                    >
-                      <span className="text-gray-500 truncate">
-                        {data.currAddressProofName || "Choose File"}
-                      </span>
-                      <Upload className="h-4 w-4 text-[#003DA5]" />
-                    </div>
-                    <input
-                      type="file"
-                      id={`curr-proof-${data.id || "owner"}`}
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files?.[0]) {
-                          updateField("currAddressProof", e.target.files[0]);
-                          updateField(
-                            "currAddressProofName",
-                            e.target.files[0].name,
-                          );
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        id={`curr-proof-${data.id || "owner"}`}
+                        className="hidden"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) {
+                            handleFileChange(
+                              "currAddressProof",
+                              e.target.files[0],
+                            );
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className={`w-28 ${fieldError("currAddressProof") ? "border-red-500" : "bg-transparent"}`}
+                        onClick={() =>
+                          document
+                            .getElementById(`curr-proof-${data.id || "owner"}`)
+                            ?.click()
                         }
-                      }}
-                    />
+                      >
+                        Choose File
+                      </Button>
+                      <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                        {data.currAddressProofName || "No file chosen"}
+                      </span>
+                    </div>
                     {fieldError("currAddressProof") && (
                       <p className="text-xs text-red-500 mt-1">
                         {fieldError("currAddressProof")}
                       </p>
                     )}
+                    <p className="text-xs text-gray-500">
+                      Please upload a valid address proof document for
+                      non-Bhutan residence. Allowed: PDF, JPG, PNG (Max 5MB)
+                    </p>
                   </div>
                 </>
               )}
@@ -2074,225 +3137,32 @@ const ComprehensiveOwnerDetails = ({
             </div>
           </div>
 
-          {/* 4. PEP Declaration */}
-          <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
-              PEP Declaration
-            </h2>
+          {/* 4. PEP Declaration - conditionally rendered */}
+          {!hidePepDeclaration && (
+            <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
+                PEP Declaration
+              </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 border-b pb-6">
-              <div className="space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-sm">
-                  Politically Exposed Person
-                  <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={data.pepPerson}
-                  onValueChange={(value) => {
-                    onUpdate({
-                      ...data,
-                      pepPerson: value,
-                      pepRelated: value === "yes" ? "" : data.pepRelated,
-                    });
-                    if (onClearError) onClearError(getErrorKey("pepPerson"));
-                  }}
-                >
-                  <SelectTrigger
-                    className={getFieldStyle(!!fieldError("pepPerson"))}
-                  >
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent sideOffset={4}>
-                    <SelectItem value="yes">Yes</SelectItem>
-                    <SelectItem value="no">No</SelectItem>
-                  </SelectContent>
-                </Select>
-                {fieldError("pepPerson") && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {fieldError("pepPerson")}
-                  </p>
-                )}
-              </div>
-
-              {data.pepPerson === "yes" && (
-                <>
-                  <div className="space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-sm">
-                      PEP Category<span className="text-destructive">*</span>
-                    </Label>
-                    <Select
-                      value={data.pepCategory}
-                      onValueChange={(value) => {
-                        onUpdate({
-                          ...data,
-                          pepCategory: value,
-                          pepSubCategory: "",
-                        });
-                        if (onClearError)
-                          onClearError(getErrorKey("pepCategory"));
-                      }}
-                    >
-                      <SelectTrigger
-                        className={getFieldStyle(!!fieldError("pepCategory"))}
-                      >
-                        <SelectValue placeholder="[Select]" />
-                      </SelectTrigger>
-                      <SelectContent sideOffset={4}>
-                        {pepCategoryOptions.length > 0 ? (
-                          pepCategoryOptions.map((option, index) => {
-                            const key =
-                              option.pep_category_pk_code ||
-                              option.id ||
-                              `pep-cat-${index}`;
-                            const value = String(
-                              option.pep_category_pk_code || option.id,
-                            );
-                            const label =
-                              option.pep_category || option.name || "Unknown";
-                            return (
-                              <SelectItem key={key} value={value}>
-                                {label}
-                              </SelectItem>
-                            );
-                          })
-                        ) : (
-                          <SelectItem value="loading" disabled>
-                            Loading...
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {fieldError("pepCategory") && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {fieldError("pepCategory")}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-sm">
-                      PEP Sub Category
-                      <span className="text-destructive">*</span>
-                    </Label>
-                    <Select
-                      value={data.pepSubCategory}
-                      onValueChange={(value) => {
-                        onUpdate({ ...data, pepSubCategory: value });
-                        if (onClearError)
-                          onClearError(getErrorKey("pepSubCategory"));
-                      }}
-                      disabled={!data.pepCategory}
-                    >
-                      <SelectTrigger
-                        className={getFieldStyle(
-                          !!fieldError("pepSubCategory"),
-                        )}
-                      >
-                        <SelectValue placeholder="[Select]" />
-                      </SelectTrigger>
-                      <SelectContent sideOffset={4}>
-                        {pepSubCategoryOptions.length > 0 ? (
-                          pepSubCategoryOptions.map((option, index) => {
-                            const key =
-                              option.pep_sub_category_pk_code ||
-                              option.id ||
-                              `pep-sub-${index}`;
-                            const value = String(
-                              option.pep_sub_category_pk_code || option.id,
-                            );
-                            const label =
-                              option.pep_sub_category ||
-                              option.name ||
-                              "Unknown";
-                            return (
-                              <SelectItem key={key} value={value}>
-                                {label}
-                              </SelectItem>
-                            );
-                          })
-                        ) : (
-                          <SelectItem value="loading" disabled>
-                            {data.pepCategory
-                              ? "Loading..."
-                              : "Select Category first"}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {fieldError("pepSubCategory") && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {fieldError("pepSubCategory")}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-sm">
-                      Upload Identification Proof{" "}
-                      <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        id={`self-pep-${data.id || "owner"}`}
-                        className="hidden"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) =>
-                          handleFileChange(
-                            "identificationProof",
-                            e.target.files?.[0] || null,
-                          )
-                        }
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-28 bg-transparent"
-                        onClick={() =>
-                          document
-                            .getElementById(`self-pep-${data.id || "owner"}`)
-                            ?.click()
-                        }
-                      >
-                        Choose File
-                      </Button>
-                      <span className="text-sm text-muted-foreground truncate max-w-[150px]">
-                        {data.identificationProofName || "No file chosen"}
-                      </span>
-                    </div>
-                    {fieldError("identificationProof") && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {fieldError("identificationProof")}
-                      </p>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* RELATED PEP Question */}
-            {data.pepPerson === "no" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 pt-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 border-b pb-6">
                 <div className="space-y-2.5">
                   <Label className="text-gray-800 font-semibold text-sm">
-                    Are you related to any PEP?
+                    Politically Exposed Person
                     <span className="text-destructive">*</span>
                   </Label>
                   <Select
-                    value={data.pepRelated}
+                    value={data.pepPerson}
                     onValueChange={(value) => {
                       onUpdate({
                         ...data,
-                        pepRelated: value,
-                        relatedPeps:
-                          value === "yes" ? [createEmptyRelatedPep()] : [],
+                        pepPerson: value,
+                        pepRelated: value === "yes" ? "" : data.pepRelated,
                       });
-                      if (onClearError) onClearError(getErrorKey("pepRelated"));
+                      if (onClearError) onClearError(getErrorKey("pepPerson"));
                     }}
                   >
                     <SelectTrigger
-                      className={getFieldStyle(!!fieldError("pepRelated"))}
+                      className={getFieldStyle(!!fieldError("pepPerson"))}
                     >
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
@@ -2301,278 +3171,141 @@ const ComprehensiveOwnerDetails = ({
                       <SelectItem value="no">No</SelectItem>
                     </SelectContent>
                   </Select>
-                  {fieldError("pepRelated") && (
+                  {fieldError("pepPerson") && (
                     <p className="text-xs text-red-500 mt-1">
-                      {fieldError("pepRelated")}
+                      {fieldError("pepPerson")}
                     </p>
                   )}
                 </div>
-              </div>
-            )}
 
-            {/* RELATED PEP MULTIPLE ENTRIES */}
-            {data.pepPerson === "no" && data.pepRelated === "yes" && (
-              <div className="space-y-6 pt-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-md font-bold text-gray-700">
-                    Related PEP Details
-                  </h3>
-                </div>
-
-                {(data.relatedPeps || []).map((pep: any, index: number) => (
-                  <div
-                    key={index}
-                    className="bg-gray-50 border border-gray-200 rounded-lg p-4 relative"
-                  >
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="font-semibold text-sm text-gray-600">
-                        Person {index + 1}
-                      </span>
-                      {data.relatedPeps.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveRelatedPep(index)}
-                          className="h-8 w-8 p-0 hover:bg-red-50"
+                {data.pepPerson === "yes" && (
+                  <>
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        PEP Category<span className="text-destructive">*</span>
+                      </Label>
+                      <Select
+                        value={data.pepCategory}
+                        onValueChange={(value) => {
+                          onUpdate({
+                            ...data,
+                            pepCategory: value,
+                            pepSubCategory: "",
+                          });
+                          if (onClearError)
+                            onClearError(getErrorKey("pepCategory"));
+                        }}
+                      >
+                        <SelectTrigger
+                          className={getFieldStyle(!!fieldError("pepCategory"))}
                         >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          {pepCategoryOptions.length > 0 ? (
+                            pepCategoryOptions.map((option, index) => {
+                              const key =
+                                option.pep_category_pk_code ||
+                                option.id ||
+                                `pep-cat-${index}`;
+                              const value = String(
+                                option.pep_category_pk_code || option.id,
+                              );
+                              const label =
+                                option.pep_category || option.name || "Unknown";
+                              return (
+                                <SelectItem key={key} value={value}>
+                                  {label}
+                                </SelectItem>
+                              );
+                            })
+                          ) : (
+                            <SelectItem value="loading" disabled>
+                              Loading...
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {fieldError("pepCategory") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {fieldError("pepCategory")}
+                        </p>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Relationship{" "}
-                          <span className="text-destructive">*</span>
-                        </Label>
-                        <Select
-                          value={pep.relationship || ""}
-                          onValueChange={(value) => {
-                            updateRelatedPep(index, "relationship", value);
-                            if (onClearError)
-                              onClearError(
-                                `${getErrorKey(`relatedPeps.${index}.relationship`)}`,
-                              );
-                          }}
-                        >
-                          <SelectTrigger
-                            className={getFieldStyle(
-                              !!errors[
-                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.relationship`
-                              ],
-                            )}
-                          >
-                            <SelectValue placeholder="[Select]" />
-                          </SelectTrigger>
-                          <SelectContent sideOffset={4}>
-                            <SelectItem value="spouse">Spouse</SelectItem>
-                            <SelectItem value="parent">Parent</SelectItem>
-                            <SelectItem value="sibling">Sibling</SelectItem>
-                            <SelectItem value="child">Child</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {errors[
-                          `${basePath ? basePath + "." : ""}relatedPeps.${index}.relationship`
-                        ] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {
-                              errors[
-                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.relationship`
-                              ]
-                            }
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Identification No.{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <RestrictedInput
-                          allowed="numeric"
-                          maxLength={11}
-                          placeholder="Enter Identification No"
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        PEP Sub Category
+                        <span className="text-destructive">*</span>
+                      </Label>
+                      <Select
+                        value={data.pepSubCategory}
+                        onValueChange={(value) => {
+                          onUpdate({ ...data, pepSubCategory: value });
+                          if (onClearError)
+                            onClearError(getErrorKey("pepSubCategory"));
+                        }}
+                        disabled={!data.pepCategory}
+                      >
+                        <SelectTrigger
                           className={getFieldStyle(
-                            !!errors[
-                              `${basePath ? basePath + "." : ""}relatedPeps.${index}.identificationNo`
-                            ],
+                            !!fieldError("pepSubCategory"),
                           )}
-                          value={pep.identificationNo || ""}
-                          onChange={(e) => {
-                            updateRelatedPep(
-                              index,
-                              "identificationNo",
-                              e.target.value,
-                            );
-                            if (onClearError)
-                              onClearError(
-                                `${getErrorKey(`relatedPeps.${index}.identificationNo`)}`,
-                              );
-                          }}
-                        />
-                        {errors[
-                          `${basePath ? basePath + "." : ""}relatedPeps.${index}.identificationNo`
-                        ] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {
-                              errors[
-                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.identificationNo`
-                              ]
-                            }
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          PEP Category{" "}
-                          <span className="text-destructive">*</span>
-                        </Label>
-                        <Select
-                          value={pep.category || ""}
-                          onValueChange={(value) => {
-                            handleRelatedPepCategoryChange(index, value);
-                            if (onClearError)
-                              onClearError(
-                                `${getErrorKey(`relatedPeps.${index}.category`)}`,
-                              );
-                          }}
                         >
-                          <SelectTrigger
-                            className={getFieldStyle(
-                              !!errors[
-                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.category`
-                              ],
-                            )}
-                          >
-                            <SelectValue placeholder="[Select]" />
-                          </SelectTrigger>
-                          <SelectContent sideOffset={4}>
-                            {pepCategoryOptions.length > 0 ? (
-                              pepCategoryOptions.map((option, idx) => {
-                                const key =
-                                  option.pep_category_pk_code ||
-                                  option.id ||
-                                  `pep-cat-${idx}`;
-                                const val = String(
-                                  option.pep_category_pk_code || option.id,
-                                );
-                                const label =
-                                  option.pep_category ||
-                                  option.name ||
-                                  "Unknown";
-                                return (
-                                  <SelectItem key={key} value={val}>
-                                    {label}
-                                  </SelectItem>
-                                );
-                              })
-                            ) : (
-                              <SelectItem value="loading" disabled>
-                                Loading...
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        {errors[
-                          `${basePath ? basePath + "." : ""}relatedPeps.${index}.category`
-                        ] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {
-                              errors[
-                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.category`
-                              ]
-                            }
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          PEP Sub Category
-                          <span className="text-destructive">*</span>
-                        </Label>
-                        <Select
-                          value={pep.subCategory || ""}
-                          onValueChange={(v) => {
-                            updateRelatedPep(index, "subCategory", v);
-                            if (onClearError)
-                              onClearError(
-                                `${getErrorKey(`relatedPeps.${index}.subCategory`)}`,
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          {pepSubCategoryOptions.length > 0 ? (
+                            pepSubCategoryOptions.map((option, index) => {
+                              const key =
+                                option.pep_sub_category_pk_code ||
+                                option.id ||
+                                `pep-sub-${index}`;
+                              const value = String(
+                                option.pep_sub_category_pk_code || option.id,
                               );
-                          }}
-                          disabled={!pep.category}
-                        >
-                          <SelectTrigger
-                            className={getFieldStyle(
-                              !!errors[
-                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.subCategory`
-                              ],
-                            )}
-                          >
-                            <SelectValue placeholder="[Select]" />
-                          </SelectTrigger>
-                          <SelectContent sideOffset={4}>
-                            {relatedPepOptionsMap[index]?.length > 0 ? (
-                              relatedPepOptionsMap[index].map((option, idx) => {
-                                const key =
-                                  option.pep_sub_category_pk_code ||
-                                  option.id ||
-                                  `pep-rel-sub-${idx}`;
-                                const val = String(
-                                  option.pep_sub_category_pk_code || option.id,
-                                );
-                                const label =
-                                  option.pep_sub_category ||
-                                  option.name ||
-                                  "Unknown";
-                                return (
-                                  <SelectItem key={key} value={val}>
-                                    {label}
-                                  </SelectItem>
-                                );
-                              })
-                            ) : (
-                              <SelectItem value="loading" disabled>
-                                {pep.category
-                                  ? "Loading..."
-                                  : "Select Category first"}
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        {errors[
-                          `${basePath ? basePath + "." : ""}relatedPeps.${index}.subCategory`
-                        ] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {
-                              errors[
-                                `${basePath ? basePath + "." : ""}relatedPeps.${index}.subCategory`
-                              ]
-                            }
-                          </p>
-                        )}
-                      </div>
+                              const label =
+                                option.pep_sub_category ||
+                                option.name ||
+                                "Unknown";
+                              return (
+                                <SelectItem key={key} value={value}>
+                                  {label}
+                                </SelectItem>
+                              );
+                            })
+                          ) : (
+                            <SelectItem value="loading" disabled>
+                              {data.pepCategory
+                                ? "Loading..."
+                                : "Select Category first"}
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {fieldError("pepSubCategory") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {fieldError("pepSubCategory")}
+                        </p>
+                      )}
                     </div>
 
-                    <div className="mt-4 space-y-2.5">
-                      <Label className="text-gray-800 font-semibold text-sm">
+                    <div className="space-y-2.5">
+                      <Label>
                         Upload Identification Proof{" "}
                         <span className="text-red-500">*</span>
                       </Label>
                       <div className="flex items-center gap-2">
                         <input
+                          id="biz-id-proof"
                           type="file"
-                          id={`uploadId-${data.id || "owner"}-${index}`}
                           className="hidden"
                           accept=".pdf,.jpg,.jpeg,.png"
                           onChange={(e) =>
-                            handleRelatedPepFileChange(
-                              index,
-                              e.target.files?.[0] || null,
+                            handleFileChange(
+                              "business",
+                              "identificationProof",
+                              e,
                             )
                           }
                         />
@@ -2580,397 +3313,748 @@ const ComprehensiveOwnerDetails = ({
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="w-28 bg-white"
+                          className={`w-28 ${errors["business.identificationProofFile"] ? "border-red-500" : "bg-transparent"}`}
                           onClick={() =>
-                            document
-                              .getElementById(
-                                `uploadId-${data.id || "owner"}-${index}`,
-                              )
-                              ?.click()
+                            document.getElementById("biz-id-proof")?.click()
                           }
                         >
                           Choose File
                         </Button>
                         <span className="text-sm text-muted-foreground truncate max-w-[200px]">
-                          {pep.identificationProofName || "No file chosen"}
+                          {data.identificationProofFileName || "No file chosen"}
                         </span>
                       </div>
-                      {errors[
-                        `${basePath ? basePath + "." : ""}relatedPeps.${index}.identificationProof`
-                      ] && (
+                      {errors["business.identificationProofFile"] && (
                         <p className="text-xs text-red-500 mt-1">
-                          {
-                            errors[
-                              `${basePath ? basePath + "." : ""}relatedPeps.${index}.identificationProof`
-                            ]
-                          }
+                          {errors["business.identificationProofFile"]}
                         </p>
                       )}
+                      <p className="text-xs text-gray-500">
+                        Please upload a valid Identification proof document.
+                        Allowed: PDF, JPG, PNG (Max 5MB)
+                      </p>
                     </div>
-                  </div>
-                ))}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAddRelatedPep}
-                  className="w-full sm:w-auto border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#003DA5] hover:text-[#003DA5]"
-                >
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Another Related PEP
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* 5. Employment Status */}
-          <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
-              Employment Status
-            </h2>
-
-            <div className="space-y-4">
-              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                Employment Status <span className="text-red-500">*</span>
-              </Label>
-              <RadioGroup
-                value={data.employmentStatus}
-                onValueChange={(v) => {
-                  onUpdate({ ...data, employmentStatus: v });
-                  if (onClearError)
-                    onClearError(getErrorKey("employmentStatus"));
-                }}
-                className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem
-                    value="employed"
-                    id={`emp-${data.id || "owner"}`}
-                  />
-                  <Label
-                    htmlFor={`emp-${data.id || "owner"}`}
-                    className="font-normal cursor-pointer text-sm"
-                  >
-                    Employed
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem
-                    value="unemployed"
-                    id={`unemp-${data.id || "owner"}`}
-                  />
-                  <Label
-                    htmlFor={`unemp-${data.id || "owner"}`}
-                    className="font-normal cursor-pointer text-sm"
-                  >
-                    Unemployed
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem
-                    value="self-employed"
-                    id={`self-${data.id || "owner"}`}
-                  />
-                  <Label
-                    htmlFor={`self-${data.id || "owner"}`}
-                    className="font-normal cursor-pointer text-sm"
-                  >
-                    Self-employed
-                  </Label>
-                </div>
-              </RadioGroup>
-              {fieldError("employmentStatus") && (
-                <p className="text-xs text-red-500 mt-1">
-                  {fieldError("employmentStatus")}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {data.employmentStatus === "employed" && (
-            <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
-              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
-                Employment Details
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-                <div className="space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-sm">
-                    Employee ID <span className="text-red-500">*</span>
-                  </Label>
-                  <RestrictedInput
-                    allowed="alphanumeric"
-                    placeholder="Enter ID"
-                    className={getFieldStyle(!!fieldError("employeeId"))}
-                    value={data.employeeId || ""}
-                    onChange={(e) => updateField("employeeId", e.target.value)}
-                  />
-                  {fieldError("employeeId") && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {fieldError("employeeId")}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-sm">
-                    Occupation <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={data.occupation}
-                    onValueChange={(v) => updateField("occupation", v)}
-                  >
-                    <SelectTrigger
-                      className={getFieldStyle(!!fieldError("occupation"))}
-                    >
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4}>
-                      {occupationOptions.length > 0 ? (
-                        occupationOptions.map((opt: any, i) => (
-                          <SelectItem
-                            key={i}
-                            value={String(
-                              opt.occ_name || opt.occupation || opt.name,
-                            )}
-                          >
-                            {opt.occ_name || opt.occupation || opt.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="loading" disabled>
-                          Loading...
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {fieldError("occupation") && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {fieldError("occupation")}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-sm">
-                    Type of Employer <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={data.employerType}
-                    onValueChange={(v) => updateField("employerType", v)}
-                  >
-                    <SelectTrigger
-                      className={getFieldStyle(!!fieldError("employerType"))}
-                    >
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4}>
-                      <SelectItem value="government">Government</SelectItem>
-                      <SelectItem value="private">Private</SelectItem>
-                      <SelectItem value="corporate">Corporate</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {fieldError("employerType") && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {fieldError("employerType")}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-sm">
-                    Designation <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={data.designation}
-                    onValueChange={(v) => updateField("designation", v)}
-                  >
-                    <SelectTrigger
-                      className={getFieldStyle(!!fieldError("designation"))}
-                    >
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4}>
-                      <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="officer">Officer</SelectItem>
-                      <SelectItem value="assistant">Assistant</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {fieldError("designation") && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {fieldError("designation")}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-sm">
-                    Grade <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={data.grade}
-                    onValueChange={(v) => updateField("grade", v)}
-                  >
-                    <SelectTrigger
-                      className={getFieldStyle(!!fieldError("grade"))}
-                    >
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4}>
-                      {/* Added loop for numeric grades 1-20 to accommodate data like '6' */}
-                      {Array.from({ length: 20 }, (_, i) => i + 1).map(
-                        (num) => (
-                          <SelectItem key={num} value={String(num)}>
-                            {num}
-                          </SelectItem>
-                        ),
-                      )}
-                      <SelectItem value="p1">P1</SelectItem>
-                      <SelectItem value="p2">P2</SelectItem>
-                      <SelectItem value="p3">P3</SelectItem>
-                      <SelectItem value="p4">P4</SelectItem>
-                      <SelectItem value="p5">P5</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {fieldError("grade") && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {fieldError("grade")}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-sm">
-                    Organization Name <span className="text-red-500">*</span>
-                  </Label>
-                  {/* Changed to RestrictedInput as data is coming as a string name, not an ID */}
-                  <RestrictedInput
-                    allowed="alphanumeric"
-                    placeholder="Enter Organization Name"
-                    className={getFieldStyle(!!fieldError("organizationName"))}
-                    value={data.organizationName || ""}
-                    onChange={(e) =>
-                      updateField("organizationName", e.target.value)
-                    }
-                  />
-                  {fieldError("organizationName") && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {fieldError("organizationName")}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-sm">
-                    Organization Location{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <RestrictedInput
-                    allowed="alphanumeric"
-                    placeholder="Enter Location"
-                    className={getFieldStyle(!!fieldError("orgLocation"))}
-                    value={data.orgLocation || ""}
-                    onChange={(e) => updateField("orgLocation", e.target.value)}
-                  />
-                  {fieldError("orgLocation") && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {fieldError("orgLocation")}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-sm">
-                    Service Joining Date <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    type="date"
-                    max={today}
-                    className={getFieldStyle(!!fieldError("joiningDate"))}
-                    value={formatDateForInput(data.joiningDate)}
-                    onChange={(e) => updateField("joiningDate", e.target.value)}
-                  />
-                  {fieldError("joiningDate") && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {fieldError("joiningDate")}
-                    </p>
-                  )}
-                </div>
+                  </>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-sm">
-                    Nature of Service <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={data.serviceNature}
-                    onValueChange={(v) => updateField("serviceNature", v)}
-                  >
-                    <SelectTrigger
-                      className={getFieldStyle(!!fieldError("serviceNature"))}
-                    >
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4}>
-                      <SelectItem value="permanent">Permanent</SelectItem>
-                      <SelectItem value="contract">Contract</SelectItem>
-                      <SelectItem value="temporary">Temporary</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {fieldError("serviceNature") && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {fieldError("serviceNature")}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-sm">
-                    Gross Annual Salary Income{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    type="number"
-                    placeholder="Enter Annual Salary"
-                    className={getFieldStyle(!!fieldError("annualSalary"))}
-                    value={data.annualSalary || ""}
-                    onChange={(e) =>
-                      updateField("annualSalary", e.target.value)
-                    }
-                  />
-                  {fieldError("annualSalary") && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {fieldError("annualSalary")}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {data.serviceNature === "contract" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* RELATED PEP Question */}
+              {data.pepPerson === "no" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 pt-6">
                   <div className="space-y-2.5">
                     <Label className="text-gray-800 font-semibold text-sm">
-                      Contract End Date <span className="text-red-500">*</span>
+                      Are you related to any PEP?
+                      <span className="text-destructive">*</span>
                     </Label>
-                    <Input
-                      type="date"
-                      min={today}
-                      className={getFieldStyle(!!fieldError("contractEndDate"))}
-                      value={formatDateForInput(data.contractEndDate)}
-                      onChange={(e) =>
-                        updateField("contractEndDate", e.target.value)
-                      }
-                    />
-                    {fieldError("contractEndDate") && (
+                    <Select
+                      value={data.pepRelated}
+                      onValueChange={(value) => {
+                        onUpdate({
+                          ...data,
+                          pepRelated: value,
+                          relatedPeps:
+                            value === "yes" ? [createEmptyRelatedPep()] : [],
+                        });
+                        if (onClearError)
+                          onClearError(getErrorKey("pepRelated"));
+                      }}
+                    >
+                      <SelectTrigger
+                        className={getFieldStyle(!!fieldError("pepRelated"))}
+                      >
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent sideOffset={4}>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {fieldError("pepRelated") && (
                       <p className="text-xs text-red-500 mt-1">
-                        {fieldError("contractEndDate")}
+                        {fieldError("pepRelated")}
                       </p>
                     )}
                   </div>
                 </div>
               )}
+
+              {/* RELATED PEP MULTIPLE ENTRIES */}
+              {data.pepPerson === "no" && data.pepRelated === "yes" && (
+                <div className="space-y-6 pt-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-md font-bold text-gray-700">
+                      Related PEP Details
+                    </h3>
+                  </div>
+
+                  {(data.relatedPeps || []).map((pep: any, index: number) => (
+                    <div
+                      key={index}
+                      className="bg-gray-50 border border-gray-200 rounded-lg p-4 relative"
+                    >
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="font-semibold text-sm text-gray-600">
+                          Person {index + 1}
+                        </span>
+                        {data.relatedPeps.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveRelatedPep(index)}
+                            className="h-8 w-8 p-0 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Original fields (relationship, category, subcategory, upload) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Relationship{" "}
+                            <span className="text-destructive">*</span>
+                          </Label>
+                          <Select
+                            value={pep.relationship || ""}
+                            onValueChange={(value) => {
+                              updateRelatedPep(index, "relationship", value);
+                              if (onClearError)
+                                onClearError(
+                                  `${getErrorKey(`relatedPeps.${index}.relationship`)}`,
+                                );
+                            }}
+                          >
+                            <SelectTrigger
+                              className={getFieldStyle(
+                                !!errors[
+                                  `${basePath ? basePath + "." : ""}relatedPeps.${index}.relationship`
+                                ],
+                              )}
+                            >
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              <SelectItem value="spouse">Spouse</SelectItem>
+                              <SelectItem value="parent">Parent</SelectItem>
+                              <SelectItem value="sibling">Sibling</SelectItem>
+                              <SelectItem value="child">Child</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {errors[
+                            `${basePath ? basePath + "." : ""}relatedPeps.${index}.relationship`
+                          ] && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {
+                                errors[
+                                  `${basePath ? basePath + "." : ""}relatedPeps.${index}.relationship`
+                                ]
+                              }
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            PEP Category{" "}
+                            <span className="text-destructive">*</span>
+                          </Label>
+                          <Select
+                            value={pep.category || ""}
+                            onValueChange={(value) => {
+                              handleRelatedPepCategoryChange(index, value);
+                              if (onClearError)
+                                onClearError(
+                                  `${getErrorKey(`relatedPeps.${index}.category`)}`,
+                                );
+                            }}
+                          >
+                            <SelectTrigger
+                              className={getFieldStyle(
+                                !!errors[
+                                  `${basePath ? basePath + "." : ""}relatedPeps.${index}.category`
+                                ],
+                              )}
+                            >
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              {pepCategoryOptions.length > 0 ? (
+                                pepCategoryOptions.map((option, idx) => {
+                                  const key =
+                                    option.pep_category_pk_code ||
+                                    option.id ||
+                                    `pep-cat-${idx}`;
+                                  const val = String(
+                                    option.pep_category_pk_code || option.id,
+                                  );
+                                  const label =
+                                    option.pep_category ||
+                                    option.name ||
+                                    "Unknown";
+                                  return (
+                                    <SelectItem key={key} value={val}>
+                                      {label}
+                                    </SelectItem>
+                                  );
+                                })
+                              ) : (
+                                <SelectItem value="loading" disabled>
+                                  Loading...
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {errors[
+                            `${basePath ? basePath + "." : ""}relatedPeps.${index}.category`
+                          ] && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {
+                                errors[
+                                  `${basePath ? basePath + "." : ""}relatedPeps.${index}.category`
+                                ]
+                              }
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            PEP Sub Category
+                            <span className="text-destructive">*</span>
+                          </Label>
+                          <Select
+                            value={pep.subCategory || ""}
+                            onValueChange={(v) => {
+                              updateRelatedPep(index, "subCategory", v);
+                              if (onClearError)
+                                onClearError(
+                                  `${getErrorKey(`relatedPeps.${index}.subCategory`)}`,
+                                );
+                            }}
+                            disabled={!pep.category}
+                          >
+                            <SelectTrigger
+                              className={getFieldStyle(
+                                !!errors[
+                                  `${basePath ? basePath + "." : ""}relatedPeps.${index}.subCategory`
+                                ],
+                              )}
+                            >
+                              <SelectValue placeholder="[Select]" />
+                            </SelectTrigger>
+                            <SelectContent sideOffset={4}>
+                              {relatedPepOptionsMap[index]?.length > 0 ? (
+                                relatedPepOptionsMap[index].map(
+                                  (option, idx) => {
+                                    const key =
+                                      option.pep_sub_category_pk_code ||
+                                      option.id ||
+                                      `pep-rel-sub-${idx}`;
+                                    const val = String(
+                                      option.pep_sub_category_pk_code ||
+                                        option.id,
+                                    );
+                                    const label =
+                                      option.pep_sub_category ||
+                                      option.name ||
+                                      "Unknown";
+                                    return (
+                                      <SelectItem key={key} value={val}>
+                                        {label}
+                                      </SelectItem>
+                                    );
+                                  },
+                                )
+                              ) : (
+                                <SelectItem value="loading" disabled>
+                                  {pep.category
+                                    ? "Loading..."
+                                    : "Select Category first"}
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {errors[
+                            `${basePath ? basePath + "." : ""}relatedPeps.${index}.subCategory`
+                          ] && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {
+                                errors[
+                                  `${basePath ? basePath + "." : ""}relatedPeps.${index}.subCategory`
+                                ]
+                              }
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-gray-800 font-semibold text-sm">
+                            Upload Identification Proof{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              id={`uploadId-${data.id || "owner"}-${index}`}
+                              className="hidden"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={(e) =>
+                                handleRelatedPepFileChange(
+                                  index,
+                                  e.target.files?.[0] || null,
+                                )
+                              }
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="w-28 bg-white"
+                              onClick={() =>
+                                document
+                                  .getElementById(
+                                    `uploadId-${data.id || "owner"}-${index}`,
+                                  )
+                                  ?.click()
+                              }
+                            >
+                              Choose File
+                            </Button>
+                            <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                              {pep.identificationProofName || "No file chosen"}
+                            </span>
+                          </div>
+                          {errors[
+                            `${basePath ? basePath + "." : ""}relatedPeps.${index}.identificationProof`
+                          ] && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {
+                                errors[
+                                  `${basePath ? basePath + "." : ""}relatedPeps.${index}.identificationProof`
+                                ]
+                              }
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500">
+                            Please upload a valid Identification proof document.
+                            Allowed: PDF, JPG, PNG (Max 5MB)
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Personal details for this related PEP */}
+                      <ComprehensiveOwnerDetails
+                        data={pep}
+                        onUpdate={(newData) => {
+                          const updatedPeps = [...(data.relatedPeps || [])];
+                          updatedPeps[index] = newData;
+                          updateField("relatedPeps", updatedPeps);
+                        }}
+                        countryOptions={countryOptions}
+                        dzongkhagOptions={dzongkhagOptions}
+                        identificationTypeOptions={identificationTypeOptions}
+                        maritalStatusOptions={maritalStatusOptions}
+                        title={`Related PEP ${index + 1} - Personal Information`}
+                        errors={errors}
+                        basePath={`${basePath}.relatedPeps.${index}`}
+                        onClearError={onClearError}
+                        onSetError={onSetError}
+                        onValidateField={onValidateField}
+                        // Hide irrelevant sections
+                        hidePepDeclaration
+                        hideEmployment
+                        hideBank
+                        hideFamilyTree
+                      />
+                    </div>
+                  ))}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddRelatedPep}
+                    className="w-full sm:w-auto border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#003DA5] hover:text-[#003DA5]"
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Another Related PEP
+                  </Button>
+                </div>
+              )}
             </div>
+          )}
+
+          {/* 5. Employment Status - conditionally rendered */}
+          {!hideEmployment && (
+            <>
+              <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
+                  Employment Status
+                </h2>
+
+                <div className="space-y-4">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Employment Status <span className="text-red-500">*</span>
+                  </Label>
+                  <RadioGroup
+                    value={data.employmentStatus}
+                    onValueChange={(v) => {
+                      onUpdate({ ...data, employmentStatus: v });
+                      if (onClearError)
+                        onClearError(getErrorKey("employmentStatus"));
+                    }}
+                    className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem
+                        value="employed"
+                        id={`emp-${data.id || "owner"}`}
+                      />
+                      <Label
+                        htmlFor={`emp-${data.id || "owner"}`}
+                        className="font-normal cursor-pointer text-sm"
+                      >
+                        Employed
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem
+                        value="unemployed"
+                        id={`unemp-${data.id || "owner"}`}
+                      />
+                      <Label
+                        htmlFor={`unemp-${data.id || "owner"}`}
+                        className="font-normal cursor-pointer text-sm"
+                      >
+                        Unemployed
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem
+                        value="self-employed"
+                        id={`self-${data.id || "owner"}`}
+                      />
+                      <Label
+                        htmlFor={`self-${data.id || "owner"}`}
+                        className="font-normal cursor-pointer text-sm"
+                      >
+                        Self-employed
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                  {fieldError("employmentStatus") && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fieldError("employmentStatus")}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {data.employmentStatus === "employed" && (
+                <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
+                    Employment Details
+                  </h2>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Employee ID <span className="text-red-500">*</span>
+                      </Label>
+                      <RestrictedInput
+                        allowed="alphanumeric"
+                        placeholder="Enter ID"
+                        className={getFieldStyle(!!fieldError("employeeId"))}
+                        value={data.employeeId || ""}
+                        onChange={(e) =>
+                          updateField("employeeId", e.target.value)
+                        }
+                      />
+                      {fieldError("employeeId") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {fieldError("employeeId")}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Occupation <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={data.occupation}
+                        onValueChange={(v) => updateField("occupation", v)}
+                      >
+                        <SelectTrigger
+                          className={getFieldStyle(!!fieldError("occupation"))}
+                        >
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          {occupationOptions.length > 0 ? (
+                            occupationOptions.map((opt: any, i) => (
+                              <SelectItem
+                                key={i}
+                                value={String(
+                                  opt.occ_name || opt.occupation || opt.name,
+                                )}
+                              >
+                                {opt.occ_name || opt.occupation || opt.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="loading" disabled>
+                              Loading...
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {fieldError("occupation") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {fieldError("occupation")}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Type of Employer <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={data.employerType}
+                        onValueChange={(v) => updateField("employerType", v)}
+                      >
+                        <SelectTrigger
+                          className={getFieldStyle(
+                            !!fieldError("employerType"),
+                          )}
+                        >
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          <SelectItem value="government">Government</SelectItem>
+                          <SelectItem value="private">Private</SelectItem>
+                          <SelectItem value="corporate">Corporate</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {fieldError("employerType") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {fieldError("employerType")}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Designation <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={data.designation}
+                        onValueChange={(v) => updateField("designation", v)}
+                      >
+                        <SelectTrigger
+                          className={getFieldStyle(!!fieldError("designation"))}
+                        >
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="officer">Officer</SelectItem>
+                          <SelectItem value="assistant">Assistant</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {fieldError("designation") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {fieldError("designation")}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Grade <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={data.grade}
+                        onValueChange={(v) => updateField("grade", v)}
+                      >
+                        <SelectTrigger
+                          className={getFieldStyle(!!fieldError("grade"))}
+                        >
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          {/* Added loop for numeric grades 1-20 to accommodate data like '6' */}
+                          {Array.from({ length: 20 }, (_, i) => i + 1).map(
+                            (num) => (
+                              <SelectItem key={num} value={String(num)}>
+                                {num}
+                              </SelectItem>
+                            ),
+                          )}
+                          <SelectItem value="p1">P1</SelectItem>
+                          <SelectItem value="p2">P2</SelectItem>
+                          <SelectItem value="p3">P3</SelectItem>
+                          <SelectItem value="p4">P4</SelectItem>
+                          <SelectItem value="p5">P5</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {fieldError("grade") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {fieldError("grade")}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Organization Name{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      {/* Changed to RestrictedInput as data is coming as a string name, not an ID */}
+                      <RestrictedInput
+                        allowed="alphanumeric"
+                        placeholder="Enter Organization Name"
+                        className={getFieldStyle(
+                          !!fieldError("organizationName"),
+                        )}
+                        value={data.organizationName || ""}
+                        onChange={(e) =>
+                          updateField("organizationName", e.target.value)
+                        }
+                      />
+                      {fieldError("organizationName") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {fieldError("organizationName")}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Organization Location{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <RestrictedInput
+                        allowed="alphanumeric"
+                        placeholder="Enter Location"
+                        className={getFieldStyle(!!fieldError("orgLocation"))}
+                        value={data.orgLocation || ""}
+                        onChange={(e) =>
+                          updateField("orgLocation", e.target.value)
+                        }
+                      />
+                      {fieldError("orgLocation") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {fieldError("orgLocation")}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Service Joining Date{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="date"
+                        max={today}
+                        className={getFieldStyle(!!fieldError("joiningDate"))}
+                        value={formatDateForInput(data.joiningDate)}
+                        onChange={(e) =>
+                          updateField("joiningDate", e.target.value)
+                        }
+                      />
+                      {fieldError("joiningDate") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {fieldError("joiningDate")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Nature of Service{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={data.serviceNature}
+                        onValueChange={(v) => updateField("serviceNature", v)}
+                      >
+                        <SelectTrigger
+                          className={getFieldStyle(
+                            !!fieldError("serviceNature"),
+                          )}
+                        >
+                          <SelectValue placeholder="[Select]" />
+                        </SelectTrigger>
+                        <SelectContent sideOffset={4}>
+                          <SelectItem value="permanent">Permanent</SelectItem>
+                          <SelectItem value="contract">Contract</SelectItem>
+                          <SelectItem value="temporary">Temporary</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {fieldError("serviceNature") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {fieldError("serviceNature")}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <Label className="text-gray-800 font-semibold text-sm">
+                        Gross Annual Salary Income{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="number"
+                        placeholder="Enter Annual Salary"
+                        className={getFieldStyle(!!fieldError("annualSalary"))}
+                        value={data.annualSalary || ""}
+                        onChange={(e) =>
+                          updateField("annualSalary", e.target.value)
+                        }
+                      />
+                      {fieldError("annualSalary") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {fieldError("annualSalary")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {data.serviceNature === "contract" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-sm">
+                          Contract End Date{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          type="date"
+                          min={today}
+                          className={getFieldStyle(
+                            !!fieldError("contractEndDate"),
+                          )}
+                          value={formatDateForInput(data.contractEndDate)}
+                          onChange={(e) =>
+                            updateField("contractEndDate", e.target.value)
+                          }
+                        />
+                        {fieldError("contractEndDate") && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {fieldError("contractEndDate")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -2978,10 +4062,10 @@ const ComprehensiveOwnerDetails = ({
   );
 };
 
-// --- Helper to sanitize data for sessionStorage (removes File objects) ---
+// --- Helper to sanitize data for sessionStorage (removes any leftover File objects) ---
 function sanitizeForStorage(obj: any): any {
   if (obj === null || typeof obj !== "object") return obj;
-  if (obj instanceof File) return undefined; // Remove File objects completely
+  if (obj instanceof File) return undefined; // Remove File objects completely (should not happen now)
   if (Array.isArray(obj)) {
     return obj
       .map((item) => sanitizeForStorage(item))
@@ -2998,50 +4082,66 @@ function sanitizeForStorage(obj: any): any {
 }
 
 // --- Main Form Component ---
-export function BusinessDetailsForm({
-  onNext,
-  onBack,
-  formData,
-}: BusinessDetailsFormProps) {
+export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
   // --- State Initialization ---
+  // Helper to check for new structure (inside businessDetail) or fallback to old structure
+  const getInitialVal = (key: string, defaultVal: any = "") => {
+    return formData?.businessDetail?.[key] ?? formData?.[key] ?? defaultVal;
+  };
+
+  const getInitialAddressVal = (key: string, defaultVal: any = "") => {
+    return (
+      formData?.businessDetail?.businessAddress?.[key] ??
+      formData?.businessAddress?.[key] ??
+      defaultVal
+    );
+  };
+
   const [businessData, setBusinessData] = useState({
-    businessName: formData?.businessName || "",
-    establishmentDate: formData?.establishmentDate || "",
-    industryClassification: formData?.industryClassification || "",
-    identificationType: formData?.identificationType || "",
-    identificationNumber: formData?.identificationNumber || "",
-    identificationIssueDate: formData?.identificationIssueDate || "",
-    identificationExpiryDate: formData?.identificationExpiryDate || "",
-    identificationProofFile: formData?.identificationProofFile || null,
-    identificationProofFileName: formData?.identificationProofFileName || "",
-    taxIdentifierType: formData?.taxIdentifierType || "",
-    taxIdentifierNumber: formData?.taxIdentifierNumber || "",
-    bankCurrentAccountNumber: formData?.bankCurrentAccountNumber || "",
-    bankSavingAccountNumber: formData?.bankSavingAccountNumber || "",
-    nameOfBank: formData?.nameOfBank || "",
-    grossAnnualIncome: formData?.grossAnnualIncome || "",
-    businessType: formData?.businessType || "",
+    businessName: getInitialVal("businessName"),
+    establishmentDate: getInitialVal("establishmentDate"),
+    industryClassification: getInitialVal("industryClassification"),
+    identificationType: getInitialVal("identificationType"),
+    identificationNumber: getInitialVal("identificationNumber"),
+    identificationIssueDate: getInitialVal("identificationIssueDate"),
+    identificationExpiryDate: getInitialVal("identificationExpiryDate"),
+    identificationProofFile: getInitialVal("identificationProofFile"), // store file ID
+    identificationProofFileName: getInitialVal("identificationProofFileName"),
+    taxIdentifierType: getInitialVal("taxIdentifierType"),
+    taxIdentifierNumber: getInitialVal("taxIdentifierNumber"),
+    bankCurrentAccountNumber: getInitialVal("bankCurrentAccountNumber"),
+    bankSavingAccountNumber: getInitialVal("bankSavingAccountNumber"),
+    nameOfBank: getInitialVal("nameOfBank"),
+    grossAnnualIncome: getInitialVal("grossAnnualIncome"),
+    businessType: getInitialVal("businessType"),
   });
 
   const [businessAddress, setBusinessAddress] = useState({
-    country: formData?.businessAddress?.country || "",
-    dzongkhag: formData?.businessAddress?.dzongkhag || "",
-    gewog: formData?.businessAddress?.gewog || "",
-    villageStreet: formData?.businessAddress?.villageStreet || "",
-    specificLocation: formData?.businessAddress?.specificLocation || "",
-    contactNumber: formData?.businessAddress?.contactNumber || "",
-    alternateContactNumber:
-      formData?.businessAddress?.alternateContactNumber || "",
-    email: formData?.businessAddress?.email || "",
+    country: getInitialAddressVal("country"),
+    dzongkhag: getInitialAddressVal("dzongkhag"),
+    gewog: getInitialAddressVal("gewog"),
+    villageStreet: getInitialAddressVal("villageStreet"),
+    specificLocation: getInitialAddressVal("specificLocation"),
+    contactNumber: getInitialAddressVal("contactNumber"),
+    alternateContactNumber: getInitialAddressVal("alternateContactNumber"),
+    email: getInitialAddressVal("email"),
   });
 
   const [attachments, setAttachments] = useState({
-    familyTree: formData?.attachments?.familyTree || null,
+    familyTree: formData?.attachments?.familyTree || "", // file ID
     familyTreeName: formData?.attachments?.familyTreeName || "",
-    supportingDoc: formData?.attachments?.supportingDoc || null,
+    supportingDoc: formData?.attachments?.supportingDoc || "", // file ID
     supportingDocName: formData?.attachments?.supportingDocName || "",
     declarationConsent: formData?.attachments?.declarationConsent || false,
   });
+
+  // --- Business Lookup State ---
+  const [showBusinessLookupPopup, setShowBusinessLookupPopup] = useState(false);
+  const [businessLookupStatus, setBusinessLookupStatus] = useState<
+    "searching" | "found" | "not_found"
+  >("searching");
+  const [fetchedBusinessCustomerData, setFetchedBusinessCustomerData] =
+    useState<any>(null);
 
   const initialComprehensiveState = {
     id: Date.now(),
@@ -3056,15 +4156,39 @@ export function BusinessDetailsForm({
     identificationExpiryDate: "",
     dateOfBirth: "",
     tpn: "",
+    taxIdentifierType: "",
+    householdNumber: "",
     maritalStatus: "",
+    // Spouse fields - expanded
+    spouseIdentificationType: "",
     spouseIdentificationNo: "",
+    spouseSalutation: "",
     spouseName: "",
+    spouseNationality: "",
+    spouseGender: "",
+    spouseIdentificationIssueDate: "",
+    spouseIdentificationExpiryDate: "",
+    spouseTpn: "",
+    spouseTaxIdentifierType: "",
+    spouseHouseholdNumber: "",
+    spouseDateOfBirth: "",
+    spousePermCountry: "",
+    spousePermDzongkhag: "",
+    spousePermGewog: "",
+    spousePermVillage: "",
+    spousePermThram: "",
+    spousePermHouse: "",
+    spousePermAddressProof: "",
+    spousePermAddressProofName: "",
+    spouseEmail: "",
     spouseContact: "",
+    spouseAlternateContact: "",
+    // End spouse fields
     bankName: "",
     bankAccount: "",
-    passportPhoto: null,
+    passportPhoto: "", // file ID
     passportPhotoName: "",
-    familyTree: null,
+    familyTree: "", // file ID
     familyTreeName: "",
     permCountry: "",
     permDzongkhag: "",
@@ -3072,7 +4196,7 @@ export function BusinessDetailsForm({
     permVillage: "",
     permThram: "",
     permHouse: "",
-    permAddressProof: null,
+    permAddressProof: "", // file ID
     permAddressProofName: "",
     currCountry: "",
     currDzongkhag: "",
@@ -3082,12 +4206,12 @@ export function BusinessDetailsForm({
     currEmail: "",
     currContact: "",
     currAlternateContact: "",
-    currAddressProof: null,
+    currAddressProof: "", // file ID
     currAddressProofName: "",
     pepPerson: "",
     pepCategory: "",
     pepSubCategory: "",
-    identificationProof: null,
+    identificationProof: "", // file ID
     identificationProofName: "",
     pepRelated: "",
     relatedPeps: [],
@@ -3143,7 +4267,10 @@ export function BusinessDetailsForm({
     any[]
   >([]);
   const [banksOptions, setBanksOptions] = useState<any[]>([]);
-  const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([]); // new state
+  const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([]);
+  const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
+  const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
+  const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -3175,19 +4302,18 @@ export function BusinessDetailsForm({
       case "spouseIdentificationNo":
         if (!isValidCID(value)) return "CID must be 11 digits";
         break;
-      case "tpn":
-      case "taxIdentifierNumber":
-        if (!isValidTPN(value)) return "TPN must be 11 digits";
-        break;
+
       case "currContact":
       case "spouseContact":
       case "currAlternateContact":
+      case "spouseAlternateContact":
       case "contactNumber":
       case "alternateContactNumber":
         if (!isValidPhoneNumber(value))
           return "Enter a valid Bhutanese phone number (mobile: 8 digits starting with 16/17/77; landline: 7-8 digits starting with 2-8)";
         break;
       case "currEmail":
+      case "spouseEmail":
       case "email":
         if (!isValidEmail(value)) return "Invalid email format";
         break;
@@ -3196,6 +4322,7 @@ export function BusinessDetailsForm({
           return "Shareholding must be between 0 and 100";
         break;
       case "dateOfBirth":
+      case "spouseDateOfBirth":
         if (!isLegalAge(value))
           return "Applicant must be at least 18 years old";
         break;
@@ -3206,14 +4333,25 @@ export function BusinessDetailsForm({
   useEffect(() => {
     const loadAllData = async () => {
       try {
-        const [country, dzongkhag, identificationType, banks, marital] =
-          await Promise.all([
-            fetchCountry().catch(() => []),
-            fetchDzongkhag().catch(() => []),
-            fetchIdentificationType().catch(() => []),
-            fetchBanks().catch(() => []),
-            fetchMaritalStatus().catch(() => []), // load marital status options
-          ]);
+        const [
+          country,
+          dzongkhag,
+          identificationType,
+          banks,
+          marital,
+          national,
+          occ,
+          pepCat,
+        ] = await Promise.all([
+          fetchCountry().catch(() => []),
+          fetchDzongkhag().catch(() => []),
+          fetchIdentificationType().catch(() => []),
+          fetchBanks().catch(() => []),
+          fetchMaritalStatus().catch(() => []),
+          fetchNationality().catch(() => []),
+          fetchOccupations().catch(() => []),
+          fetchPepCategory().catch(() => []),
+        ]);
         setCountryOptions(country?.data?.data || country || []);
         setDzongkhagOptions(dzongkhag?.data?.data || dzongkhag || []);
         setIdentificationTypeOptions(
@@ -3221,6 +4359,9 @@ export function BusinessDetailsForm({
         );
         setBanksOptions(banks?.data?.data || banks || []);
         setMaritalStatusOptions(marital?.data?.data || marital || []);
+        setNationalityOptions(national?.data?.data || national || []);
+        setOccupationOptions(occ?.data?.data || occ || []);
+        setPepCategoryOptions(pepCat?.data?.data || pepCat || []);
       } catch (error) {
         console.error("Error loading form data:", error);
       }
@@ -3249,6 +4390,32 @@ export function BusinessDetailsForm({
       setGewogOptions([]);
     }
   }, [businessAddress.dzongkhag, isBusinessBhutan]);
+
+  // Translate Business Address Gewog label to ID dynamically
+  useEffect(() => {
+    if (gewogOptions.length > 0 && businessAddress.gewog) {
+      const isId = gewogOptions.some(
+        (opt) =>
+          String(
+            opt.gewog_pk_code ||
+              opt.id ||
+              opt.pk_gewog_id ||
+              opt.curr_gewog_pk_code,
+          ) === String(businessAddress.gewog),
+      );
+
+      if (!isId) {
+        const matchedId = findPkCodeByLabel(
+          businessAddress.gewog,
+          gewogOptions,
+          ["gewog_name", "gewog", "name", "label"],
+        );
+        if (matchedId && matchedId !== businessAddress.gewog) {
+          handleBusinessAddressChange("gewog", matchedId);
+        }
+      }
+    }
+  }, [gewogOptions, businessAddress.gewog]);
 
   const handleBusinessDataChange = (field: string, value: any) => {
     setBusinessData((prev) => ({ ...prev, [field]: value }));
@@ -3281,6 +4448,150 @@ export function BusinessDetailsForm({
     } else {
       clearError(fieldPath);
     }
+  };
+
+  // --- Identity Lookup Handler for Business Details ---
+  const handleBusinessIdentityCheck = async () => {
+    const idType = businessData.identificationType;
+    const idNo = businessData.identificationNumber;
+
+    if (!idType || !idNo || idNo.trim() === "") return;
+
+    setShowBusinessLookupPopup(true);
+    setBusinessLookupStatus("searching");
+
+    try {
+      const payload = {
+        type: "C", // C for Corporate/Business
+        identification_type_pk_code: idType,
+        identity_no: idNo,
+      };
+
+      const response = await fetch("/api/customer-onboarded-details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result?.success && result?.data) {
+        const mappedData = mapCustomerDataToForm(result);
+        setFetchedBusinessCustomerData(mappedData);
+        setBusinessLookupStatus("found");
+      } else {
+        setBusinessLookupStatus("not_found");
+        setFetchedBusinessCustomerData(null);
+      }
+    } catch (error) {
+      console.error("Business lookup failed", error);
+      setBusinessLookupStatus("not_found");
+      setFetchedBusinessCustomerData(null);
+    }
+  };
+
+  const handleBusinessLookupProceed = () => {
+    if (businessLookupStatus === "found" && fetchedBusinessCustomerData) {
+      // Map Country IDs
+      const mappedCountry = findPkCodeByLabel(
+        fetchedBusinessCustomerData.permCountry ||
+          fetchedBusinessCustomerData.country,
+        countryOptions,
+        ["country_name", "country", "name", "label"],
+      );
+
+      // Map Dzongkhag IDs
+      const mappedDzongkhag = findPkCodeByLabel(
+        fetchedBusinessCustomerData.permDzongkhag ||
+          fetchedBusinessCustomerData.dzongkhag,
+        dzongkhagOptions,
+        ["dzongkhag_name", "dzongkhag", "name", "label"],
+      );
+
+      // Map Bank
+      const mappedBank = findPkCodeByLabel(
+        fetchedBusinessCustomerData.bankName ||
+          fetchedBusinessCustomerData.nameOfBank,
+        banksOptions,
+        ["bank_name", "name", "label", "bank"],
+      );
+
+      setBusinessData((prev: any) => ({
+        ...prev,
+        businessName:
+          fetchedBusinessCustomerData.applicantName ||
+          fetchedBusinessCustomerData.businessName ||
+          prev.businessName,
+        establishmentDate:
+          formatDateForInput(
+            fetchedBusinessCustomerData.dateOfBirth ||
+              fetchedBusinessCustomerData.establishmentDate,
+          ) || prev.establishmentDate,
+        identificationIssueDate:
+          formatDateForInput(
+            fetchedBusinessCustomerData.identificationIssueDate,
+          ) || prev.identificationIssueDate,
+        identificationExpiryDate:
+          formatDateForInput(
+            fetchedBusinessCustomerData.identificationExpiryDate,
+          ) || prev.identificationExpiryDate,
+        taxIdentifierType:
+          fetchedBusinessCustomerData.taxIdentifierType ||
+          prev.taxIdentifierType,
+        taxIdentifierNumber:
+          fetchedBusinessCustomerData.tpn ||
+          fetchedBusinessCustomerData.taxIdentifierNumber ||
+          prev.taxIdentifierNumber,
+        bankCurrentAccountNumber:
+          fetchedBusinessCustomerData.bankAccount ||
+          fetchedBusinessCustomerData.bankCurrentAccountNumber ||
+          prev.bankCurrentAccountNumber,
+        nameOfBank:
+          mappedBank || fetchedBusinessCustomerData.bankName || prev.nameOfBank,
+      }));
+
+      setBusinessAddress((prev: any) => ({
+        ...prev,
+        country:
+          mappedCountry ||
+          fetchedBusinessCustomerData.permCountry ||
+          prev.country,
+        dzongkhag:
+          mappedDzongkhag ||
+          fetchedBusinessCustomerData.permDzongkhag ||
+          prev.dzongkhag,
+        gewog:
+          fetchedBusinessCustomerData.permGewog ||
+          fetchedBusinessCustomerData.gewog
+            ? String(
+                fetchedBusinessCustomerData.permGewog ||
+                  fetchedBusinessCustomerData.gewog,
+              )
+            : prev.gewog,
+        villageStreet:
+          fetchedBusinessCustomerData.permVillage ||
+          fetchedBusinessCustomerData.villageStreet ||
+          prev.villageStreet,
+        specificLocation:
+          fetchedBusinessCustomerData.permHouse ||
+          fetchedBusinessCustomerData.permThram ||
+          fetchedBusinessCustomerData.specificLocation ||
+          prev.specificLocation,
+        contactNumber:
+          fetchedBusinessCustomerData.currContact ||
+          fetchedBusinessCustomerData.contactNumber ||
+          prev.contactNumber,
+        alternateContactNumber:
+          fetchedBusinessCustomerData.currAlternateContact ||
+          fetchedBusinessCustomerData.alternateContactNumber ||
+          prev.alternateContactNumber,
+        email:
+          fetchedBusinessCustomerData.currEmail ||
+          fetchedBusinessCustomerData.email ||
+          prev.email,
+      }));
+    }
+    setShowBusinessLookupPopup(false);
   };
 
   const handleAddPartner = () => {
@@ -3340,27 +4651,33 @@ export function BusinessDetailsForm({
     setTrustees(newTr);
   };
 
-  const handleFileChange = (
+  const handleFileChange = async (
     section: "business" | "attachments",
     field: string,
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (section === "business") {
-        setBusinessData((prev) => ({
-          ...prev,
-          [`${field}File`]: file,
-          [`${field}FileName`]: file.name,
-        }));
-        clearError(`business.${field}`);
-      } else {
-        setAttachments((prev) => ({
-          ...prev,
-          [field]: file,
-          [`${field}Name`]: file.name,
-        }));
-        clearError(`attachments.${field}`);
+      try {
+        const fileId = await storeFile(file);
+        if (section === "business") {
+          setBusinessData((prev) => ({
+            ...prev,
+            [`${field}File`]: fileId,
+            [`${field}FileName`]: file.name,
+          }));
+          clearError(`business.${field}`);
+        } else {
+          setAttachments((prev) => ({
+            ...prev,
+            [field]: fileId,
+            [`${field}Name`]: file.name,
+          }));
+          clearError(`attachments.${field}`);
+        }
+      } catch (error) {
+        console.error("Failed to store file in IndexedDB", error);
+        alert("File upload failed. Please try again.");
       }
     }
   };
@@ -3382,6 +4699,12 @@ export function BusinessDetailsForm({
     basePath: string,
     businessType?: string,
     isPartnerOrShareholder?: boolean,
+    options?: {
+      skipBank?: boolean;
+      skipEmployment?: boolean;
+      skipPep?: boolean;
+      skipFamilyTree?: boolean;
+    },
   ): Record<string, string> => {
     const errs: Record<string, string> = {};
 
@@ -3397,6 +4720,7 @@ export function BusinessDetailsForm({
       "identificationExpiryDate",
       "dateOfBirth",
       "tpn",
+      "taxIdentifierType",
       "maritalStatus",
     ];
     personalRequired.forEach((field) => {
@@ -3405,6 +4729,24 @@ export function BusinessDetailsForm({
           field.charAt(0).toUpperCase() + field.slice(1)
         } is required`;
     });
+
+    // Check if nationality is Bhutanese using generic check for household number requirement
+    const isNatBhutanese = (natId: string) => {
+      if (!natId) return false;
+      const n = nationalityOptions.find(
+        (opt) => String(opt.id || opt.nationality_pk_code) === String(natId),
+      );
+
+      const label = n ? n.nationality || n.name || "" : String(natId);
+      const lowerLabel = label.toLowerCase();
+
+      return lowerLabel.includes("bhutan") && !lowerLabel.includes("non");
+    };
+
+    // Household number if Bhutanese
+    if (isNatBhutanese(data.nationality) && isRequired(data.householdNumber)) {
+      errs[`${basePath}.householdNumber`] = "Household number is required";
+    }
 
     // Shareholding validation for partners/shareholders
     if (isPartnerOrShareholder) {
@@ -3422,20 +4764,83 @@ export function BusinessDetailsForm({
       data.maritalStatus &&
       isMarriedStatusFromOptions(data.maritalStatus, maritalStatusOptions)
     ) {
-      if (isRequired(data.spouseIdentificationNo))
-        errs[`${basePath}.spouseIdentificationNo`] =
-          "Spouse identification number is required";
-      else if (!isValidCID(data.spouseIdentificationNo))
-        errs[`${basePath}.spouseIdentificationNo`] =
-          "Spouse CID must be 11 digits";
+      // Personal required fields for spouse
+      const spousePersonalRequired = [
+        "spouseIdentificationType",
+        "spouseIdentificationNo",
+        "spouseSalutation",
+        "spouseName",
+        "spouseNationality",
+        "spouseGender",
+        "spouseIdentificationIssueDate",
+        "spouseIdentificationExpiryDate",
+        "spouseTpn",
+        "spouseTaxIdentifierType",
+        "spouseDateOfBirth",
+      ];
+      spousePersonalRequired.forEach((field) => {
+        if (isRequired(data[field]))
+          errs[`${basePath}.${field}`] = `${
+            field.replace("spouse", "Spouse ").charAt(0).toUpperCase() +
+            field.slice(1)
+          } is required`;
+      });
 
-      if (isRequired(data.spouseName))
-        errs[`${basePath}.spouseName`] = "Spouse name is required";
+      // Spouse household number if spouse nationality is Bhutanese
+      if (isNatBhutanese(data.spouseNationality)) {
+        if (isRequired(data.spouseHouseholdNumber)) {
+          errs[`${basePath}.spouseHouseholdNumber`] =
+            "Spouse household number is required";
+        }
+      }
 
+      // Spouse permanent address
+      if (isRequired(data.spousePermCountry))
+        errs[`${basePath}.spousePermCountry`] = "Spouse country is required";
+      const isBhutanSpousePerm = checkCountryBhutan(data.spousePermCountry);
+      if (isBhutanSpousePerm) {
+        if (isRequired(data.spousePermDzongkhag))
+          errs[`${basePath}.spousePermDzongkhag`] =
+            "Spouse dzongkhag is required";
+        if (isRequired(data.spousePermGewog))
+          errs[`${basePath}.spousePermGewog`] = "Spouse gewog is required";
+        if (isRequired(data.spousePermVillage))
+          errs[`${basePath}.spousePermVillage`] =
+            "Spouse village/street is required";
+        if (isRequired(data.spousePermThram))
+          errs[`${basePath}.spousePermThram`] =
+            "Spouse thram number is required";
+        if (isRequired(data.spousePermHouse))
+          errs[`${basePath}.spousePermHouse`] =
+            "Spouse house number is required";
+      } else {
+        if (isRequired(data.spousePermDzongkhag))
+          errs[`${basePath}.spousePermDzongkhag`] = "Spouse state is required";
+        if (isRequired(data.spousePermGewog))
+          errs[`${basePath}.spousePermGewog`] = "Spouse province is required";
+        if (isRequired(data.spousePermVillage))
+          errs[`${basePath}.spousePermVillage`] =
+            "Spouse street name is required";
+        if (!data.spousePermAddressProofName)
+          errs[`${basePath}.spousePermAddressProof`] =
+            "Spouse address proof is required";
+      }
+
+      // Spouse contact
+      if (isRequired(data.spouseEmail))
+        errs[`${basePath}.spouseEmail`] = "Spouse email is required";
+      else if (!isValidEmail(data.spouseEmail))
+        errs[`${basePath}.spouseEmail`] = "Invalid email format";
       if (isRequired(data.spouseContact))
         errs[`${basePath}.spouseContact`] = "Spouse contact number is required";
       else if (!isValidPhoneNumber(data.spouseContact))
         errs[`${basePath}.spouseContact`] =
+          "Enter a valid Bhutanese phone number";
+      if (
+        data.spouseAlternateContact &&
+        !isValidPhoneNumber(data.spouseAlternateContact)
+      )
+        errs[`${basePath}.spouseAlternateContact`] =
           "Enter a valid Bhutanese phone number";
     }
 
@@ -3446,19 +4851,20 @@ export function BusinessDetailsForm({
     }
 
     // Family Tree Upload (check file name, not the File object)
-    if (!data.familyTreeName) {
+    if (!options?.skipFamilyTree && !data.familyTreeName) {
       errs[`${basePath}.familyTree`] = "Family tree document is required";
     }
 
     // Bank Details
-    if (isRequired(data.bankName))
-      errs[`${basePath}.bankName`] = "Bank name is required";
-    if (isRequired(data.bankAccount))
-      errs[`${basePath}.bankAccount`] = "Bank account number is required";
-
-    // Passport Photo (check file name)
-    if (!data.passportPhotoName) {
-      errs[`${basePath}.passportPhoto`] = "Passport photo is required";
+    if (!options?.skipBank) {
+      if (isRequired(data.bankName))
+        errs[`${basePath}.bankName`] = "Bank name is required";
+      if (isRequired(data.bankAccount))
+        errs[`${basePath}.bankAccount`] = "Bank account number is required";
+      // Passport Photo (check file name)
+      if (!data.passportPhotoName) {
+        errs[`${basePath}.passportPhoto`] = "Passport photo is required";
+      }
     }
 
     // Permanent Address
@@ -3523,66 +4929,72 @@ export function BusinessDetailsForm({
     else if (!isValidPhoneNumber(data.currContact))
       errs[`${basePath}.currContact`] = "Enter a valid Bhutanese phone number";
 
-    // PEP
-    if (isRequired(data.pepPerson))
-      errs[`${basePath}.pepPerson`] = "PEP status is required";
-    if (data.pepPerson === "yes") {
-      if (isRequired(data.pepCategory))
-        errs[`${basePath}.pepCategory`] = "PEP category is required";
-      if (isRequired(data.pepSubCategory))
-        errs[`${basePath}.pepSubCategory`] = "PEP sub-category is required";
-      if (!data.identificationProofName)
-        errs[`${basePath}.identificationProof`] =
-          "Identification proof is required";
-    } else if (data.pepPerson === "no") {
-      if (isRequired(data.pepRelated))
-        errs[`${basePath}.pepRelated`] = "Please indicate if related to a PEP";
-      if (data.pepRelated === "yes") {
-        (data.relatedPeps || []).forEach((pep: any, idx: number) => {
-          const relBase = `${basePath}.relatedPeps.${idx}`;
-          if (isRequired(pep.relationship))
-            errs[`${relBase}.relationship`] = "Relationship is required";
-          if (isRequired(pep.identificationNo))
-            errs[`${relBase}.identificationNo`] =
-              "Identification number is required";
-          else if (!isValidCID(pep.identificationNo))
-            errs[`${relBase}.identificationNo`] = "Must be 11 digits";
-          if (isRequired(pep.category))
-            errs[`${relBase}.category`] = "PEP category is required";
-          if (isRequired(pep.subCategory))
-            errs[`${relBase}.subCategory`] = "PEP sub-category is required";
-          if (!pep.identificationProofName)
-            errs[`${relBase}.identificationProof`] =
-              "Identification proof is required";
-        });
+    // PEP - skip if this is a related PEP (handled separately)
+    if (!options?.skipPep) {
+      if (isRequired(data.pepPerson))
+        errs[`${basePath}.pepPerson`] = "PEP status is required";
+      if (data.pepPerson === "yes") {
+        if (isRequired(data.pepCategory))
+          errs[`${basePath}.pepCategory`] = "PEP category is required";
+        if (isRequired(data.pepSubCategory))
+          errs[`${basePath}.pepSubCategory`] = "PEP sub-category is required";
+        if (!data.identificationProofName)
+          errs[`${basePath}.identificationProof`] =
+            "Identification proof is required";
+      } else if (data.pepPerson === "no") {
+        if (isRequired(data.pepRelated))
+          errs[`${basePath}.pepRelated`] =
+            "Please indicate if related to a PEP";
+        if (data.pepRelated === "yes") {
+          (data.relatedPeps || []).forEach((pep: any, idx: number) => {
+            const relBase = `${basePath}.relatedPeps.${idx}`;
+            if (isRequired(pep.relationship))
+              errs[`${relBase}.relationship`] = "Relationship is required";
+            if (isRequired(pep.identificationNo))
+              errs[`${relBase}.identificationNo`] =
+                "Identification number is required";
+            else if (!isValidCID(pep.identificationNo))
+              errs[`${relBase}.identificationNo`] = "Must be 11 digits";
+            if (isRequired(pep.category))
+              errs[`${relBase}.category`] = "PEP category is required";
+            if (isRequired(pep.subCategory))
+              errs[`${relBase}.subCategory`] = "PEP sub-category is required";
+            if (!pep.identificationProofName)
+              errs[`${relBase}.identificationProof`] =
+                "Identification proof is required";
+          });
+        }
       }
     }
 
     // Employment
-    if (isRequired(data.employmentStatus))
-      errs[`${basePath}.employmentStatus`] = "Employment status is required";
-    if (data.employmentStatus === "employed") {
-      const empFields = [
-        "employeeId",
-        "occupation",
-        "employerType",
-        "designation",
-        "grade",
-        "organizationName",
-        "orgLocation",
-        "joiningDate",
-        "annualSalary",
-        "serviceNature",
-      ];
-      empFields.forEach((field) => {
-        if (isRequired(data[field]))
-          errs[`${basePath}.${field}`] = `${
-            field.charAt(0).toUpperCase() + field.slice(1)
-          } is required`;
-      });
-      if (data.serviceNature === "contract") {
-        if (isRequired(data.contractEndDate))
-          errs[`${basePath}.contractEndDate`] = "Contract end date is required";
+    if (!options?.skipEmployment) {
+      if (isRequired(data.employmentStatus))
+        errs[`${basePath}.employmentStatus`] = "Employment status is required";
+      if (data.employmentStatus === "employed") {
+        const empFields = [
+          "employeeId",
+          "occupation",
+          "employerType",
+          "designation",
+          "grade",
+          "organizationName",
+          "orgLocation",
+          "joiningDate",
+          "annualSalary",
+          "serviceNature",
+        ];
+        empFields.forEach((field) => {
+          if (isRequired(data[field]))
+            errs[`${basePath}.${field}`] = `${
+              field.charAt(0).toUpperCase() + field.slice(1)
+            } is required`;
+        });
+        if (data.serviceNature === "contract") {
+          if (isRequired(data.contractEndDate))
+            errs[`${basePath}.contractEndDate`] =
+              "Contract end date is required";
+        }
       }
     }
 
@@ -3606,6 +5018,7 @@ export function BusinessDetailsForm({
       "businessType",
     ];
     businessRequired.forEach((field) => {
+      // @ts-ignore
       if (isRequired(businessData[field]))
         newErrors[`business.${field}`] = `${
           field.charAt(0).toUpperCase() + field.slice(1)
@@ -3616,15 +5029,13 @@ export function BusinessDetailsForm({
       newErrors["business.bankCurrentAccountNumber"] =
         "Current Account Number is required";
     }
-
     if (isRequired(businessData.taxIdentifierNumber)) {
       newErrors["business.taxIdentifierNumber"] =
         "Tax identifier number is required";
-    } else if (!isValidTPN(businessData.taxIdentifierNumber)) {
-      newErrors["business.taxIdentifierNumber"] = "TPN must be 11 digits";
     }
 
-    if (!businessData.identificationProofFile)
+    if (!businessData.identificationProofFileName)
+      // check file name, not the ID
       newErrors["business.identificationProofFile"] =
         "Identification proof is required";
 
@@ -3814,41 +5225,275 @@ export function BusinessDetailsForm({
     return Object.keys(newErrors).length === 0;
   };
 
+  // ---- Helper: convert entire form data to storable version (IDs -> labels) ----
+  const convertFormDataToStorable = (formData: any) => {
+    if (!formData) return formData;
+    const result: any = { ...formData };
+
+    // Helper to convert a single person object
+    const convertPerson = (person: any) => {
+      if (!person) return person;
+      const p = { ...person };
+      if (p.identificationType) {
+        p.identificationType = findLabelById(
+          p.identificationType,
+          identificationTypeOptions,
+          ["identification_type", "identity_type"],
+        );
+      }
+      if (p.nationality) {
+        p.nationality = findLabelById(p.nationality, nationalityOptions, [
+          "nationality",
+          "name",
+        ]);
+      }
+      if (p.maritalStatus) {
+        p.maritalStatus = findLabelById(p.maritalStatus, maritalStatusOptions, [
+          "marital_status",
+          "name",
+        ]);
+      }
+      if (p.bankName) {
+        p.bankName = findLabelById(p.bankName, banksOptions, [
+          "bank_name",
+          "name",
+        ]);
+      }
+      if (p.permCountry) {
+        p.permCountry = findLabelById(p.permCountry, countryOptions, [
+          "country_name",
+          "country",
+        ]);
+      }
+      if (p.permDzongkhag) {
+        p.permDzongkhag = findLabelById(p.permDzongkhag, dzongkhagOptions, [
+          "dzongkhag_name",
+          "dzongkhag",
+        ]);
+      }
+      if (p.currCountry) {
+        p.currCountry = findLabelById(p.currCountry, countryOptions, [
+          "country_name",
+          "country",
+        ]);
+      }
+      if (p.currDzongkhag) {
+        p.currDzongkhag = findLabelById(p.currDzongkhag, dzongkhagOptions, [
+          "dzongkhag_name",
+          "dzongkhag",
+        ]);
+      }
+      if (p.occupation) {
+        p.occupation = findLabelById(p.occupation, occupationOptions, [
+          "occ_name",
+          "occupation",
+        ]);
+      }
+      if (p.pepCategory) {
+        p.pepCategory = findLabelById(p.pepCategory, pepCategoryOptions, [
+          "pep_category",
+          "name",
+        ]);
+      }
+      // Spouse fields
+      if (p.spouseIdentificationType) {
+        p.spouseIdentificationType = findLabelById(
+          p.spouseIdentificationType,
+          identificationTypeOptions,
+          ["identification_type", "identity_type"],
+        );
+      }
+      if (p.spouseNationality) {
+        p.spouseNationality = findLabelById(
+          p.spouseNationality,
+          nationalityOptions,
+          ["nationality", "name"],
+        );
+      }
+      if (p.spousePermCountry) {
+        p.spousePermCountry = findLabelById(
+          p.spousePermCountry,
+          countryOptions,
+          ["country_name", "country"],
+        );
+      }
+      if (p.spousePermDzongkhag) {
+        p.spousePermDzongkhag = findLabelById(
+          p.spousePermDzongkhag,
+          dzongkhagOptions,
+          ["dzongkhag_name", "dzongkhag"],
+        );
+      }
+      // Note: Gewogs and PEP subcategories are handled by the component on load
+      return p;
+    };
+
+    // Convert all owner/management sections
+    if (result.ownerData) result.ownerData = convertPerson(result.ownerData);
+    if (result.partners)
+      result.partners = result.partners.map((p: any) => convertPerson(p));
+    if (result.ceo) result.ceo = convertPerson(result.ceo);
+    if (result.boardMembers)
+      result.boardMembers = result.boardMembers.map((p: any) =>
+        convertPerson(p),
+      );
+    if (result.shareholders)
+      result.shareholders = result.shareholders.map((p: any) =>
+        convertPerson(p),
+      );
+    if (result.trustees)
+      result.trustees = result.trustees.map((p: any) => convertPerson(p));
+    if (result.president) result.president = convertPerson(result.president);
+    if (result.headOfAgency)
+      result.headOfAgency = convertPerson(result.headOfAgency);
+    if (result.headOfNGO) result.headOfNGO = convertPerson(result.headOfNGO);
+
+    // Convert business address fields that are dropdowns
+    if (result.businessDetail?.businessAddress?.country) {
+      result.businessDetail.businessAddress.country = findLabelById(
+        result.businessDetail.businessAddress.country,
+        countryOptions,
+        ["country_name", "country"],
+      );
+    }
+    if (result.businessDetail?.businessAddress?.dzongkhag) {
+      result.businessDetail.businessAddress.dzongkhag = findLabelById(
+        result.businessDetail.businessAddress.dzongkhag,
+        dzongkhagOptions,
+        ["dzongkhag_name", "dzongkhag"],
+      );
+    }
+
+    return result;
+  };
+
   const handleNext = () => {
     if (!validateForm()) {
       alert("Please fix the errors before proceeding.");
       return;
     }
-    const data = {
+
+    // Retrieve existing data from sessionStorage or start fresh
+    const existingSession = sessionStorage.getItem(
+      "businessLoanApplicationData",
+    );
+    const allData = existingSession ? JSON.parse(existingSession) : {};
+
+    // 1. CLEANUP: Define keys to remove from top-level to prevent duplication/stale data.
+    // This removes business fields, address fields, AND any previously stored ownership keys.
+    const keysToRemove = [
+      // Business Identifiers & Financials
+      "businessName",
+      "establishmentDate",
+      "industryClassification",
+      "identificationType",
+      "identificationNumber",
+      "identificationIssueDate",
+      "identificationExpiryDate",
+      "identificationProofFile",
+      "identificationProofFileName",
+      "taxIdentifierType",
+      "taxIdentifierNumber",
+      "bankCurrentAccountNumber",
+      "bankSavingAccountNumber",
+      "nameOfBank",
+      "grossAnnualIncome",
+      "businessType",
+      // Address Keys (in case they were top-level)
+      "businessAddress",
+      "country",
+      "dzongkhag",
+      "gewog",
+      "villageStreet",
+      "specificLocation",
+      "contactNumber",
+      "alternateContactNumber",
+      "email",
+      // Ownership Keys (We remove ALL potential keys first, then add back only the relevant one)
+      "ownerData",
+      "partners",
+      "ceo",
+      "boardMembers",
+      "shareholders",
+      "trustees",
+      "president",
+      "headOfAgency",
+      "headOfNGO",
+    ];
+
+    keysToRemove.forEach((key) => {
+      delete allData[key];
+    });
+
+    // 2. CONSOLIDATE: Build the clean businessDetail object
+    const businessDetail = {
       ...businessData,
-      businessAddress,
-      ownerData,
-      partners,
-      ceo,
-      boardMembers,
-      shareholders,
-      trustees,
-      president,
-      headOfAgency,
-      headOfNGO,
+      businessAddress: {
+        ...businessAddress,
+      },
+    };
+
+    // 3. BASE UPDATE: Add consolidated business details and attachments
+    const updatedData: any = {
+      ...allData,
+      businessDetail, // Contains all business info + address
       attachments,
     };
 
-    // Sanitize data to remove File objects before saving to sessionStorage
-    const sanitizedData = sanitizeForStorage(data);
+    // 4. SELECTIVE STORAGE: Add ONLY the ownership data relevant to the selected Business Type
+    switch (businessData.businessType) {
+      case "Sole Proprietorship":
+        updatedData.ownerData = ownerData;
+        break;
+      case "Partnership":
+        if (partners.length > 0) updatedData.partners = partners;
+        break;
+      case "Private Limited Company":
+        if (shareholders.length > 0) updatedData.shareholders = shareholders;
+        updatedData.ceo = ceo;
+        if (boardMembers.length > 0) updatedData.boardMembers = boardMembers;
+        break;
+      case "Public Limited Company":
+        if (shareholders.length > 0) updatedData.shareholders = shareholders;
+        updatedData.ceo = ceo;
+        if (boardMembers.length > 0) updatedData.boardMembers = boardMembers;
+        break;
+      case "Trust":
+        if (trustees.length > 0) updatedData.trustees = trustees;
+        break;
+      case "Association / Club":
+        updatedData.president = president;
+        break;
+      case "Government Body":
+        updatedData.headOfAgency = headOfAgency;
+        break;
+      case "NGO":
+        updatedData.headOfNGO = headOfNGO;
+        break;
+      default:
+        // No additional ownership data added
+        break;
+    }
 
-    // Retrieve existing data from sessionStorage
-    const existingData = sessionStorage.getItem("businessLoanApplicationData");
-    const allData = existingData ? JSON.parse(existingData) : {};
+    // 5. SANITIZE & SAVE
+    const sanitizedData = sanitizeForStorage(updatedData);
 
-    // Merge and save to sessionStorage
-    const updatedData = { ...allData, ...sanitizedData };
+    // 6. CONVERT IDs TO LABELS for session storage
+    const storableData = convertFormDataToStorable(sanitizedData);
+
     sessionStorage.setItem(
       "businessLoanApplicationData",
-      JSON.stringify(updatedData),
+      JSON.stringify(storableData),
     );
 
-    onNext(data);
+    // Pass the combined data to parent for immediate UI updates/steps
+    // (Note: We pass the structure the form uses internally, which is distinct components)
+    const dataToPass = {
+      ...sanitizedData, // pass the new structure
+      // Also spread individual components if parent expects flat structure for some reason,
+      // but ideally parent should now look at 'businessDetail'
+    };
+    onNext(dataToPass);
   };
 
   return (
@@ -3858,6 +5503,15 @@ export function BusinessDetailsForm({
         <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
           A. BUSINESS DETAILS
         </h2>
+
+        {showBusinessLookupPopup && (
+          <DocumentPopup
+            open={showBusinessLookupPopup}
+            onOpenChange={setShowBusinessLookupPopup}
+            searchStatus={businessLookupStatus}
+            onProceed={handleBusinessLookupProceed}
+          />
+        )}
 
         {/* A1. Business Identification & Financial */}
         <div className="space-y-6">
@@ -3999,18 +5653,30 @@ export function BusinessDetailsForm({
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
-                  {identificationTypeOptions.map((opt: any, i) => (
-                    <SelectItem
-                      key={i}
-                      value={String(
-                        opt.id ||
-                          opt.identification_type_id ||
-                          opt.identity_type_pk_code,
-                      )}
-                    >
-                      {opt.identification_type || opt.identity_type}
-                    </SelectItem>
-                  ))}
+                  {identificationTypeOptions
+                    .filter((opt: any) => {
+                      const label = (
+                        opt.identification_type ||
+                        opt.identity_type ||
+                        ""
+                      ).toLowerCase();
+                      return (
+                        label.includes("trade license number") ||
+                        label.includes("company registration number")
+                      );
+                    })
+                    .map((opt: any, i) => (
+                      <SelectItem
+                        key={i}
+                        value={String(
+                          opt.id ||
+                            opt.identification_type_id ||
+                            opt.identity_type_pk_code,
+                        )}
+                      >
+                        {opt.identification_type || opt.identity_type}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
               {errors["business.identificationType"] && (
@@ -4036,6 +5702,7 @@ export function BusinessDetailsForm({
                     e.target.value,
                   )
                 }
+                onBlur={handleBusinessIdentityCheck}
               />
               {errors["business.identificationNumber"] && (
                 <p className="text-xs text-red-500 mt-1">
@@ -4096,54 +5763,71 @@ export function BusinessDetailsForm({
               )}
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <Label>
                 Upload Identification Proof{" "}
                 <span className="text-red-500">*</span>
               </Label>
-              <div
-                className={fileUploadStyle(
-                  !!errors["business.identificationProofFile"],
-                )}
-                onClick={() => document.getElementById("biz-id-proof")?.click()}
-              >
-                <span className="text-gray-500 truncate max-w-[200px]">
-                  {businessData.identificationProofFileName ||
-                    "No file selected"}
+              <div className="flex items-center gap-2">
+                <input
+                  id="biz-id-proof"
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) =>
+                    handleFileChange("business", "identificationProof", e)
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={`w-28 ${errors["business.identificationProofFile"] ? "border-red-500" : "bg-transparent"}`}
+                  onClick={() =>
+                    document.getElementById("biz-id-proof")?.click()
+                  }
+                >
+                  Choose File{" "}
+                </Button>
+                <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                  {businessData.identificationProofFileName || "No file chosen"}
                 </span>
-                <div className="flex items-center text-[#003DA5] text-xs font-medium bg-blue-50 px-2 py-1 rounded">
-                  <Upload className="h-3 w-3 mr-1" /> Upload
-                </div>
               </div>
-              <input
-                id="biz-id-proof"
-                type="file"
-                className="hidden"
-                onChange={(e) =>
-                  handleFileChange("business", "identificationProof", e)
-                }
-              />
               {errors["business.identificationProofFile"] && (
                 <p className="text-xs text-red-500 mt-1">
                   {errors["business.identificationProofFile"]}
                 </p>
               )}
+              <p className="text-xs text-gray-500">
+                Please upload a valid business proof document. Allowed: PDF,
+                JPG, PNG (Max 5MB)
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label>
                 Tax Identifier Type <span className="text-red-500">*</span>
               </Label>
-              <RestrictedInput
-                allowed="alphanumeric"
-                className={getFieldStyle(
-                  !!errors["business.taxIdentifierType"],
-                )}
+              <Select
                 value={businessData.taxIdentifierType}
-                onChange={(e) =>
-                  handleBusinessDataChange("taxIdentifierType", e.target.value)
+                onValueChange={(v) =>
+                  handleBusinessDataChange("taxIdentifierType", v)
                 }
-              />
+              >
+                <SelectTrigger
+                  className={getFieldStyle(
+                    !!errors["business.taxIdentifierType"],
+                  )}
+                >
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BIT">BIT</SelectItem>
+                  <SelectItem value="GST">GST</SelectItem>
+                  <SelectItem value="CIT">CIT</SelectItem>
+                  <SelectItem value="PIT">PIT</SelectItem>
+                </SelectContent>
+              </Select>
               {errors["business.taxIdentifierType"] && (
                 <p className="text-xs text-red-500 mt-1">
                   {errors["business.taxIdentifierType"]}
@@ -4537,7 +6221,7 @@ export function BusinessDetailsForm({
                 countryOptions={countryOptions}
                 dzongkhagOptions={dzongkhagOptions}
                 identificationTypeOptions={identificationTypeOptions}
-                maritalStatusOptions={maritalStatusOptions} // new prop
+                maritalStatusOptions={maritalStatusOptions}
                 title="Owner Personal Information"
                 errors={errors}
                 basePath="owner"
@@ -4574,7 +6258,7 @@ export function BusinessDetailsForm({
                   countryOptions={countryOptions}
                   dzongkhagOptions={dzongkhagOptions}
                   identificationTypeOptions={identificationTypeOptions}
-                  maritalStatusOptions={maritalStatusOptions} // new prop
+                  maritalStatusOptions={maritalStatusOptions}
                   errors={errors}
                   basePath={`partners.${index}`}
                   onClearError={clearError}
@@ -4613,7 +6297,7 @@ export function BusinessDetailsForm({
                     countryOptions={countryOptions}
                     dzongkhagOptions={dzongkhagOptions}
                     identificationTypeOptions={identificationTypeOptions}
-                    maritalStatusOptions={maritalStatusOptions} // new prop
+                    maritalStatusOptions={maritalStatusOptions}
                     errors={errors}
                     basePath={`shareholders.${idx}`}
                     onClearError={clearError}
@@ -4636,7 +6320,7 @@ export function BusinessDetailsForm({
                   countryOptions={countryOptions}
                   dzongkhagOptions={dzongkhagOptions}
                   identificationTypeOptions={identificationTypeOptions}
-                  maritalStatusOptions={maritalStatusOptions} // new prop
+                  maritalStatusOptions={maritalStatusOptions}
                   errors={errors}
                   basePath="ceo"
                   onClearError={clearError}
@@ -4672,7 +6356,7 @@ export function BusinessDetailsForm({
                     countryOptions={countryOptions}
                     dzongkhagOptions={dzongkhagOptions}
                     identificationTypeOptions={identificationTypeOptions}
-                    maritalStatusOptions={maritalStatusOptions} // new prop
+                    maritalStatusOptions={maritalStatusOptions}
                     errors={errors}
                     basePath={`boardMembers.${idx}`}
                     onClearError={clearError}
@@ -4718,7 +6402,7 @@ export function BusinessDetailsForm({
                     countryOptions={countryOptions}
                     dzongkhagOptions={dzongkhagOptions}
                     identificationTypeOptions={identificationTypeOptions}
-                    maritalStatusOptions={maritalStatusOptions} // new prop
+                    maritalStatusOptions={maritalStatusOptions}
                     errors={errors}
                     basePath={`shareholders.${idx}`}
                     onClearError={clearError}
@@ -4741,7 +6425,7 @@ export function BusinessDetailsForm({
                   countryOptions={countryOptions}
                   dzongkhagOptions={dzongkhagOptions}
                   identificationTypeOptions={identificationTypeOptions}
-                  maritalStatusOptions={maritalStatusOptions} // new prop
+                  maritalStatusOptions={maritalStatusOptions}
                   errors={errors}
                   basePath="ceo"
                   onClearError={clearError}
@@ -4777,7 +6461,7 @@ export function BusinessDetailsForm({
                     countryOptions={countryOptions}
                     dzongkhagOptions={dzongkhagOptions}
                     identificationTypeOptions={identificationTypeOptions}
-                    maritalStatusOptions={maritalStatusOptions} // new prop
+                    maritalStatusOptions={maritalStatusOptions}
                     errors={errors}
                     basePath={`boardMembers.${idx}`}
                     onClearError={clearError}
@@ -4815,7 +6499,7 @@ export function BusinessDetailsForm({
                   countryOptions={countryOptions}
                   dzongkhagOptions={dzongkhagOptions}
                   identificationTypeOptions={identificationTypeOptions}
-                  maritalStatusOptions={maritalStatusOptions} // new prop
+                  maritalStatusOptions={maritalStatusOptions}
                   errors={errors}
                   basePath={`trustees.${index}`}
                   onClearError={clearError}
@@ -4840,7 +6524,7 @@ export function BusinessDetailsForm({
                 countryOptions={countryOptions}
                 dzongkhagOptions={dzongkhagOptions}
                 identificationTypeOptions={identificationTypeOptions}
-                maritalStatusOptions={maritalStatusOptions} // new prop
+                maritalStatusOptions={maritalStatusOptions}
                 errors={errors}
                 basePath="president"
                 onClearError={clearError}
@@ -4864,7 +6548,7 @@ export function BusinessDetailsForm({
                 countryOptions={countryOptions}
                 dzongkhagOptions={dzongkhagOptions}
                 identificationTypeOptions={identificationTypeOptions}
-                maritalStatusOptions={maritalStatusOptions} // new prop
+                maritalStatusOptions={maritalStatusOptions}
                 errors={errors}
                 basePath="headOfAgency"
                 onClearError={clearError}
@@ -4888,7 +6572,7 @@ export function BusinessDetailsForm({
                 countryOptions={countryOptions}
                 dzongkhagOptions={dzongkhagOptions}
                 identificationTypeOptions={identificationTypeOptions}
-                maritalStatusOptions={maritalStatusOptions} // new prop
+                maritalStatusOptions={maritalStatusOptions}
                 errors={errors}
                 basePath="headOfNGO"
                 onClearError={clearError}

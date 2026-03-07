@@ -1768,6 +1768,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 });
               }
             }}              // required
+            
 
               className={`h-10 sm:h-12 w-full text-sm sm:text-base border
               ${
@@ -1780,7 +1781,82 @@ const handleSubmit = async (e: React.FormEvent) => {
               <p className="text-xs text-red-500 mt-1">{errors.tpn}</p>
             )}
           </div>
+                    <div className="space-y-2.5">
+            <Label
+              htmlFor="householdNo"
+              className="text-gray-800 font-semibold text-sm"
+            >
+              Household No <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="householdNo"
+              placeholder="Enter Household No"
+              // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              value={data.householdNo || ""}
+              onChange={(e) => {
+                const value = e.target.value;
 
+              setData({ ...data, householdNo: value });
+
+              // Auto clear error when valid
+              if (!isRequired(value)) {
+                setErrors((prev) => {
+                  const updated = { ...prev };
+                  delete updated.householdNo;
+                  return updated;
+                });
+              }
+            }}              // required
+
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+              ${
+                errors.householdNo
+                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              }`}
+            />
+            {errors.householdNo && (
+              <p className="text-xs text-red-500 mt-1">{errors.householdNo}</p>
+            )}
+          </div>
+          <div className="space-y-2.5">
+            <Label
+              htmlFor="taxIdentifierType"
+              className="text-gray-800 font-semibold text-sm"
+            >
+              Tax Identifier Type <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="taxIdentifierType"
+              placeholder="Enter Tax Identifier Type"
+              // className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              value={data.taxIdentifierType || ""}
+              onChange={(e) => {
+                const value = e.target.value;
+
+              setData({ ...data, taxIdentifierType: value });
+
+              // Auto clear error when valid
+              if (!isRequired(value)) {
+                setErrors((prev) => {
+                  const updated = { ...prev };
+                  delete updated.taxIdentifierType;
+                  return updated;
+                });
+              }
+            }}              // required
+
+              className={`h-10 sm:h-12 w-full text-sm sm:text-base border
+              ${
+                errors.taxIdentifierType
+                    ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                    : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              }`}
+            />
+            {errors.taxIdentifierType && (
+              <p className="text-xs text-red-500 mt-1">{errors.taxIdentifierType}</p>
+            )}
+          </div>
           <div className="space-y-2.5">
             <Label
               htmlFor="maritalStatus"

@@ -1,9 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link"; // Added Link import
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { startNdiFlow } from "@/lib/startNdiFlow";
+
 import {
   Loader2,
   CheckCircle2,
@@ -11,6 +13,7 @@ import {
   AlertCircle,
   QrCode,
 } from "lucide-react";
+import { useState } from "react";
 
 interface DocumentPopupProps {
   open: boolean;
@@ -25,7 +28,21 @@ export default function DocumentPopup({
   onProceed,
   searchStatus = "searching",
 }: DocumentPopupProps) {
-  // Handler for when data is FOUND (Fill form)
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();   // ✅ inside component
+
+  const handleNewUserNDI = async () => {
+    try {
+        setLoading(true);  // start loading
+      // const redirectUrl = await startNdiFlow("/co-/loan-application?step=1"");
+        const currentPath = window.location.pathname + window.location.search; // Get current path
+        const redirectUrl = await startNdiFlow(currentPath); // Pass current path as redirect
+      router.push(redirectUrl);
+    } catch (error) {
+      alert("Failed to start NDI verification");
+    }
+  };
+
   const handleFoundAction = () => {
     onOpenChange(false);
     if (onProceed) {
@@ -36,16 +53,16 @@ export default function DocumentPopup({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-8 rounded-2xl border-none shadow-2xl">
-        {/* Accessibility: DialogTitle is required */}
+
         <DialogTitle className="sr-only">
           {searchStatus === "searching"
             ? "Searching Database"
             : searchStatus === "found"
-              ? "Record Found"
-              : "User Not Registered"}
+            ? "Record Found"
+            : "User Not Registered"}
         </DialogTitle>
 
-        {/* Branding Header */}
+         {/* Branding Header */}
         <div className="flex flex-col items-center mb-2">
           <Image
             src="/logo.png"
@@ -97,34 +114,38 @@ export default function DocumentPopup({
           </div>
         )}
 
-        {/* 3. NOT FOUND STATE (Redirect to NDI via Link) */}
         {searchStatus === "not_found" && (
           <div className="flex flex-col items-center justify-center py-4 space-y-5 text-center">
             <div className="bg-orange-50 p-4 rounded-full">
               <AlertCircle className="h-12 w-12 text-orange-600" />
             </div>
+
             <div className="space-y-2">
               <h3 className="text-xl font-bold text-gray-900">
                 User Not Registered
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed px-4">
                 This user is not registered with BIL. They should register using
-                the <span className="font-bold text-[#003DA5]">Bhutan NDI</span>{" "}
+                the <span className="font-bold text-[#003DA5]">
+                  Bhutan NDI
+                </span>{" "}
                 app.
               </p>
             </div>
 
-            <Link href="/qr-scan" className="w-full">
-              <Button
-                variant="outline"
-                className="w-full h-12 border-2 border-[#003DA5] text-[#003DA5] hover:bg-[#003DA5] hover:text-white bg-transparent font-semibold rounded-xl transition-all gap-2"
-              >
-                <QrCode className="h-4 w-4" />
-                Continue with NDI
-              </Button>
-            </Link>
+            <Button
+              onClick={handleNewUserNDI}
+              disabled={loading}
+              variant="outline"
+              className="w-full h-12 border-2 border-[#003DA5] text-[#003DA5] hover:bg-[#003DA5] hover:text-white font-semibold rounded-xl gap-2"
+            >  {loading ? "Generating QR..." : "New User"}
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              <QrCode className="h-4 w-4" />
+              Continue with NDI
+            </Button>
           </div>
         )}
+
       </DialogContent>
     </Dialog>
   );

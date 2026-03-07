@@ -3,108 +3,123 @@
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
+import { startNdiFlow } from "@/lib/startNdiFlow";
 
 import { Header } from "@/components/header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useState } from "react"
+import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
-
+const [loading, setLoading] = useState(false)
   const handleNewUser = async () => {
-    try {
-      /* --------------------------------------------------
-         1. Authenticate with NDI
-      -------------------------------------------------- */
-      const authRes = await fetch("http://localhost:3001/api/ndi/auth", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-// console.log("authRes:",authRes)
-      if (!authRes.ok) {
-        throw new Error("NDI authentication failed")
-      }
-
-      const authResult = await authRes.json()
-      const accessToken = authResult?.access_token
-      // console.log( "authResut:", authResult)
-      // console.log("access token:", accessToken)
-
-      if (!accessToken) {
-        throw new Error("Access token missing from auth response")
-      }
-
-      /* --------------------------------------------------
-         2. Request Proof
-      -------------------------------------------------- */
-      const proofRes = await fetch(
-        "http://localhost:3001/api/ndi-verifier/proof-request",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      )
-      /* --------------------------------------------------
-        LOG RAW RESPONSE
-      -------------------------------------------------- */
-      // console.log("Proof response status:", proofRes.status)
-      // console.log("Proof response headers:", [...proofRes.headers.entries()])
-
-      const proofText = await proofRes.text()
-      // console.log("Proof raw response:", proofText)
-
-      let proofResult
-      try {
-        proofResult = JSON.parse(proofText)
-      } catch {
-        throw new Error("Invalid JSON returned from proof API")
-      }
-      if (!proofRes.ok) {
-        throw new Error("Proof request failed")
-      }
-    if (!proofRes.ok) {
-      throw new Error(
-        `Proof request failed: ${JSON.stringify(proofResult, null, 2)}`
-      )
-    }
-
-    /* --------------------------------------------------
-                      SUCCESS PATH
-    -------------------------------------------------- */
-
-    // console.log("Proof request successful:", proofResult)
-      // const proofResult = await proofRes.json()
-      // console.log("Proof Response:",proofResult)
-
-      // if (!proofResult.success) {
-      //   throw new Error("NDI proof request unsuccessful")
-      // }
-
-      /* --------------------------------------------------
-         3. Store data & redirect
-      -------------------------------------------------- */
-      sessionStorage.setItem(
-        "ndiProof",
-        JSON.stringify({
-          proofRequestURL: proofResult.data.proofRequestURL,
-          threadId: proofResult.data.threadId,
-          deepLinkURL: proofResult.data.deepLinkURL,
-        })
-      )
-
-      router.push("/qr-scan")
-
-
-    } catch (error) {
-      // console.error("New user flow failed:", error)
-      alert("Failed to start NDI verification")
-    }
+  try {
+    setLoading(true);
+    
+    const redirectUrl = await startNdiFlow("/loan-application?step=1");
+    
+    router.push(redirectUrl);
+  } catch (error) {
+    setLoading(false)
+    alert("Failed to start NDI verification");
   }
+};
+//   const handleNewUser = async () => {
+//     try {
+//       /* --------------------------------------------------
+//          1. Authenticate with NDI
+//       -------------------------------------------------- */
+//       const authRes = await fetch("http://localhost:3001/api/ndi/auth", {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//         },
+//       })
+// // console.log("authRes:",authRes)
+//       if (!authRes.ok) {
+//         throw new Error("NDI authentication failed")
+//       }
+
+//       const authResult = await authRes.json()
+//       const accessToken = authResult?.access_token
+//       // console.log( "authResut:", authResult)
+//       // console.log("access token:", accessToken)
+
+//       if (!accessToken) {
+//         throw new Error("Access token missing from auth response")
+//       }
+
+//       /* --------------------------------------------------
+//          2. Request Proof
+//       -------------------------------------------------- */
+//       const proofRes = await fetch(
+//         "http://localhost:3001/api/ndi-verifier/proof-request",
+//         {
+//           method: "POST",
+//           headers: {
+//             "Content-Type": "application/json",
+//             Authorization: `Bearer ${accessToken}`,
+//           },
+//         }
+//       )
+//       /* --------------------------------------------------
+//         LOG RAW RESPONSE
+//       -------------------------------------------------- */
+//       // console.log("Proof response status:", proofRes.status)
+//       // console.log("Proof response headers:", [...proofRes.headers.entries()])
+
+//       const proofText = await proofRes.text()
+//       // console.log("Proof raw response:", proofText)
+
+//       let proofResult
+//       try {
+//         proofResult = JSON.parse(proofText)
+//       } catch {
+//         throw new Error("Invalid JSON returned from proof API")
+//       }
+//       if (!proofRes.ok) {
+//         throw new Error("Proof request failed")
+//       }
+//     if (!proofRes.ok) {
+//       throw new Error(
+//         `Proof request failed: ${JSON.stringify(proofResult, null, 2)}`
+//       )
+//     }
+
+//     /* --------------------------------------------------
+//                       SUCCESS PATH
+//     -------------------------------------------------- */
+
+//     // console.log("Proof request successful:", proofResult)
+//       // const proofResult = await proofRes.json()
+//       // console.log("Proof Response:",proofResult)
+
+//       // if (!proofResult.success) {
+//       //   throw new Error("NDI proof request unsuccessful")
+//       // }
+
+//       /* --------------------------------------------------
+//          3. Store data & redirect
+//       -------------------------------------------------- */
+//       sessionStorage.setItem(
+//         "ndiProof",
+//         JSON.stringify({
+//           proofRequestURL: proofResult.data.proofRequestURL,
+//           threadId: proofResult.data.threadId,
+//           deepLinkURL: proofResult.data.deepLinkURL,
+//         })
+//       )
+
+//       router.push("/qr-scan")
+
+
+//     } catch (error) {
+//       // console.error("New user flow failed:", error)
+//       alert("Failed to start NDI verification")
+//     }
+//   }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24">
@@ -175,6 +190,17 @@ export default function LoginPage() {
           </Card>
         </div>
       </div>
+      {loading && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-[#003DA5]" />
+        <p className="text-lg font-medium text-gray-700">
+          Generating secure QR code...
+        </p>
+      </div>
     </div>
+  )}
+    </div>
+    
   )
 }

@@ -284,6 +284,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import Image from "next/image"
 import { QRCodeCanvas } from "qrcode.react"
 import { mapNdiDataToPersonalDetail, PersonalDetailFormData } from "@/lib/mapNdiData"
+import { useSearchParams } from "next/navigation"
+import { RefreshCw } from "lucide-react"
 
 export default function QRScanPage() {
   const router = useRouter()
@@ -296,9 +298,109 @@ export default function QRScanPage() {
   // Backend URL from .env
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
+  const searchParams = useSearchParams()
+  const redirectPath = searchParams.get("redirect")
+  const [loading, setLoading] = useState(true)
 
-  
+  // For QR expiry handling, we can set a timeout (e.g., 2 minutes) to reset the state and allow re-generation of QR code if needed.
+  const [expired, setExpired] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
 
+  const QR_EXPIRY_TIME = 0.5 * 60 * 1000 // 2 minutes (adjust as needed)
+
+    useEffect(() => {
+    if (!qrUrl) return
+
+    const timer = setTimeout(() => {
+      setExpired(true)
+    }, QR_EXPIRY_TIME)
+
+    return () => clearTimeout(timer)
+  }, [qrUrl])
+
+const handleRegenerateQR = async () => {
+  try {
+    setExpired(false)
+    setProofData(null)
+    setMappedFormData(null)
+    setIsSuccess(false)
+    setQrUrl(null)
+    setThreadId(null)
+
+    // Step 1: Authenticate
+    const authRes = await fetch("http://localhost:3001/api/ndi/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
+
+    if (!authRes.ok) {
+      throw new Error("NDI authentication failed")
+    }
+
+    const authResult = await authRes.json()
+    const accessToken = authResult?.access_token
+
+    if (!accessToken) {
+      throw new Error("Access token missing")
+    }
+
+    // Step 2: Create proof request
+    const proofRes = await fetch(
+      "http://localhost:3001/api/ndi-verifier/proof-request",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    )
+
+    if (!proofRes.ok) {
+      throw new Error("Proof request failed")
+    }
+
+    const proofResult = await proofRes.json()
+
+    const { proofRequestURL, threadId, deepLinkURL } = proofResult.data
+
+    // Update state
+    setQrUrl(proofRequestURL)
+    setThreadId(threadId)
+
+    // Save to session
+    sessionStorage.setItem(
+      "ndiProof",
+      JSON.stringify({
+        proofRequestURL,
+        threadId,
+        deepLinkURL,
+      })
+    )
+
+  } catch (err) {
+    console.error("Regenerate failed:", err)
+  }
+}
+
+  useEffect(() => {
+  // Notify previous page that QR is ready
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("qr-ready"))
+  }
+}, [])
+
+useEffect(() => {
+  const handleQrReady = () => {
+    setLoading(false)
+  }
+
+  window.addEventListener("qr-ready", handleQrReady)
+
+  return () => {
+    window.removeEventListener("qr-ready", handleQrReady)
+  }
+}, [])
   // Load stored proof request (only QR info)
   useEffect(() => {
     const stored = sessionStorage.getItem("ndiProof")
@@ -368,9 +470,13 @@ export default function QRScanPage() {
         }
           
 
-          setStatus('completed')
-          clearInterval(interval)
-          router.push("/loan-application?step=1") // redirect after completion
+        setStatus('completed')
+        setIsSuccess(true)
+        clearInterval(interval)
+
+        setTimeout(() => {
+          router.push(redirectPath || "/loan-application?step=1")
+        }, 2000)
         } else {
           console.error("Unexpected proof result:", data)
         }
@@ -404,50 +510,82 @@ export default function QRScanPage() {
           <Card className="shadow-2xl border-gray-200">
             <CardContent className="p-10 space-y-6">
 
-              {!proofData ? (
-                <>
-                  <h2 className="text-2xl font-bold text-center">
-                    Scan with Bhutan NDI Wallet
-                  </h2>
-                  <div className="flex flex-col items-center py-6 space-y-4">
-                    {qrUrl ? (
-                      <div className="p-4 bg-white rounded-xl border-4 border-green-400 shadow-lg">
-                        <QRCodeCanvas value={qrUrl} size={260} />
-                      </div>
-                    ) : (
-                      <p className="text-gray-500">Loading QR...</p>
-                    )}
-                    <div className="space-y-2 text-gray-700 text-left">
-                      <p><strong>1.</strong> Open Bhutan NDI Wallet</p>
-                      <p><strong>2.</strong> Tap Scan and scan this QR code</p>
-                      <p><strong>3.</strong> Review and approve the credential sharing request</p>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h2 className="text-2xl font-bold text-center text-green-700">
-                    Identity Verified
-                  </h2>
-                  <div className="space-y-4">
-                    {mappedFormData && Object.entries(mappedFormData).map(([key, value]) => (
-                      key !== "verifiedFields" && key !== "isVerified" && value ? (
-                        <div key={key}>
-                          <label className="block text-sm font-medium text-gray-600">
-                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                          </label>
-                          <input
-                            type="text"
-                            value={value as string}
-                            readOnly
-                            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 bg-gray-100"
-                          />
-                        </div>
-                      ) : null
-                    ))}
-                  </div>
-                </>
-              )}
+{isSuccess ? (
+  // ✅ Success screen after scan
+  <div className="flex flex-col items-center justify-center py-10 space-y-6">
+    <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center animate-bounce">
+      <svg
+        className="w-10 h-10 text-green-600"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        viewBox="0 0 24 24"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    </div>
+    <h2 className="text-2xl font-bold text-green-700">
+      Identity Verified Successfully
+    </h2>
+    <p className="text-gray-600">
+      Redirecting to application form...
+    </p>
+  </div>
+) : expired ? (
+  // ⛔ Expired QR
+<div className="flex flex-col items-center py-10 space-y-6">
+  <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-6 text-center">
+    <p className="text-lg font-semibold text-yellow-700">
+      QR Code Expired
+    </p>
+    <p className="text-sm text-gray-600 mt-2">
+      The generated QR has expired for security reasons.
+    </p>
+  </div>
+
+  <button
+    onClick={handleRegenerateQR}
+    className="flex items-center justify-center w-14 h-14 rounded-full bg-[#003DA5] text-white hover:bg-blue-800 transition transform hover:rotate-180 duration-500"
+  >
+    <RefreshCw size={24} />
+  </button>
+
+  <p className="text-sm text-gray-500">
+    Tap to generate a new QR
+  </p>
+</div>
+) : (
+  // 🔵 Original QR UI & Instructions before expiry
+  <>
+    <h2 className="text-2xl font-bold text-center">
+      Scan with Bhutan NDI Wallet
+    </h2>
+    <div className="flex flex-col items-center py-6 space-y-4">
+      {qrUrl ? (
+        <div className="p-4 bg-white rounded-xl border-4 border-green-400 shadow-lg">
+          <QRCodeCanvas value={qrUrl} size={260} />
+        </div>
+      ) : (
+        <p className="text-gray-500">Loading QR...</p>
+      )}
+
+      <div className="space-y-3 text-gray-700 text-left">
+        <p><strong>1.</strong> Open the Bhutan NDI Wallet application.</p>
+        <div>
+          <p><strong>2.</strong> Ensure your wallet contains the following verified credentials:</p>
+          <ul className="list-disc list-inside ml-6 mt-1 space-y-1">
+            <li>Foundational ID VC</li>
+            <li>Phone Number VC</li>
+            <li>Email Address VC</li>
+            <li>Current Address VC</li>
+          </ul>
+        </div>
+        <p><strong>3.</strong> Tap <strong>Scan</strong> and scan the QR code.</p>
+        <p><strong>4.</strong> Review and approve the credential sharing request.</p>
+      </div>
+    </div>
+  </>
+)}
 
             </CardContent>
           </Card>

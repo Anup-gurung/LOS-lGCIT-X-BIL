@@ -120,6 +120,7 @@ const createEmptyRelatedPep = () => ({
   spousePermThram: "",
   spousePermHouse: "",
   spousePermAddressProof: "",
+  spouseIdentificationProof: "",
   spouseEmail: "",
   spouseContact: "",
   spouseAlternateContact: "",
@@ -524,8 +525,7 @@ export function PersonalDetailsForm({
       ) {
         const pkCode = findPkCodeByLabel(
           data.spousePermCountry,
-          countryOptions,
-          ["country", "name", "label"],
+          countryOptions, ["country", "name", "label"],
         );
         if (pkCode && pkCode !== data.spousePermCountry)
           updates.spousePermCountry = pkCode;
@@ -539,8 +539,7 @@ export function PersonalDetailsForm({
       ) {
         const pkCode = findPkCodeByLabel(
           data.spousePermDzongkhag,
-          dzongkhagOptions,
-          ["dzongkhag", "name", "label"],
+          dzongkhagOptions, ["dzongkhag", "name", "label"],
         );
         if (pkCode && pkCode !== data.spousePermDzongkhag)
           updates.spousePermDzongkhag = pkCode;
@@ -579,8 +578,7 @@ export function PersonalDetailsForm({
       ) {
         const pkCode = findPkCodeByLabel(
           data.identificationType,
-          identificationTypeOptions,
-          ["identity_type", "identification_type", "name", "label"],
+          identificationTypeOptions, ["identity_type", "identification_type", "name", "label"],
         );
         if (pkCode && pkCode !== data.identificationType)
           updates.identificationType = pkCode;
@@ -642,8 +640,7 @@ export function PersonalDetailsForm({
       ) {
         const pkCode = findPkCodeByLabel(
           data.spouseIdentificationType,
-          identificationTypeOptions,
-          ["identity_type", "identification_type", "name", "label"],
+          identificationTypeOptions, ["identity_type", "identification_type", "name", "label"],
         );
         if (pkCode && pkCode !== data.spouseIdentificationType)
           updates.spouseIdentificationType = pkCode;
@@ -800,8 +797,7 @@ export function PersonalDetailsForm({
       }
       if (file.size > 5 * 1024 * 1024) {
         setErrors({
-          ...errors,
-          [fieldName]: "File size must be less than 5MB",
+          ...errors, [fieldName]: "File size must be less than 5MB",
         });
         return;
       }
@@ -924,8 +920,7 @@ export function PersonalDetailsForm({
       try {
         const options = await fetchGewogsByDzongkhag(value);
         setRelatedPepCurrGewogMap((prev) => ({
-          ...prev,
-          [index]: options || [],
+          ...prev, [index]: options || [],
         }));
       } catch (e) {
         setRelatedPepCurrGewogMap((prev) => ({ ...prev, [index]: [] }));
@@ -1018,7 +1013,7 @@ export function PersonalDetailsForm({
     if (isEmpty(data.maritalStatus))
       newErrors.maritalStatus = "Please select a marital status";
 
-    // SPOUSE INFORMATION (now after employment, but validation remains)
+    // SPOUSE INFORMATION
     if (isMarried) {
       const spouseRequiredFields = [
         {
@@ -1043,6 +1038,10 @@ export function PersonalDetailsForm({
         },
         // Spouse tax fields no longer required
         { field: "spouseDateOfBirth", msg: "Spouse Date of Birth is required" },
+        {
+          field: "spouseIdentificationProof",
+          msg: "Spouse Identification Proof is required",
+        },
       ];
 
       spouseRequiredFields.forEach(({ field, msg }) => {
@@ -1384,6 +1383,11 @@ export function PersonalDetailsForm({
       if (data.familyTree) submitData.append("familyTree", data.familyTree);
       if (data.identificationProof)
         submitData.append("identificationProof", data.identificationProof);
+      if (data.spouseIdentificationProof)
+        submitData.append(
+          "spouseIdentificationProof",
+          data.spouseIdentificationProof,
+        );
 
       const response = await fetch("http://localhost:3001/api/personal", {
         method: "POST",
@@ -3300,13 +3304,12 @@ export function PersonalDetailsForm({
                       value={
                         findPkCodeByLabel(
                           pep.identificationType,
-                          filteredIdentificationOptions,
-                          [
-                            "identity_type",
-                            "identification_type",
-                            "name",
-                            "label",
-                          ],
+                          filteredIdentificationOptions, [
+                          "identity_type",
+                          "identification_type",
+                          "name",
+                          "label",
+                        ],
                         ) || pep.identificationType
                       }
                       onValueChange={(value) =>
@@ -5022,8 +5025,7 @@ export function PersonalDetailsForm({
               <Select
                 value={findPkCodeByLabel(
                   data.spouseNationality,
-                  nationalityOptions,
-                  ["nationality", "name", "label"],
+                  nationalityOptions, ["nationality", "name", "label"],
                 )}
                 onValueChange={(value) => {
                   setData({ ...data, spouseNationality: value });
@@ -5253,6 +5255,48 @@ export function PersonalDetailsForm({
                 )}
               </div>
             )}
+          </div>
+
+          {/* Document Upload for Spouse Identification Proof */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t mt-4">
+            <div className="space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-sm">
+                Upload Spouse Identification Proof <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  id="spouseIdentificationProof"
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) =>
+                    handleFileChange("spouseIdentificationProof", e.target.files?.[0] || null)
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-28 bg-transparent"
+                  onClick={() =>
+                    document.getElementById("spouseIdentificationProof")?.click()
+                  }
+                >
+                  Choose File
+                </Button>
+                <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                  {data.spouseIdentificationProof || "No file chosen"}
+                </span>
+              </div>
+              {errors.spouseIdentificationProof && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.spouseIdentificationProof}
+                </p>
+              )}
+              <p className="text-xs text-gray-500">
+                Allowed: PDF, JPG, PNG (Max 5MB)
+              </p>
+            </div>
           </div>
 
           {/* Spouse Permanent Address */}

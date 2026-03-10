@@ -347,7 +347,7 @@ const createEmptyRelatedPep = () => ({
   currGewogOptions: [] as any[],
 });
 
-// Initialize empty guarantor (No Spouse Current Address)
+// Initialize empty guarantor (with new spouse identification proof field)
 const createEmptyGuarantor = () => ({
   idType: "",
   idNumber: "",
@@ -364,7 +364,7 @@ const createEmptyGuarantor = () => ({
   householdNumber: "",
   maritalStatus: "",
 
-  // NEW: Identification proof file upload
+  // NEW: Identification proof file upload (for guarantor)
   idProof: "",          // file name
   idProofId: "",        // file ID
 
@@ -382,6 +382,9 @@ const createEmptyGuarantor = () => ({
   spouseTpnNumber: "",
   spouseHouseholdNumber: "",
   spouseContact: "",
+  // NEW: Spouse Identification Proof upload
+  spouseIdProof: "",          // file name
+  spouseIdProofId: "",        // file ID
   // Spouse Permanent Address
   spousePermCountry: "",
   spousePermDzongkhag: "",
@@ -1783,6 +1786,7 @@ export function BusinessRepaymentSourceForm({
         guarantor.pepUploadId,
         guarantor.proofFileId,
         guarantor.spousePermAddressProofId,
+        guarantor.spouseIdProofId,   // new field
         ...(guarantor.relatedPeps?.map((p: any) => p.identificationProofId) ||
           []),
         ...(guarantor.relatedPeps?.map((p: any) => p.permAddressProofId) || []),
@@ -2086,6 +2090,13 @@ export function BusinessRepaymentSourceForm({
           newErrors["spouseDateOfBirth"] =
             "Spouse must be at least 18 years old";
         }
+
+        // Spouse Identification Proof (new)
+        check(
+          "spouseIdProof",
+          !guarantor.spouseIdProofId,
+          "Spouse identification proof is required",
+        );
 
         if (
           isNationalityBhutanese(guarantor.spouseNationality) &&
@@ -3377,7 +3388,7 @@ export function BusinessRepaymentSourceForm({
                         )}
                       </div>
 
-                      {/* NEW: Identification Proof Upload */}
+                      {/* NEW: Identification Proof Upload (Guarantor) */}
                       <div>
                         <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Identification Proof
@@ -7178,7 +7189,7 @@ export function BusinessRepaymentSourceForm({
                     )}
                   </div>
 
-                  {/* ===== NEW SECTION G: SPOUSE DETAILS (moved from A) ===== */}
+                  {/* ===== NEW SECTION G: SPOUSE DETAILS (with new ID proof upload) ===== */}
                   {isMarried && (
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
                       <h4 className="text-lg font-bold text-[#003DA5] mb-4">
@@ -7559,6 +7570,53 @@ export function BusinessRepaymentSourceForm({
                                 )}
                               </div>
                             )}
+
+                          {/* NEW: Spouse Identification Proof Upload */}
+                          <div>
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                              Identification Proof{" "}
+                              <span className="text-red-500">*</span>
+                            </Label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                id={`spouseIdProof-${index}`}
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) =>
+                                  handleFileChange(
+                                    index,
+                                    "spouseIdProof",
+                                    e.target.files?.[0] || null,
+                                  )
+                                }
+                                className="hidden"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-28 bg-transparent"
+                                onClick={() =>
+                                  document
+                                    .getElementById(`spouseIdProof-${index}`)
+                                    ?.click()
+                                }
+                              >
+                                Choose File
+                              </Button>
+                              <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                {guarantor.spouseIdProof || "No file chosen"}
+                              </span>
+                            </div>
+                            {errors.spouseIdProof && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.spouseIdProof}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500">
+                              Allowed: PDF, JPG, PNG (Max 5MB)
+                            </p>
+                          </div>
                         </div>
                       </div>
 

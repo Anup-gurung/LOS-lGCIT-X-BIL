@@ -154,7 +154,7 @@ const createEmptyGuarantor = () => ({
   passportPhoto: "",
   idProof: "", // Added for identification proof upload
 
-  // Expanded Spouse Info
+  // Expanded Spouse Info (including new spouseIdProof)
   spouseIdentificationType: "",
   spouseIdentificationNo: "",
   spouseSalutation: "",
@@ -177,6 +177,7 @@ const createEmptyGuarantor = () => ({
   spouseEmail: "",
   spouseContact: "",
   spouseAlternateContact: "",
+  spouseIdProof: "", // New field for spouse identification proof
 
   // Permanent Address
   permCountry: "",
@@ -4179,6 +4180,48 @@ export function RepaymentSourceForm({
                         />
                       </div>
                     )}
+                  </div>
+
+                  {/* Spouse Identification Proof Upload */}
+                  <div className="mt-6 pt-4 border-t border-dashed">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                      <div className="space-y-1.5 sm:space-y-2.5 md:col-span-2">
+                        <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                          Spouse Identification Proof{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            className="hidden"
+                            id={`spouseIdProof-${index}`}
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) =>
+                              handleFileChange(
+                                index,
+                                "spouseIdProof",
+                                e.target.files?.[0] || null,
+                              )
+                            }
+                          />
+                          <Button
+                            variant="outline"
+                            type="button"
+                            className="h-10 sm:h-12 w-28"
+                            onClick={() =>
+                              document
+                                .getElementById(`spouseIdProof-${index}`)
+                                ?.click()
+                            }
+                          >
+                            Choose File
+                          </Button>
+                          <span className="text-sm text-gray-500 truncate max-w-[150px]">
+                            {guarantor.spouseIdProof || "No file chosen"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Spouse Permanent Address */}

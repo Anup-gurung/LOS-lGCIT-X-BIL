@@ -57,7 +57,7 @@ const createEmptyRelatedPep = () => ({
   identificationNo: "",
   category: "",
   subCategory: "",
-  identificationProof: "", // RESTORED
+  identificationProof: "",
 
   // Personal Info
   identificationType: "",
@@ -174,7 +174,7 @@ const createEmptyGuarantor = () => ({
   bankName: "",
   bankAccount: "",
   passportPhoto: "",
-  idProof: "", // Identification proof upload (For normal ID, not PEP specific)
+  idProof: "",
 
   // Expanded Spouse Info
   spouseIdentificationType: "",
@@ -199,6 +199,8 @@ const createEmptyGuarantor = () => ({
   spouseEmail: "",
   spouseContact: "",
   spouseAlternateContact: "",
+  // NEW: Spouse Identity Proof Upload
+  spouseIdProof: "",
 
   // Permanent Address
   permCountry: "",
@@ -4626,6 +4628,51 @@ export function SecurityDetailsForm({
                   />
                 </div>
               )}
+            </div>
+
+            {/* NEW: Spouse Identity Proof Upload */}
+            <div className="space-y-1.5 sm:space-y-2.5 mt-4">
+              <Label
+                htmlFor={`spouseIdProof-${index}`}
+                className="text-gray-800 font-semibold text-xs sm:text-sm"
+              >
+                Upload Spouse Identification Proof <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  id={`spouseIdProof-${index}`}
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) =>
+                    handleFileChange(
+                      index,
+                      "spouseIdProof",
+                      e.target.files?.[0] || null,
+                    )
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-28 bg-transparent"
+                  onClick={() =>
+                    document.getElementById(`spouseIdProof-${index}`)?.click()
+                  }
+                >
+                  Choose File
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {guarantor.spouseIdProof || "No file chosen"}
+                </span>
+              </div>
+              {errors.spouseIdProof && (
+                <p className="text-xs text-red-500 mt-1">{errors.spouseIdProof}</p>
+              )}
+              <p className="text-xs text-gray-500">
+                Allowed: PDF, JPG, PNG (Max 5MB)
+              </p>
             </div>
 
             {/* Spouse Permanent Address */}

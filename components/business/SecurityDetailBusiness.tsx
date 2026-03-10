@@ -131,13 +131,11 @@ const formatDateForInput = (dateString: string | null | undefined) => {
   }
 };
 
-// Initialize empty related PEP entry (WITH identity proof upload, but WITHOUT spouse fields)
+// Initialize empty related PEP entry
 const createEmptyRelatedPep = () => ({
   relationship: "",
   category: "",
   subCategory: "",
-
-  // Personal Info
   identificationType: "",
   identificationNo: "",
   salutation: "",
@@ -151,12 +149,8 @@ const createEmptyRelatedPep = () => ({
   taxIdentifierType: "",
   householdNumber: "",
   maritalStatus: "",
-
-  // Identity Proof Upload (RESTORED)
   identificationProof: "",
   identificationProofId: "",
-
-  // Permanent Address
   permCountry: "",
   permDzongkhag: "",
   permGewog: "",
@@ -165,8 +159,6 @@ const createEmptyRelatedPep = () => ({
   permHouse: "",
   permAddressProof: "",
   permAddressProofId: "",
-
-  // Current Address & Contact
   currCountry: "",
   currDzongkhag: "",
   currGewog: "",
@@ -177,8 +169,6 @@ const createEmptyRelatedPep = () => ({
   email: "",
   contact: "",
   alternateContact: "",
-
-  // Dynamic Options (isolated for each PEP row)
   permGewogOptions: [] as any[],
   currGewogOptions: [] as any[],
 });
@@ -234,7 +224,7 @@ const createEmptySecurity = () => ({
   gewogOptions: [] as any[],
 });
 
-// Initialize empty guarantor
+// Initialize empty guarantor (UPDATED: added spouseIdentificationProof and spouseIdentificationProofId)
 const createEmptyGuarantor = () => ({
   idType: "",
   idNumber: "",
@@ -247,14 +237,11 @@ const createEmptyGuarantor = () => ({
   dateOfBirth: "",
   tpnNo: "",
   maritalStatus: "",
-
-  // New identification proof upload
   identificationProof: "",
   identificationProofId: "",
-
   spouseName: "",
   spouseContact: "",
-  // COMPREHENSIVE SPOUSE FIELDS (keep for guarantor's own spouse)
+  // Spouse personal fields (including new identity proof upload)
   spouseIdType: "",
   spouseIdNumber: "",
   spouseSalutation: "",
@@ -276,6 +263,9 @@ const createEmptyGuarantor = () => ({
   spousePermAddressProofId: "",
   spouseEmail: "",
   spouseAlternateContact: "",
+  // NEW: Spouse identity proof upload
+  spouseIdentificationProof: "",
+  spouseIdentificationProofId: "",
   spousePermGewogOptions: [] as any[],
 
   taxIdentifierType: "",
@@ -319,7 +309,6 @@ const createEmptyGuarantor = () => ({
   isPep: "",
   pepCategory: "",
   pepSubCategory: "",
-  // pepUpload removed (identity proof upload under PEP) - self PEP upload removed
   relatedToPep: "",
   relatedPeps: [createEmptyRelatedPep()],
   showLookupPopup: false,
@@ -400,7 +389,6 @@ export function SecurityDetailBusiness({
     return false;
   };
 
-  // getPepIsMarried is no longer needed for related PEP but keep if used elsewhere
   const getPepIsMarried = (pep: any) => {
     const status = pep.maritalStatus;
     if (!status) return false;
@@ -659,7 +647,6 @@ export function SecurityDetailBusiness({
           for (let pIdx = 0; pIdx < guarantor.relatedPeps.length; pIdx++) {
             const pep = guarantor.relatedPeps[pIdx];
 
-            // Perm Gewog Loading
             if (pep.permDzongkhag) {
               try {
                 const options = await fetchGewogsByDzongkhag(pep.permDzongkhag);
@@ -679,7 +666,6 @@ export function SecurityDetailBusiness({
               }
             }
 
-            // Curr Gewog Loading
             if (pep.currDzongkhag) {
               try {
                 const options = await fetchGewogsByDzongkhag(pep.currDzongkhag);
@@ -1675,6 +1661,8 @@ export function SecurityDetailBusiness({
         guarantor.permAddressProofId,
         guarantor.currAddressProofId,
         guarantor.spousePermAddressProofId,
+        // NEW: include spouse identification proof
+        guarantor.spouseIdentificationProofId,
         ...(guarantor.relatedPeps?.map((p: any) => p.identificationProofId) || []),
         ...(guarantor.relatedPeps?.map((p: any) => p.permAddressProofId) || []),
         ...(guarantor.relatedPeps?.map((p: any) => p.currAddressProofId) || []),
@@ -1709,7 +1697,6 @@ export function SecurityDetailBusiness({
             ...updatedGuarantor,
             pepCategory: "",
             pepSubCategory: "",
-            // pepUpload removed (self PEP upload removed)
           };
         }
       }
@@ -1773,7 +1760,7 @@ export function SecurityDetailBusiness({
       if (guarantor.dateOfBirth && !isLegalAge(guarantor.dateOfBirth))
         errors.dateOfBirth = "Guarantor must be at least 18 years old";
 
-      // Comprehensive Spouse Validation (for guarantor's own spouse)
+      // Spouse validation (including new spouse ID proof)
       if (getIsMarried(guarantor)) {
         const spouseRequired = [
           "spouseIdType",
@@ -1847,6 +1834,10 @@ export function SecurityDetailBusiness({
           if (!guarantor.spousePermAddressProof)
             errors.spousePermAddressProof = "Address proof is required";
         }
+
+        // NEW: Spouse identification proof validation (optional, but can be required if you want)
+        // If you want it required, uncomment the next line
+        // if (!guarantor.spouseIdentificationProof) errors.spouseIdentificationProof = "Spouse ID proof is required";
       }
 
       if (!guarantor.passportPhoto)
@@ -1935,7 +1926,6 @@ export function SecurityDetailBusiness({
           errors.pepCategory = "PEP category is required";
         if (isRequired(guarantor.pepSubCategory))
           errors.pepSubCategory = "PEP sub-category is required";
-        // pepUpload validation removed (self PEP upload removed)
       } else if (guarantor.isPep === "no") {
         if (isRequired(guarantor.relatedToPep))
           errors.relatedToPep = "Please indicate if related to a PEP";
@@ -1943,7 +1933,6 @@ export function SecurityDetailBusiness({
           (guarantor.relatedPeps || []).forEach((pep: any, pepIdx: number) => {
             const pepBase = `relatedPeps.${pepIdx}`;
 
-            // Base PEP Fields
             if (isRequired(pep.relationship))
               errors[`${pepBase}.relationship`] = "Required";
             if (isRequired(pep.category))
@@ -1953,7 +1942,6 @@ export function SecurityDetailBusiness({
             if (!pep.identificationProof)
               errors[`${pepBase}.identificationProof`] = "Required";
 
-            // PEP Personal Information
             const pepPersonal = [
               "identificationType",
               "identificationNo",
@@ -1982,7 +1970,6 @@ export function SecurityDetailBusiness({
               errors[`${pepBase}.householdNumber`] = "Required";
             }
 
-            // PEP Permanent Address
             if (isRequired(pep.permCountry))
               errors[`${pepBase}.permCountry`] = "Required";
             const isPepBhutanPerm = countryOptions.some(
@@ -2012,7 +1999,6 @@ export function SecurityDetailBusiness({
                 errors[`${pepBase}.permAddressProof`] = "Required";
             }
 
-            // PEP Current Address
             if (isRequired(pep.currCountry))
               errors[`${pepBase}.currCountry`] = "Required";
             const isPepBhutanCurr = countryOptions.some(
@@ -2040,7 +2026,6 @@ export function SecurityDetailBusiness({
                 errors[`${pepBase}.currAddressProof`] = "Required";
             }
 
-            // PEP Contact
             if (isRequired(pep.email)) errors[`${pepBase}.email`] = "Required";
             else if (pep.email && !isValidEmail(pep.email))
               errors[`${pepBase}.email`] = "Invalid email";
@@ -2307,7 +2292,6 @@ export function SecurityDetailBusiness({
             newG.relatedPeps = newG.relatedPeps.map(
               (pep: any, pepIdx: number) => {
                 const newPep = { ...pep };
-                // Map base PEP info
                 if (newPep.category)
                   newPep.category = getLabel(pepCategoryMap, newPep.category);
                 if (
@@ -2328,7 +2312,6 @@ export function SecurityDetailBusiness({
                   newPep.subCategory = getLabel(subCatMap, newPep.subCategory);
                 }
 
-                // Map PEP personal info
                 if (newPep.identificationType)
                   newPep.identificationType = getLabel(
                     idTypeMap,
@@ -2345,7 +2328,6 @@ export function SecurityDetailBusiness({
                     newPep.maritalStatus,
                   );
 
-                // Map PEP perm address
                 if (newPep.permCountry)
                   newPep.permCountry = getLabel(countryMap, newPep.permCountry);
                 if (newPep.permDzongkhag) {
@@ -2373,7 +2355,6 @@ export function SecurityDetailBusiness({
                   newPep.permGewog = getLabel(gewogMap, newPep.permGewog);
                 }
 
-                // Map PEP curr address
                 if (newPep.currCountry)
                   newPep.currCountry = getLabel(countryMap, newPep.currCountry);
                 if (newPep.currDzongkhag) {
@@ -4198,8 +4179,6 @@ export function SecurityDetailBusiness({
                     </p>
                   )}
                 </div>
-
-                {/* pepUpload removed */}
               </>
             )}
           </div>
@@ -4265,8 +4244,6 @@ export function SecurityDetailBusiness({
                       .toLowerCase()
                       .includes("bhutan"),
                 );
-
-                // isPepMarried removed along with spouse sections
 
                 return (
                   <div
@@ -4469,7 +4446,6 @@ export function SecurityDetailBusiness({
                           )}
                         </div>
 
-                        {/* identificationProof upload - RESTORED */}
                         <div className="space-y-1.5 sm:space-y-2.5">
                           <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
                             Upload Proof <span className="text-red-500">*</span>
@@ -6720,6 +6696,53 @@ export function SecurityDetailBusiness({
                   )}
                 </div>
               )}
+
+              {/* NEW: Spouse Identification Proof Upload */}
+              <div className="space-y-1.5 sm:space-y-2.5 col-span-full md:col-span-2">
+                <Label
+                  htmlFor={`spouse-identification-proof-${index}`}
+                  className="text-gray-800 font-semibold text-xs sm:text-sm"
+                >
+                  Upload Spouse Identification Proof
+                </Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    id={`spouse-identification-proof-${index}`}
+                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) =>
+                      handleSpouseFileChange(
+                        index,
+                        "spouseIdentificationProof",
+                        e.target.files?.[0] || null,
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-28 bg-transparent"
+                    onClick={() =>
+                      document.getElementById(`spouse-identification-proof-${index}`)?.click()
+                    }
+                  >
+                    Choose File
+                  </Button>
+                  <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                    {guarantor.spouseIdentificationProof || "No file chosen"}
+                  </span>
+                </div>
+                {errors.spouseIdentificationProof && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseIdentificationProof}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500">
+                  Allowed: PDF, JPG, PNG (Max 5MB)
+                </p>
+              </div>
             </div>
 
 
@@ -7197,9 +7220,7 @@ export function SecurityDetailBusiness({
             </div>
           </div>
         )}
-        {/* END MOVED SPOUSE DETAILS SECTION */}
-
-
+        {/* END SPOUSE DETAILS SECTION */}
       </div>
     );
   };

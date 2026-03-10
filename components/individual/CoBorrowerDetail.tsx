@@ -167,6 +167,7 @@ const createEmptyCoBorrower = () => ({
   spouseEmail: "",
   spouseContact: "",
   spouseAlternateContact: "",
+  spouseIdProofDocument: "", // NEW: Spouse identification proof upload
 
   // Permanent Address
   permCountry: "",
@@ -4475,6 +4476,54 @@ export function CoBorrowerDetailsForm({
                   />
                 </div>
               )}
+            </div>
+
+            {/* NEW: Spouse Identification Proof Upload */}
+            <div className="space-y-2.5 pt-4">
+              <Label
+                htmlFor={`spouseIdProof-${index}`}
+                className="text-gray-800 font-semibold text-sm"
+              >
+                Upload Spouse Identification Proof Document{" "}
+                <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  id={`spouseIdProof-${index}`}
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) =>
+                    handleFileChange(
+                      index,
+                      "spouseIdProofDocument",
+                      e.target.files?.[0] || null,
+                    )
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-28 bg-transparent"
+                  onClick={() =>
+                    document.getElementById(`spouseIdProof-${index}`)?.click()
+                  }
+                >
+                  Choose File
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {coBorrower.spouseIdProofDocument || "No file chosen"}
+                </span>
+              </div>
+              {errors.spouseIdProofDocument && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.spouseIdProofDocument}
+                </p>
+              )}
+              <p className="text-xs text-gray-500">
+                Allowed: PDF, JPG, PNG (Max 5MB)
+              </p>
             </div>
 
             {/* Spouse Permanent Address */}

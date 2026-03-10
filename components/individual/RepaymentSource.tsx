@@ -308,10 +308,10 @@ export function RepaymentSourceForm({
     const selectedOption = maritalStatusOptions.find((option) => {
       const val = String(
         option.marital_status_pk_code ||
-          option.id ||
-          option.value ||
-          option.code ||
-          "",
+        option.id ||
+        option.value ||
+        option.code ||
+        "",
       );
       return val == statusValue;
     });
@@ -519,8 +519,8 @@ export function RepaymentSourceForm({
           : {}),
         ...(field === "relatedToPep" && value === "yes"
           ? {
-              relatedPeps: [createEmptyRelatedPep()],
-            }
+            relatedPeps: [createEmptyRelatedPep()],
+          }
           : {}),
         ...(field === "relatedToPep" && value === "no"
           ? { relatedPeps: [] }
@@ -737,7 +737,7 @@ export function RepaymentSourceForm({
               return cUp;
             });
           })
-          .catch(() => {});
+          .catch(() => { });
       }
 
       // Handle Dynamic Gewog Fetches for PEP
@@ -754,7 +754,7 @@ export function RepaymentSourceForm({
               return cUp;
             });
           })
-          .catch(() => {});
+          .catch(() => { });
       }
 
       if (field === "permDzongkhag") {
@@ -770,7 +770,7 @@ export function RepaymentSourceForm({
               return cUp;
             });
           })
-          .catch(() => {});
+          .catch(() => { });
       }
 
       if (field === "currDzongkhag") {
@@ -786,7 +786,7 @@ export function RepaymentSourceForm({
               return cUp;
             });
           })
-          .catch(() => {});
+          .catch(() => { });
       }
 
       return up;
@@ -1761,10 +1761,10 @@ export function RepaymentSourceForm({
                             <span className="text-red-500">*</span>
                           </Label>
                           {guarantor.spousePermCountry &&
-                          !isBhutanCountry(
-                            guarantor.spousePermCountry,
-                            countryOptions,
-                          ) ? (
+                            !isBhutanCountry(
+                              guarantor.spousePermCountry,
+                              countryOptions,
+                            ) ? (
                             <Input
                               placeholder="Enter State"
                               className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
@@ -1824,10 +1824,10 @@ export function RepaymentSourceForm({
                             <span className="text-red-500">*</span>
                           </Label>
                           {guarantor.spousePermCountry &&
-                          !isBhutanCountry(
-                            guarantor.spousePermCountry,
-                            countryOptions,
-                          ) ? (
+                            !isBhutanCountry(
+                              guarantor.spousePermCountry,
+                              countryOptions,
+                            ) ? (
                             <Input
                               placeholder="Enter Province"
                               className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
@@ -1862,7 +1862,7 @@ export function RepaymentSourceForm({
                               </SelectTrigger>
                               <SelectContent>
                                 {guarantor.spousePermGewogOptions?.length >
-                                0 ? (
+                                  0 ? (
                                   guarantor.spousePermGewogOptions.map(
                                     (opt: any, i: number) => (
                                       <SelectItem
@@ -1923,45 +1923,45 @@ export function RepaymentSourceForm({
                           guarantor.spousePermCountry,
                           countryOptions,
                         ) && (
-                          <>
-                            <div className="space-y-1.5 sm:space-y-2.5">
-                              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                                Spouse Thram No.{" "}
-                                <span className="text-red-500">*</span>
-                              </Label>
-                              <Input
-                                placeholder="Enter Thram No"
-                                className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                                value={guarantor.spousePermThram || ""}
-                                onChange={(e) =>
-                                  updateGuarantorField(
-                                    index,
-                                    "spousePermThram",
-                                    e.target.value,
-                                  )
-                                }
-                              />
-                            </div>
-                            <div className="space-y-1.5 sm:space-y-2.5">
-                              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                                Spouse House No.{" "}
-                                <span className="text-red-500">*</span>
-                              </Label>
-                              <Input
-                                placeholder="Enter House No"
-                                className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                                value={guarantor.spousePermHouse || ""}
-                                onChange={(e) =>
-                                  updateGuarantorField(
-                                    index,
-                                    "spousePermHouse",
-                                    e.target.value,
-                                  )
-                                }
-                              />
-                            </div>
-                          </>
-                        )}
+                            <>
+                              <div className="space-y-1.5 sm:space-y-2.5">
+                                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                                  Spouse Thram No.{" "}
+                                  <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                  placeholder="Enter Thram No"
+                                  className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                                  value={guarantor.spousePermThram || ""}
+                                  onChange={(e) =>
+                                    updateGuarantorField(
+                                      index,
+                                      "spousePermThram",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div className="space-y-1.5 sm:space-y-2.5">
+                                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                                  Spouse House No.{" "}
+                                  <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                  placeholder="Enter House No"
+                                  className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                                  value={guarantor.spousePermHouse || ""}
+                                  onChange={(e) =>
+                                    updateGuarantorField(
+                                      index,
+                                      "spousePermHouse",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                            </>
+                          )}
                       </div>
 
                       {guarantor.spousePermCountry &&
@@ -2141,10 +2141,10 @@ export function RepaymentSourceForm({
                               `bank-${optionIndex}`;
                             const value = String(
                               option.bank_pk_code ||
-                                option.id ||
-                                option.code ||
-                                option.bank_code ||
-                                optionIndex,
+                              option.id ||
+                              option.code ||
+                              option.bank_code ||
+                              optionIndex,
                             );
                             const label =
                               option.bank_name ||
@@ -3033,7 +3033,7 @@ export function RepaymentSourceForm({
                                         key={i}
                                         value={String(
                                           opt.pep_sub_category_pk_code ||
-                                            opt.id,
+                                          opt.id,
                                         )}
                                       >
                                         {opt.pep_sub_category || opt.name}
@@ -3457,7 +3457,7 @@ export function RepaymentSourceForm({
                                               key={i}
                                               value={String(
                                                 opt.identity_type_pk_code ||
-                                                  opt.id,
+                                                opt.id,
                                               )}
                                             >
                                               {opt.identity_type ||
@@ -3794,10 +3794,10 @@ export function RepaymentSourceForm({
                                       <span className="text-red-500">*</span>
                                     </Label>
                                     {pep.spousePermCountry &&
-                                    !isBhutanCountry(
-                                      pep.spousePermCountry,
-                                      countryOptions,
-                                    ) ? (
+                                      !isBhutanCountry(
+                                        pep.spousePermCountry,
+                                        countryOptions,
+                                      ) ? (
                                       <Input
                                         placeholder="Enter State"
                                         className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
@@ -3859,10 +3859,10 @@ export function RepaymentSourceForm({
                                       <span className="text-red-500">*</span>
                                     </Label>
                                     {pep.spousePermCountry &&
-                                    !isBhutanCountry(
-                                      pep.spousePermCountry,
-                                      countryOptions,
-                                    ) ? (
+                                      !isBhutanCountry(
+                                        pep.spousePermCountry,
+                                        countryOptions,
+                                      ) ? (
                                       <Input
                                         placeholder="Enter Province"
                                         className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
@@ -3945,51 +3945,51 @@ export function RepaymentSourceForm({
                                     pep.spousePermCountry,
                                     countryOptions,
                                   ) && (
-                                    <>
-                                      <div className="space-y-2.5">
-                                        <Label className="text-gray-800 font-semibold text-sm">
-                                          Spouse Thram No.{" "}
-                                          <span className="text-red-500">
-                                            *
-                                          </span>
-                                        </Label>
-                                        <Input
-                                          placeholder="Enter Thram No"
-                                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                                          value={pep.spousePermThram || ""}
-                                          onChange={(e) =>
-                                            handleRelatedPepChange(
-                                              index,
-                                              pepIndex,
-                                              "spousePermThram",
-                                              e.target.value,
-                                            )
-                                          }
-                                        />
-                                      </div>
-                                      <div className="space-y-2.5">
-                                        <Label className="text-gray-800 font-semibold text-sm">
-                                          Spouse House No.{" "}
-                                          <span className="text-red-500">
-                                            *
-                                          </span>
-                                        </Label>
-                                        <Input
-                                          placeholder="Enter House No"
-                                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                                          value={pep.spousePermHouse || ""}
-                                          onChange={(e) =>
-                                            handleRelatedPepChange(
-                                              index,
-                                              pepIndex,
-                                              "spousePermHouse",
-                                              e.target.value,
-                                            )
-                                          }
-                                        />
-                                      </div>
-                                    </>
-                                  )}
+                                      <>
+                                        <div className="space-y-2.5">
+                                          <Label className="text-gray-800 font-semibold text-sm">
+                                            Spouse Thram No.{" "}
+                                            <span className="text-red-500">
+                                              *
+                                            </span>
+                                          </Label>
+                                          <Input
+                                            placeholder="Enter Thram No"
+                                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                                            value={pep.spousePermThram || ""}
+                                            onChange={(e) =>
+                                              handleRelatedPepChange(
+                                                index,
+                                                pepIndex,
+                                                "spousePermThram",
+                                                e.target.value,
+                                              )
+                                            }
+                                          />
+                                        </div>
+                                        <div className="space-y-2.5">
+                                          <Label className="text-gray-800 font-semibold text-sm">
+                                            Spouse House No.{" "}
+                                            <span className="text-red-500">
+                                              *
+                                            </span>
+                                          </Label>
+                                          <Input
+                                            placeholder="Enter House No"
+                                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                                            value={pep.spousePermHouse || ""}
+                                            onChange={(e) =>
+                                              handleRelatedPepChange(
+                                                index,
+                                                pepIndex,
+                                                "spousePermHouse",
+                                                e.target.value,
+                                              )
+                                            }
+                                          />
+                                        </div>
+                                      </>
+                                    )}
                                 </div>
 
                                 {pep.spousePermCountry &&
@@ -4156,10 +4156,10 @@ export function RepaymentSourceForm({
                                     <span className="text-red-500">*</span>
                                   </Label>
                                   {pep.permCountry &&
-                                  !isBhutanCountry(
-                                    pep.permCountry,
-                                    countryOptions,
-                                  ) ? (
+                                    !isBhutanCountry(
+                                      pep.permCountry,
+                                      countryOptions,
+                                    ) ? (
                                     <Input
                                       placeholder="Enter State"
                                       className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
@@ -4221,10 +4221,10 @@ export function RepaymentSourceForm({
                                     <span className="text-red-500">*</span>
                                   </Label>
                                   {pep.permCountry &&
-                                  !isBhutanCountry(
-                                    pep.permCountry,
-                                    countryOptions,
-                                  ) ? (
+                                    !isBhutanCountry(
+                                      pep.permCountry,
+                                      countryOptions,
+                                    ) ? (
                                     <Input
                                       placeholder="Enter Province"
                                       className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
@@ -4307,47 +4307,47 @@ export function RepaymentSourceForm({
                                   pep.permCountry,
                                   countryOptions,
                                 ) && (
-                                  <>
-                                    <div className="space-y-2.5">
-                                      <Label className="text-gray-800 font-semibold text-sm">
-                                        Thram No.{" "}
-                                        <span className="text-red-500">*</span>
-                                      </Label>
-                                      <Input
-                                        placeholder="Enter Thram No"
-                                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                                        value={pep.permThram || ""}
-                                        onChange={(e) =>
-                                          handleRelatedPepChange(
-                                            index,
-                                            pepIndex,
-                                            "permThram",
-                                            e.target.value,
-                                          )
-                                        }
-                                      />
-                                    </div>
-                                    <div className="space-y-2.5">
-                                      <Label className="text-gray-800 font-semibold text-sm">
-                                        House No.{" "}
-                                        <span className="text-red-500">*</span>
-                                      </Label>
-                                      <Input
-                                        placeholder="Enter House No"
-                                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                                        value={pep.permHouse || ""}
-                                        onChange={(e) =>
-                                          handleRelatedPepChange(
-                                            index,
-                                            pepIndex,
-                                            "permHouse",
-                                            e.target.value,
-                                          )
-                                        }
-                                      />
-                                    </div>
-                                  </>
-                                )}
+                                    <>
+                                      <div className="space-y-2.5">
+                                        <Label className="text-gray-800 font-semibold text-sm">
+                                          Thram No.{" "}
+                                          <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Input
+                                          placeholder="Enter Thram No"
+                                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                                          value={pep.permThram || ""}
+                                          onChange={(e) =>
+                                            handleRelatedPepChange(
+                                              index,
+                                              pepIndex,
+                                              "permThram",
+                                              e.target.value,
+                                            )
+                                          }
+                                        />
+                                      </div>
+                                      <div className="space-y-2.5">
+                                        <Label className="text-gray-800 font-semibold text-sm">
+                                          House No.{" "}
+                                          <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Input
+                                          placeholder="Enter House No"
+                                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                                          value={pep.permHouse || ""}
+                                          onChange={(e) =>
+                                            handleRelatedPepChange(
+                                              index,
+                                              pepIndex,
+                                              "permHouse",
+                                              e.target.value,
+                                            )
+                                          }
+                                        />
+                                      </div>
+                                    </>
+                                  )}
                               </div>
 
                               {pep.permCountry &&
@@ -4450,10 +4450,10 @@ export function RepaymentSourceForm({
                                     <span className="text-red-500">*</span>
                                   </Label>
                                   {pep.currCountry &&
-                                  !isBhutanCountry(
-                                    pep.currCountry,
-                                    countryOptions,
-                                  ) ? (
+                                    !isBhutanCountry(
+                                      pep.currCountry,
+                                      countryOptions,
+                                    ) ? (
                                     <Input
                                       placeholder="Enter State"
                                       className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
@@ -4515,10 +4515,10 @@ export function RepaymentSourceForm({
                                     <span className="text-red-500">*</span>
                                   </Label>
                                   {pep.currCountry &&
-                                  !isBhutanCountry(
-                                    pep.currCountry,
-                                    countryOptions,
-                                  ) ? (
+                                    !isBhutanCountry(
+                                      pep.currCountry,
+                                      countryOptions,
+                                    ) ? (
                                     <Input
                                       placeholder="Enter Province"
                                       className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
@@ -4601,26 +4601,26 @@ export function RepaymentSourceForm({
                                   pep.currCountry,
                                   countryOptions,
                                 ) && (
-                                  <div className="space-y-2.5">
-                                    <Label className="text-gray-800 font-semibold text-sm">
-                                      Flat No.{" "}
-                                      <span className="text-red-500">*</span>
-                                    </Label>
-                                    <Input
-                                      placeholder="Enter Flat No"
-                                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                                      value={pep.currFlat || ""}
-                                      onChange={(e) =>
-                                        handleRelatedPepChange(
-                                          index,
-                                          pepIndex,
-                                          "currFlat",
-                                          e.target.value,
-                                        )
-                                      }
-                                    />
-                                  </div>
-                                )}
+                                    <div className="space-y-2.5">
+                                      <Label className="text-gray-800 font-semibold text-sm">
+                                        Flat No.{" "}
+                                        <span className="text-red-500">*</span>
+                                      </Label>
+                                      <Input
+                                        placeholder="Enter Flat No"
+                                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                                        value={pep.currFlat || ""}
+                                        onChange={(e) =>
+                                          handleRelatedPepChange(
+                                            index,
+                                            pepIndex,
+                                            "currFlat",
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                  )}
                               </div>
 
                               {pep.currCountry &&
@@ -4864,9 +4864,9 @@ export function RepaymentSourceForm({
                                 `occupation-${optionIndex}`;
                               const value = String(
                                 option.occ_pk_code ||
-                                  option.occupation_pk_code ||
-                                  option.id ||
-                                  optionIndex,
+                                option.occupation_pk_code ||
+                                option.id ||
+                                optionIndex,
                               );
                               const label =
                                 option.occ_name ||
@@ -4988,9 +4988,9 @@ export function RepaymentSourceForm({
                                 `org-${optionIndex}`;
                               const value = String(
                                 option.lgal_constitution_pk_code ||
-                                  option.legal_const_pk_code ||
-                                  option.id ||
-                                  optionIndex,
+                                option.legal_const_pk_code ||
+                                option.id ||
+                                optionIndex,
                               );
                               const label =
                                 option.lgal_constitution ||

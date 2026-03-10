@@ -22,7 +22,6 @@ import DocumentPopupBusiness from "@/components/DocumentPopupBusiness";
 import { BusinessRepaymentSourceForm } from "@/components/business/BusinessRepaymentSource";
 import { BusinessDetailsForm } from "@/components/business/BusinessDetails";
 import { BusinessConfirmation } from "@/components/BusinessConfirmation";
-import { CoborrowerBusiness } from "@/components/business/CoborrowerBusiness";
 import { SecurityDetailBusiness } from "@/components/business/SecurityDetailBusiness";
 
 import { fetchLoanData } from "@/services/api";
@@ -31,7 +30,6 @@ import { loanInfoContent } from "@/components/text";
 const businessSteps = [
   "Loan Details",
   "Business Details",
-  "Co-Borrower Details",
   "Security Details",
   "Repayment Source",
   "Confirmation",
@@ -270,22 +268,16 @@ function BusinessLoanApplicationContent() {
     setCurrentStep(2);
   };
 
-  const handleCoBorrowerNext = (data: any) => {
+  const handleSecurityNext = (data: any) => {
     setFormData((prev: any) => ({ ...prev, ...data }));
     saveToSession(data);
     setCurrentStep(3);
   };
 
-  const handleSecurityNext = (data: any) => {
-    setFormData((prev: any) => ({ ...prev, ...data }));
-    saveToSession(data);
-    setCurrentStep(4);
-  };
-
   const handleRepaymentSourceNext = (data: any) => {
     setFormData((prev: any) => ({ ...prev, ...data }));
     saveToSession(data);
-    setCurrentStep(5);
+    setCurrentStep(4);
   };
 
   const handleConfirmationNext = (data: any) => {
@@ -713,8 +705,8 @@ function BusinessLoanApplicationContent() {
         )}
         {currentStep === 2 && (
           <div className="max-w-7xl mx-auto">
-            <CoborrowerBusiness
-              onNext={handleCoBorrowerNext}
+            <SecurityDetailBusiness
+              onNext={handleSecurityNext}
               onBack={() => setCurrentStep(1)}
               formData={formData}
             />
@@ -722,8 +714,8 @@ function BusinessLoanApplicationContent() {
         )}
         {currentStep === 3 && (
           <div className="max-w-7xl mx-auto">
-            <SecurityDetailBusiness
-              onNext={handleSecurityNext}
+            <BusinessRepaymentSourceForm
+              onNext={handleRepaymentSourceNext}
               onBack={() => setCurrentStep(2)}
               formData={formData}
             />
@@ -731,18 +723,9 @@ function BusinessLoanApplicationContent() {
         )}
         {currentStep === 4 && (
           <div className="max-w-7xl mx-auto">
-            <BusinessRepaymentSourceForm
-              onNext={handleRepaymentSourceNext}
-              onBack={() => setCurrentStep(3)}
-              formData={formData}
-            />
-          </div>
-        )}
-        {currentStep === 5 && (
-          <div className="max-w-7xl mx-auto">
             <BusinessConfirmation
               onNext={handleConfirmationNext}
-              onBack={() => setCurrentStep(4)}
+              onBack={() => setCurrentStep(3)}
               formData={formData}
             />
           </div>
@@ -752,8 +735,7 @@ function BusinessLoanApplicationContent() {
         {currentStep !== 1 &&
           currentStep !== 2 &&
           currentStep !== 3 &&
-          currentStep !== 4 &&
-          currentStep !== 5 && (
+          currentStep !== 4 && (
             <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-6 sm:mt-8 md:mt-12 mb-4 sm:mb-6">
               <Button
                 variant="secondary"

@@ -7397,7 +7397,7 @@ export function SecurityDetailBusiness({
                     htmlFor="registration-no"
                     className="text-gray-800 font-semibold text-sm"
                   >
-                    Registration No. / Invoice No
+                    Registration No. / Invoice No.
                   </Label>
                   <Input
                     id="registration-no"

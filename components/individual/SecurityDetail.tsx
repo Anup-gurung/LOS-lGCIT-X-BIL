@@ -50,14 +50,14 @@ const formatDateForInput = (dateString: string | null | undefined) => {
   }
 };
 
-// Initialize empty related PEP entry (Expanded structure)
+// Initialize empty related PEP entry (Expanded structure without spouse details)
 const createEmptyRelatedPep = () => ({
   // PEP Info
   relationship: "",
   identificationNo: "",
   category: "",
   subCategory: "",
-  identificationProof: "",
+  identificationProof: "", // RESTORED
 
   // Personal Info
   identificationType: "",
@@ -92,30 +92,6 @@ const createEmptyRelatedPep = () => ({
   currEmail: "",
   currContact: "",
   currAlternateContact: "",
-
-  // Spouse Info
-  spouseIdentificationType: "",
-  spouseIdentificationNo: "",
-  spouseSalutation: "",
-  spouseName: "",
-  spouseNationality: "",
-  spouseGender: "",
-  spouseIdentificationIssueDate: "",
-  spouseIdentificationExpiryDate: "",
-  spouseTaxIdentifierType: "",
-  spouseTpn: "",
-  spouseDateOfBirth: "",
-  spouseHouseholdNumber: "",
-  spousePermCountry: "",
-  spousePermDzongkhag: "",
-  spousePermGewog: "",
-  spousePermVillage: "",
-  spousePermThram: "",
-  spousePermHouse: "",
-  spousePermAddressProof: "",
-  spouseEmail: "",
-  spouseContact: "",
-  spouseAlternateContact: "",
 });
 
 // Initialize empty security entry
@@ -198,6 +174,7 @@ const createEmptyGuarantor = () => ({
   bankName: "",
   bankAccount: "",
   passportPhoto: "",
+  idProof: "", // Identification proof upload (For normal ID, not PEP specific)
 
   // Expanded Spouse Info
   spouseIdentificationType: "",
@@ -261,7 +238,6 @@ const createEmptyGuarantor = () => ({
   isPep: "",
   pepCategory: "",
   pepSubCategory: "",
-  pepUpload: "",
   relatedToPep: "",
   relatedPeps: [createEmptyRelatedPep()],
 
@@ -277,7 +253,6 @@ const createEmptyGuarantor = () => ({
   spousePermGewogOptions: [] as any[],
   pepSubCategoryOptions: [] as any[],
   relatedPepOptionsMap: {} as Record<number, any[]>,
-  relatedPepSpouseGewogMap: {} as Record<number, any[]>,
   relatedPepPermGewogMap: {} as Record<number, any[]>,
   relatedPepCurrGewogMap: {} as Record<number, any[]>,
 });
@@ -298,9 +273,7 @@ export function SecurityDetailsForm({
 
   // Dropdown Options
   const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
-  const [identificationTypeOptions, setIdentificationTypeOptions] = useState<
-    any[]
-  >([]);
+  const [identificationTypeOptions, setIdentificationTypeOptions] = useState<any[]>([]);
   const [countryOptions, setCountryOptions] = useState<any[]>([]);
   const [dzongkhagOptions, setDzongkhagOptions] = useState<any[]>([]);
   const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([]);
@@ -359,10 +332,10 @@ export function SecurityDetailsForm({
     const selectedOption = maritalStatusOptions.find((option) => {
       const val = String(
         option.marital_status_pk_code ||
-          option.id ||
-          option.value ||
-          option.code ||
-          "",
+        option.id ||
+        option.value ||
+        option.code ||
+        "",
       );
       return val == statusValue;
     });
@@ -386,7 +359,7 @@ export function SecurityDetailsForm({
       try {
         const [
           nationality,
-          identificationType,
+          identificationTypeRaw,
           country,
           dzongkhag,
           maritalStatus,
@@ -406,8 +379,21 @@ export function SecurityDetailsForm({
           fetchLegalConstitution().catch(() => []),
         ]);
 
+        // Exclude Corporate IDs ("Trade License", "Company Registration") for this individual form
+        const filteredIdTypes = (identificationTypeRaw || []).filter(
+          (opt: any) => {
+            const label = String(
+              opt.identity_type || opt.identification_type || opt.name || ""
+            ).toLowerCase();
+            return (
+              !label.includes("trade license") &&
+              !label.includes("company reg")
+            );
+          }
+        );
+
         setNationalityOptions(nationality);
-        setIdentificationTypeOptions(identificationType);
+        setIdentificationTypeOptions(filteredIdTypes);
         setCountryOptions(country);
         setDzongkhagOptions(dzongkhag);
         setMaritalStatusOptions(maritalStatus);
@@ -961,9 +947,6 @@ export function SecurityDetailsForm({
         relatedPepOptionsMap: cleanMap(
           updated[guarantorIndex].relatedPepOptionsMap || {},
         ),
-        relatedPepSpouseGewogMap: cleanMap(
-          updated[guarantorIndex].relatedPepSpouseGewogMap || {},
-        ),
         relatedPepPermGewogMap: cleanMap(
           updated[guarantorIndex].relatedPepPermGewogMap || {},
         ),
@@ -1007,26 +990,7 @@ export function SecurityDetailsForm({
               return currentUpdated;
             });
           })
-          .catch(() => {});
-      }
-
-      if (field === "spousePermDzongkhag") {
-        updatedPeps[pepIndex].spousePermGewog = "";
-        fetchGewogsByDzongkhag(value)
-          .then((options) => {
-            setGuarantors((current) => {
-              const currentUpdated = [...current];
-              currentUpdated[guarantorIndex] = {
-                ...currentUpdated[guarantorIndex],
-                relatedPepSpouseGewogMap: {
-                  ...currentUpdated[guarantorIndex].relatedPepSpouseGewogMap,
-                  [pepIndex]: options || [],
-                },
-              };
-              return currentUpdated;
-            });
-          })
-          .catch(() => {});
+          .catch(() => { });
       }
 
       if (field === "permDzongkhag") {
@@ -1045,7 +1009,7 @@ export function SecurityDetailsForm({
               return currentUpdated;
             });
           })
-          .catch(() => {});
+          .catch(() => { });
       }
 
       if (field === "currDzongkhag") {
@@ -1057,14 +1021,13 @@ export function SecurityDetailsForm({
               currentUpdated[guarantorIndex] = {
                 ...currentUpdated[guarantorIndex],
                 relatedPepCurrGewogMap: {
-                  ...currentUpdated[guarantorIndex].relatedPepCurrGewogMap,
-                  [pepIndex]: options || [],
+                  ...currentUpdated[guarantorIndex].relatedPepCurrGewogMap, [pepIndex]: options || [],
                 },
               };
               return currentUpdated;
             });
           })
-          .catch(() => {});
+          .catch(() => { });
       }
 
       updated[guarantorIndex] = {
@@ -1159,10 +1122,9 @@ export function SecurityDetailsForm({
         ...(field === "isPep" && value === "yes" ? { relatedToPep: "" } : {}),
         ...(field === "isPep" && value === "no"
           ? {
-              pepCategory: "",
-              pepSubCategory: "",
-              pepUpload: "",
-            }
+            pepCategory: "",
+            pepSubCategory: "",
+          }
           : {}),
         ...(field === "relatedToPep" && value === "no"
           ? { relatedPeps: [] }
@@ -1201,7 +1163,6 @@ export function SecurityDetailsForm({
       if (guarantor.isPep === "yes") {
         if (!guarantor.pepCategory) errors.pepCategory = "Required";
         if (!guarantor.pepSubCategory) errors.pepSubCategory = "Required";
-        if (!guarantor.pepUpload) errors.pepUpload = "Required";
       }
 
       if (Object.keys(errors).length > 0) {
@@ -1226,8 +1187,7 @@ export function SecurityDetailsForm({
       if (security.securityType && security.securityType !== "Not Applicable") {
         if (!security.securityProof) {
           setErrors((prev) => ({
-            ...prev,
-            [`security-${index}-proof`]: "Security proof is required",
+            ...prev, [`security-${index}-proof`]: "Security proof is required",
           }));
           isValid = false;
         }
@@ -1274,11 +1234,11 @@ export function SecurityDetailsForm({
         case "vehicle":
           return "Upload Vehicle Proof (Registration, Insurance)";
         case "land":
-          return "Upload Land Proof (Thram Copy, Land Tax Receipt)";
+          return "Upload Land Proof (Thram Copy)";
         case "building":
           return "Upload Building Proof (Building Approval, Valuation Report)";
         case "equipment":
-          return "Upload Equipment Proof (Invoice, Serial Number Proof)";
+          return "Upload Equipment Proof ( Invoice No / Registration No)";
         case "insurance":
           return "Upload Insurance Policy Document";
         case "PPF":
@@ -1286,7 +1246,7 @@ export function SecurityDetailsForm({
         case "Share":
           return "Upload Share Certificate/Proof";
         case "Stocks":
-          return "Upload Stock Holding Certificate";
+          return "Upload Stock List ";
         case "fd":
           return "Upload Fixed Deposit Certificate";
         default:
@@ -1419,9 +1379,9 @@ export function SecurityDetailsForm({
                         `id-${idx}`;
                       const value = String(
                         option.identity_type_pk_code ||
-                          option.identification_type_pk_code ||
-                          option.id ||
-                          idx,
+                        option.identification_type_pk_code ||
+                        option.id ||
+                        idx,
                       );
                       const label =
                         option.identity_type ||
@@ -1550,9 +1510,9 @@ export function SecurityDetailsForm({
                         `nationality-${idx}`;
                       const value = String(
                         option.nationality_pk_code ||
-                          option.id ||
-                          option.code ||
-                          idx,
+                        option.id ||
+                        option.code ||
+                        idx,
                       );
                       const label =
                         option.nationality ||
@@ -1751,10 +1711,10 @@ export function SecurityDetailsForm({
                         `marital-${idx}`;
                       const value = String(
                         option.marital_status_pk_code ||
-                          option.id ||
-                          option.value ||
-                          option.code ||
-                          idx,
+                        option.id ||
+                        option.value ||
+                        option.code ||
+                        idx,
                       );
                       const label =
                         option.marital_status ||
@@ -1783,622 +1743,6 @@ export function SecurityDetailsForm({
               )}
             </div>
           </div>
-
-          {/* Conditional Spouse Details Section */}
-          {isMarried && (
-            <div className="mt-8 border-t pt-8 space-y-6">
-              <h3 className="text-lg font-bold text-[#003DA5] mb-4">
-                Spouse Personal Information
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse Identification Type{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={guarantor.spouseIdentificationType}
-                    onValueChange={(value) =>
-                      updateGuarantorField(
-                        index,
-                        "spouseIdentificationType",
-                        value,
-                      )
-                    }
-                  >
-                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4}>
-                      {identificationTypeOptions.map((opt, i) => (
-                        <SelectItem
-                          key={i}
-                          value={String(
-                            opt.identity_type_pk_code || opt.id || i,
-                          )}
-                        >
-                          {opt.identity_type ||
-                            opt.identification_type ||
-                            "Unknown"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse ID No. <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    placeholder="Enter Spouse CID/ID"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                    value={guarantor.spouseIdentificationNo || ""}
-                    onChange={(e) =>
-                      updateGuarantorField(
-                        index,
-                        "spouseIdentificationNo",
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse Salutation <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={guarantor.spouseSalutation}
-                    onValueChange={(value) =>
-                      updateGuarantorField(index, "spouseSalutation", value)
-                    }
-                  >
-                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mr">Mr.</SelectItem>
-                      <SelectItem value="mrs">Mrs.</SelectItem>
-                      <SelectItem value="ms">Ms.</SelectItem>
-                      <SelectItem value="dr">Dr.</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    placeholder="Enter Spouse Full Name"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                    value={guarantor.spouseName || ""}
-                    onChange={(e) =>
-                      updateGuarantorField(index, "spouseName", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse Nationality <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={guarantor.spouseNationality}
-                    onValueChange={(value) =>
-                      updateGuarantorField(index, "spouseNationality", value)
-                    }
-                  >
-                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {nationalityOptions.map((opt, i) => (
-                        <SelectItem
-                          key={i}
-                          value={String(opt.nationality_pk_code || opt.id || i)}
-                        >
-                          {opt.nationality || opt.name || "Unknown"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse Gender <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={guarantor.spouseGender}
-                    onValueChange={(value) =>
-                      updateGuarantorField(index, "spouseGender", value)
-                    }
-                  >
-                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse ID Issue Date <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    type="date"
-                    max={today}
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                    value={guarantor.spouseIdentificationIssueDate || ""}
-                    onChange={(e) =>
-                      updateGuarantorField(
-                        index,
-                        "spouseIdentificationIssueDate",
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse ID Expiry Date{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    type="date"
-                    min={today}
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                    value={guarantor.spouseIdentificationExpiryDate || ""}
-                    onChange={(e) =>
-                      updateGuarantorField(
-                        index,
-                        "spouseIdentificationExpiryDate",
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse Tax Identifier Type{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={guarantor.spouseTaxIdentifierType}
-                    onValueChange={(value) =>
-                      updateGuarantorField(
-                        index,
-                        "spouseTaxIdentifierType",
-                        value,
-                      )
-                    }
-                  >
-                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="BIT">BIT</SelectItem>
-                      <SelectItem value="GST">GST</SelectItem>
-                      <SelectItem value="CIT">CIT</SelectItem>
-                      <SelectItem value="PIT">PIT</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse TPN No <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    placeholder="Enter TPN"
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                    value={guarantor.spouseTpn || ""}
-                    onChange={(e) =>
-                      updateGuarantorField(index, "spouseTpn", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse Date of Birth <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    type="date"
-                    max={maxDobDate}
-                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                    value={guarantor.spouseDateOfBirth || ""}
-                    onChange={(e) =>
-                      updateGuarantorField(
-                        index,
-                        "spouseDateOfBirth",
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                {isNatBhutanese(guarantor.spouseNationality) && (
-                  <div className="space-y-1.5 sm:space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                      Spouse Household Number{" "}
-                      <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      placeholder="Enter Household Number"
-                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                      value={guarantor.spouseHouseholdNumber || ""}
-                      onChange={(e) =>
-                        updateGuarantorField(
-                          index,
-                          "spouseHouseholdNumber",
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Spouse Permanent Address */}
-              <div className="mt-6 pt-6 border-t border-dashed">
-                <h4 className="text-md font-semibold text-gray-700 mb-4">
-                  Spouse Permanent Address
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-                  <div className="space-y-1.5 sm:space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                      Spouse Country <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      value={guarantor.spousePermCountry}
-                      onValueChange={(value) =>
-                        updateGuarantorField(index, "spousePermCountry", value)
-                      }
-                    >
-                      <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                        <SelectValue placeholder="[Select]" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {countryOptions.map((opt, i) => (
-                          <SelectItem
-                            key={i}
-                            value={String(opt.country_pk_code || opt.id || i)}
-                          >
-                            {opt.country || opt.name || "Unknown"}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5 sm:space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                      {isBhutanCountry(
-                        guarantor.spousePermCountry,
-                        countryOptions,
-                      )
-                        ? "Spouse Dzongkhag"
-                        : "Spouse State"}{" "}
-                      <span className="text-red-500">*</span>
-                    </Label>
-                    {guarantor.spousePermCountry &&
-                    !isBhutanCountry(
-                      guarantor.spousePermCountry,
-                      countryOptions,
-                    ) ? (
-                      <Input
-                        placeholder="Enter State"
-                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                        value={guarantor.spousePermDzongkhag || ""}
-                        onChange={(e) =>
-                          updateGuarantorField(
-                            index,
-                            "spousePermDzongkhag",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    ) : (
-                      <Select
-                        value={guarantor.spousePermDzongkhag}
-                        onValueChange={(value) =>
-                          updateGuarantorField(
-                            index,
-                            "spousePermDzongkhag",
-                            value,
-                          )
-                        }
-                        disabled={
-                          !isBhutanCountry(
-                            guarantor.spousePermCountry,
-                            countryOptions,
-                          )
-                        }
-                      >
-                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {dzongkhagOptions.map((opt, i) => (
-                            <SelectItem
-                              key={i}
-                              value={String(
-                                opt.dzongkhag_pk_code || opt.id || i,
-                              )}
-                            >
-                              {opt.dzongkhag || opt.name || "Unknown"}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5 sm:space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                      {isBhutanCountry(
-                        guarantor.spousePermCountry,
-                        countryOptions,
-                      )
-                        ? "Spouse Gewog"
-                        : "Spouse Province"}{" "}
-                      <span className="text-red-500">*</span>
-                    </Label>
-                    {guarantor.spousePermCountry &&
-                    !isBhutanCountry(
-                      guarantor.spousePermCountry,
-                      countryOptions,
-                    ) ? (
-                      <Input
-                        placeholder="Enter Province"
-                        className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                        value={guarantor.spousePermGewog || ""}
-                        onChange={(e) =>
-                          updateGuarantorField(
-                            index,
-                            "spousePermGewog",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    ) : (
-                      <Select
-                        value={guarantor.spousePermGewog}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "spousePermGewog", value)
-                        }
-                        disabled={
-                          !isBhutanCountry(
-                            guarantor.spousePermCountry,
-                            countryOptions,
-                          )
-                        }
-                      >
-                        <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {guarantor.spousePermGewogOptions?.length > 0 ? (
-                            guarantor.spousePermGewogOptions.map(
-                              (opt: any, i: number) => (
-                                <SelectItem
-                                  key={i}
-                                  value={String(
-                                    opt.gewog_pk_code || opt.id || i,
-                                  )}
-                                >
-                                  {opt.gewog || opt.name || "Unknown"}
-                                </SelectItem>
-                              ),
-                            )
-                          ) : (
-                            <SelectItem value="loading" disabled>
-                              {guarantor.spousePermDzongkhag
-                                ? "Loading..."
-                                : "Select Dzongkhag first"}
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5 sm:space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                      {isBhutanCountry(
-                        guarantor.spousePermCountry,
-                        countryOptions,
-                      )
-                        ? "Spouse Village/Street"
-                        : "Spouse Street"}{" "}
-                      <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      placeholder={
-                        isBhutanCountry(
-                          guarantor.spousePermCountry,
-                          countryOptions,
-                        )
-                          ? "Enter Village/Street"
-                          : "Enter Street"
-                      }
-                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                      value={guarantor.spousePermVillage || ""}
-                      onChange={(e) =>
-                        updateGuarantorField(
-                          index,
-                          "spousePermVillage",
-                          e.target.value,
-                        )
-                      }
-                      disabled={!guarantor.spousePermCountry}
-                    />
-                  </div>
-
-                  {isBhutanCountry(
-                    guarantor.spousePermCountry,
-                    countryOptions,
-                  ) && (
-                    <>
-                      <div className="space-y-1.5 sm:space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                          Spouse Thram No.{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          placeholder="Enter Thram No"
-                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                          value={guarantor.spousePermThram || ""}
-                          onChange={(e) =>
-                            updateGuarantorField(
-                              index,
-                              "spousePermThram",
-                              e.target.value,
-                            )
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5 sm:space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                          Spouse House No.{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          placeholder="Enter House No"
-                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                          value={guarantor.spousePermHouse || ""}
-                          onChange={(e) =>
-                            updateGuarantorField(
-                              index,
-                              "spousePermHouse",
-                              e.target.value,
-                            )
-                          }
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {guarantor.spousePermCountry &&
-                  !isBhutanCountry(
-                    guarantor.spousePermCountry,
-                    countryOptions,
-                  ) && (
-                    <div className="space-y-2.5 mt-4">
-                      <Label className="text-gray-800 font-semibold text-sm">
-                        Upload Spouse Address Proof Document{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="file"
-                          id={`spousePermAddressProof-${index}`}
-                          className="hidden"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) =>
-                            handleFileChange(
-                              index,
-                              "spousePermAddressProof",
-                              e.target.files?.[0] || null,
-                            )
-                          }
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="w-28 bg-transparent"
-                          onClick={() =>
-                            document
-                              .getElementById(`spousePermAddressProof-${index}`)
-                              ?.click()
-                          }
-                        >
-                          Choose File
-                        </Button>
-                        <span className="text-sm text-muted-foreground">
-                          {guarantor.spousePermAddressProof || "No file chosen"}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-              </div>
-
-              {/* Spouse Contact Details */}
-              <div className="mt-6 pt-6 border-t border-dashed">
-                <h4 className="text-md font-semibold text-gray-700 mb-4">
-                  Spouse Contact Information
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-                  <div className="space-y-1.5 sm:space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                      Spouse Email <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      type="email"
-                      placeholder="Enter Spouse Email"
-                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                      value={guarantor.spouseEmail || ""}
-                      onChange={(e) =>
-                        updateGuarantorField(
-                          index,
-                          "spouseEmail",
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 sm:space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                      Spouse Contact No. <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      placeholder="Enter Contact Number"
-                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                      value={guarantor.spouseContact || ""}
-                      onChange={(e) =>
-                        updateGuarantorField(
-                          index,
-                          "spouseContact",
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 sm:space-y-2.5">
-                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                      Spouse Alternate Contact No.
-                    </Label>
-                    <Input
-                      placeholder="Enter Alternate Contact"
-                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                      value={guarantor.spouseAlternateContact || ""}
-                      onChange={(e) =>
-                        updateGuarantorField(
-                          index,
-                          "spouseAlternateContact",
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t mt-4">
             <div className="space-y-1.5 sm:space-y-2.5">
@@ -2476,10 +1820,10 @@ export function SecurityDetailsForm({
                         `bank-${optionIndex}`;
                       const value = String(
                         option.bank_pk_code ||
-                          option.id ||
-                          option.code ||
-                          option.bank_code ||
-                          optionIndex,
+                        option.id ||
+                        option.code ||
+                        option.bank_code ||
+                        optionIndex,
                       );
                       const label =
                         option.bank_name ||
@@ -2566,6 +1910,51 @@ export function SecurityDetailsForm({
             )}
             <p className="text-xs text-gray-500">Allowed: JPG, PNG (Max 5MB)</p>
           </div>
+
+          {/* Normal Identification Proof Upload */}
+          <div className="space-y-1.5 sm:space-y-2.5">
+            <Label
+              htmlFor={`idProof-${index}`}
+              className="text-gray-800 font-semibold text-xs sm:text-sm"
+            >
+              Upload Identification Proof <span className="text-red-500">*</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                id={`idProof-${index}`}
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) =>
+                  handleFileChange(
+                    index,
+                    "idProof",
+                    e.target.files?.[0] || null,
+                  )
+                }
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-28 bg-transparent"
+                onClick={() =>
+                  document.getElementById(`idProof-${index}`)?.click()
+                }
+              >
+                Choose File
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {guarantor.idProof || "No file chosen"}
+              </span>
+            </div>
+            {errors.idProof && (
+              <p className="text-xs text-red-500 mt-1">{errors.idProof}</p>
+            )}
+            <p className="text-xs text-gray-500">
+              Allowed: PDF, JPG, PNG (Max 5MB)
+            </p>
+          </div>
         </div>
 
         {/* Permanent Address */}
@@ -2636,7 +2025,7 @@ export function SecurityDetailsForm({
                 <span className="text-red-500">*</span>
               </Label>
               {guarantor.permCountry &&
-              !isBhutanCountry(guarantor.permCountry, countryOptions) ? (
+                !isBhutanCountry(guarantor.permCountry, countryOptions) ? (
                 <Input
                   id={`permDzongkhag-${index}`}
                   placeholder="Enter State"
@@ -2705,7 +2094,7 @@ export function SecurityDetailsForm({
                 <span className="text-red-500">*</span>
               </Label>
               {guarantor.permCountry &&
-              !isBhutanCountry(guarantor.permCountry, countryOptions) ? (
+                !isBhutanCountry(guarantor.permCountry, countryOptions) ? (
                 <Input
                   id={`permGewog-${index}`}
                   placeholder="Enter Province"
@@ -2743,9 +2132,9 @@ export function SecurityDetailsForm({
                             `perm-gewog-${optionIndex}`;
                           const value = String(
                             option.gewog_pk_code ||
-                              option.id ||
-                              option.code ||
-                              optionIndex,
+                            option.id ||
+                            option.code ||
+                            optionIndex,
                           );
                           const label =
                             option.gewog ||
@@ -2960,7 +2349,7 @@ export function SecurityDetailsForm({
                 <span className="text-red-500">*</span>
               </Label>
               {guarantor.currCountry &&
-              !isBhutanCountry(guarantor.currCountry, countryOptions) ? (
+                !isBhutanCountry(guarantor.currCountry, countryOptions) ? (
                 <Input
                   id={`currDzongkhag-${index}`}
                   placeholder="Enter State"
@@ -3026,7 +2415,7 @@ export function SecurityDetailsForm({
                 <span className="text-red-500">*</span>
               </Label>
               {guarantor.currCountry &&
-              !isBhutanCountry(guarantor.currCountry, countryOptions) ? (
+                !isBhutanCountry(guarantor.currCountry, countryOptions) ? (
                 <Input
                   id={`currGewog-${index}`}
                   placeholder="Enter Province"
@@ -3064,9 +2453,9 @@ export function SecurityDetailsForm({
                             `curr-gewog-${optionIndex}`;
                           const value = String(
                             option.gewog_pk_code ||
-                              option.id ||
-                              option.code ||
-                              optionIndex,
+                            option.id ||
+                            option.code ||
+                            optionIndex,
                           );
                           const label =
                             option.gewog ||
@@ -3342,9 +2731,9 @@ export function SecurityDetailsForm({
                             `pep-cat-${optionIndex}`;
                           const value = String(
                             option.pep_category_pk_code ||
-                              option.id ||
-                              option.code ||
-                              optionIndex,
+                            option.id ||
+                            option.code ||
+                            optionIndex,
                           );
                           const label =
                             option.pep_category ||
@@ -3402,9 +2791,9 @@ export function SecurityDetailsForm({
                               `pep-sub-${optionIndex}`;
                             const value = String(
                               option.pep_sub_category_pk_code ||
-                                option.id ||
-                                option.code ||
-                                optionIndex,
+                              option.id ||
+                              option.code ||
+                              optionIndex,
                             );
                             const label =
                               option.pep_sub_category ||
@@ -3431,49 +2820,6 @@ export function SecurityDetailsForm({
                   {errors.pepSubCategory && (
                     <p className="text-xs text-red-500 mt-1">
                       {errors.pepSubCategory}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm min-h-[40px] flex items-end pb-1">
-                    Upload Identification Proof{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="flex items-center gap-2 h-10 sm:h-12">
-                    <input
-                      type="file"
-                      id={`selfPepProof-${index}`}
-                      className="hidden"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) =>
-                        handleFileChange(
-                          index,
-                          "pepUpload",
-                          e.target.files?.[0] || null,
-                        )
-                      }
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-28 bg-transparent"
-                      onClick={() =>
-                        document
-                          .getElementById(`selfPepProof-${index}`)
-                          ?.click()
-                      }
-                    >
-                      Choose File
-                    </Button>
-                    <span className="text-sm text-muted-foreground truncate max-w-[150px]">
-                      {guarantor.pepUpload || "No file chosen"}
-                    </span>
-                  </div>
-                  {errors.pepUpload && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.pepUpload}
                     </p>
                   )}
                 </div>
@@ -3565,10 +2911,10 @@ export function SecurityDetailsForm({
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
-                          <SelectItem value="spouse">Spouse</SelectItem>
                           <SelectItem value="parent">Parent</SelectItem>
                           <SelectItem value="sibling">Sibling</SelectItem>
                           <SelectItem value="child">Child</SelectItem>
+                          <SelectItem value="spouse">Spouse</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -3601,9 +2947,9 @@ export function SecurityDetailsForm({
                                 `pep-cat-${optionIndex}`;
                               const value = String(
                                 option.pep_category_pk_code ||
-                                  option.id ||
-                                  option.code ||
-                                  optionIndex,
+                                option.id ||
+                                option.code ||
+                                optionIndex,
                               );
                               const label =
                                 option.pep_category ||
@@ -3647,7 +2993,7 @@ export function SecurityDetailsForm({
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
                           {guarantor.relatedPepOptionsMap?.[pepIndex]?.length >
-                          0 ? (
+                            0 ? (
                             guarantor.relatedPepOptionsMap[pepIndex].map(
                               (option: any, optionIndex: number) => {
                                 const key =
@@ -3657,9 +3003,9 @@ export function SecurityDetailsForm({
                                   `pep-rel-sub-${optionIndex}`;
                                 const value = String(
                                   option.pep_sub_category_pk_code ||
-                                    option.id ||
-                                    option.code ||
-                                    optionIndex,
+                                  option.id ||
+                                  option.code ||
+                                  optionIndex,
                                 );
                                 const label =
                                   option.pep_sub_category ||
@@ -3684,10 +3030,9 @@ export function SecurityDetailsForm({
                       </Select>
                     </div>
 
-                    <div className="space-y-2.5">
+                    <div className="space-y-2.5 w-full">
                       <Label className="text-gray-800 font-semibold text-sm">
-                        Upload Identification Proof{" "}
-                        <span className="text-red-500">*</span>
+                        Upload Identification Proof <span className="text-red-500">*</span>
                       </Label>
                       <div className="flex items-center gap-2">
                         <input
@@ -3954,8 +3299,7 @@ export function SecurityDetailsForm({
 
                     <div className="space-y-2.5">
                       <Label className="text-gray-800 font-semibold text-sm">
-                        Tax Identifier Type{" "}
-                        <span className="text-red-500">*</span>
+                        Tax Identifier Type
                       </Label>
                       <Select
                         value={pep.taxIdentifierType || ""}
@@ -3982,7 +3326,7 @@ export function SecurityDetailsForm({
 
                     <div className="space-y-2.5">
                       <Label className="text-gray-800 font-semibold text-sm">
-                        TPN No <span className="text-red-500">*</span>
+                        TPN No
                       </Label>
                       <Input
                         placeholder="Enter TPN"
@@ -4055,674 +3399,6 @@ export function SecurityDetailsForm({
                     </div>
                   </div>
 
-                  {/* Spouse Information */}
-                  {checkIsMarried(pep.maritalStatus) && (
-                    <div className="mt-8 border-t border-dashed pt-8">
-                      <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
-                        Spouse Personal Information
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse Identification Type{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Select
-                            value={pep.spouseIdentificationType}
-                            onValueChange={(value) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseIdentificationType",
-                                value,
-                              )
-                            }
-                          >
-                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                              <SelectValue placeholder="[Select]" />
-                            </SelectTrigger>
-                            <SelectContent sideOffset={4}>
-                              {identificationTypeOptions.map((opt, i) => (
-                                <SelectItem
-                                  key={i}
-                                  value={String(
-                                    opt.identity_type_pk_code || opt.id || i,
-                                  )}
-                                >
-                                  {opt.identity_type ||
-                                    opt.identification_type ||
-                                    "Unknown"}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse ID No.{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            placeholder="Enter ID No"
-                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                            value={pep.spouseIdentificationNo || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseIdentificationNo",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse Salutation{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Select
-                            value={pep.spouseSalutation || ""}
-                            onValueChange={(value) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseSalutation",
-                                value,
-                              )
-                            }
-                          >
-                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                              <SelectValue placeholder="[Select]" />
-                            </SelectTrigger>
-                            <SelectContent sideOffset={4}>
-                              <SelectItem value="mr">Mr.</SelectItem>
-                              <SelectItem value="mrs">Mrs.</SelectItem>
-                              <SelectItem value="ms">Ms.</SelectItem>
-                              <SelectItem value="dr">Dr.</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse Name <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            placeholder="Enter Full Name"
-                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                            value={pep.spouseName || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseName",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse Nationality{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Select
-                            value={pep.spouseNationality}
-                            onValueChange={(value) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseNationality",
-                                value,
-                              )
-                            }
-                          >
-                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                              <SelectValue placeholder="[Select]" />
-                            </SelectTrigger>
-                            <SelectContent sideOffset={4}>
-                              {nationalityOptions.map((opt, i) => (
-                                <SelectItem
-                                  key={i}
-                                  value={String(
-                                    opt.nationality_pk_code || opt.id || i,
-                                  )}
-                                >
-                                  {opt.nationality || opt.name || "Unknown"}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse Gender{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Select
-                            value={pep.spouseGender || ""}
-                            onValueChange={(value) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseGender",
-                                value,
-                              )
-                            }
-                          >
-                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                              <SelectValue placeholder="[Select]" />
-                            </SelectTrigger>
-                            <SelectContent sideOffset={4}>
-                              <SelectItem value="male">Male</SelectItem>
-                              <SelectItem value="female">Female</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse ID Issue Date{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            type="date"
-                            max={today}
-                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                            value={pep.spouseIdentificationIssueDate || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseIdentificationIssueDate",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse ID Expiry Date{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            type="date"
-                            min={today}
-                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                            value={pep.spouseIdentificationExpiryDate || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseIdentificationExpiryDate",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse Tax Identifier{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Select
-                            value={pep.spouseTaxIdentifierType || ""}
-                            onValueChange={(value) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseTaxIdentifierType",
-                                value,
-                              )
-                            }
-                          >
-                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                              <SelectValue placeholder="[Select]" />
-                            </SelectTrigger>
-                            <SelectContent sideOffset={4}>
-                              <SelectItem value="BIT">BIT</SelectItem>
-                              <SelectItem value="GST">GST</SelectItem>
-                              <SelectItem value="CIT">CIT</SelectItem>
-                              <SelectItem value="PIT">PIT</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse TPN No{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            placeholder="Enter TPN"
-                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                            value={pep.spouseTpn || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseTpn",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse Date of Birth{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            type="date"
-                            max={maxDobDate}
-                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                            value={pep.spouseDateOfBirth || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseDateOfBirth",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
-
-                        {isNatBhutanese(pep.spouseNationality) && (
-                          <div className="space-y-2.5">
-                            <Label className="text-gray-800 font-semibold text-sm">
-                              Household Number{" "}
-                              <span className="text-red-500">*</span>
-                            </Label>
-                            <Input
-                              placeholder="Enter Household No"
-                              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                              value={pep.spouseHouseholdNumber || ""}
-                              onChange={(e) =>
-                                handleRelatedPepChange(
-                                  index,
-                                  pepIndex,
-                                  "spouseHouseholdNumber",
-                                  e.target.value,
-                                )
-                              }
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      <h5 className="text-sm font-bold text-gray-700 mb-4">
-                        Spouse Permanent Address
-                      </h5>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse Country{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Select
-                            value={pep.spousePermCountry || ""}
-                            onValueChange={(value) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spousePermCountry",
-                                value,
-                              )
-                            }
-                          >
-                            <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                              <SelectValue placeholder="[Select]" />
-                            </SelectTrigger>
-                            <SelectContent sideOffset={4}>
-                              {countryOptions.map((opt, i) => (
-                                <SelectItem
-                                  key={i}
-                                  value={String(
-                                    opt.country_pk_code || opt.id || i,
-                                  )}
-                                >
-                                  {opt.country || opt.name || "Unknown"}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            {isBhutanCountry(
-                              pep.spousePermCountry,
-                              countryOptions,
-                            )
-                              ? "Spouse Dzongkhag"
-                              : "Spouse State"}{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          {pep.spousePermCountry &&
-                          !isBhutanCountry(
-                            pep.spousePermCountry,
-                            countryOptions,
-                          ) ? (
-                            <Input
-                              placeholder="Enter State"
-                              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                              value={pep.spousePermDzongkhag || ""}
-                              onChange={(e) =>
-                                handleRelatedPepChange(
-                                  index,
-                                  pepIndex,
-                                  "spousePermDzongkhag",
-                                  e.target.value,
-                                )
-                              }
-                            />
-                          ) : (
-                            <Select
-                              value={pep.spousePermDzongkhag || ""}
-                              onValueChange={(value) =>
-                                handleRelatedPepChange(
-                                  index,
-                                  pepIndex,
-                                  "spousePermDzongkhag",
-                                  value,
-                                )
-                              }
-                              disabled={
-                                !isBhutanCountry(
-                                  pep.spousePermCountry,
-                                  countryOptions,
-                                )
-                              }
-                            >
-                              <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                                <SelectValue placeholder="[Select]" />
-                              </SelectTrigger>
-                              <SelectContent sideOffset={4}>
-                                {dzongkhagOptions.map((opt, i) => (
-                                  <SelectItem
-                                    key={i}
-                                    value={String(
-                                      opt.dzongkhag_pk_code || opt.id || i,
-                                    )}
-                                  >
-                                    {opt.dzongkhag || opt.name || "Unknown"}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            {isBhutanCountry(
-                              pep.spousePermCountry,
-                              countryOptions,
-                            )
-                              ? "Spouse Gewog"
-                              : "Spouse Province"}{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          {pep.spousePermCountry &&
-                          !isBhutanCountry(
-                            pep.spousePermCountry,
-                            countryOptions,
-                          ) ? (
-                            <Input
-                              placeholder="Enter Province"
-                              className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                              value={pep.spousePermGewog || ""}
-                              onChange={(e) =>
-                                handleRelatedPepChange(
-                                  index,
-                                  pepIndex,
-                                  "spousePermGewog",
-                                  e.target.value,
-                                )
-                              }
-                            />
-                          ) : (
-                            <Select
-                              value={pep.spousePermGewog || ""}
-                              onValueChange={(value) =>
-                                handleRelatedPepChange(
-                                  index,
-                                  pepIndex,
-                                  "spousePermGewog",
-                                  value,
-                                )
-                              }
-                              disabled={
-                                !isBhutanCountry(
-                                  pep.spousePermCountry,
-                                  countryOptions,
-                                )
-                              }
-                            >
-                              <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
-                                <SelectValue placeholder="[Select]" />
-                              </SelectTrigger>
-                              <SelectContent sideOffset={4}>
-                                {guarantor.relatedPepSpouseGewogMap?.[pepIndex]
-                                  ?.length > 0 ? (
-                                  guarantor.relatedPepSpouseGewogMap[
-                                    pepIndex
-                                  ].map((opt: any, i: number) => (
-                                    <SelectItem
-                                      key={i}
-                                      value={String(
-                                        opt.gewog_pk_code || opt.id || i,
-                                      )}
-                                    >
-                                      {opt.gewog || opt.name || "Unknown"}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="loading" disabled>
-                                    {pep.spousePermDzongkhag
-                                      ? "Loading..."
-                                      : "Select Dzongkhag first"}
-                                  </SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            {isBhutanCountry(
-                              pep.spousePermCountry,
-                              countryOptions,
-                            )
-                              ? "Spouse Village/Street"
-                              : "Spouse Street"}{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            placeholder="Enter Location"
-                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                            value={pep.spousePermVillage || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spousePermVillage",
-                                e.target.value,
-                              )
-                            }
-                            disabled={!pep.spousePermCountry}
-                          />
-                        </div>
-
-                        {isBhutanCountry(
-                          pep.spousePermCountry,
-                          countryOptions,
-                        ) && (
-                          <>
-                            <div className="space-y-2.5">
-                              <Label className="text-gray-800 font-semibold text-sm">
-                                Spouse Thram No.{" "}
-                                <span className="text-red-500">*</span>
-                              </Label>
-                              <Input
-                                placeholder="Enter Thram No"
-                                className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                                value={pep.spousePermThram || ""}
-                                onChange={(e) =>
-                                  handleRelatedPepChange(
-                                    index,
-                                    pepIndex,
-                                    "spousePermThram",
-                                    e.target.value,
-                                  )
-                                }
-                              />
-                            </div>
-                            <div className="space-y-2.5">
-                              <Label className="text-gray-800 font-semibold text-sm">
-                                Spouse House No.{" "}
-                                <span className="text-red-500">*</span>
-                              </Label>
-                              <Input
-                                placeholder="Enter House No"
-                                className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                                value={pep.spousePermHouse || ""}
-                                onChange={(e) =>
-                                  handleRelatedPepChange(
-                                    index,
-                                    pepIndex,
-                                    "spousePermHouse",
-                                    e.target.value,
-                                  )
-                                }
-                              />
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      {pep.spousePermCountry &&
-                        !isBhutanCountry(
-                          pep.spousePermCountry,
-                          countryOptions,
-                        ) && (
-                          <div className="space-y-2.5 mb-8">
-                            <Label className="text-gray-800 font-semibold text-sm">
-                              Upload Address Proof Document{" "}
-                              <span className="text-red-500">*</span>
-                            </Label>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="file"
-                                id={`spouseProof-${index}-${pepIndex}`}
-                                className="hidden"
-                                accept=".pdf,.jpg,.jpeg,.png"
-                                onChange={(e) =>
-                                  handleRelatedPepFileChange(
-                                    index,
-                                    pepIndex,
-                                    "spousePermAddressProof",
-                                    e.target.files?.[0] || null,
-                                  )
-                                }
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="w-28 bg-white"
-                                onClick={() =>
-                                  document
-                                    .getElementById(
-                                      `spouseProof-${index}-${pepIndex}`,
-                                    )
-                                    ?.click()
-                                }
-                              >
-                                Choose File
-                              </Button>
-                              <span className="text-sm text-muted-foreground truncate max-w-[200px]">
-                                {pep.spousePermAddressProof || "No file chosen"}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                      <h5 className="text-sm font-bold text-gray-700 mb-4">
-                        Spouse Contact Information
-                      </h5>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse Email <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            type="email"
-                            placeholder="Enter Email"
-                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                            value={pep.spouseEmail || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseEmail",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Spouse Contact No.{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            placeholder="Enter Contact No"
-                            className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
-                            value={pep.spouseContact || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseContact",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Alternate Contact No.
-                          </Label>
-                          <Input
-                            placeholder="Enter Alternate Contact"
-                            className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                            value={pep.spouseAlternateContact || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                pepIndex,
-                                "spouseAlternateContact",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   {/* PEP Permanent Address */}
                   <div className="mt-8 border-t border-dashed pt-8">
                     <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
@@ -4770,7 +3446,7 @@ export function SecurityDetailsForm({
                           <span className="text-red-500">*</span>
                         </Label>
                         {pep.permCountry &&
-                        !isBhutanCountry(pep.permCountry, countryOptions) ? (
+                          !isBhutanCountry(pep.permCountry, countryOptions) ? (
                           <Input
                             placeholder="Enter State"
                             className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
@@ -4826,7 +3502,7 @@ export function SecurityDetailsForm({
                           <span className="text-red-500">*</span>
                         </Label>
                         {pep.permCountry &&
-                        !isBhutanCountry(pep.permCountry, countryOptions) ? (
+                          !isBhutanCountry(pep.permCountry, countryOptions) ? (
                           <Input
                             placeholder="Enter Province"
                             className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
@@ -5042,7 +3718,7 @@ export function SecurityDetailsForm({
                           <span className="text-red-500">*</span>
                         </Label>
                         {pep.currCountry &&
-                        !isBhutanCountry(pep.currCountry, countryOptions) ? (
+                          !isBhutanCountry(pep.currCountry, countryOptions) ? (
                           <Input
                             placeholder="Enter State"
                             className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
@@ -5098,7 +3774,7 @@ export function SecurityDetailsForm({
                           <span className="text-red-500">*</span>
                         </Label>
                         {pep.currCountry &&
-                        !isBhutanCountry(pep.currCountry, countryOptions) ? (
+                          !isBhutanCountry(pep.currCountry, countryOptions) ? (
                           <Input
                             placeholder="Enter Province"
                             className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
@@ -5425,9 +4101,9 @@ export function SecurityDetailsForm({
                           `occupation-${optionIndex}`;
                         const value = String(
                           option.occ_pk_code ||
-                            option.occupation_pk_code ||
-                            option.id ||
-                            optionIndex,
+                          option.occupation_pk_code ||
+                          option.id ||
+                          optionIndex,
                         );
                         const label =
                           option.occ_name ||
@@ -5548,9 +4224,9 @@ export function SecurityDetailsForm({
                           `org-${optionIndex}`;
                         const value = String(
                           option.lgal_constitution_pk_code ||
-                            option.legal_const_pk_code ||
-                            option.id ||
-                            optionIndex,
+                          option.legal_const_pk_code ||
+                          option.id ||
+                          optionIndex,
                         );
                         const label =
                           option.lgal_constitution ||
@@ -5687,6 +4363,621 @@ export function SecurityDetailsForm({
             )}
           </div>
         )}
+
+        {/* Conditional Spouse Details - Moved after Employment Details */}
+        {isMarried && (
+          <div className="mt-8 border-t pt-8 space-y-6">
+            <h3 className="text-lg font-bold text-[#003DA5] mb-4">
+              Spouse Personal Information
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Identification Type{" "}
+                  <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={guarantor.spouseIdentificationType}
+                  onValueChange={(value) =>
+                    updateGuarantorField(
+                      index,
+                      "spouseIdentificationType",
+                      value,
+                    )
+                  }
+                >
+                  <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    {identificationTypeOptions.map((opt, i) => (
+                      <SelectItem
+                        key={i}
+                        value={String(
+                          opt.identity_type_pk_code || opt.id || i,
+                        )}
+                      >
+                        {opt.identity_type ||
+                          opt.identification_type ||
+                          "Unknown"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse ID No. <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  placeholder="Enter Spouse CID/ID"
+                  className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                  value={guarantor.spouseIdentificationNo || ""}
+                  onChange={(e) =>
+                    updateGuarantorField(
+                      index,
+                      "spouseIdentificationNo",
+                      e.target.value,
+                    )
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Salutation <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={guarantor.spouseSalutation}
+                  onValueChange={(value) =>
+                    updateGuarantorField(index, "spouseSalutation", value)
+                  }
+                >
+                  <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mr">Mr.</SelectItem>
+                    <SelectItem value="mrs">Mrs.</SelectItem>
+                    <SelectItem value="ms">Ms.</SelectItem>
+                    <SelectItem value="dr">Dr.</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  placeholder="Enter Spouse Full Name"
+                  className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                  value={guarantor.spouseName || ""}
+                  onChange={(e) =>
+                    updateGuarantorField(index, "spouseName", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Nationality <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={guarantor.spouseNationality}
+                  onValueChange={(value) =>
+                    updateGuarantorField(index, "spouseNationality", value)
+                  }
+                >
+                  <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {nationalityOptions.map((opt, i) => (
+                      <SelectItem
+                        key={i}
+                        value={String(opt.nationality_pk_code || opt.id || i)}
+                      >
+                        {opt.nationality || opt.name || "Unknown"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Gender <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={guarantor.spouseGender}
+                  onValueChange={(value) =>
+                    updateGuarantorField(index, "spouseGender", value)
+                  }
+                >
+                  <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse ID Issue Date <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="date"
+                  max={today}
+                  className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                  value={guarantor.spouseIdentificationIssueDate || ""}
+                  onChange={(e) =>
+                    updateGuarantorField(
+                      index,
+                      "spouseIdentificationIssueDate",
+                      e.target.value,
+                    )
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse ID Expiry Date{" "}
+                  <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="date"
+                  min={today}
+                  className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                  value={guarantor.spouseIdentificationExpiryDate || ""}
+                  onChange={(e) =>
+                    updateGuarantorField(
+                      index,
+                      "spouseIdentificationExpiryDate",
+                      e.target.value,
+                    )
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Tax Identifier Type
+                </Label>
+                <Select
+                  value={guarantor.spouseTaxIdentifierType}
+                  onValueChange={(value) =>
+                    updateGuarantorField(
+                      index,
+                      "spouseTaxIdentifierType",
+                      value,
+                    )
+                  }
+                >
+                  <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BIT">BIT</SelectItem>
+                    <SelectItem value="GST">GST</SelectItem>
+                    <SelectItem value="CIT">CIT</SelectItem>
+                    <SelectItem value="PIT">PIT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse TPN No
+                </Label>
+                <Input
+                  placeholder="Enter TPN"
+                  className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                  value={guarantor.spouseTpn || ""}
+                  onChange={(e) =>
+                    updateGuarantorField(index, "spouseTpn", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Date of Birth <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="date"
+                  max={maxDobDate}
+                  className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                  value={guarantor.spouseDateOfBirth || ""}
+                  onChange={(e) =>
+                    updateGuarantorField(
+                      index,
+                      "spouseDateOfBirth",
+                      e.target.value,
+                    )
+                  }
+                />
+              </div>
+
+              {isNatBhutanese(guarantor.spouseNationality) && (
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Household Number{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder="Enter Household Number"
+                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                    value={guarantor.spouseHouseholdNumber || ""}
+                    onChange={(e) =>
+                      updateGuarantorField(
+                        index,
+                        "spouseHouseholdNumber",
+                        e.target.value,
+                      )
+                    }
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Spouse Permanent Address */}
+            <div className="mt-6 pt-6 border-t border-dashed">
+              <h4 className="text-md font-semibold text-gray-700 mb-4">
+                Spouse Permanent Address
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Country <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={guarantor.spousePermCountry}
+                    onValueChange={(value) =>
+                      updateGuarantorField(index, "spousePermCountry", value)
+                    }
+                  >
+                    <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countryOptions.map((opt, i) => (
+                        <SelectItem
+                          key={i}
+                          value={String(opt.country_pk_code || opt.id || i)}
+                        >
+                          {opt.country || opt.name || "Unknown"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    {isBhutanCountry(
+                      guarantor.spousePermCountry,
+                      countryOptions,
+                    )
+                      ? "Spouse Dzongkhag"
+                      : "Spouse State"}{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  {guarantor.spousePermCountry &&
+                    !isBhutanCountry(
+                      guarantor.spousePermCountry,
+                      countryOptions,
+                    ) ? (
+                    <Input
+                      placeholder="Enter State"
+                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                      value={guarantor.spousePermDzongkhag || ""}
+                      onChange={(e) =>
+                        updateGuarantorField(
+                          index,
+                          "spousePermDzongkhag",
+                          e.target.value,
+                        )
+                      }
+                    />
+                  ) : (
+                    <Select
+                      value={guarantor.spousePermDzongkhag}
+                      onValueChange={(value) =>
+                        updateGuarantorField(
+                          index,
+                          "spousePermDzongkhag",
+                          value,
+                        )
+                      }
+                      disabled={
+                        !isBhutanCountry(
+                          guarantor.spousePermCountry,
+                          countryOptions,
+                        )
+                      }
+                    >
+                      <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dzongkhagOptions.map((opt, i) => (
+                          <SelectItem
+                            key={i}
+                            value={String(
+                              opt.dzongkhag_pk_code || opt.id || i,
+                            )}
+                          >
+                            {opt.dzongkhag || opt.name || "Unknown"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    {isBhutanCountry(
+                      guarantor.spousePermCountry,
+                      countryOptions,
+                    )
+                      ? "Spouse Gewog"
+                      : "Spouse Province"}{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  {guarantor.spousePermCountry &&
+                    !isBhutanCountry(
+                      guarantor.spousePermCountry,
+                      countryOptions,
+                    ) ? (
+                    <Input
+                      placeholder="Enter Province"
+                      className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                      value={guarantor.spousePermGewog || ""}
+                      onChange={(e) =>
+                        updateGuarantorField(
+                          index,
+                          "spousePermGewog",
+                          e.target.value,
+                        )
+                      }
+                    />
+                  ) : (
+                    <Select
+                      value={guarantor.spousePermGewog}
+                      onValueChange={(value) =>
+                        updateGuarantorField(index, "spousePermGewog", value)
+                      }
+                      disabled={
+                        !isBhutanCountry(
+                          guarantor.spousePermCountry,
+                          countryOptions,
+                        )
+                      }
+                    >
+                      <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm">
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {guarantor.spousePermGewogOptions?.length > 0 ? (
+                          guarantor.spousePermGewogOptions.map(
+                            (opt: any, i: number) => (
+                              <SelectItem
+                                key={i}
+                                value={String(
+                                  opt.gewog_pk_code || opt.id || i,
+                                )}
+                              >
+                                {opt.gewog || opt.name || "Unknown"}
+                              </SelectItem>
+                            ),
+                          )
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            {guarantor.spousePermDzongkhag
+                              ? "Loading..."
+                              : "Select Dzongkhag first"}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    {isBhutanCountry(
+                      guarantor.spousePermCountry,
+                      countryOptions,
+                    )
+                      ? "Spouse Village/Street"
+                      : "Spouse Street"}{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder={
+                      isBhutanCountry(
+                        guarantor.spousePermCountry,
+                        countryOptions,
+                      )
+                        ? "Enter Village/Street"
+                        : "Enter Street"
+                    }
+                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                    value={guarantor.spousePermVillage || ""}
+                    onChange={(e) =>
+                      updateGuarantorField(
+                        index,
+                        "spousePermVillage",
+                        e.target.value,
+                      )
+                    }
+                    disabled={!guarantor.spousePermCountry}
+                  />
+                </div>
+
+                {isBhutanCountry(
+                  guarantor.spousePermCountry,
+                  countryOptions,
+                ) && (
+                    <>
+                      <div className="space-y-1.5 sm:space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                          Spouse Thram No.{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter Thram No"
+                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                          value={guarantor.spousePermThram || ""}
+                          onChange={(e) =>
+                            updateGuarantorField(
+                              index,
+                              "spousePermThram",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5 sm:space-y-2.5">
+                        <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                          Spouse House No.{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Enter House No"
+                          className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                          value={guarantor.spousePermHouse || ""}
+                          onChange={(e) =>
+                            updateGuarantorField(
+                              index,
+                              "spousePermHouse",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    </>
+                  )}
+              </div>
+
+              {guarantor.spousePermCountry &&
+                !isBhutanCountry(
+                  guarantor.spousePermCountry,
+                  countryOptions,
+                ) && (
+                  <div className="space-y-2.5 mt-4">
+                    <Label className="text-gray-800 font-semibold text-sm">
+                      Upload Spouse Address Proof Document{" "}
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        id={`spousePermAddressProof-${index}`}
+                        className="hidden"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) =>
+                          handleFileChange(
+                            index,
+                            "spousePermAddressProof",
+                            e.target.files?.[0] || null,
+                          )
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-28 bg-transparent"
+                        onClick={() =>
+                          document
+                            .getElementById(`spousePermAddressProof-${index}`)
+                            ?.click()
+                        }
+                      >
+                        Choose File
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {guarantor.spousePermAddressProof || "No file chosen"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+            </div>
+
+            {/* Spouse Contact Details */}
+            <div className="mt-6 pt-6 border-t border-dashed">
+              <h4 className="text-md font-semibold text-gray-700 mb-4">
+                Spouse Contact Information
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Email <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="email"
+                    placeholder="Enter Spouse Email"
+                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                    value={guarantor.spouseEmail || ""}
+                    onChange={(e) =>
+                      updateGuarantorField(
+                        index,
+                        "spouseEmail",
+                        e.target.value,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Contact No. <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder="Enter Contact Number"
+                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                    value={guarantor.spouseContact || ""}
+                    onChange={(e) =>
+                      updateGuarantorField(
+                        index,
+                        "spouseContact",
+                        e.target.value,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                    Spouse Alternate Contact No.
+                  </Label>
+                  <Input
+                    placeholder="Enter Alternate Contact"
+                    className="h-10 sm:h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm"
+                    value={guarantor.spouseAlternateContact || ""}
+                    onChange={(e) =>
+                      updateGuarantorField(
+                        index,
+                        "spouseAlternateContact",
+                        e.target.value,
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -5742,9 +5033,9 @@ export function SecurityDetailsForm({
                       Not Applicable
                     </SelectItem>
                     <SelectItem value="land">Land</SelectItem>
-                    <SelectItem value="building">Building</SelectItem>
+                    <SelectItem value="building">Building & Land</SelectItem>
                     <SelectItem value="vehicle">Vehicle</SelectItem>
-                    <SelectItem value="equipment">Equipment</SelectItem>
+                    <SelectItem value="equipment">Plant, Machinery, and Equipment</SelectItem>
                     <SelectItem value="fd">Fixed Deposit</SelectItem>
                     <SelectItem value="insurance">Insurance</SelectItem>
                     <SelectItem value="PPF">
@@ -5892,7 +5183,7 @@ export function SecurityDetailsForm({
                     htmlFor="registration-no"
                     className="text-gray-800 font-semibold text-sm"
                   >
-                    Registration No.
+                    Registration No. / Invoice No.
                   </Label>
                   <Input
                     id="registration-no"
@@ -5998,52 +5289,6 @@ export function SecurityDetailsForm({
                     required
                   />
                 </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor="area"
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Area (in Sq. Ft) <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="area"
-                    type="number"
-                    placeholder="Enter Area"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={security.area || ""}
-                    onChange={(e) =>
-                      updateSecurityField(secIndex, "area", e.target.value)
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor="land-use"
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Land Use Type <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={security.landUse}
-                    onValueChange={(value) =>
-                      updateSecurityField(secIndex, "landUse", value)
-                    }
-                    required
-                  >
-                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4}>
-                      <SelectItem value="residential">Residential</SelectItem>
-                      <SelectItem value="commercial">Commercial</SelectItem>
-                      <SelectItem value="agricultural">Agricultural</SelectItem>
-                      <SelectItem value="industrial">Industrial</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="space-y-2.5">
@@ -6058,8 +5303,7 @@ export function SecurityDetailsForm({
                     onValueChange={(value) =>
                       updateSecurityField(secIndex, "dzongkhag", value)
                     }
-                    required
-                  >
+                    required >
                     <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
@@ -6212,7 +5456,9 @@ export function SecurityDetailsForm({
                     <SelectContent sideOffset={4}>
                       <SelectItem value="residential">Residential</SelectItem>
                       <SelectItem value="commercial">Commercial</SelectItem>
+                      <SelectItem value="flat">Flat</SelectItem>
                       <SelectItem value="industrial">Industrial</SelectItem>
+
                       <SelectItem value="mixed">Mixed Use</SelectItem>
                     </SelectContent>
                   </Select>
@@ -6248,7 +5494,7 @@ export function SecurityDetailsForm({
                     htmlFor="building-year"
                     className="text-gray-800 font-semibold text-sm"
                   >
-                    Year Built <span className="text-red-500">*</span>
+                    Year of Construction<span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="building-year"
@@ -6268,8 +5514,166 @@ export function SecurityDetailsForm({
                 </div>
               </div>
 
-              {/* Building Security Proof Upload */}
-              {renderSecurityProofUpload(security, secIndex)}
+              <div
+                className={`border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm ${secIndex === 0 ? "bg-white" : "bg-blue-50 border-blue-200"}`}
+              >
+                <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+                  Building Land Details
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor="thram-no"
+                      className="text-gray-800 font-semibold text-sm"
+                    >
+                      Thram No. <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="thram-no"
+                      placeholder="Enter Thram No"
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      value={security.thramNo || ""}
+                      onChange={(e) =>
+                        updateSecurityField(secIndex, "thramNo", e.target.value)
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor="plot-no"
+                      className="text-gray-800 font-semibold text-sm"
+                    >
+                      Plot No. <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="plot-no"
+                      placeholder="Enter Plot No"
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      value={security.plotNo || ""}
+                      onChange={(e) =>
+                        updateSecurityField(secIndex, "plotNo", e.target.value)
+                      }
+                      required
+                    />
+                  </div>
+
+
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor="security-dzongkhag"
+                      className="text-gray-800 font-semibold text-sm"
+                    >
+                      Dzongkhag <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={security.dzongkhag}
+                      onValueChange={(value) =>
+                        updateSecurityField(secIndex, "dzongkhag", value)
+                      }
+                      required
+                    >
+                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent sideOffset={4}>
+                        {dzongkhagOptions.length > 0 ? (
+                          dzongkhagOptions.map((option, idx) => {
+                            const key =
+                              option.dzongkhag_pk_code ||
+                              option.id ||
+                              `sec-dzo-${idx}`;
+                            const value = String(
+                              option.dzongkhag_pk_code || option.id || idx,
+                            );
+                            const label =
+                              option.dzongkhag || option.name || "Unknown";
+                            return (
+                              <SelectItem key={key} value={value}>
+                                {label}
+                              </SelectItem>
+                            );
+                          })
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            Loading...
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor="security-gewog"
+                      className="text-gray-800 font-semibold text-sm"
+                    >
+                      Gewog <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={security.gewog}
+                      onValueChange={(value) =>
+                        updateSecurityField(secIndex, "gewog", value)
+                      }
+                      required
+                      disabled={!security.dzongkhag}
+                    >
+                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent sideOffset={4}>
+                        {security.gewogOptions?.length > 0 ? (
+                          security.gewogOptions.map(
+                            (option: any, idx: number) => {
+                              const key =
+                                option.gewog_pk_code ||
+                                option.id ||
+                                `prop-gewog-${idx}`;
+                              const value = String(
+                                option.gewog_pk_code || option.id || idx,
+                              );
+                              const label =
+                                option.gewog || option.name || "Unknown";
+                              return (
+                                <SelectItem key={key} value={value}>
+                                  {label}
+                                </SelectItem>
+                              );
+                            },
+                          )
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            {security.dzongkhag
+                              ? "Loading..."
+                              : "Select Dzongkhag first"}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor="security-village"
+                      className="text-gray-800 font-semibold text-sm"
+                    >
+                      Village/Street <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="security-village"
+                      placeholder="Enter Village/Street"
+                      className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                      value={security.village || ""}
+                      onChange={(e) =>
+                        updateSecurityField(secIndex, "village", e.target.value)
+                      }
+                      required
+                    />
+                  </div>
+
+                </div>
+                {renderSecurityProofUpload(security, secIndex)}
+              </div>
             </div>
           )}
 
@@ -6283,36 +5687,6 @@ export function SecurityDetailsForm({
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor="equipment-type"
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Equipment Type <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={security.equipmentType}
-                    onValueChange={(value) =>
-                      updateSecurityField(secIndex, "equipmentType", value)
-                    }
-                    required
-                  >
-                    <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4}>
-                      <SelectItem value="heavy">Heavy Machinery</SelectItem>
-                      <SelectItem value="medical">Medical Equipment</SelectItem>
-                      <SelectItem value="industrial">
-                        Industrial Equipment
-                      </SelectItem>
-                      <SelectItem value="computer">
-                        Computer Equipment
-                      </SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 <div className="space-y-2.5">
                   <Label
@@ -6367,7 +5741,7 @@ export function SecurityDetailsForm({
                     htmlFor="equipment-serial"
                     className="text-gray-800 font-semibold text-sm"
                   >
-                    Serial No. <span className="text-red-500">*</span>
+                    Identification No. <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="equipment-serial"
@@ -6587,24 +5961,6 @@ export function SecurityDetailsForm({
                     required
                   />
                 </div>
-                <div className="space-y-2.5">
-                  <Label
-                    htmlFor="ppf-fund-no"
-                    className="text-gray-800 font-semibold text-sm"
-                  >
-                    Provident Fund No. <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="ppf-fund-no"
-                    placeholder="Enter fund No"
-                    className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                    value={security.ppfFundNo || ""}
-                    onChange={(e) =>
-                      updateSecurityField(secIndex, "ppfFundNo", e.target.value)
-                    }
-                    required
-                  />
-                </div>
 
                 <div className="space-y-2.5">
                   <Label
@@ -6693,7 +6049,7 @@ export function SecurityDetailsForm({
                     htmlFor="share-CertificateNo"
                     className="text-gray-800 font-semibold text-sm"
                   >
-                    Share Certificate Folio No{" "}
+                    Numbers of Share{" "}
                     <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -6718,7 +6074,7 @@ export function SecurityDetailsForm({
                     htmlFor="share-RegistrationNo"
                     className="text-gray-800 font-semibold text-sm"
                   >
-                    Share Registration No{" "}
+                    Numbers of Volume{" "}
                     <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -6865,10 +6221,10 @@ export function SecurityDetailsForm({
                             `bank-${optionIndex}`;
                           const value = String(
                             option.bank_pk_code ||
-                              option.id ||
-                              option.code ||
-                              option.bank_code ||
-                              optionIndex,
+                            option.id ||
+                            option.code ||
+                            option.bank_code ||
+                            optionIndex,
                           );
                           const label =
                             option.bank_name ||

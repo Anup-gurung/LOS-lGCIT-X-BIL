@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,7 @@ import {
   fetchOccupations,
   fetchLegalConstitution,
   fetchPepSubCategoryByCategory,
+  fetchTaxIdentifierType,
 } from "@/services/api";
 
 // ================== IndexedDB Helpers ==================
@@ -347,6 +348,7 @@ export function SecurityDetailBusiness({
   const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
+  const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]); // <-- new
 
   const [bhutanNationalityCode, setBhutanNationalityCode] = useState<
     string | null
@@ -435,6 +437,7 @@ export function SecurityDetailBusiness({
           pepCategories,
           occupations,
           organizations,
+          taxIdentifierTypes,
         ] = await Promise.all([
           fetchNationality().catch(() => []),
           fetchIdentificationType().catch(() => []),
@@ -445,6 +448,7 @@ export function SecurityDetailBusiness({
           fetchPepCategory().catch(() => []),
           fetchOccupations().catch(() => []),
           fetchLegalConstitution().catch(() => []),
+          fetchTaxIdentifierType().catch(() => []),
         ]);
 
         const bhutanOption = nationality.find((opt: any) => {
@@ -475,6 +479,7 @@ export function SecurityDetailBusiness({
         setPepCategoryOptions(pepCategories || []);
         setOccupationOptions(occupations || []);
         setOrganizationOptions(organizations || []);
+        setTaxIdentifierTypeOptions(taxIdentifierTypes || []);
       } catch (error) {
         console.error("Failed to load dropdown data:", error);
       }
@@ -738,6 +743,14 @@ export function SecurityDetailBusiness({
     };
     loadPepSubCategories();
   }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
+
+  // Filter tax identifier options to show only "Personal Income Tax"
+  const personalIncomeTaxOptions = useMemo(() => {
+    return taxIdentifierTypeOptions.filter(opt => {
+      const label = (opt.tax_identifier_type || opt.name || opt.label || "").toLowerCase();
+      return label.includes("personal income tax");
+    });
+  }, [taxIdentifierTypeOptions]);
 
   // --- LABEL-TO-ID HELPER (for lookup) ---
   const findPkCodeByLabel = (
@@ -2162,6 +2175,12 @@ export function SecurityDetailBusiness({
         "",
       ]),
     );
+    const taxIdentifierMap = new Map(
+      taxIdentifierTypeOptions.map((opt) => [
+        String(opt.tax_identifier_type_pk_code || opt.id || opt.code || ""),
+        opt.tax_identifier_type || opt.name || opt.label || "",
+      ]),
+    );
 
     const getLabel = (map: Map<string, string>, code: any) => {
       if (!code) return code;
@@ -2232,6 +2251,8 @@ export function SecurityDetailBusiness({
             );
             newG.pepSubCategory = getLabel(subCatMap, newG.pepSubCategory);
           }
+          if (newG.taxIdentifierType)
+            newG.taxIdentifierType = getLabel(taxIdentifierMap, newG.taxIdentifierType);
 
           if (newG.spouseIdType)
             newG.spouseIdType = getLabel(idTypeMap, newG.spouseIdType);
@@ -2245,6 +2266,8 @@ export function SecurityDetailBusiness({
               countryMap,
               newG.spousePermCountry,
             );
+          if (newG.spouseTaxIdentifierType)
+            newG.spouseTaxIdentifierType = getLabel(taxIdentifierMap, newG.spouseTaxIdentifierType);
 
           if (newG.permCountry)
             newG.permCountry = getLabel(countryMap, newG.permCountry);
@@ -2327,6 +2350,8 @@ export function SecurityDetailBusiness({
                     maritalStatusMap,
                     newPep.maritalStatus,
                   );
+                if (newPep.taxIdentifierType)
+                  newPep.taxIdentifierType = getLabel(taxIdentifierMap, newPep.taxIdentifierType);
 
                 if (newPep.permCountry)
                   newPep.permCountry = getLabel(countryMap, newPep.permCountry);
@@ -2990,10 +3015,23 @@ export function SecurityDetailBusiness({
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
-                  <SelectItem value="BIT">BIT</SelectItem>
-                  <SelectItem value="GST">GST</SelectItem>
-                  <SelectItem value="CIT">CIT</SelectItem>
-                  <SelectItem value="PIT">PIT</SelectItem>
+                  {personalIncomeTaxOptions.length > 0 ? (
+                    personalIncomeTaxOptions.map((option, idx) => {
+                      const value = String(
+                        option.tax_identifier_type_pk_code || option.id || option.code || idx
+                      );
+                      const label = option.tax_identifier_type || option.name || option.label || "Unknown";
+                      return (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })
+                  ) : (
+                    <SelectItem value="loading" disabled>
+                      Loading...
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
               {errors.taxIdentifierType && (
@@ -4930,10 +4968,23 @@ export function SecurityDetailBusiness({
                               <SelectValue placeholder="[Select]" />
                             </SelectTrigger>
                             <SelectContent sideOffset={4}>
-                              <SelectItem value="BIT">BIT</SelectItem>
-                              <SelectItem value="GST">GST</SelectItem>
-                              <SelectItem value="CIT">CIT</SelectItem>
-                              <SelectItem value="PIT">PIT</SelectItem>
+                              {personalIncomeTaxOptions.length > 0 ? (
+                                personalIncomeTaxOptions.map((option, idx) => {
+                                  const value = String(
+                                    option.tax_identifier_type_pk_code || option.id || option.code || idx
+                                  );
+                                  const label = option.tax_identifier_type || option.name || option.label || "Unknown";
+                                  return (
+                                    <SelectItem key={value} value={value}>
+                                      {label}
+                                    </SelectItem>
+                                  );
+                                })
+                              ) : (
+                                <SelectItem value="loading" disabled>
+                                  Loading...
+                                </SelectItem>
+                              )}
                             </SelectContent>
                           </Select>
                           {errors[
@@ -6590,10 +6641,23 @@ export function SecurityDetailBusiness({
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
-                    <SelectItem value="BIT">BIT</SelectItem>
-                    <SelectItem value="GST">GST</SelectItem>
-                    <SelectItem value="CIT">CIT</SelectItem>
-                    <SelectItem value="PIT">PIT</SelectItem>
+                    {personalIncomeTaxOptions.length > 0 ? (
+                      personalIncomeTaxOptions.map((option, idx) => {
+                        const value = String(
+                          option.tax_identifier_type_pk_code || option.id || option.code || idx
+                        );
+                        const label = option.tax_identifier_type || option.name || option.label || "Unknown";
+                        return (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        Loading...
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 {errors.spouseTaxIdentifierType && (

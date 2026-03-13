@@ -46,6 +46,8 @@ import {
     fetchLegalConstitution,
     fetchPepCategory,
     fetchPepSubCategoryByCategory,
+    fetchIndustryClassification,
+    fetchTaxIdentifierType,
 } from "@/services/api";
 
 // ================== Validation Helpers ==================
@@ -182,6 +184,12 @@ const findPkCodeByLabel = (
     const strippedLabel = trimmedLabel.replace(/\s+/g, ""); // for strict spacing‑insensitive match
     const inputWords = trimmedLabel.split(/\s+/).filter((w) => w.length > 0);
 
+    // Handle case where options are an array of strings (not objects)
+    if (options.length > 0 && typeof options[0] === 'string') {
+        const found = options.find(opt => String(opt).trim().toLowerCase() === trimmedLabel);
+        return found ? String(found) : label;
+    }
+
     for (const option of options) {
         for (const field of labelFields) {
             const optionValue = String(option[field] || "");
@@ -202,8 +210,12 @@ const findPkCodeByLabel = (
                     option.occupation_pk_code ||
                     option.dzongkhag_pk_code ||
                     option.gewog_pk_code ||
-                    option.curr_gewog_pk_code || // added
-                    option.pk_gewog_id || // added
+                    option.curr_gewog_pk_code ||
+                    option.pk_gewog_id ||
+                    option.industry_classification_pk_code ||
+                    option.industry_pk_code ||
+                    option.inds_class_pk_code ||
+                    option.tax_identifier_type_pk_code ||
                     option.pk_code ||
                     option.id ||
                     option.code ||
@@ -224,6 +236,10 @@ const findPkCodeByLabel = (
                     option.gewog_pk_code ||
                     option.curr_gewog_pk_code ||
                     option.pk_gewog_id ||
+                    option.industry_classification_pk_code ||
+                    option.industry_pk_code ||
+                    option.inds_class_pk_code ||
+                    option.tax_identifier_type_pk_code ||
                     option.pk_code ||
                     option.id ||
                     option.code ||
@@ -250,6 +266,10 @@ const findPkCodeByLabel = (
                         option.gewog_pk_code ||
                         option.curr_gewog_pk_code ||
                         option.pk_gewog_id ||
+                        option.industry_classification_pk_code ||
+                        option.industry_pk_code ||
+                        option.inds_class_pk_code ||
+                        option.tax_identifier_type_pk_code ||
                         option.pk_code ||
                         option.id ||
                         option.code ||
@@ -282,6 +302,10 @@ const findPkCodeByLabel = (
                         option.gewog_pk_code ||
                         option.curr_gewog_pk_code ||
                         option.pk_gewog_id ||
+                        option.industry_classification_pk_code ||
+                        option.industry_pk_code ||
+                        option.inds_class_pk_code ||
+                        option.tax_identifier_type_pk_code ||
                         option.pk_code ||
                         option.id ||
                         option.code ||
@@ -302,6 +326,12 @@ const findLabelById = (
     labelFields: string[],
 ): string => {
     if (!id) return "";
+
+    // Handle case where options are an array of strings
+    if (options.length > 0 && typeof options[0] === 'string') {
+        return options.includes(String(id)) ? String(id) : id;
+    }
+
     const option = options.find(
         (opt) =>
             String(
@@ -318,7 +348,11 @@ const findLabelById = (
                 opt.curr_gewog_pk_code ||
                 opt.pk_gewog_id ||
                 opt.pep_category_pk_code ||
-                opt.pep_sub_category_pk_code,
+                opt.pep_sub_category_pk_code ||
+                opt.industry_classification_pk_code ||
+                opt.industry_pk_code ||
+                opt.inds_class_pk_code ||
+                opt.tax_identifier_type_pk_code
             ) === String(id),
     );
     if (!option) return id; // fallback to the ID itself
@@ -391,6 +425,7 @@ const ComprehensiveOwnerDetails = ({
     dzongkhagOptions,
     identificationTypeOptions,
     maritalStatusOptions, // new prop
+    taxIdentifierTypeOptions,  // <-- NEW prop
     title = "Personal Information",
     isPartner = false,
     onRemove,
@@ -413,6 +448,7 @@ const ComprehensiveOwnerDetails = ({
     dzongkhagOptions: any[];
     identificationTypeOptions: any[];
     maritalStatusOptions: any[];
+    taxIdentifierTypeOptions?: any[];   // <-- NEW prop
     title?: string;
     isPartner?: boolean;
     onRemove?: () => void;
@@ -484,8 +520,7 @@ const ComprehensiveOwnerDetails = ({
         if (result.identificationType) {
             result.identificationType = findLabelById(
                 result.identificationType,
-                identificationTypeOptions,
-                ["identification_type", "identity_type", "name"],
+                identificationTypeOptions, ["identification_type", "identity_type", "name"],
             );
         }
 
@@ -504,6 +539,15 @@ const ComprehensiveOwnerDetails = ({
                 result.maritalStatus,
                 maritalStatusOptions,
                 ["marital_status", "name"],
+            );
+        }
+
+        // Tax Identifier Type   <-- NEW
+        if (result.taxIdentifierType && taxIdentifierTypeOptions?.length) {
+            result.taxIdentifierType = findLabelById(
+                result.taxIdentifierType,
+                taxIdentifierTypeOptions,
+                ["tax_identifier_type", "name", "label"],
             );
         }
 
@@ -527,8 +571,7 @@ const ComprehensiveOwnerDetails = ({
         if (result.permDzongkhag) {
             result.permDzongkhag = findLabelById(
                 result.permDzongkhag,
-                dzongkhagOptions,
-                ["dzongkhag_name", "dzongkhag"],
+                dzongkhagOptions, ["dzongkhag_name", "dzongkhag"],
             );
         }
 
@@ -577,8 +620,7 @@ const ComprehensiveOwnerDetails = ({
         if (result.pepCategory) {
             result.pepCategory = findLabelById(
                 result.pepCategory,
-                pepCategoryOptions,
-                ["pep_category", "name"],
+                pepCategoryOptions, ["pep_category", "name"],
             );
         }
 
@@ -626,6 +668,13 @@ const ComprehensiveOwnerDetails = ({
                 result.spouseNationality,
                 nationalityOptions,
                 ["nationality", "name"],
+            );
+        }
+        if (result.spouseTaxIdentifierType && taxIdentifierTypeOptions?.length) {   // <-- NEW
+            result.spouseTaxIdentifierType = findLabelById(
+                result.spouseTaxIdentifierType,
+                taxIdentifierTypeOptions,
+                ["tax_identifier_type", "name", "label"],
             );
         }
         if (result.spousePermCountry) {
@@ -752,20 +801,17 @@ const ComprehensiveOwnerDetails = ({
             // Map Country IDs
             const mappedPermCountry = findPkCodeByLabel(
                 fetchedCustomerData.permCountry,
-                countryOptions,
-                ["country_name", "country", "name", "label"],
+                countryOptions, ["country_name", "country", "name", "label"],
             );
             const mappedCurrCountry = findPkCodeByLabel(
                 fetchedCustomerData.currCountry,
-                countryOptions,
-                ["country_name", "country", "name", "label"],
+                countryOptions, ["country_name", "country", "name", "label"],
             );
 
             // Map Dzongkhag IDs (if available in props)
             const mappedPermDzongkhag = findPkCodeByLabel(
                 fetchedCustomerData.permDzongkhag,
-                dzongkhagOptions,
-                ["dzongkhag_name", "dzongkhag", "name", "label"],
+                dzongkhagOptions, ["dzongkhag_name", "dzongkhag", "name", "label"],
             );
             const mappedCurrDzongkhag = findPkCodeByLabel(
                 fetchedCustomerData.currDzongkhag,
@@ -789,6 +835,16 @@ const ComprehensiveOwnerDetails = ({
                 maritalStatusOptions,
                 ["marital_status", "name", "label"],
             );
+
+            // Map Tax Identifier Type   <-- NEW
+            let mappedTaxIdentifierType = fetchedCustomerData.taxIdentifierType;
+            if (taxIdentifierTypeOptions?.length) {
+                mappedTaxIdentifierType = findPkCodeByLabel(
+                    fetchedCustomerData.taxIdentifierType,
+                    taxIdentifierTypeOptions,
+                    ["tax_identifier_type", "name", "label"],
+                );
+            }
 
             // --- 2. DETERMINE EMPLOYMENT STATUS ---
             let inferredEmploymentStatus = "unemployed";
@@ -842,6 +898,7 @@ const ComprehensiveOwnerDetails = ({
                 currCountry: mappedCurrCountry || fetchedCustomerData.currCountry,
                 currDzongkhag: mappedCurrDzongkhag || fetchedCustomerData.currDzongkhag,
                 maritalStatus: mappedMaritalStatus || fetchedCustomerData.maritalStatus,
+                taxIdentifierType: mappedTaxIdentifierType || fetchedCustomerData.taxIdentifierType,   // <-- NEW
 
                 // Map Dates
                 identificationIssueDate: formatDateForInput(
@@ -878,7 +935,6 @@ const ComprehensiveOwnerDetails = ({
                     : "",
                 // Map alternate contact number to the form's expected field
                 currAlternateContact: fetchedCustomerData.alternateContactNo || "",
-                taxIdentifierType: fetchedCustomerData.taxIdentifierType || "",
                 householdNumber: fetchedCustomerData.householdNumber || "",
             };
 
@@ -988,6 +1044,27 @@ const ComprehensiveOwnerDetails = ({
             }
         }
     }, [maritalStatusOptions, data.maritalStatus]);
+
+    // Convert taxIdentifierType label to pk_code   <-- NEW
+    useEffect(() => {
+        if (taxIdentifierTypeOptions?.length && data.taxIdentifierType) {
+            const isValid = taxIdentifierTypeOptions.some(
+                (opt) =>
+                    String(opt.tax_identifier_type_pk_code || opt.id) ===
+                    String(data.taxIdentifierType),
+            );
+            if (!isValid) {
+                const pkCode = findPkCodeByLabel(
+                    data.taxIdentifierType,
+                    taxIdentifierTypeOptions,
+                    ["tax_identifier_type", "name", "label"],
+                );
+                if (pkCode && pkCode !== data.taxIdentifierType) {
+                    updateField("taxIdentifierType", pkCode);
+                }
+            }
+        }
+    }, [taxIdentifierTypeOptions, data.taxIdentifierType]);
 
     // Convert occupation label to pk_code
     useEffect(() => {
@@ -1394,8 +1471,7 @@ const ComprehensiveOwnerDetails = ({
             if (!isId) {
                 const matchedId = findPkCodeByLabel(
                     data.spousePermGewog,
-                    spousePermGewogOptions,
-                    ["gewog_name", "gewog", "name", "label"],
+                    spousePermGewogOptions, ["gewog_name", "gewog", "name", "label"],
                 );
                 if (matchedId && matchedId !== data.spousePermGewog) {
                     updateField("spousePermGewog", matchedId);
@@ -1403,6 +1479,27 @@ const ComprehensiveOwnerDetails = ({
             }
         }
     }, [spousePermGewogOptions, data.spousePermGewog]);
+
+    // Convert spouse taxIdentifierType label to pk_code   <-- NEW
+    useEffect(() => {
+        if (taxIdentifierTypeOptions?.length && data.spouseTaxIdentifierType) {
+            const isValid = taxIdentifierTypeOptions.some(
+                (opt) =>
+                    String(opt.tax_identifier_type_pk_code || opt.id) ===
+                    String(data.spouseTaxIdentifierType),
+            );
+            if (!isValid) {
+                const pkCode = findPkCodeByLabel(
+                    data.spouseTaxIdentifierType,
+                    taxIdentifierTypeOptions,
+                    ["tax_identifier_type", "name", "label"],
+                );
+                if (pkCode && pkCode !== data.spouseTaxIdentifierType) {
+                    updateField("spouseTaxIdentifierType", pkCode);
+                }
+            }
+        }
+    }, [taxIdentifierTypeOptions, data.spouseTaxIdentifierType]);
 
     return (
         <div className="border border-gray-200 rounded-lg p-6 bg-gray-50/50 mb-6 relative">
@@ -1676,9 +1773,25 @@ const ComprehensiveOwnerDetails = ({
                                     <SelectValue placeholder="Select" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="BIT">BIT</SelectItem>
-                                    <SelectItem value="GST">GST</SelectItem>
-                                    <SelectItem value="CIT">CIT</SelectItem>
+                                    {taxIdentifierTypeOptions?.length ? (
+                                        // In ownership details, show ONLY Personal Income Tax (PIT)
+                                        taxIdentifierTypeOptions
+                                            .filter((opt: any) => {
+                                                const label = (opt.tax_identifier_type || opt.name || "").toLowerCase();
+                                                // Include if label contains "personal income tax" or is exactly "pit"
+                                                return label.includes("personal income tax") || label === "pit";
+                                            })
+                                            .map((opt: any, i) => (
+                                                <SelectItem
+                                                    key={i}
+                                                    value={String(opt.tax_identifier_type_pk_code || opt.id)}
+                                                >
+                                                    {opt.tax_identifier_type || opt.name}
+                                                </SelectItem>
+                                            ))
+                                    ) : (
+                                        <SelectItem value="loading" disabled>Loading...</SelectItem>
+                                    )}
                                 </SelectContent>
                             </Select>
                             {fieldError("taxIdentifierType") && (
@@ -2943,6 +3056,7 @@ const ComprehensiveOwnerDetails = ({
                                                 dzongkhagOptions={dzongkhagOptions}
                                                 identificationTypeOptions={identificationTypeOptions}
                                                 maritalStatusOptions={maritalStatusOptions}
+                                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                                 title={`Related PEP ${index + 1} - Personal Information`}
                                                 errors={errors}
                                                 basePath={`${basePath}.relatedPeps.${index}`}
@@ -3587,10 +3701,24 @@ const ComprehensiveOwnerDetails = ({
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="BIT">BIT</SelectItem>
-                                            <SelectItem value="GST">GST</SelectItem>
-                                            <SelectItem value="CIT">CIT</SelectItem>
-                                            <SelectItem value="PIT">PIT</SelectItem>
+                                            {taxIdentifierTypeOptions?.length ? (
+                                                // In spouse section, show ONLY Personal Income Tax (PIT)
+                                                taxIdentifierTypeOptions
+                                                    .filter((opt: any) => {
+                                                        const label = (opt.tax_identifier_type || opt.name || "").toLowerCase();
+                                                        return label.includes("personal income tax") || label === "pit";
+                                                    })
+                                                    .map((opt: any, i) => (
+                                                        <SelectItem
+                                                            key={i}
+                                                            value={String(opt.tax_identifier_type_pk_code || opt.id)}
+                                                        >
+                                                            {opt.tax_identifier_type || opt.name}
+                                                        </SelectItem>
+                                                    ))
+                                            ) : (
+                                                <SelectItem value="loading" disabled>Loading...</SelectItem>
+                                            )}
                                         </SelectContent>
                                     </Select>
                                     {fieldError("spouseTaxIdentifierType") && (
@@ -4300,6 +4428,9 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
     const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
     const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
     const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
+    const [industryOptions, setIndustryOptions] = useState<any[]>([]);
+    // NEW: tax identifier type options
+    const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
 
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -4371,6 +4502,8 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                     national,
                     occ,
                     pepCat,
+                    industry,
+                    taxIdentifierType,   // <-- NEW
                 ] = await Promise.all([
                     fetchCountry().catch(() => []),
                     fetchDzongkhag().catch(() => []),
@@ -4380,6 +4513,8 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                     fetchNationality().catch(() => []),
                     fetchOccupations().catch(() => []),
                     fetchPepCategory().catch(() => []),
+                    fetchIndustryClassification().catch(() => []),
+                    fetchTaxIdentifierType().catch(() => []),   // <-- NEW
                 ]);
                 setCountryOptions(country?.data?.data || country || []);
                 setDzongkhagOptions(dzongkhag?.data?.data || dzongkhag || []);
@@ -4391,6 +4526,8 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                 setNationalityOptions(national?.data?.data || national || []);
                 setOccupationOptions(occ?.data?.data || occ || []);
                 setPepCategoryOptions(pepCat?.data?.data || pepCat || []);
+                setIndustryOptions(industry?.data?.data || industry || []);
+                setTaxIdentifierTypeOptions(taxIdentifierType?.data?.data || taxIdentifierType || []);   // <-- NEW
             } catch (error) {
                 console.error("Error loading form data:", error);
             }
@@ -4445,6 +4582,63 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
             }
         }
     }, [gewogOptions, businessAddress.gewog]);
+
+    // Translate Industry Classification label to ID dynamically
+    useEffect(() => {
+        if (industryOptions.length > 0 && businessData.industryClassification) {
+            const isId = industryOptions.some(
+                (opt) =>
+                    String(
+                        opt.id ||
+                        opt.industry_classification_pk_code ||
+                        opt.industry_pk_code ||
+                        opt.inds_class_pk_code ||
+                        opt.code ||
+                        opt.value
+                    ) === String(businessData.industryClassification)
+            );
+
+            if (!isId) {
+                const matchedId = findPkCodeByLabel(
+                    businessData.industryClassification,
+                    industryOptions, [
+                    "industry_classification",
+                    "industry_type",
+                    "industry_name",
+                    "name",
+                    "label",
+                    "industry",
+                    "inds_class_name"
+                ]
+                );
+                if (matchedId && matchedId !== businessData.industryClassification) {
+                    handleBusinessDataChange("industryClassification", matchedId);
+                }
+            }
+        }
+    }, [industryOptions, businessData.industryClassification]);
+
+    // Translate Business Tax Identifier Type label to ID dynamically   <-- NEW
+    useEffect(() => {
+        if (taxIdentifierTypeOptions.length > 0 && businessData.taxIdentifierType) {
+            const isId = taxIdentifierTypeOptions.some(
+                (opt) =>
+                    String(opt.tax_identifier_type_pk_code || opt.id) ===
+                    String(businessData.taxIdentifierType)
+            );
+
+            if (!isId) {
+                const matchedId = findPkCodeByLabel(
+                    businessData.taxIdentifierType,
+                    taxIdentifierTypeOptions,
+                    ["tax_identifier_type", "name", "label"]
+                );
+                if (matchedId && matchedId !== businessData.taxIdentifierType) {
+                    handleBusinessDataChange("taxIdentifierType", matchedId);
+                }
+            }
+        }
+    }, [taxIdentifierTypeOptions, businessData.taxIdentifierType]);
 
     const handleBusinessDataChange = (field: string, value: any) => {
         setBusinessData((prev) => ({ ...prev, [field]: value }));
@@ -4525,24 +4719,43 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
             const mappedCountry = findPkCodeByLabel(
                 fetchedBusinessCustomerData.permCountry ||
                 fetchedBusinessCustomerData.country,
-                countryOptions,
-                ["country_name", "country", "name", "label"],
+                countryOptions, ["country_name", "country", "name", "label"],
             );
 
             // Map Dzongkhag IDs
             const mappedDzongkhag = findPkCodeByLabel(
                 fetchedBusinessCustomerData.permDzongkhag ||
                 fetchedBusinessCustomerData.dzongkhag,
-                dzongkhagOptions,
-                ["dzongkhag_name", "dzongkhag", "name", "label"],
+                dzongkhagOptions, ["dzongkhag_name", "dzongkhag", "name", "label"],
             );
 
             // Map Bank
             const mappedBank = findPkCodeByLabel(
                 fetchedBusinessCustomerData.bankName ||
                 fetchedBusinessCustomerData.nameOfBank,
-                banksOptions,
-                ["bank_name", "name", "label", "bank"],
+                banksOptions, ["bank_name", "name", "label", "bank"],
+            );
+
+            // Map Industry
+            const mappedIndustry = findPkCodeByLabel(
+                fetchedBusinessCustomerData.industryClassification ||
+                fetchedBusinessCustomerData.industry,
+                industryOptions, [
+                "industry_classification",
+                "industry_type",
+                "industry_name",
+                "name",
+                "label",
+                "industry",
+                "inds_class_name"
+            ]
+            );
+
+            // Map Tax Identifier Type   <-- NEW
+            const mappedTaxIdentifierType = findPkCodeByLabel(
+                fetchedBusinessCustomerData.taxIdentifierType,
+                taxIdentifierTypeOptions,
+                ["tax_identifier_type", "name", "label"]
             );
 
             setBusinessData((prev: any) => ({
@@ -4564,7 +4777,12 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                     formatDateForInput(
                         fetchedBusinessCustomerData.identificationExpiryDate,
                     ) || prev.identificationExpiryDate,
+                industryClassification:
+                    mappedIndustry ||
+                    fetchedBusinessCustomerData.industryClassification ||
+                    prev.industryClassification,
                 taxIdentifierType:
+                    mappedTaxIdentifierType ||
                     fetchedBusinessCustomerData.taxIdentifierType ||
                     prev.taxIdentifierType,
                 taxIdentifierNumber:
@@ -4699,8 +4917,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                 } else {
                     setAttachments((prev) => ({
                         ...prev,
-                        [field]: fileId,
-                        [`${field}Name`]: file.name,
+                        [field]: fileId, [`${field}Name`]: file.name,
                     }));
                     clearError(`attachments.${field}`);
                 }
@@ -5289,6 +5506,13 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                     "name",
                 ]);
             }
+            if (p.taxIdentifierType && taxIdentifierTypeOptions.length) {   // <-- NEW
+                p.taxIdentifierType = findLabelById(
+                    p.taxIdentifierType,
+                    taxIdentifierTypeOptions,
+                    ["tax_identifier_type", "name", "label"]
+                );
+            }
             if (p.bankName) {
                 p.bankName = findLabelById(p.bankName, banksOptions, [
                     "bank_name",
@@ -5346,6 +5570,13 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                     ["nationality", "name"],
                 );
             }
+            if (p.spouseTaxIdentifierType && taxIdentifierTypeOptions.length) {   // <-- NEW
+                p.spouseTaxIdentifierType = findLabelById(
+                    p.spouseTaxIdentifierType,
+                    taxIdentifierTypeOptions,
+                    ["tax_identifier_type", "name", "label"]
+                );
+            }
             if (p.spousePermCountry) {
                 p.spousePermCountry = findLabelById(
                     p.spousePermCountry,
@@ -5395,8 +5626,32 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
         if (result.businessDetail?.businessAddress?.dzongkhag) {
             result.businessDetail.businessAddress.dzongkhag = findLabelById(
                 result.businessDetail.businessAddress.dzongkhag,
-                dzongkhagOptions,
-                ["dzongkhag_name", "dzongkhag"],
+                dzongkhagOptions, ["dzongkhag_name", "dzongkhag"],
+            );
+        }
+
+        // Convert Industry Classification back to text before storage
+        if (result.businessDetail?.industryClassification && industryOptions.length > 0) {
+            result.businessDetail.industryClassification = findLabelById(
+                result.businessDetail.industryClassification,
+                industryOptions, [
+                "industry_classification",
+                "industry_type",
+                "industry_name",
+                "name",
+                "label",
+                "industry",
+                "inds_class_name"
+            ]
+            );
+        }
+
+        // Convert Business Tax Identifier Type   <-- NEW
+        if (result.businessDetail?.taxIdentifierType && taxIdentifierTypeOptions.length > 0) {
+            result.businessDetail.taxIdentifierType = findLabelById(
+                result.businessDetail.taxIdentifierType,
+                taxIdentifierTypeOptions,
+                ["tax_identifier_type", "name", "label"]
             );
         }
 
@@ -5647,23 +5902,65 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                             )}
                         </div>
 
+                        {/* Industry Classification */}
                         <div className="space-y-2">
                             <Label>
                                 Industry Classification <span className="text-red-500">*</span>
                             </Label>
-                            <RestrictedInput
-                                allowed="alphanumeric"
-                                className={getFieldStyle(
-                                    !!errors["business.industryClassification"],
-                                )}
+                            <Select
                                 value={businessData.industryClassification}
-                                onChange={(e) =>
-                                    handleBusinessDataChange(
-                                        "industryClassification",
-                                        e.target.value,
-                                    )
-                                }
-                            />
+                                onValueChange={(v) => handleBusinessDataChange("industryClassification", v)}
+                            >
+                                <SelectTrigger className={getFieldStyle(!!errors["business.industryClassification"])}>
+                                    <SelectValue placeholder="Select Industry" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {industryOptions.length > 0 ? (
+                                        industryOptions.map((opt: any, index: number) => {
+                                            // Handle string options
+                                            if (typeof opt === 'string') {
+                                                return (
+                                                    <SelectItem key={opt} value={opt}>
+                                                        {opt}
+                                                    </SelectItem>
+                                                );
+                                            }
+
+                                            // Determine value (ID)
+                                            const value = String(
+                                                opt.inds_class_pk_code ||
+                                                opt.industry_classification_pk_code ||
+                                                opt.industry_pk_code ||
+                                                opt.id ||
+                                                opt.code ||
+                                                opt.value ||
+                                                index
+                                            );
+
+                                            // Determine label
+                                            const label =
+                                                opt.inds_class_name ||
+                                                opt.industry_classification ||
+                                                opt.industry_type ||
+                                                opt.industry_name ||
+                                                opt.name ||
+                                                opt.industry ||
+                                                opt.label ||
+                                                opt.description ||
+                                                opt.title ||
+                                                value;
+
+                                            return (
+                                                <SelectItem key={value} value={value}>
+                                                    {label}
+                                                </SelectItem>
+                                            );
+                                        })
+                                    ) : (
+                                        <SelectItem value="loading" disabled>Loading...</SelectItem>
+                                    )}
+                                </SelectContent>
+                            </Select>
                             {errors["business.industryClassification"] && (
                                 <p className="text-xs text-red-500 mt-1">
                                     {errors["business.industryClassification"]}
@@ -5858,10 +6155,27 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                     <SelectValue placeholder="Select" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="BIT">BIT</SelectItem>
-                                    <SelectItem value="GST">GST</SelectItem>
-                                    <SelectItem value="CIT">CIT</SelectItem>
-                                    <SelectItem value="PIT">PIT</SelectItem>
+                                    {taxIdentifierTypeOptions.length ? (
+                                        // In business section, filter out "Personal Income Tax" (PIT)
+                                        taxIdentifierTypeOptions
+                                            .filter((opt: any) => {
+                                                const label = (opt.tax_identifier_type || opt.name || "").toLowerCase();
+                                                return !(
+                                                    label.includes("personal income tax") ||
+                                                    label === "pit"
+                                                );
+                                            })
+                                            .map((opt: any, i) => (
+                                                <SelectItem
+                                                    key={i}
+                                                    value={String(opt.tax_identifier_type_pk_code || opt.id)}
+                                                >
+                                                    {opt.tax_identifier_type || opt.name}
+                                                </SelectItem>
+                                            ))
+                                    ) : (
+                                        <SelectItem value="loading" disabled>Loading...</SelectItem>
+                                    )}
                                 </SelectContent>
                             </Select>
                             {errors["business.taxIdentifierType"] && (
@@ -6258,6 +6572,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 dzongkhagOptions={dzongkhagOptions}
                                 identificationTypeOptions={identificationTypeOptions}
                                 maritalStatusOptions={maritalStatusOptions}
+                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                 title="Owner Personal Information"
                                 errors={errors}
                                 basePath="owner"
@@ -6296,6 +6611,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                     dzongkhagOptions={dzongkhagOptions}
                                     identificationTypeOptions={identificationTypeOptions}
                                     maritalStatusOptions={maritalStatusOptions}
+                                    taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                     errors={errors}
                                     basePath={`partners.${index}`}
                                     onClearError={clearError}
@@ -6340,6 +6656,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                         dzongkhagOptions={dzongkhagOptions}
                                         identificationTypeOptions={identificationTypeOptions}
                                         maritalStatusOptions={maritalStatusOptions}
+                                        taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                         errors={errors}
                                         basePath={`shareholders.${idx}`}
                                         onClearError={clearError}
@@ -6364,6 +6681,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                     dzongkhagOptions={dzongkhagOptions}
                                     identificationTypeOptions={identificationTypeOptions}
                                     maritalStatusOptions={maritalStatusOptions}
+                                    taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                     errors={errors}
                                     basePath="ceo"
                                     onClearError={clearError}
@@ -6401,6 +6719,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                         dzongkhagOptions={dzongkhagOptions}
                                         identificationTypeOptions={identificationTypeOptions}
                                         maritalStatusOptions={maritalStatusOptions}
+                                        taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                         errors={errors}
                                         basePath={`boardMembers.${idx}`}
                                         onClearError={clearError}
@@ -6448,6 +6767,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                         dzongkhagOptions={dzongkhagOptions}
                                         identificationTypeOptions={identificationTypeOptions}
                                         maritalStatusOptions={maritalStatusOptions}
+                                        taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                         errors={errors}
                                         basePath={`shareholders.${idx}`}
                                         onClearError={clearError}
@@ -6472,6 +6792,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                     dzongkhagOptions={dzongkhagOptions}
                                     identificationTypeOptions={identificationTypeOptions}
                                     maritalStatusOptions={maritalStatusOptions}
+                                    taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                     errors={errors}
                                     basePath="ceo"
                                     onClearError={clearError}
@@ -6509,6 +6830,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                         dzongkhagOptions={dzongkhagOptions}
                                         identificationTypeOptions={identificationTypeOptions}
                                         maritalStatusOptions={maritalStatusOptions}
+                                        taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                         errors={errors}
                                         basePath={`boardMembers.${idx}`}
                                         onClearError={clearError}
@@ -6548,6 +6870,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                     dzongkhagOptions={dzongkhagOptions}
                                     identificationTypeOptions={identificationTypeOptions}
                                     maritalStatusOptions={maritalStatusOptions}
+                                    taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                     errors={errors}
                                     basePath={`trustees.${index}`}
                                     onClearError={clearError}
@@ -6574,6 +6897,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 dzongkhagOptions={dzongkhagOptions}
                                 identificationTypeOptions={identificationTypeOptions}
                                 maritalStatusOptions={maritalStatusOptions}
+                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                 errors={errors}
                                 basePath="president"
                                 onClearError={clearError}
@@ -6599,6 +6923,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 dzongkhagOptions={dzongkhagOptions}
                                 identificationTypeOptions={identificationTypeOptions}
                                 maritalStatusOptions={maritalStatusOptions}
+                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                 errors={errors}
                                 basePath="headOfAgency"
                                 onClearError={clearError}
@@ -6624,6 +6949,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 dzongkhagOptions={dzongkhagOptions}
                                 identificationTypeOptions={identificationTypeOptions}
                                 maritalStatusOptions={maritalStatusOptions}
+                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
                                 errors={errors}
                                 basePath="headOfNGO"
                                 onClearError={clearError}

@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,7 @@ import {
   fetchPepCategory,
   fetchPepSubCategoryByCategory,
   fetchBanks,
+  fetchTaxIdentifierType, // <-- new import
 } from "@/services/api";
 
 // ================== IndexedDB Helpers ==================
@@ -163,6 +164,7 @@ const findPkCodeByLabel = (
           option.pk_gewog_id ||
           option.pep_category_pk_code ||
           option.pep_sub_category_pk_code ||
+          option.tax_identifier_type_pk_code || // <-- added for tax identifier
           option.pk_code ||
           option.id ||
           option.code ||
@@ -186,6 +188,7 @@ const findPkCodeByLabel = (
           option.pk_gewog_id ||
           option.pep_category_pk_code ||
           option.pep_sub_category_pk_code ||
+          option.tax_identifier_type_pk_code ||
           option.pk_code ||
           option.id ||
           option.code ||
@@ -215,6 +218,7 @@ const findPkCodeByLabel = (
             option.pk_gewog_id ||
             option.pep_category_pk_code ||
             option.pep_sub_category_pk_code ||
+            option.tax_identifier_type_pk_code ||
             option.pk_code ||
             option.id ||
             option.code ||
@@ -250,6 +254,7 @@ const findPkCodeByLabel = (
             option.pk_gewog_id ||
             option.pep_category_pk_code ||
             option.pep_sub_category_pk_code ||
+            option.tax_identifier_type_pk_code ||
             option.pk_code ||
             option.id ||
             option.code ||
@@ -512,6 +517,7 @@ export function BusinessRepaymentSourceForm({
   const [banksOptions, setBankOptions] = useState<any[]>([]);
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
+  const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]); // <-- new
   const [bhutanNationalityCode, setBhutanNationalityCode] = useState<
     string | null
   >(null);
@@ -627,6 +633,7 @@ export function BusinessRepaymentSourceForm({
           banks,
           occs,
           orgs,
+          taxTypes,
         ] = await Promise.all([
           fetchNationality().catch(() => []),
           fetchIdentificationType().catch(() => []),
@@ -637,6 +644,7 @@ export function BusinessRepaymentSourceForm({
           fetchBanks().catch(() => []),
           fetchOccupations().catch(() => []),
           fetchLegalConstitution().catch(() => []),
+          fetchTaxIdentifierType().catch(() => []),
         ]);
 
         const bhutanOption = nat.find((opt: any) => {
@@ -674,12 +682,21 @@ export function BusinessRepaymentSourceForm({
 
         setOccupationOptions(occs);
         setOrganizationOptions(orgs);
+        setTaxIdentifierTypeOptions(taxTypes || []);
       } catch (error) {
         console.error("Failed to load dropdown data:", error);
       }
     };
     loadAllData();
   }, []);
+
+  // Filter tax identifier options to show only "Personal Income Tax"
+  const personalIncomeTaxOptions = useMemo(() => {
+    return taxIdentifierTypeOptions.filter(opt => {
+      const label = (opt.tax_identifier_type || opt.name || opt.label || "").toLowerCase();
+      return label.includes("personal income tax");
+    });
+  }, [taxIdentifierTypeOptions]);
 
   // Gewog fetch for Guarantor's Permanent Address
   useEffect(() => {
@@ -1168,7 +1185,8 @@ export function BusinessRepaymentSourceForm({
           "",
         currCity: fetched.currCity || "",
         currPostal: fetched.currPostal || "",
-        email: fetched.currEmail || fetched.email || fetched.emailId || "",
+        email:
+          fetched.currEmail || fetched.email || fetched.emailId || "",
         contact:
           fetched.currContact || fetched.contactNo || fetched.phone || "",
         currAlternateContact:
@@ -2811,6 +2829,16 @@ export function BusinessRepaymentSourceForm({
           organizationOptions,
           "lgal_constitution",
         );
+        const taxIdentifierTypeLabel = getLabel(
+          cleanGuarantor.taxIdentifierType,
+          taxIdentifierTypeOptions,
+          "tax_identifier_type",
+        );
+        const spouseTaxIdentifierTypeLabel = getLabel(
+          cleanGuarantor.spouseTaxIdentifierType,
+          taxIdentifierTypeOptions,
+          "tax_identifier_type",
+        );
 
         // For related PEPs
         const relatedPepsWithLabels = (cleanGuarantor.relatedPeps || []).map(
@@ -2840,6 +2868,11 @@ export function BusinessRepaymentSourceForm({
               pep.maritalStatus,
               maritalStatusOptions,
               "marital_status",
+            );
+            const taxIdentifierTypeLabel = getLabel(
+              pep.taxIdentifierType,
+              taxIdentifierTypeOptions,
+              "tax_identifier_type",
             );
 
             const permCountryLabel = getLabel(
@@ -2890,6 +2923,7 @@ export function BusinessRepaymentSourceForm({
               identificationTypeLabel,
               nationalityLabel,
               maritalStatusLabel,
+              taxIdentifierTypeLabel,
               permCountryLabel,
               permDzongkhagLabel,
               permGewogLabel,
@@ -2921,6 +2955,8 @@ export function BusinessRepaymentSourceForm({
           pepSubCategoryLabel,
           occupationLabel,
           organizationNameLabel,
+          taxIdentifierTypeLabel,
+          spouseTaxIdentifierTypeLabel,
           relatedPeps: relatedPepsWithLabels,
         };
       }),
@@ -3482,10 +3518,23 @@ export function BusinessRepaymentSourceForm({
                             <SelectValue placeholder="[Select]" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="BIT">BIT</SelectItem>
-                            <SelectItem value="GST">GST</SelectItem>
-                            <SelectItem value="CIT">CIT</SelectItem>
-                            <SelectItem value="PIT">PIT</SelectItem>
+                            {personalIncomeTaxOptions.length > 0 ? (
+                              personalIncomeTaxOptions.map((option, idx) => {
+                                const value = String(
+                                  option.tax_identifier_type_pk_code || option.id || option.code || idx
+                                );
+                                const label = option.tax_identifier_type || option.name || option.label || "Unknown";
+                                return (
+                                  <SelectItem key={value} value={value}>
+                                    {label}
+                                  </SelectItem>
+                                );
+                              })
+                            ) : (
+                              <SelectItem value="loading" disabled>
+                                Loading...
+                              </SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                         {errors.taxIdentifierType && (
@@ -5653,18 +5702,23 @@ export function BusinessRepaymentSourceForm({
                                               <SelectValue placeholder="[Select]" />
                                             </SelectTrigger>
                                             <SelectContent sideOffset={4}>
-                                              <SelectItem value="BIT">
-                                                BIT
-                                              </SelectItem>
-                                              <SelectItem value="GST">
-                                                GST
-                                              </SelectItem>
-                                              <SelectItem value="CIT">
-                                                CIT
-                                              </SelectItem>
-                                              <SelectItem value="PIT">
-                                                PIT
-                                              </SelectItem>
+                                              {personalIncomeTaxOptions.length > 0 ? (
+                                                personalIncomeTaxOptions.map((option, idx) => {
+                                                  const value = String(
+                                                    option.tax_identifier_type_pk_code || option.id || option.code || idx
+                                                  );
+                                                  const label = option.tax_identifier_type || option.name || option.label || "Unknown";
+                                                  return (
+                                                    <SelectItem key={value} value={value}>
+                                                      {label}
+                                                    </SelectItem>
+                                                  );
+                                                })
+                                              ) : (
+                                                <SelectItem value="loading" disabled>
+                                                  Loading...
+                                                </SelectItem>
+                                              )}
                                             </SelectContent>
                                           </Select>
                                           {errors[
@@ -7527,10 +7581,23 @@ export function BusinessRepaymentSourceForm({
                                 <SelectValue placeholder="[Select]" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="BIT">BIT</SelectItem>
-                                <SelectItem value="GST">GST</SelectItem>
-                                <SelectItem value="CIT">CIT</SelectItem>
-                                <SelectItem value="PIT">PIT</SelectItem>
+                                {personalIncomeTaxOptions.length > 0 ? (
+                                  personalIncomeTaxOptions.map((option, idx) => {
+                                    const value = String(
+                                      option.tax_identifier_type_pk_code || option.id || option.code || idx
+                                    );
+                                    const label = option.tax_identifier_type || option.name || option.label || "Unknown";
+                                    return (
+                                      <SelectItem key={value} value={value}>
+                                        {label}
+                                      </SelectItem>
+                                    );
+                                  })
+                                ) : (
+                                  <SelectItem value="loading" disabled>
+                                    Loading...
+                                  </SelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                             {errors.spouseTaxIdentifierType && (

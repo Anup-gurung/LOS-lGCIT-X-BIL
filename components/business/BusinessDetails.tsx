@@ -730,6 +730,8 @@ const ComprehensiveOwnerDetails = ({
         if (personId) {
             // Convert to storable (labels) before saving
             const storableData = convertPersonToStorable(newData);
+            console.log(`Field "${field}" updated, storing in session:`, storableData);
+
             sessionStorage.setItem(
                 `verifiedPersonData_${personId}`,
                 JSON.stringify(storableData),
@@ -769,6 +771,8 @@ const ComprehensiveOwnerDetails = ({
                 identity_no: idNo,
             };
 
+            console.log("Identity lookup payload:", payload);
+
             const response = await fetch("/api/customer-onboarded-details", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -776,12 +780,15 @@ const ComprehensiveOwnerDetails = ({
             });
 
             const result = await response.json();
+            console.log(" Identity lookup raw response:", result);
 
             if (response.ok && result?.success && result?.data) {
                 const mappedData = mapCustomerDataToForm(result);
+                console.log("Mapped customer data:", mappedData);
                 setFetchedCustomerData(mappedData);
                 setLookupStatus("found");
             } else {
+                console.log("Identity lookup – not found or error");
                 setLookupStatus("not_found");
                 setFetchedCustomerData(null);
             }
@@ -944,6 +951,7 @@ const ComprehensiveOwnerDetails = ({
                 identificationType: data.identificationType,
                 identificationNo: data.identificationNo,
             };
+            console.log("Applying lookup data to person:", newData);
 
             onUpdate(newData);
             if (personId) {

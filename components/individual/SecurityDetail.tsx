@@ -30,6 +30,7 @@ import {
   fetchOccupations,
   fetchLegalConstitution,
   fetchPepSubCategoryByCategory,
+  fetchTaxIdentifierType,
 } from "@/services/api";
 
 interface SecurityDetailsFormProps {
@@ -48,6 +49,39 @@ const formatDateForInput = (dateString: string | null | undefined) => {
   } catch (e) {
     return "";
   }
+};
+
+// Helper to normalize tax identifier options (handles different API response structures)
+const normalizeTaxIdentifierOptions = (data: any): any[] => {
+  if (!data) return [];
+  // If it's an array, assume it's already the list
+  if (Array.isArray(data)) return data;
+  // If it has a data property that is an array, use that (common pattern)
+  if (data.data && Array.isArray(data.data)) return data.data;
+  // If it has a data property that itself has data, go deeper
+  if (data.data && data.data.data && Array.isArray(data.data.data))
+    return data.data.data;
+  // Fallback: try to find any array property
+  for (const key in data) {
+    if (Array.isArray(data[key])) return data[key];
+  }
+  return [];
+};
+
+// Helper to map tax identifier type label to code (if needed)
+const findTaxIdentifierCodeByLabel = (
+  label: string,
+  options: any[],
+): string => {
+  if (!label) return "";
+  const lowerLabel = label.toLowerCase().trim();
+  for (const opt of options) {
+    const optLabel = (opt.tax_identifier_type || opt.name || "").toLowerCase().trim();
+    if (optLabel.includes(lowerLabel) || lowerLabel.includes(optLabel)) {
+      return String(opt.tax_identifier_type_pk_code || opt.id || "");
+    }
+  }
+  return "";
 };
 
 // Initialize empty related PEP entry (Expanded structure without spouse details)
@@ -168,6 +202,7 @@ const createEmptyGuarantor = () => ({
   idExpiryDate: "",
   dateOfBirth: "",
   tpnNo: "",
+  taxIdentifierType: "", // <-- NEW field
   householdNumber: "",
   maritalStatus: "",
   familyTree: "",
@@ -283,6 +318,8 @@ export function SecurityDetailsForm({
   const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
+  // New state for tax identifier types
+  const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
 
   // Calculate date constraints
   const today = new Date().toISOString().split("T")[0];
@@ -369,6 +406,7 @@ export function SecurityDetailsForm({
           pepCategories,
           occupations,
           organizations,
+          taxTypesRaw,
         ] = await Promise.all([
           fetchNationality().catch(() => []),
           fetchIdentificationType().catch(() => []),
@@ -379,7 +417,12 @@ export function SecurityDetailsForm({
           fetchPepCategory().catch(() => []),
           fetchOccupations().catch(() => []),
           fetchLegalConstitution().catch(() => []),
+          fetchTaxIdentifierType().catch(() => []),
         ]);
+
+        // Normalize tax identifier options
+        const normalizedTaxTypes = normalizeTaxIdentifierOptions(taxTypesRaw);
+        console.log("Normalized tax types:", normalizedTaxTypes); // for debugging
 
         // Exclude Corporate IDs ("Trade License", "Company Registration") for this individual form
         const filteredIdTypes = (identificationTypeRaw || []).filter(
@@ -410,6 +453,7 @@ export function SecurityDetailsForm({
         setOrganizationOptions(
           organizations || [{ id: "org1", name: "Organization 1" }],
         );
+        setTaxIdentifierTypeOptions(normalizedTaxTypes);
       } catch (error) {
         console.error("Failed to load dropdown data:", error);
       }
@@ -830,6 +874,12 @@ export function SecurityDetailsForm({
   const handleLookupProceed = (index: number) => {
     const guarantor = guarantors[index];
     if (guarantor.lookupStatus === "found" && guarantor.fetchedCustomerData) {
+      // Map any tax identifier type if present
+      const mappedTaxIdentifier = findTaxIdentifierCodeByLabel(
+        guarantor.fetchedCustomerData.taxIdentifierType,
+        taxIdentifierTypeOptions,
+      );
+
       const formattedData = {
         nationality: guarantor.fetchedCustomerData.nationality
           ? String(guarantor.fetchedCustomerData.nationality)
@@ -854,6 +904,7 @@ export function SecurityDetailsForm({
         email: guarantor.fetchedCustomerData.email || "",
         contact: guarantor.fetchedCustomerData.contact || "",
         occupation: guarantor.fetchedCustomerData.occupation || "",
+        taxIdentifierType: mappedTaxIdentifier || "", // <-- map to guarantor's field
 
         // Address
         permCountry: guarantor.fetchedCustomerData.permCountry
@@ -876,6 +927,7 @@ export function SecurityDetailsForm({
           ? String(guarantor.fetchedCustomerData.currGewog)
           : "",
         currVillage: guarantor.fetchedCustomerData.currVillage || "",
+        spouseTaxIdentifierType: mappedTaxIdentifier, // optionally map if lookup provides it
       };
 
       setGuarantors((prev) => {
@@ -1023,7 +1075,8 @@ export function SecurityDetailsForm({
               currentUpdated[guarantorIndex] = {
                 ...currentUpdated[guarantorIndex],
                 relatedPepCurrGewogMap: {
-                  ...currentUpdated[guarantorIndex].relatedPepCurrGewogMap, [pepIndex]: options || [],
+                  ...currentUpdated[guarantorIndex].relatedPepCurrGewogMap,
+                  [pepIndex]: options || [],
                 },
               };
               return currentUpdated;
@@ -1302,6 +1355,13 @@ export function SecurityDetailsForm({
     const isMarried = checkIsMarried(guarantor.maritalStatus);
     const relatedPeps = guarantor.relatedPeps || [createEmptyRelatedPep()];
     const errors = guarantor.errors || {};
+
+    // Filter tax identifier options to only show "Personal Income Tax" (more lenient matching)
+    const filteredTaxOptions = taxIdentifierTypeOptions.filter(opt => {
+      const label = (opt.tax_identifier_type || opt.name || '').toLowerCase();
+      return label.includes('personal') && label.includes('income') && label.includes('tax') ||
+        label.includes('pit');
+    });
 
     return (
       <div
@@ -1656,6 +1716,43 @@ export function SecurityDetailsForm({
                   updateGuarantorField(index, "tpnNo", e.target.value)
                 }
               />
+            </div>
+
+            {/* NEW: Tax Identifier Type for Guarantor */}
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <Label
+                htmlFor={`taxIdentifierType-${index}`}
+                className="text-gray-800 font-semibold text-xs sm:text-sm"
+              >
+                Tax Identifier Type
+              </Label>
+              <Select
+                value={guarantor.taxIdentifierType || ""}
+                onValueChange={(value) =>
+                  updateGuarantorField(index, "taxIdentifierType", value)
+                }
+              >
+                <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800] text-sm sm:text-base">
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent sideOffset={4}>
+                  {filteredTaxOptions.length > 0 ? (
+                    filteredTaxOptions.map((opt, idx) => {
+                      const value = String(opt.tax_identifier_type_pk_code || opt.id || idx);
+                      const label = opt.tax_identifier_type || opt.name || 'Personal Income Tax';
+                      return (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })
+                  ) : (
+                    <SelectItem value="loading" disabled>
+                      No options available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
 
             {isNatBhutanese(guarantor.nationality) && (
@@ -3299,6 +3396,7 @@ export function SecurityDetailsForm({
                       />
                     </div>
 
+                    {/* Tax Identifier Type - Not required, shows only PIT */}
                     <div className="space-y-2.5">
                       <Label className="text-gray-800 font-semibold text-sm">
                         Tax Identifier Type
@@ -3318,10 +3416,21 @@ export function SecurityDetailsForm({
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
-                          <SelectItem value="BIT">BIT</SelectItem>
-                          <SelectItem value="GST">GST</SelectItem>
-                          <SelectItem value="CIT">CIT</SelectItem>
-                          <SelectItem value="PIT">PIT</SelectItem>
+                          {filteredTaxOptions.length > 0 ? (
+                            filteredTaxOptions.map((opt, idx) => {
+                              const value = String(opt.tax_identifier_type_pk_code || opt.id || idx);
+                              const label = opt.tax_identifier_type || opt.name || 'Personal Income Tax';
+                              return (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              );
+                            })
+                          ) : (
+                            <SelectItem value="loading" disabled>
+                              No options available
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -4549,6 +4658,7 @@ export function SecurityDetailsForm({
                 />
               </div>
 
+              {/* Spouse Tax Identifier Type - Not required, shows only PIT */}
               <div className="space-y-1.5 sm:space-y-2.5">
                 <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
                   Spouse Tax Identifier Type
@@ -4567,10 +4677,21 @@ export function SecurityDetailsForm({
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="BIT">BIT</SelectItem>
-                    <SelectItem value="GST">GST</SelectItem>
-                    <SelectItem value="CIT">CIT</SelectItem>
-                    <SelectItem value="PIT">PIT</SelectItem>
+                    {filteredTaxOptions.length > 0 ? (
+                      filteredTaxOptions.map((opt, idx) => {
+                        const value = String(opt.tax_identifier_type_pk_code || opt.id || idx);
+                        const label = opt.tax_identifier_type || opt.name || 'Personal Income Tax';
+                        return (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        No options available
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

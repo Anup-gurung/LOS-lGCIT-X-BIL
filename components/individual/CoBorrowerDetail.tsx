@@ -34,6 +34,7 @@ import {
   fetchLegalConstitution,
   fetchPepCategory,
   fetchPepSubCategoryByCategory,
+  fetchTaxIdentifierType,
 } from "@/services/api";
 
 interface CoBorrowerDetailsFormProps {
@@ -52,6 +53,147 @@ const formatDateForInput = (dateString: string | null | undefined) => {
   } catch (e) {
     return "";
   }
+};
+
+// ================== Helper: findPkCodeByLabel ==================
+const findPkCodeByLabel = (
+  label: string,
+  options: any[],
+  labelFields: string[],
+): string => {
+  if (!label) return "";
+
+  const trimmedLabel = String(label).trim().toLowerCase();
+  const strippedLabel = trimmedLabel.replace(/\s+/g, "");
+  const inputWords = trimmedLabel.split(/\s+/).filter((w) => w.length > 0);
+
+  for (const option of options) {
+    for (const field of labelFields) {
+      const optionValue = String(option[field] || "");
+      const trimmedOption = optionValue.trim().toLowerCase();
+      const strippedOption = trimmedOption.replace(/\s+/g, "");
+      const optionWords = trimmedOption
+        .split(/\s+/)
+        .filter((w) => w.length > 0);
+
+      if (strippedOption === strippedLabel) {
+        return String(
+          option.bank_pk_code ||
+          option.country_pk_code ||
+          option.nationality_pk_code ||
+          option.identity_type_pk_code ||
+          option.marital_status_pk_code ||
+          option.occupation_pk_code ||
+          option.occ_pk_code ||
+          option.lgal_constitution_pk_code ||
+          option.dzongkhag_pk_code ||
+          option.gewog_pk_code ||
+          option.curr_gewog_pk_code ||
+          option.pk_gewog_id ||
+          option.pep_category_pk_code ||
+          option.pep_sub_category_pk_code ||
+          option.tax_identifier_type_pk_code ||
+          option.pk_code ||
+          option.id ||
+          option.code ||
+          "",
+        );
+      }
+
+      if (trimmedOption === trimmedLabel) {
+        return String(
+          option.bank_pk_code ||
+          option.country_pk_code ||
+          option.nationality_pk_code ||
+          option.identity_type_pk_code ||
+          option.marital_status_pk_code ||
+          option.occupation_pk_code ||
+          option.occ_pk_code ||
+          option.lgal_constitution_pk_code ||
+          option.dzongkhag_pk_code ||
+          option.gewog_pk_code ||
+          option.curr_gewog_pk_code ||
+          option.pk_gewog_id ||
+          option.pep_category_pk_code ||
+          option.pep_sub_category_pk_code ||
+          option.tax_identifier_type_pk_code ||
+          option.pk_code ||
+          option.id ||
+          option.code ||
+          "",
+        );
+      }
+
+      if (inputWords.length > 0 && optionWords.length > 0) {
+        const allWordsMatch = inputWords.every((word) =>
+          optionWords.some(
+            (optWord) => optWord.includes(word) || word.includes(optWord),
+          ),
+        );
+        if (allWordsMatch) {
+          return String(
+            option.bank_pk_code ||
+            option.country_pk_code ||
+            option.nationality_pk_code ||
+            option.identity_type_pk_code ||
+            option.marital_status_pk_code ||
+            option.occupation_pk_code ||
+            option.occ_pk_code ||
+            option.lgal_constitution_pk_code ||
+            option.dzongkhag_pk_code ||
+            option.gewog_pk_code ||
+            option.curr_gewog_pk_code ||
+            option.pk_gewog_id ||
+            option.pep_category_pk_code ||
+            option.pep_sub_category_pk_code ||
+            option.tax_identifier_type_pk_code ||
+            option.pk_code ||
+            option.id ||
+            option.code ||
+            "",
+          );
+        }
+      }
+    }
+  }
+
+  if (trimmedLabel.length >= 4) {
+    for (const option of options) {
+      for (const field of labelFields) {
+        const optionLabel = String(option[field] || "")
+          .trim()
+          .toLowerCase();
+        if (
+          optionLabel.includes(trimmedLabel) ||
+          trimmedLabel.includes(optionLabel)
+        ) {
+          return String(
+            option.bank_pk_code ||
+            option.country_pk_code ||
+            option.nationality_pk_code ||
+            option.identity_type_pk_code ||
+            option.marital_status_pk_code ||
+            option.occupation_pk_code ||
+            option.occ_pk_code ||
+            option.lgal_constitution_pk_code ||
+            option.dzongkhag_pk_code ||
+            option.gewog_pk_code ||
+            option.curr_gewog_pk_code ||
+            option.pk_gewog_id ||
+            option.pep_category_pk_code ||
+            option.pep_sub_category_pk_code ||
+            option.tax_identifier_type_pk_code ||
+            option.pk_code ||
+            option.id ||
+            option.code ||
+            "",
+          );
+        }
+      }
+    }
+  }
+
+  return label;
 };
 
 // Initialize empty related PEP entry
@@ -135,6 +277,7 @@ const createEmptyCoBorrower = () => ({
   identificationExpiryDate: "",
   dateOfBirth: "",
   tpn: "",
+  taxIdentifierType: "", // <-- NEW field for main co-borrower
   householdNumber: "",
   relationship: "",
   maritalStatus: "",
@@ -254,6 +397,7 @@ export function CoBorrowerDetailsForm({
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
   const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
+  const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
 
   // Calculate date constraints
   const today = new Date().toISOString().split("T")[0];
@@ -268,6 +412,14 @@ export function CoBorrowerDetailsForm({
       return !label.includes("trade license") && !label.includes("company registration");
     });
   }, [identificationTypeOptions]);
+
+  // Filter tax identifier options to show only "Personal Income Tax"
+  const personalIncomeTaxOptions = useMemo(() => {
+    return taxIdentifierTypeOptions.filter(opt => {
+      const label = (opt.tax_identifier_type || opt.name || opt.label || "").toLowerCase();
+      return label.includes("personal income tax");
+    });
+  }, [taxIdentifierTypeOptions]);
 
   // --- HELPER: Nationality Check ---
   const isNatBhutanese = (nationalityId: string) => {
@@ -338,33 +490,47 @@ export function CoBorrowerDetailsForm({
 
   // --- DATA FETCHING ---
   useEffect(() => {
-    fetchMaritalStatus()
-      .then(setMaritalStatusOptions)
-      .catch(() => setMaritalStatusOptions([]));
-    fetchBanks()
-      .then(setBanksOptions)
-      .catch(() => setBanksOptions([]));
-    fetchNationality()
-      .then(setNationalityOptions)
-      .catch(() => setNationalityOptions([]));
-    fetchIdentificationType()
-      .then(setIdentificationTypeOptions)
-      .catch(() => setIdentificationTypeOptions([]));
-    fetchCountry()
-      .then(setCountryOptions)
-      .catch(() => setCountryOptions([]));
-    fetchDzongkhag()
-      .then(setDzongkhagOptions)
-      .catch(() => setDzongkhagOptions([]));
-    fetchOccupations()
-      .then(setOccupationOptions)
-      .catch(() => setOccupationOptions([]));
-    fetchLegalConstitution()
-      .then(setOrganizationOptions)
-      .catch(() => setOrganizationOptions([]));
-    fetchPepCategory()
-      .then(setPepCategoryOptions)
-      .catch(() => setPepCategoryOptions([]));
+    const loadAllData = async () => {
+      try {
+        const [
+          marital,
+          banks,
+          nationality,
+          idTypes,
+          countries,
+          dzos,
+          occs,
+          orgs,
+          pepCats,
+          taxTypes,
+        ] = await Promise.all([
+          fetchMaritalStatus().catch(() => []),
+          fetchBanks().catch(() => []),
+          fetchNationality().catch(() => []),
+          fetchIdentificationType().catch(() => []),
+          fetchCountry().catch(() => []),
+          fetchDzongkhag().catch(() => []),
+          fetchOccupations().catch(() => []),
+          fetchLegalConstitution().catch(() => []),
+          fetchPepCategory().catch(() => []),
+          fetchTaxIdentifierType().catch(() => []),
+        ]);
+
+        setMaritalStatusOptions(marital);
+        setBanksOptions(banks);
+        setNationalityOptions(nationality);
+        setIdentificationTypeOptions(idTypes);
+        setCountryOptions(countries);
+        setDzongkhagOptions(dzos);
+        setOccupationOptions(occs);
+        setOrganizationOptions(orgs);
+        setPepCategoryOptions(pepCats);
+        setTaxIdentifierTypeOptions(taxTypes || []);
+      } catch (error) {
+        console.error("Failed to load dropdown data:", error);
+      }
+    };
+    loadAllData();
   }, []);
 
   // Sync with formData when it changes
@@ -1412,6 +1578,45 @@ export function CoBorrowerDetailsForm({
                   updateCoBorrowerField(index, "tpn", e.target.value)
                 }
               />
+            </div>
+
+            {/* NEW: Tax Identifier Type for main co-borrower */}
+            <div className="space-y-2.5">
+              <Label
+                htmlFor={`taxIdentifierType-${index}`}
+                className="text-gray-800 font-semibold text-sm"
+              >
+                Tax Identifier Type
+              </Label>
+              <Select
+                value={coBorrower.taxIdentifierType || ""}
+                onValueChange={(value) =>
+                  updateCoBorrowerField(index, "taxIdentifierType", value)
+                }
+              >
+                <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent sideOffset={4}>
+                  {personalIncomeTaxOptions.length > 0 ? (
+                    personalIncomeTaxOptions.map((option, idx) => {
+                      const value = String(
+                        option.tax_identifier_type_pk_code || option.id || option.code || idx
+                      );
+                      const label = option.tax_identifier_type || option.name || option.label || "Unknown";
+                      return (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })
+                  ) : (
+                    <SelectItem value="loading" disabled>
+                      Loading...
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Conditional Household Number */}
@@ -3165,10 +3370,23 @@ export function CoBorrowerDetailsForm({
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent sideOffset={4}>
-                          <SelectItem value="BIT">BIT</SelectItem>
-                          <SelectItem value="GST">GST</SelectItem>
-                          <SelectItem value="CIT">CIT</SelectItem>
-                          <SelectItem value="PIT">PIT</SelectItem>
+                          {personalIncomeTaxOptions.length > 0 ? (
+                            personalIncomeTaxOptions.map((option, idx) => {
+                              const value = String(
+                                option.tax_identifier_type_pk_code || option.id || option.code || idx
+                              );
+                              const label = option.tax_identifier_type || option.name || option.label || "Unknown";
+                              return (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              );
+                            })
+                          ) : (
+                            <SelectItem value="loading" disabled>
+                              Loading...
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -3963,7 +4181,7 @@ export function CoBorrowerDetailsForm({
                           "Unknown";
 
                         return (
-                          <SelectItem key={key} value={label}>
+                          <SelectItem key={key} value={value}>
                             {label}
                           </SelectItem>
                         );
@@ -4415,10 +4633,23 @@ export function CoBorrowerDetailsForm({
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="BIT">BIT</SelectItem>
-                    <SelectItem value="GST">GST</SelectItem>
-                    <SelectItem value="CIT">CIT</SelectItem>
-                    <SelectItem value="PIT">PIT</SelectItem>
+                    {personalIncomeTaxOptions.length > 0 ? (
+                      personalIncomeTaxOptions.map((option, idx) => {
+                        const value = String(
+                          option.tax_identifier_type_pk_code || option.id || option.code || idx
+                        );
+                        const label = option.tax_identifier_type || option.name || option.label || "Unknown";
+                        return (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        Loading...
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

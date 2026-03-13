@@ -31,6 +31,7 @@ import {
   fetchPepCategory,
   fetchPepSubCategoryByCategory,
   fetchBanks,
+  fetchTaxIdentifierType,   // <-- NEW import
 } from "@/services/api";
 
 interface RepaymentSourceFormProps {
@@ -145,6 +146,7 @@ const createEmptyGuarantor = () => ({
   idIssueDate: "",
   idExpiryDate: "",
   dateOfBirth: "",
+  taxIdentifierType: "",          // <-- NEW field
   tpnNo: "",
   householdNumber: "",
   maritalStatus: "",
@@ -286,6 +288,8 @@ export function RepaymentSourceForm({
   const [banksOptions, setBankOptions] = useState<any[]>([]);
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
+  // NEW: tax identifier type options
+  const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
 
   // Constants
   const today = new Date().toISOString().split("T")[0];
@@ -295,6 +299,110 @@ export function RepaymentSourceForm({
 
   // Filtered identification options (exclude Trade License and Company Registration)
   const filteredIdOptions = getFilteredIdentificationOptions(identificationTypeOptions);
+
+  // --- HELPER: Find pk_code by label (Enhanced) ---
+  const findPkCodeByLabel = (
+    label: string,
+    options: any[],
+    labelFields: string[],
+  ): string => {
+    if (!label) return "";
+
+    const getCode = (opt: any) =>
+      String(
+        opt.bank_pk_code ||
+        opt.country_pk_code ||
+        opt.nationality_pk_code ||
+        opt.identity_type_pk_code ||
+        opt.marital_status_pk_code ||
+        opt.occupation_pk_code ||
+        opt.dzongkhag_pk_code ||
+        opt.gewog_pk_code ||
+        opt.pep_category_pk_code ||
+        opt.pep_sub_category_pk_code ||
+        opt.lgal_constitution_pk_code ||
+        opt.legal_const_pk_code ||
+        opt.tax_identifier_type_pk_code ||   // <-- NEW
+        opt.pk_code ||
+        opt.id ||
+        opt.code ||
+        "",
+      );
+
+    // 1. Exact match on code
+    for (const option of options) {
+      const code = getCode(option);
+      if (code && code === String(label)) {
+        return code;
+      }
+    }
+
+    const labelLower = String(label).toLowerCase().trim();
+    const cleanLabel = labelLower.replace(/[^a-z0-9]/g, "");
+
+    // 2. Strict match on label
+    for (const option of options) {
+      for (const field of labelFields) {
+        const optionLabel = String(option[field] || "")
+          .toLowerCase()
+          .trim();
+        const cleanOptionLabel = optionLabel.replace(/[^a-z0-9]/g, "");
+        if (cleanOptionLabel && cleanOptionLabel === cleanLabel) {
+          return getCode(option);
+        }
+      }
+    }
+
+    // 3. Partial match
+    if (cleanLabel.length >= 4) {
+      for (const option of options) {
+        for (const field of labelFields) {
+          const optionLabel = String(option[field] || "")
+            .toLowerCase()
+            .trim();
+          const cleanOptionLabel = optionLabel.replace(/[^a-z0-9]/g, "");
+          if (cleanOptionLabel && cleanOptionLabel.includes(cleanLabel)) {
+            return getCode(option);
+          }
+        }
+      }
+    }
+
+    return String(label);
+  };
+
+  // --- HELPER: Find label by ID (for storage) ---
+  const findLabelById = (
+    id: string,
+    options: any[],
+    labelFields: string[],
+  ): string => {
+    if (!id) return "";
+    const option = options.find(
+      (opt) =>
+        String(
+          opt.id ||
+          opt.pk_code ||
+          opt.bank_pk_code ||
+          opt.country_pk_code ||
+          opt.nationality_pk_code ||
+          opt.identity_type_pk_code ||
+          opt.marital_status_pk_code ||
+          opt.occupation_pk_code ||
+          opt.dzongkhag_pk_code ||
+          opt.gewog_pk_code ||
+          opt.pep_category_pk_code ||
+          opt.pep_sub_category_pk_code ||
+          opt.tax_identifier_type_pk_code ||   // <-- NEW
+          opt.code
+        ) === String(id),
+    );
+    if (!option) return id;
+    for (const field of labelFields) {
+      if (option[field]) return String(option[field]);
+    }
+    return id;
+  };
 
   // --- HELPER: Nationality Check ---
   const isNatBhutanese = (nationalityId: string) => {
@@ -375,6 +483,7 @@ export function RepaymentSourceForm({
           banks,
           occs,
           orgs,
+          taxTypes, // <-- NEW
         ] = await Promise.all([
           fetchNationality().catch(() => []),
           fetchIdentificationType().catch(() => []),
@@ -385,6 +494,7 @@ export function RepaymentSourceForm({
           fetchBanks().catch(() => []),
           fetchOccupations().catch(() => []),
           fetchLegalConstitution().catch(() => []),
+          fetchTaxIdentifierType().catch(() => []), // <-- NEW
         ]);
         setNationalityOptions(nat);
         setIdentificationTypeOptions(idTypes);
@@ -395,6 +505,7 @@ export function RepaymentSourceForm({
         setBankOptions(banks || []);
         setOccupationOptions(occs || []);
         setOrganizationOptions(orgs || []);
+        setTaxIdentifierTypeOptions(taxTypes || []); // <-- NEW
       } catch (error) {
         console.error("Failed to load dropdown data:", error);
       }
@@ -518,6 +629,68 @@ export function RepaymentSourceForm({
     };
     loadPepSub();
   }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
+
+  // --- CONVERSION: Tax Identifier Type for Guarantor (when options load) --- <-- NEW
+  useEffect(() => {
+    if (taxIdentifierTypeOptions.length) {
+      setGuarantors((prev) =>
+        prev.map((g) => {
+          if (g.taxIdentifierType) {
+            const isValid = taxIdentifierTypeOptions.some(
+              (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(g.taxIdentifierType)
+            );
+            if (!isValid) {
+              const pkCode = findPkCodeByLabel(
+                g.taxIdentifierType,
+                taxIdentifierTypeOptions,
+                ["tax_identifier_type", "name", "label"]
+              );
+              if (pkCode && pkCode !== g.taxIdentifierType) {
+                return { ...g, taxIdentifierType: pkCode };
+              }
+            }
+          }
+          if (g.spouseTaxIdentifierType) {
+            const isValid = taxIdentifierTypeOptions.some(
+              (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(g.spouseTaxIdentifierType)
+            );
+            if (!isValid) {
+              const pkCode = findPkCodeByLabel(
+                g.spouseTaxIdentifierType,
+                taxIdentifierTypeOptions,
+                ["tax_identifier_type", "name", "label"]
+              );
+              if (pkCode && pkCode !== g.spouseTaxIdentifierType) {
+                return { ...g, spouseTaxIdentifierType: pkCode };
+              }
+            }
+          }
+          if (g.relatedPeps) {
+            const updatedPeps = g.relatedPeps.map((pep: any) => {
+              if (pep.taxIdentifierType) {
+                const isValid = taxIdentifierTypeOptions.some(
+                  (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(pep.taxIdentifierType)
+                );
+                if (!isValid) {
+                  const pkCode = findPkCodeByLabel(
+                    pep.taxIdentifierType,
+                    taxIdentifierTypeOptions,
+                    ["tax_identifier_type", "name", "label"]
+                  );
+                  if (pkCode && pkCode !== pep.taxIdentifierType) {
+                    return { ...pep, taxIdentifierType: pkCode };
+                  }
+                }
+              }
+              return pep;
+            });
+            return { ...g, relatedPeps: updatedPeps };
+          }
+          return g;
+        })
+      );
+    }
+  }, [taxIdentifierTypeOptions]);
 
   // --- HANDLERS ---
 
@@ -649,6 +822,7 @@ export function RepaymentSourceForm({
         email: d.email || "",
         contact: d.contact || "",
         occupation: d.occupation ? String(d.occupation) : "",
+        taxIdentifierType: d.taxIdentifierType ? String(d.taxIdentifierType) : "",
         permCountry: d.permCountry ? String(d.permCountry) : "",
         permDzongkhag: d.permDzongkhag ? String(d.permDzongkhag) : "",
         permGewog: d.permGewog ? String(d.permGewog) : "",
@@ -865,6 +1039,12 @@ export function RepaymentSourceForm({
 
     onNext(repaymentData);
   };
+
+  // Filter tax identifier types to show only Personal Income Tax (PIT)   <-- NEW
+  const personalTaxIdentifierOptions = taxIdentifierTypeOptions.filter((opt) => {
+    const label = (opt.tax_identifier_type || opt.name || "").toLowerCase();
+    return label.includes("personal income tax") || label === "pit";
+  });
 
   return (
     <form onSubmit={handleSubmit} className="space-y-10">
@@ -1465,6 +1645,37 @@ export function RepaymentSourceForm({
                     />
                   </div>
 
+                  {/* Tax Identifier Type - NEW field */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">
+                      Tax Identifier Type
+                    </Label>
+                    <Select
+                      value={guarantor.taxIdentifierType}
+                      onValueChange={(val) =>
+                        updateGuarantorField(index, "taxIdentifierType", val)
+                      }
+                    >
+                      <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                        <SelectValue placeholder="[Select]" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {personalTaxIdentifierOptions.length > 0 ? (
+                          personalTaxIdentifierOptions.map((opt, i) => (
+                            <SelectItem
+                              key={i}
+                              value={String(opt.tax_identifier_type_pk_code || opt.id)}
+                            >
+                              {opt.tax_identifier_type || opt.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>Loading...</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="space-y-3">
                     <Label className="text-sm font-semibold">TPN No.</Label>
                     <Input
@@ -1496,7 +1707,9 @@ export function RepaymentSourceForm({
                       />
                     </div>
                   )}
+                </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="space-y-3">
                     <Label className="text-sm font-semibold">
                       Marital Status <span className="text-red-500">*</span>
@@ -2764,6 +2977,7 @@ export function RepaymentSourceForm({
                                 />
                               </div>
 
+                              {/* Tax Identifier Type - Not required, shows only PIT */}
                               <div className="space-y-2.5">
                                 <Label className="text-gray-800 font-semibold text-sm">
                                   Tax Identifier Type
@@ -2783,10 +2997,18 @@ export function RepaymentSourceForm({
                                     <SelectValue placeholder="[Select]" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="BIT">BIT</SelectItem>
-                                    <SelectItem value="GST">GST</SelectItem>
-                                    <SelectItem value="CIT">CIT</SelectItem>
-                                    <SelectItem value="PIT">PIT</SelectItem>
+                                    {personalTaxIdentifierOptions.length > 0 ? (
+                                      personalTaxIdentifierOptions.map((opt, i) => (
+                                        <SelectItem
+                                          key={i}
+                                          value={String(opt.tax_identifier_type_pk_code || opt.id)}
+                                        >
+                                          {opt.tax_identifier_type || opt.name}
+                                        </SelectItem>
+                                      ))
+                                    ) : (
+                                      <SelectItem value="loading" disabled>Loading...</SelectItem>
+                                    )}
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -4096,6 +4318,7 @@ export function RepaymentSourceForm({
                       />
                     </div>
 
+                    {/* Spouse Tax Identifier Type - Not required, shows only PIT */}
                     <div className="space-y-1.5 sm:space-y-2.5">
                       <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
                         Spouse Tax Identifier Type
@@ -4114,10 +4337,18 @@ export function RepaymentSourceForm({
                           <SelectValue placeholder="[Select]" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="BIT">BIT</SelectItem>
-                          <SelectItem value="GST">GST</SelectItem>
-                          <SelectItem value="CIT">CIT</SelectItem>
-                          <SelectItem value="PIT">PIT</SelectItem>
+                          {personalTaxIdentifierOptions.length > 0 ? (
+                            personalTaxIdentifierOptions.map((opt, i) => (
+                              <SelectItem
+                                key={i}
+                                value={String(opt.tax_identifier_type_pk_code || opt.id)}
+                              >
+                                {opt.tax_identifier_type || opt.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="loading" disabled>Loading...</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>

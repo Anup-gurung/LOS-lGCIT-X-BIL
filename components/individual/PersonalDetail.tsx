@@ -36,6 +36,7 @@ import {
   fetchLegalConstitution,
   fetchPepCategory,
   fetchPepSubCategoryByCategory,
+  fetchTaxIdentifierType, // <-- NEW import
 } from "@/services/api";
 import { getNdiDataFromSession } from "@/lib/mapNdiData";
 import { getVerifiedCustomerDataFromSession } from "@/lib/mapCustomerData";
@@ -205,6 +206,8 @@ export function PersonalDetailsForm({
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
   const [pepSubCategoryOptions, setPepSubCategoryOptions] = useState<any[]>([]);
   const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
+  // NEW: tax identifier type options
+  const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
 
   // Maps for dynamic dropdowns inside the Related PEPs loop
   const [relatedPepOptionsMap, setRelatedPepOptionsMap] = useState<
@@ -312,6 +315,7 @@ export function PersonalDetailsForm({
         opt.pep_sub_category_pk_code ||
         opt.lgal_constitution_pk_code ||
         opt.legal_const_pk_code ||
+        opt.tax_identifier_type_pk_code ||   // <-- NEW
         opt.pk_code ||
         opt.id ||
         opt.code ||
@@ -408,6 +412,9 @@ export function PersonalDetailsForm({
     fetchPepCategory()
       .then(setPepCategoryOptions)
       .catch(() => setPepCategoryOptions([]));
+    fetchTaxIdentifierType()   // <-- NEW
+      .then(setTaxIdentifierTypeOptions)
+      .catch(() => setTaxIdentifierTypeOptions([]));
   }, []);
 
   useEffect(() => {
@@ -563,7 +570,8 @@ export function PersonalDetailsForm({
       identificationTypeOptions.length > 0 ||
       banksOptions.length > 0 ||
       nationalityOptions.length > 0 ||
-      maritalStatusOptions.length > 0
+      maritalStatusOptions.length > 0 ||
+      taxIdentifierTypeOptions.length > 0   // <-- NEW
     ) {
       const updates: any = {};
       if (
@@ -661,6 +669,7 @@ export function PersonalDetailsForm({
         if (pkCode && pkCode !== data.spouseNationality)
           updates.spouseNationality = pkCode;
       }
+      // Tax identifier type conversions (applicant, spouse, related PEPs) will be handled by their own useEffect blocks later
       if (Object.keys(updates).length > 0)
         setData((prev: any) => ({ ...prev, ...updates }));
     }
@@ -669,6 +678,7 @@ export function PersonalDetailsForm({
     banksOptions,
     nationalityOptions,
     maritalStatusOptions,
+    taxIdentifierTypeOptions,   // <-- NEW
     data.identificationType,
     data.bankName,
     data.nationality,
@@ -779,6 +789,44 @@ export function PersonalDetailsForm({
       setPepSubCategoryOptions([]);
     }
   }, [data.pepPerson, data.pepCategory]);
+
+  // Convert tax identifier type for main applicant when options load   <-- NEW
+  useEffect(() => {
+    if (taxIdentifierTypeOptions.length && data.taxIdentifierType) {
+      const isValid = taxIdentifierTypeOptions.some(
+        (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(data.taxIdentifierType)
+      );
+      if (!isValid) {
+        const pkCode = findPkCodeByLabel(
+          data.taxIdentifierType,
+          taxIdentifierTypeOptions,
+          ["tax_identifier_type", "name", "label"]
+        );
+        if (pkCode && pkCode !== data.taxIdentifierType) {
+          setData((prev: any) => ({ ...prev, taxIdentifierType: pkCode }));
+        }
+      }
+    }
+  }, [taxIdentifierTypeOptions, data.taxIdentifierType]);
+
+  // Convert tax identifier type for spouse when options load   <-- NEW
+  useEffect(() => {
+    if (taxIdentifierTypeOptions.length && data.spouseTaxIdentifierType) {
+      const isValid = taxIdentifierTypeOptions.some(
+        (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(data.spouseTaxIdentifierType)
+      );
+      if (!isValid) {
+        const pkCode = findPkCodeByLabel(
+          data.spouseTaxIdentifierType,
+          taxIdentifierTypeOptions,
+          ["tax_identifier_type", "name", "label"]
+        );
+        if (pkCode && pkCode !== data.spouseTaxIdentifierType) {
+          setData((prev: any) => ({ ...prev, spouseTaxIdentifierType: pkCode }));
+        }
+      }
+    }
+  }, [taxIdentifierTypeOptions, data.spouseTaxIdentifierType]);
 
   const handleFileChange = (fieldName: string, file: File | null) => {
     if (file) {
@@ -1435,6 +1483,12 @@ export function PersonalDetailsForm({
     },
   );
 
+  // Filter tax identifier types to show only Personal Income Tax (PIT)   <-- NEW
+  const personalTaxIdentifierOptions = taxIdentifierTypeOptions.filter((opt) => {
+    const label = (opt.tax_identifier_type || opt.name || "").toLowerCase();
+    return label.includes("personal income tax") || label === "pit";
+  });
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -1764,7 +1818,7 @@ export function PersonalDetailsForm({
             )}
           </div>
 
-          {/* Tax Identifier Type - Not required */}
+          {/* Tax Identifier Type - Not required, shows only PIT */}
           <div className="space-y-2.5">
             <Label className="text-gray-800 font-semibold text-sm">
               Tax Identifier Type
@@ -1779,10 +1833,18 @@ export function PersonalDetailsForm({
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
-                <SelectItem value="BIT">BIT</SelectItem>
-                <SelectItem value="GST">GST</SelectItem>
-                <SelectItem value="CIT">CIT</SelectItem>
-                <SelectItem value="PIT">PIT</SelectItem>
+                {personalTaxIdentifierOptions.length > 0 ? (
+                  personalTaxIdentifierOptions.map((opt, i) => (
+                    <SelectItem
+                      key={i}
+                      value={String(opt.tax_identifier_type_pk_code || opt.id)}
+                    >
+                      {opt.tax_identifier_type || opt.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -3598,6 +3660,7 @@ export function PersonalDetailsForm({
                     )}
                   </div>
 
+                  {/* Tax Identifier Type - Not required, shows only PIT */}
                   <div className="space-y-2.5">
                     <Label className="text-gray-800 font-semibold text-sm">
                       Tax Identifier Type
@@ -3620,10 +3683,18 @@ export function PersonalDetailsForm({
                         <SelectValue placeholder="[Select]" />
                       </SelectTrigger>
                       <SelectContent sideOffset={4}>
-                        <SelectItem value="BIT">BIT</SelectItem>
-                        <SelectItem value="GST">GST</SelectItem>
-                        <SelectItem value="CIT">CIT</SelectItem>
-                        <SelectItem value="PIT">PIT</SelectItem>
+                        {personalTaxIdentifierOptions.length > 0 ? (
+                          personalTaxIdentifierOptions.map((opt, i) => (
+                            <SelectItem
+                              key={i}
+                              value={String(opt.tax_identifier_type_pk_code || opt.id)}
+                            >
+                              {opt.tax_identifier_type || opt.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>Loading...</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -5162,6 +5233,7 @@ export function PersonalDetailsForm({
               )}
             </div>
 
+            {/* Spouse Tax Identifier Type - Not required, shows only PIT */}
             <div className="space-y-1.5 sm:space-y-2.5">
               <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
                 Spouse Tax Identifier Type
@@ -5178,10 +5250,18 @@ export function PersonalDetailsForm({
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
-                  <SelectItem value="BIT">BIT</SelectItem>
-                  <SelectItem value="GST">GST</SelectItem>
-                  <SelectItem value="CIT">CIT</SelectItem>
-                  <SelectItem value="PIT">PIT</SelectItem>
+                  {personalTaxIdentifierOptions.length > 0 ? (
+                    personalTaxIdentifierOptions.map((opt, i) => (
+                      <SelectItem
+                        key={i}
+                        value={String(opt.tax_identifier_type_pk_code || opt.id)}
+                      >
+                        {opt.tax_identifier_type || opt.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>

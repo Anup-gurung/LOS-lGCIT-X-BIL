@@ -24,7 +24,13 @@ import { BusinessDetailsForm } from "@/components/business/BusinessDetails";
 import { BusinessConfirmation } from "@/components/BusinessConfirmation";
 import { SecurityDetailBusiness } from "@/components/business/SecurityDetailBusiness";
 
-import { fetchLoanData } from "@/services/api";
+// Updated API imports
+import {
+  fetchLoanTypes,
+  fetchLoanSectors,
+  fetchLoanSubSectors,
+  fetchLoanSubSectorCategories,
+} from "@/services/api";
 import { loanInfoContent } from "@/components/text";
 
 const businessSteps = [
@@ -66,6 +72,11 @@ function BusinessLoanApplicationContent() {
     "Housing Sector",
   ];
 
+  // ---------- Loading states for each dropdown ----------
+  const [isLoadingSectors, setIsLoadingSectors] = useState(false);
+  const [isLoadingSubSectors, setIsLoadingSubSectors] = useState(false);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+
   // ---------- Slider states (kept for consistency, not used in EMI now) ----------
   const [loanAmount, setLoanAmount] = useState([500000]);
   const [interestRate, setInterestRate] = useState([8.0]);
@@ -82,16 +93,13 @@ function BusinessLoanApplicationContent() {
   const [loanSectorOptions, setLoanSectorOptions] = useState<any[]>([]);
   const [loanSubSectorOptions, setLoanSubSectorOptions] = useState<any[]>([]);
   const [loanTypeOptions, setLoanTypeOptions] = useState<any[]>([]);
-  const [subSectorCategoryOptions, setSubSectorCategoryOptions] = useState<
-    any[]
-  >([]);
+  const [subSectorCategoryOptions, setSubSectorCategoryOptions] = useState<any[]>([]);
 
   // Selected values
   const [selectedLoanType, setSelectedLoanType] = useState("");
   const [selectedSector, setSelectedSector] = useState("");
   const [selectedSubSector, setSelectedSubSector] = useState("");
-  const [selectedSubSectorCategory, setSelectedSubSectorCategory] =
-    useState("");
+  const [selectedSubSectorCategory, setSelectedSubSectorCategory] = useState("");
 
   // Derived values from selected sub‑sector / category
   const [apiTenure, setApiTenure] = useState<number>(0);
@@ -100,115 +108,136 @@ function BusinessLoanApplicationContent() {
   // User input tenure values based on api limit
   const [selectedYears, setSelectedYears] = useState<number | "">("");
 
-  // ---------- Fetch REAL loan data from API ----------
+  // ---------- Initial load: fetch loan types ----------
   useEffect(() => {
-    const loadLoanData = async () => {
+    const loadLoanTypes = async () => {
       try {
-        const result = await fetchLoanData();
-        const data = result?.data?.data || result?.data || result;
-        if (data?.loanSector && Array.isArray(data.loanSector)) {
-          const filteredSectors = data.loanSector.filter((sector: any) =>
-            ALLOWED_SECTORS.some(
-              (allowed) =>
-                allowed.toLowerCase().trim() ===
-                sector.loan_sector?.toLowerCase().trim(),
-            ),
-          );
-          setLoanSectorOptions(filteredSectors);
-        }
-        if (data?.loanType && Array.isArray(data.loanType)) {
-          setLoanTypeOptions(data.loanType);
-        }
+        const types = await fetchLoanTypes();
+        setLoanTypeOptions(types);
       } catch (error) {
-        console.error("Failed to load loan data", error);
+        console.error("Failed to load loan types", error);
       }
     };
-    loadLoanData();
+    loadLoanTypes();
   }, []);
 
-  // ---------- Cascading Dropdown Effects ----------
-  // When sector changes, load sub‑sectors
-  useEffect(() => {
-    if (selectedSector) {
-      const sector = loanSectorOptions.find(
-        (s) => s.loan_sector_id === parseInt(selectedSector),
+  // ---------- Handlers for cascading dropdowns ----------
+  const handleLoanTypeChange = async (value: string) => {
+    setSelectedLoanType(value);
+    setSelectedSector("");
+    setSelectedSubSector("");
+    setSelectedSubSectorCategory("");
+    setLoanSectorOptions([]);
+    setLoanSubSectorOptions([]);
+    setSubSectorCategoryOptions([]);
+    setApiTenure(0);
+    setApiInterestRate(0);
+
+    // Extract index from value (format: "pk_id-index")
+    const index = parseInt(value.split("-")[1]);
+    if (isNaN(index) || !loanTypeOptions[index]) {
+      console.warn("Invalid loan type selection", value);
+      return;
+    }
+
+    const selectedType = loanTypeOptions[index];
+    // The API expects the loan_type_code_1 (e.g., "005")
+    const typeCode = selectedType.loan_type_code_1;
+    if (!typeCode) {
+      console.warn("No loan_type_code_1 found for selected type", selectedType);
+      return;
+    }
+
+    setIsLoadingSectors(true);
+    try {
+      const sectors = await fetchLoanSectors(typeCode);
+      // Filter by allowed sectors
+      const filtered = sectors.filter((sector: any) =>
+        ALLOWED_SECTORS.some(
+          (allowed) =>
+            allowed.toLowerCase().trim() ===
+            (sector.loan_sector || "").toLowerCase().trim()
+        )
       );
-      const subSectors = Array.isArray(sector?.loanSubSector)
-        ? sector.loanSubSector
-        : [];
+      setLoanSectorOptions(filtered);
+    } catch (error) {
+      console.error("Failed to load sectors", error);
+    } finally {
+      setIsLoadingSectors(false);
+    }
+  };
+
+  const handleSectorChange = async (value: string) => {
+    setSelectedSector(value);
+    setSelectedSubSector("");
+    setSelectedSubSectorCategory("");
+    setLoanSubSectorOptions([]);
+    setSubSectorCategoryOptions([]);
+    setApiTenure(0);
+    setApiInterestRate(0);
+
+    if (!value) return;
+
+    setIsLoadingSubSectors(true);
+    try {
+      const subSectors = await fetchLoanSubSectors(value); // value is sector pk_id
       setLoanSubSectorOptions(subSectors);
-      setSelectedSubSector("");
-      setSelectedSubSectorCategory("");
-      setApiTenure(0);
-      setApiInterestRate(0);
-    } else {
-      setLoanSubSectorOptions([]);
-      setSelectedSubSector("");
-      setSelectedSubSectorCategory("");
-      setApiTenure(0);
-      setApiInterestRate(0);
+    } catch (error) {
+      console.error("Failed to load sub‑sectors", error);
+    } finally {
+      setIsLoadingSubSectors(false);
     }
-  }, [selectedSector, loanSectorOptions]);
+  };
 
-  // When sub‑sector changes, load categories and set initial tenure/rate from sub‑sector
-  useEffect(() => {
-    if (selectedSubSector) {
-      const subSectorIndex = parseInt(selectedSubSector.split("-")[1]);
-      const subSector = loanSubSectorOptions[subSectorIndex];
+  const handleSubSectorChange = async (value: string) => {
+    setSelectedSubSector(value);
+    setSelectedSubSectorCategory("");
+    setSubSectorCategoryOptions([]);
 
-      const categories = Array.isArray(subSector?.loanSubSectorCategory)
-        ? subSector.loanSubSectorCategory
-        : [];
+    const subSectorId = value.split("-")[0]; // pk_id
+    if (!subSectorId) return;
+
+    // Extract index to get the selected sub‑sector object
+    const index = parseInt(value.split("-")[1]);
+    const subSector = loanSubSectorOptions[index];
+    if (subSector) {
+      // Use correct field names from API
+      setApiTenure(parseFloat(subSector.sub_sector_tenure || "0"));
+      setApiInterestRate(parseFloat(subSector.sub_sector_interest_rate || "0"));
+    }
+
+    setIsLoadingCategories(true);
+    try {
+      const categories = await fetchLoanSubSectorCategories(subSectorId);
       setSubSectorCategoryOptions(categories);
-
-      if (subSector) {
-        const tenure = parseFloat(subSector.loan_tenure || "0");
-        const rate = parseFloat(subSector.interest_rate || "0");
-        setApiTenure(tenure);
-        setApiInterestRate(rate);
-      }
-
-      setSelectedSubSectorCategory("");
-    } else {
-      setSubSectorCategoryOptions([]);
-      setSelectedSubSectorCategory("");
-      setApiTenure(0);
-      setApiInterestRate(0);
+    } catch (error) {
+      console.error("Failed to load categories", error);
+    } finally {
+      setIsLoadingCategories(false);
     }
-  }, [selectedSubSector, loanSubSectorOptions]);
+  };
 
-  // When category changes, update tenure/rate from category if available
+  // ---------- Category selection effect (updates tenure/rate) ----------
   useEffect(() => {
     if (selectedSubSectorCategory) {
-      const categoryIndex = parseInt(selectedSubSectorCategory.split("-")[1]);
-      const category = subSectorCategoryOptions[categoryIndex];
-      if (category) {
-        const catTenure = parseFloat(category.loan_tenure || "0");
-        const catRate = parseFloat(category.interest_rate || "0");
-        if (!isNaN(catTenure) && catTenure > 0) setApiTenure(catTenure);
-        if (!isNaN(catRate) && catRate > 0) setApiInterestRate(catRate);
-      }
+      // Categories do not have tenure/rate; keep sub‑sector values.
+      // If you need to override, you would handle it here.
     } else {
+      // Fallback to sub‑sector values when category is cleared
       if (selectedSubSector) {
         const subSectorIndex = parseInt(selectedSubSector.split("-")[1]);
         const subSector = loanSubSectorOptions[subSectorIndex];
         if (subSector) {
-          setApiTenure(parseFloat(subSector.loan_tenure || "0"));
-          setApiInterestRate(parseFloat(subSector.interest_rate || "0"));
+          setApiTenure(parseFloat(subSector.sub_sector_tenure || "0"));
+          setApiInterestRate(parseFloat(subSector.sub_sector_interest_rate || "0"));
         }
       }
     }
-  }, [
-    selectedSubSectorCategory,
-    subSectorCategoryOptions,
-    selectedSubSector,
-    loanSubSectorOptions,
-  ]);
+  }, [selectedSubSectorCategory, selectedSubSector, loanSubSectorOptions]);
 
   // Update selectedYears default when apiTenure changes
   useEffect(() => {
     if (apiTenure > 0) {
-      // Default to the maximum possible years based on apiTenure (which is in months)
       setSelectedYears(Math.max(1, Math.floor(apiTenure / 12)));
     } else {
       setSelectedYears("");
@@ -220,25 +249,20 @@ function BusinessLoanApplicationContent() {
     const existing = sessionStorage.getItem("businessLoanApplicationData");
     const parsed = existing ? JSON.parse(existing) : {};
     const merged = { ...parsed, ...data };
-    sessionStorage.setItem(
-      "businessLoanApplicationData",
-      JSON.stringify(merged),
-    );
+    sessionStorage.setItem("businessLoanApplicationData", JSON.stringify(merged));
   };
 
   // ---------- Helper functions to get string values from IDs ----------
   const getLoanTypeString = (value: string): string => {
     if (!value) return "";
-    const id = parseInt(value.split("-")[0]);
-    const option = loanTypeOptions.find((opt) => opt.pk_id === id);
+    const index = parseInt(value.split("-")[1]);
+    const option = loanTypeOptions[index];
     return option?.loan_type || "";
   };
 
   const getSectorString = (id: string): string => {
     if (!id) return "";
-    const option = loanSectorOptions.find(
-      (opt) => opt.loan_sector_id === parseInt(id),
-    );
+    const option = loanSectorOptions.find((opt) => opt.pk_id === parseInt(id));
     return option?.loan_sector || "";
   };
 
@@ -299,7 +323,6 @@ function BusinessLoanApplicationContent() {
     const r = apiInterestRate / 12 / 100; // Monthly interest rate
     const n = months;
 
-    // EMI formula
     const emi = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
 
     if (isNaN(emi) || !isFinite(emi)) {
@@ -326,7 +349,6 @@ function BusinessLoanApplicationContent() {
   const selectedSectorId = selectedSector || "";
   const loanInfo = loanInfoContent[selectedSectorId] || loanInfoContent.default;
 
-  // Maximum allowed years calculated from API's tenure (months)
   const maxAllowedYears = Math.max(0, Math.floor(apiTenure / 12));
 
   // ---------- Render ----------
@@ -335,20 +357,19 @@ function BusinessLoanApplicationContent() {
       <Header />
 
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-10">
-        {/* Progress Steps - Desktop */}
+        {/* Progress Steps - Desktop (unchanged) */}
         <div className="hidden lg:block mb-8 md:mb-12">
           <div className="flex items-center justify-between max-w-6xl mx-auto gap-2 md:gap-3">
             {businessSteps.map((step, index) => (
               <div key={step} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
                   <div
-                    className={`w-full h-12 md:h-14 flex items-center justify-center rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 shadow-sm ${
-                      index === currentStep
-                        ? "bg-[#FF9800] text-white shadow-md scale-105"
-                        : index < currentStep
-                          ? "bg-gray-300 text-gray-700"
-                          : "bg-white text-gray-500 border border-gray-200"
-                    }`}
+                    className={`w-full h-12 md:h-14 flex items-center justify-center rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 shadow-sm ${index === currentStep
+                      ? "bg-[#FF9800] text-white shadow-md scale-105"
+                      : index < currentStep
+                        ? "bg-gray-300 text-gray-700"
+                        : "bg-white text-gray-500 border border-gray-200"
+                      }`}
                   >
                     {step}
                   </div>
@@ -358,7 +379,7 @@ function BusinessLoanApplicationContent() {
           </div>
         </div>
 
-        {/* Progress Steps - Mobile */}
+        {/* Progress Steps - Mobile (unchanged) */}
         <div className="lg:hidden mb-6">
           <div className="relative">
             <button
@@ -382,23 +403,21 @@ function BusinessLoanApplicationContent() {
                     key={step}
                     onClick={() => setShowStepsMenu(false)}
                     disabled={index > currentStep}
-                    className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                      index === currentStep
-                        ? "bg-[#FF9800] text-white"
-                        : index < currentStep
-                          ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          : "bg-white text-gray-400 cursor-not-allowed"
-                    }`}
+                    className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors first:rounded-t-lg last:rounded-b-lg ${index === currentStep
+                      ? "bg-[#FF9800] text-white"
+                      : index < currentStep
+                        ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        : "bg-white text-gray-400 cursor-not-allowed"
+                      }`}
                   >
                     <span className="flex items-center gap-2">
                       <span
-                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                          index === currentStep
-                            ? "bg-white text-[#FF9800]"
-                            : index < currentStep
-                              ? "bg-gray-300 text-gray-700"
-                              : "bg-gray-200 text-gray-400"
-                        }`}
+                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs ${index === currentStep
+                          ? "bg-white text-[#FF9800]"
+                          : index < currentStep
+                            ? "bg-gray-300 text-gray-700"
+                            : "bg-gray-200 text-gray-400"
+                          }`}
                       >
                         {index + 1}
                       </span>
@@ -424,7 +443,7 @@ function BusinessLoanApplicationContent() {
                   </Label>
                   <Select
                     value={selectedLoanType}
-                    onValueChange={setSelectedLoanType}
+                    onValueChange={handleLoanTypeChange}
                   >
                     <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                       <SelectValue placeholder="[Select]" />
@@ -455,24 +474,31 @@ function BusinessLoanApplicationContent() {
                   </Label>
                   <Select
                     value={selectedSector}
-                    onValueChange={setSelectedSector}
+                    onValueChange={handleSectorChange}
+                    disabled={!selectedLoanType}
                   >
                     <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent>
-                      {loanSectorOptions.length > 0 ? (
+                      {isLoadingSectors ? (
+                        <SelectItem value="loading" disabled>
+                          Loading...
+                        </SelectItem>
+                      ) : loanSectorOptions.length > 0 ? (
                         loanSectorOptions.map((option) => (
                           <SelectItem
-                            key={option.loan_sector_id}
-                            value={String(option.loan_sector_id)}
+                            key={option.pk_id}
+                            value={String(option.pk_id)}
                           >
                             {option.loan_sector}
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="loading" disabled>
-                          Loading...
+                        <SelectItem value="no-data" disabled>
+                          {selectedLoanType
+                            ? "No sectors available"
+                            : "Select loan type first"}
                         </SelectItem>
                       )}
                     </SelectContent>
@@ -486,24 +512,28 @@ function BusinessLoanApplicationContent() {
                   </Label>
                   <Select
                     value={selectedSubSector}
-                    onValueChange={setSelectedSubSector}
+                    onValueChange={handleSubSectorChange}
                     disabled={!selectedSector}
                   >
                     <SelectTrigger className="h-10 sm:h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent>
-                      {loanSubSectorOptions.length > 0 ? (
+                      {isLoadingSubSectors ? (
+                        <SelectItem value="loading" disabled>
+                          Loading...
+                        </SelectItem>
+                      ) : loanSubSectorOptions.length > 0 ? (
                         loanSubSectorOptions.map((option, index) => (
                           <SelectItem
                             key={`subsector-${index}`}
-                            value={`${option.sub_sector_id}-${index}`}
+                            value={`${option.pk_id}-${index}`}
                           >
                             {option.sub_sector}
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="loading" disabled>
+                        <SelectItem value="no-data" disabled>
                           {selectedSector
                             ? "No sub‑sectors available"
                             : "Select sector first"}
@@ -528,17 +558,21 @@ function BusinessLoanApplicationContent() {
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent>
-                      {subSectorCategoryOptions.length > 0 ? (
+                      {isLoadingCategories ? (
+                        <SelectItem value="loading" disabled>
+                          Loading...
+                        </SelectItem>
+                      ) : subSectorCategoryOptions.length > 0 ? (
                         subSectorCategoryOptions.map((option, index) => (
                           <SelectItem
                             key={`category-${index}`}
-                            value={`${option.sub_sector_cat_id}-${index}`}
+                            value={`${option.pk_id}-${index}`}
                           >
                             {option.sub_cat_sector}
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="loading" disabled>
+                        <SelectItem value="no-data" disabled>
                           {selectedSubSector
                             ? "No categories available"
                             : "Select sub‑sector first"}
@@ -548,7 +582,7 @@ function BusinessLoanApplicationContent() {
                   </Select>
                 </div>
 
-                {/* Loan Info Box – Sector‑specific content */}
+                {/* Loan Info Box – Sector‑specific content (unchanged) */}
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 sm:p-6 md:p-8 rounded-lg sm:rounded-2xl space-y-3 sm:space-y-5 border border-blue-200 shadow-sm mt-4">
                   <div className="space-y-1">
                     <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
@@ -598,7 +632,7 @@ function BusinessLoanApplicationContent() {
               </CardContent>
             </Card>
 
-            {/* Right Column – Loan Amount, Purpose, and EMI */}
+            {/* Right Column – Loan Amount, Purpose, and EMI (unchanged) */}
             <Card className="shadow-lg sm:shadow-xl border-0 bg-white rounded-lg sm:rounded-2xl overflow-hidden">
               <CardContent className="p-4 sm:p-6 md:p-10 space-y-4 sm:space-y-6 md:space-y-8">
                 <div className="space-y-4">
@@ -693,7 +727,7 @@ function BusinessLoanApplicationContent() {
           </div>
         )}
 
-        {/* ---------- Other Steps ---------- */}
+        {/* ---------- Other Steps (unchanged) ---------- */}
         {currentStep === 1 && (
           <div className="max-w-7xl mx-auto">
             <BusinessDetailsForm
@@ -731,7 +765,7 @@ function BusinessLoanApplicationContent() {
           </div>
         )}
 
-        {/* ---------- Global Navigation Buttons  ---------- */}
+        {/* ---------- Global Navigation Buttons ---------- */}
         {currentStep !== 1 &&
           currentStep !== 2 &&
           currentStep !== 3 &&
@@ -758,12 +792,11 @@ function BusinessLoanApplicationContent() {
           )}
       </div>
 
-      {/* Document Popup */}
+      {/* Document Popup (unchanged) */}
       <DocumentPopupBusiness
         open={showDocumentPopup}
         onOpenChange={setShowDocumentPopup}
         onProceed={() => {
-          // Get string values for selected options
           const loanTypeString = getLoanTypeString(selectedLoanType);
           const loanSectorString = getSectorString(selectedSector);
           const loanSubSectorString = getSubSectorString(selectedSubSector);

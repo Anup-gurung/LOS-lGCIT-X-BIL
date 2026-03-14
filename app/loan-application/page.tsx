@@ -22,7 +22,12 @@ import { CoBorrowerDetailsForm } from "@/components/individual/CoBorrowerDetail"
 import { SecurityDetailsForm } from "@/components/individual/SecurityDetail";
 import { RepaymentSourceForm } from "@/components/individual/RepaymentSource";
 import { Confirmation } from "@/components/confirmation";
-import { fetchLoanData } from "@/services/api";
+import {
+  fetchLoanTypes,
+  fetchLoanSectors,
+  fetchLoanSubSectors,
+  fetchLoanSubSectorCategories,
+} from "@/services/api";
 import { loanInfoContent } from "@/components/text";
 
 const steps = [
@@ -55,17 +60,25 @@ function LoanApplicationContent() {
   const [showDocumentPopup, setShowDocumentPopup] = useState(false);
   const [showStepsMenu, setShowStepsMenu] = useState(false);
   const [formData, setFormData] = useState<any>({});
+
+  // Loading states
+  const [isLoadingSectors, setIsLoadingSectors] = useState(false);
+  const [isLoadingSubSectors, setIsLoadingSubSectors] = useState(false);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+
+  // Dropdown options
   const [loanSectorOptions, setLoanSectorOptions] = useState<any[]>([]);
   const [loanSubSectorOptions, setLoanSubSectorOptions] = useState<any[]>([]);
+  const [loanTypeOptions, setLoanTypeOptions] = useState<any[]>([]);
+  const [subSectorCategoryOptions, setSubSectorCategoryOptions] = useState<any[]>([]);
+
+  // Selected values
   const [selectedSector, setSelectedSector] = useState("");
   const [selectedSubSector, setSelectedSubSector] = useState("");
-  const [loanTypeOptions, setLoanTypeOptions] = useState<any[]>([]);
   const [selectedLoanType, setSelectedLoanType] = useState("");
-  const [subSectorCategoryOptions, setSubSectorCategoryOptions] = useState<
-    any[]
-  >([]);
-  const [selectedSubSectorCategory, setSelectedSubSectorCategory] =
-    useState("");
+  const [selectedSubSectorCategory, setSelectedSubSectorCategory] = useState("");
+
+  // Derived values
   const [apiTenure, setApiTenure] = useState<number>(0);
   const [apiInterestRate, setApiInterestRate] = useState<number>(0);
   const [purpose, setPurpose] = useState("");
@@ -73,7 +86,7 @@ function LoanApplicationContent() {
   // User input tenure values based on api limit
   const [selectedYears, setSelectedYears] = useState<number | "">("");
 
-  // Allowed loan sectors as per requirement
+  // Allowed loan sectors as per requirement (individual version)
   const allowedLoanSectors = [
     "Housing Sector",
     "Transport Loans",
@@ -86,182 +99,217 @@ function LoanApplicationContent() {
     "Agriculture and Livestock",
   ];
 
+  // ---------- Initial load: fetch loan types ----------
   useEffect(() => {
-    // Load loan data from API
-    const loadLoanData = async () => {
+    const loadLoanTypes = async () => {
       try {
-        const result = await fetchLoanData();
-        // Handle nested response: result.data.data.loanSector
-        const data = result?.data?.data || result?.data || result;
-        if (data && data.loanSector && Array.isArray(data.loanSector)) {
-          // Filter loan sectors to only include allowed ones
-          const filteredSectors = data.loanSector.filter((sector: any) =>
-            allowedLoanSectors.includes(sector.loan_sector),
-          );
-          setLoanSectorOptions(filteredSectors);
-        }
-        if (data && data.loanType && Array.isArray(data.loanType)) {
-          setLoanTypeOptions(data.loanType);
-        }
+        const types = await fetchLoanTypes();
+        setLoanTypeOptions(types);
       } catch (error) {
-        // Failed to load loan data
+        console.error("Failed to load loan types", error);
       }
     };
-    loadLoanData();
+    loadLoanTypes();
   }, []);
 
-  // Filter sub-sectors when sector is selected
-  useEffect(() => {
-    if (selectedSector) {
-      const sector = loanSectorOptions.find(
-        (s) => s.loan_sector_id === parseInt(selectedSector),
+  // ---------- Handlers for cascading dropdowns ----------
+  const handleLoanTypeChange = async (value: string) => {
+    setSelectedLoanType(value);
+    setSelectedSector("");
+    setSelectedSubSector("");
+    setSelectedSubSectorCategory("");
+    setLoanSectorOptions([]);
+    setLoanSubSectorOptions([]);
+    setSubSectorCategoryOptions([]);
+    setApiTenure(0);
+    setApiInterestRate(0);
+
+    // Extract index from value (format: "pk_id-index")
+    const index = parseInt(value.split("-")[1]);
+    if (isNaN(index) || !loanTypeOptions[index]) {
+      console.warn("Invalid loan type selection", value);
+      return;
+    }
+
+    const selectedType = loanTypeOptions[index];
+    // The API expects the loan_type_code_1 (e.g., "005")
+    const typeCode = selectedType.loan_type_code_1;
+    if (!typeCode) {
+      console.warn("No loan_type_code_1 found for selected type", selectedType);
+      return;
+    }
+
+    setIsLoadingSectors(true);
+    try {
+      const sectors = await fetchLoanSectors(typeCode);
+      // Filter by allowed sectors
+      const filtered = sectors.filter((sector: any) =>
+        allowedLoanSectors.some(
+          (allowed) =>
+            allowed.toLowerCase().trim() ===
+            (sector.loan_sector || "").toLowerCase().trim()
+        )
       );
-      if (
-        sector &&
-        sector.loanSubSector &&
-        Array.isArray(sector.loanSubSector)
-      ) {
-        setLoanSubSectorOptions(sector.loanSubSector);
-      } else {
-        setLoanSubSectorOptions([]);
-      }
-      setSelectedSubSector("");
-      setSelectedSubSectorCategory("");
-      setApiTenure(0);
-      setApiInterestRate(0);
-    } else {
-      setLoanSubSectorOptions([]);
-      setSelectedSubSector("");
-      setSelectedSubSectorCategory("");
-      setApiTenure(0);
-      setApiInterestRate(0);
+      setLoanSectorOptions(filtered);
+    } catch (error) {
+      console.error("Failed to load sectors", error);
+    } finally {
+      setIsLoadingSectors(false);
     }
-  }, [selectedSector, loanSectorOptions]);
+  };
 
-  // Filter sub-sector categories when sub-sector is selected
+  const handleSectorChange = async (value: string) => {
+    setSelectedSector(value);
+    setSelectedSubSector("");
+    setSelectedSubSectorCategory("");
+    setLoanSubSectorOptions([]);
+    setSubSectorCategoryOptions([]);
+    setApiTenure(0);
+    setApiInterestRate(0);
+
+    if (!value) return;
+
+    setIsLoadingSubSectors(true);
+    try {
+      const subSectors = await fetchLoanSubSectors(value); // value is sector pk_id
+      setLoanSubSectorOptions(subSectors);
+    } catch (error) {
+      console.error("Failed to load sub‑sectors", error);
+    } finally {
+      setIsLoadingSubSectors(false);
+    }
+  };
+
+  const handleSubSectorChange = async (value: string) => {
+    setSelectedSubSector(value);
+    setSelectedSubSectorCategory("");
+    setSubSectorCategoryOptions([]);
+
+    const subSectorId = value.split("-")[0]; // pk_id
+    if (!subSectorId) return;
+
+    // Extract index to get the selected sub‑sector object
+    const index = parseInt(value.split("-")[1]);
+    const subSector = loanSubSectorOptions[index];
+    if (subSector) {
+      // Use correct field names from API
+      setApiTenure(parseFloat(subSector.sub_sector_tenure || "0"));
+      setApiInterestRate(parseFloat(subSector.sub_sector_interest_rate || "0"));
+    }
+
+    setIsLoadingCategories(true);
+    try {
+      const categories = await fetchLoanSubSectorCategories(subSectorId);
+      setSubSectorCategoryOptions(categories);
+    } catch (error) {
+      console.error("Failed to load categories", error);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
+
+  // ---------- Category selection effect (updates tenure/rate) ----------
   useEffect(() => {
-    if (selectedSubSector) {
-      const subSectorIndex = parseInt(selectedSubSector.split("-")[1]);
-      const subSector = loanSubSectorOptions[subSectorIndex];
-
-      if (
-        subSector &&
-        subSector.loanSubSectorCategory &&
-        Array.isArray(subSector.loanSubSectorCategory)
-      ) {
-        setSubSectorCategoryOptions(subSector.loanSubSectorCategory);
-      } else {
-        setSubSectorCategoryOptions([]);
-      }
-
-      // Extract interest rate and loan tenure from the selected sub-sector
-      if (subSector) {
-        const tenure = parseFloat(subSector.loan_tenure || "0");
-        const rate = parseFloat(subSector.interest_rate || "0");
-        setApiTenure(tenure);
-        setApiInterestRate(rate);
-      }
-
-      setSelectedSubSectorCategory("");
+    if (selectedSubSectorCategory) {
+      // Categories do not have tenure/rate; keep sub‑sector values.
+      // If you need to override, handle here.
     } else {
-      setSubSectorCategoryOptions([]);
-      setSelectedSubSectorCategory("");
-      // Reset to 0 when no sub-sector is selected
-      setApiTenure(0);
-      setApiInterestRate(0);
+      // Fallback to sub‑sector values when category is cleared
+      if (selectedSubSector) {
+        const subSectorIndex = parseInt(selectedSubSector.split("-")[1]);
+        const subSector = loanSubSectorOptions[subSectorIndex];
+        if (subSector) {
+          setApiTenure(parseFloat(subSector.sub_sector_tenure || "0"));
+          setApiInterestRate(parseFloat(subSector.sub_sector_interest_rate || "0"));
+        }
+      }
     }
-  }, [selectedSubSector, loanSubSectorOptions]);
+  }, [selectedSubSectorCategory, selectedSubSector, loanSubSectorOptions]);
 
   // Update selectedYears default when apiTenure changes
   useEffect(() => {
     if (apiTenure > 0) {
-      // Default to the maximum possible years based on apiTenure (which is in months)
       setSelectedYears(Math.max(1, Math.floor(apiTenure / 12)));
     } else {
       setSelectedYears("");
     }
   }, [apiTenure]);
 
+  // ---------- Navigation Handlers (unchanged) ----------
   const handlePersonalDetailsNext = (data: any) => {
     const updatedFormData = { ...formData, ...data };
     setFormData(updatedFormData);
 
-    // Save to sessionStorage - merge with existing data
     const existingData = sessionStorage.getItem("loanApplicationData");
     const existingParsed = existingData ? JSON.parse(existingData) : {};
     const mergedData = { ...existingParsed, ...data };
     sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-    // If hasCoBorrower is true, go to Co-Borrower Details (step 2)
-    // If hasCoBorrower is false, skip to Security Details (step 3)
     setCurrentStep(data.hasCoBorrower ? 2 : 3);
   };
 
   const handlePersonalDetailsBack = () => {
-    setCurrentStep(0); // Go back to Loan Details step
+    setCurrentStep(0);
   };
 
   const handleCoBorrowerDetailsNext = (data: any) => {
     const updatedFormData = { ...formData, ...data };
     setFormData(updatedFormData);
 
-    // Save to sessionStorage - merge with existing data
     const existingData = sessionStorage.getItem("loanApplicationData");
     const existingParsed = existingData ? JSON.parse(existingData) : {};
     const mergedData = { ...existingParsed, ...data };
     sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-    setCurrentStep(3); // Move to Security Details step
+    setCurrentStep(3);
   };
 
   const handleCoBorrowerDetailsBack = () => {
-    setCurrentStep(1); // Go back to Personal Details step
+    setCurrentStep(1);
   };
 
   const handleSecurityDetailsNext = (data: any) => {
     const updatedFormData = { ...formData, ...data };
     setFormData(updatedFormData);
 
-    // Save to sessionStorage - merge with existing data
     const existingData = sessionStorage.getItem("loanApplicationData");
     const existingParsed = existingData ? JSON.parse(existingData) : {};
     const mergedData = { ...existingParsed, ...data };
     sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-    setCurrentStep(4); // Move to Repayment Source step
+    setCurrentStep(4);
   };
 
   const handleSecurityDetailsBack = () => {
-    setCurrentStep(2); // Go back to Co-Borrower Details step
+    setCurrentStep(2);
   };
 
   const handleRepaymentSourceNext = (data: any) => {
     const updatedFormData = { ...formData, ...data };
     setFormData(updatedFormData);
 
-    // Save to sessionStorage - merge with existing data
     const existingData = sessionStorage.getItem("loanApplicationData");
     const existingParsed = existingData ? JSON.parse(existingData) : {};
     const mergedData = { ...existingParsed, ...data };
     sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-    setCurrentStep(5); // Move to Confirmation step
+    setCurrentStep(5);
   };
 
   const handleRepaymentSourceBack = () => {
-    setCurrentStep(3); // Go back to Security Details step
+    setCurrentStep(3);
   };
 
   const handleConfirmationNext = (data: any) => {
     setFormData({ ...formData, ...data });
-    // Handle final submission here (e.g., API call)
     alert("Application submitted successfully!");
   };
 
   const handleConfirmationBack = () => {
-    setCurrentStep(4); // Go back to Repayment Source step
+    setCurrentStep(4);
   };
 
+  // ---------- EMI Calculation ----------
   const calculateEMI = () => {
     const amount = parseFloat(totalLoanInput);
     const months = Number(selectedYears) * 12;
@@ -274,7 +322,6 @@ function LoanApplicationContent() {
     const r = apiInterestRate / 12 / 100; // Monthly interest rate
     const n = months;
 
-    // EMI Formula: P × r × (1 + r)^n / ((1 + r)^n - 1)
     const emi = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
 
     if (isNaN(emi) || !isFinite(emi)) {
@@ -284,6 +331,7 @@ function LoanApplicationContent() {
     return emi.toFixed(2);
   };
 
+  // ---------- Utilities ----------
   const isFormValid = () => {
     return (
       selectedSector !== "" &&
@@ -299,13 +347,39 @@ function LoanApplicationContent() {
   };
 
   const selectedSectorId = selectedSector || "";
-  // Prefer sector-specific copy; fall back to default when no sector match is found
   const loanInfo = loanInfoContent[selectedSectorId] || loanInfoContent.default;
 
-  // Maximum allowed years calculated from API's tenure (months)
   const maxAllowedYears = Math.max(0, Math.floor(apiTenure / 12));
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Helper functions to get display strings for document popup
+  const getLoanTypeString = (value: string): string => {
+    if (!value) return "";
+    const index = parseInt(value.split("-")[1]);
+    const option = loanTypeOptions[index];
+    return option?.loan_type || "";
+  };
+
+  const getSectorString = (id: string): string => {
+    if (!id) return "";
+    const option = loanSectorOptions.find((opt) => opt.pk_id === parseInt(id));
+    return option?.loan_sector || "";
+  };
+
+  const getSubSectorString = (value: string): string => {
+    if (!value) return "";
+    const index = parseInt(value.split("-")[1]);
+    const option = loanSubSectorOptions[index];
+    return option?.sub_sector || "";
+  };
+
+  const getCategoryString = (value: string): string => {
+    if (!value) return "";
+    const index = parseInt(value.split("-")[1]);
+    const option = subSectorCategoryOptions[index];
+    return option?.sub_cat_sector || "";
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-16 sm:pt-20 md:pt-24">
@@ -319,13 +393,12 @@ function LoanApplicationContent() {
               <div key={step} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
                   <div
-                    className={`w-full h-12 md:h-14 flex items-center justify-center rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 shadow-sm ${
-                      index === currentStep
-                        ? "bg-[#FF9800] text-white shadow-md scale-105"
-                        : index < currentStep
-                          ? "bg-gray-300 text-gray-700"
-                          : "bg-white text-gray-500 border border-gray-200"
-                    }`}
+                    className={`w-full h-12 md:h-14 flex items-center justify-center rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 shadow-sm ${index === currentStep
+                      ? "bg-[#FF9800] text-white shadow-md scale-105"
+                      : index < currentStep
+                        ? "bg-gray-300 text-gray-700"
+                        : "bg-white text-gray-500 border border-gray-200"
+                      }`}
                   >
                     {step}
                   </div>
@@ -361,23 +434,21 @@ function LoanApplicationContent() {
                       setShowStepsMenu(false);
                     }}
                     disabled={index > currentStep}
-                    className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                      index === currentStep
-                        ? "bg-[#FF9800] text-white"
-                        : index < currentStep
-                          ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          : "bg-white text-gray-400 cursor-not-allowed"
-                    }`}
+                    className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors first:rounded-t-lg last:rounded-b-lg ${index === currentStep
+                      ? "bg-[#FF9800] text-white"
+                      : index < currentStep
+                        ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        : "bg-white text-gray-400 cursor-not-allowed"
+                      }`}
                   >
                     <span className="flex items-center gap-2">
                       <span
-                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                          index === currentStep
-                            ? "bg-white text-[#FF9800]"
-                            : index < currentStep
-                              ? "bg-gray-300 text-gray-700"
-                              : "bg-gray-200 text-gray-400"
-                        }`}
+                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs ${index === currentStep
+                          ? "bg-white text-[#FF9800]"
+                          : index < currentStep
+                            ? "bg-gray-300 text-gray-700"
+                            : "bg-gray-200 text-gray-400"
+                          }`}
                       >
                         {index + 1}
                       </span>
@@ -447,9 +518,7 @@ function LoanApplicationContent() {
                     </Label>
                     <Select
                       value={selectedLoanType}
-                      onValueChange={(value) => {
-                        setSelectedLoanType(value);
-                      }}
+                      onValueChange={handleLoanTypeChange}
                     >
                       <SelectTrigger
                         id="vehicle-type"
@@ -488,9 +557,8 @@ function LoanApplicationContent() {
                     </Label>
                     <Select
                       value={selectedSector}
-                      onValueChange={(value) => {
-                        setSelectedSector(value);
-                      }}
+                      onValueChange={handleSectorChange}
+                      disabled={!selectedLoanType}
                     >
                       <SelectTrigger
                         id="loan-sector"
@@ -502,18 +570,24 @@ function LoanApplicationContent() {
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {loanSectorOptions.length > 0 ? (
-                          loanSectorOptions.map((option, index) => (
+                        {isLoadingSectors ? (
+                          <SelectItem value="loading" disabled>
+                            Loading...
+                          </SelectItem>
+                        ) : loanSectorOptions.length > 0 ? (
+                          loanSectorOptions.map((option) => (
                             <SelectItem
-                              key={option.loan_sector_id || index}
-                              value={String(option.loan_sector_id)}
+                              key={option.pk_id}
+                              value={String(option.pk_id)}
                             >
                               {option.loan_sector}
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="loading" disabled>
-                            Loading...
+                          <SelectItem value="no-data" disabled>
+                            {selectedLoanType
+                              ? "No sectors available"
+                              : "Select loan type first"}
                           </SelectItem>
                         )}
                       </SelectContent>
@@ -529,7 +603,8 @@ function LoanApplicationContent() {
                     </Label>
                     <Select
                       value={selectedSubSector}
-                      onValueChange={setSelectedSubSector}
+                      onValueChange={handleSubSectorChange}
+                      disabled={!selectedSector}
                     >
                       <SelectTrigger
                         id="loan-subsector"
@@ -541,19 +616,23 @@ function LoanApplicationContent() {
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {loanSubSectorOptions.length > 0 ? (
+                        {isLoadingSubSectors ? (
+                          <SelectItem value="loading" disabled>
+                            Loading...
+                          </SelectItem>
+                        ) : loanSubSectorOptions.length > 0 ? (
                           loanSubSectorOptions.map((option, index) => (
                             <SelectItem
                               key={`subsector-${index}`}
-                              value={`${option.sub_sector_id}-${index}`}
+                              value={`${option.pk_id}-${index}`}
                             >
                               {option.sub_sector}
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="loading" disabled>
+                          <SelectItem value="no-data" disabled>
                             {selectedSector
-                              ? "No sub-sectors available"
+                              ? "No sub‑sectors available"
                               : "Select sector first"}
                           </SelectItem>
                         )}
@@ -572,6 +651,7 @@ function LoanApplicationContent() {
                     <Select
                       value={selectedSubSectorCategory}
                       onValueChange={setSelectedSubSectorCategory}
+                      disabled={!selectedSubSector}
                     >
                       <SelectTrigger
                         id="sub-sector-category"
@@ -583,20 +663,24 @@ function LoanApplicationContent() {
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {subSectorCategoryOptions.length > 0 ? (
+                        {isLoadingCategories ? (
+                          <SelectItem value="loading" disabled>
+                            Loading...
+                          </SelectItem>
+                        ) : subSectorCategoryOptions.length > 0 ? (
                           subSectorCategoryOptions.map((option, index) => (
                             <SelectItem
                               key={`category-${index}`}
-                              value={`${option.sub_sector_cat_id}-${index}`}
+                              value={`${option.pk_id}-${index}`}
                             >
                               {option.sub_cat_sector}
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="loading" disabled>
+                          <SelectItem value="no-data" disabled>
                             {selectedSubSector
                               ? "No categories available"
-                              : "Select sub-sector first"}
+                              : "Select sub‑sector first"}
                           </SelectItem>
                         )}
                       </SelectContent>
@@ -675,11 +759,7 @@ function LoanApplicationContent() {
                       value={totalLoanInput}
                       onChange={(e) => {
                         const rawValue = e.target.value;
-
-                        // Remove commas
                         const withoutCommas = rawValue.replace(/,/g, "");
-
-                        // If empty → required error
                         if (withoutCommas === "") {
                           setErrors((prev) => ({
                             ...prev,
@@ -688,8 +768,6 @@ function LoanApplicationContent() {
                           setTotalLoanInput("");
                           return;
                         }
-
-                        // If contains anything other than digits
                         if (!/^\d+$/.test(withoutCommas)) {
                           setErrors((prev) => ({
                             ...prev,
@@ -697,28 +775,21 @@ function LoanApplicationContent() {
                               "Only whole numbers are allowed. No letters or decimals.",
                           }));
                         } else {
-                          // Clear error if valid
                           setErrors((prev) => {
                             const updated = { ...prev };
                             delete updated.totalLoan;
                             return updated;
                           });
                         }
-
-                        // Keep digits only
                         const digitsOnly = withoutCommas.replace(/\D/g, "");
-
-                        // NOTE: It stores 'digitsOnly' but calculates formatting in case needed elsewhere.
                         setTotalLoanInput(digitsOnly);
                       }}
                       className={`h-10 sm:h-12 border text-sm sm:text-base
-                        ${
-                          errors.totalLoan
-                            ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-                            : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                        ${errors.totalLoan
+                          ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+                          : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                         }`}
                     />
-
                     {errors.totalLoan && (
                       <p className="text-xs text-red-500 mt-1">
                         {errors.totalLoan}
@@ -786,7 +857,7 @@ function LoanApplicationContent() {
                   </div>
                 </div>
 
-                {/* EMI Display - Now shown whenever a valid loan amount and sub‑sector data exist */}
+                {/* EMI Display */}
                 {parseFloat(totalLoanInput) > 0 &&
                   apiInterestRate > 0 &&
                   selectedYears !== "" &&
@@ -839,36 +910,20 @@ function LoanApplicationContent() {
         open={showDocumentPopup}
         onOpenChange={setShowDocumentPopup}
         onProceed={() => {
-          // Get the actual display names instead of IDs
-          const selectedSectorObj = loanSectorOptions.find(
-            (s) => s.loan_sector_id === parseInt(selectedSector),
-          );
-          const selectedSubSectorIndex = selectedSubSector
-            ? parseInt(selectedSubSector.split("-")[1])
-            : -1;
-          const selectedSubSectorObj =
-            selectedSubSectorIndex >= 0
-              ? loanSubSectorOptions[selectedSubSectorIndex]
-              : null;
-          const selectedCategoryIndex = selectedSubSectorCategory
-            ? parseInt(selectedSubSectorCategory.split("-")[1])
-            : -1;
-          const selectedCategoryObj =
-            selectedCategoryIndex >= 0
-              ? subSectorCategoryOptions[selectedCategoryIndex]
-              : null;
-
-          const selectedLoanTypeObj = loanTypeOptions.find(
-            (t) => t.loan_type_id === parseInt(selectedLoanType),
-          );
+          const loanTypeString = getLoanTypeString(selectedLoanType);
+          const loanSectorString = getSectorString(selectedSector);
+          const loanSubSectorString = getSubSectorString(selectedSubSector);
+          const loanSubSectorCategoryString = getCategoryString(selectedSubSectorCategory);
 
           const loanDetails = {
-            loanType: selectedLoanTypeObj?.loan_type || selectedLoanType,
-            loanSector: selectedSectorObj?.loan_sector || selectedSector,
-            loanSubSector:
-              selectedSubSectorObj?.sub_sector || selectedSubSector,
-            loanSubSectorCategory:
-              selectedCategoryObj?.sub_cat_sector || selectedSubSectorCategory,
+            loanType: selectedLoanType,
+            loanTypeString,
+            loanSector: selectedSector,
+            loanSectorString,
+            loanSubSector: selectedSubSector,
+            loanSubSectorString,
+            loanSubSectorCategory: selectedSubSectorCategory,
+            loanSubSectorCategoryString,
             loanAmount: totalLoanInput,
             loanPurpose: purpose,
             maxApiTenureMonths: apiTenure,
@@ -880,14 +935,10 @@ function LoanApplicationContent() {
           const updatedFormData = { ...formData, ...loanDetails };
           setFormData(updatedFormData);
 
-          // Save to sessionStorage - merge with existing data
           const existingData = sessionStorage.getItem("loanApplicationData");
           const existingParsed = existingData ? JSON.parse(existingData) : {};
           const mergedData = { ...existingParsed, ...loanDetails };
-          sessionStorage.setItem(
-            "loanApplicationData",
-            JSON.stringify(mergedData),
-          );
+          sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
           setCurrentStep(1);
         }}

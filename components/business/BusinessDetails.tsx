@@ -1561,7 +1561,7 @@ const ComprehensiveOwnerDetails = ({
                         <div className="space-y-2">
                             <Label>Identification Type *</Label>
                             <Select
-                                value={data.identificationType}
+                                value={data.identificationType ? String(data.identificationType) : ""}
                                 onValueChange={(v) => updateField("identificationType", v)}
                             >
                                 <SelectTrigger
@@ -1666,7 +1666,7 @@ const ComprehensiveOwnerDetails = ({
                         <div className="space-y-2">
                             <Label>Nationality *</Label>
                             <Select
-                                value={data.nationality}
+                                value={data.nationality ? String(data.nationality) : ""}
                                 onValueChange={(v) => updateField("nationality", v)}
                             >
                                 <SelectTrigger
@@ -1772,7 +1772,7 @@ const ComprehensiveOwnerDetails = ({
                         <div className="space-y-2">
                             <Label>Tax Identifier Type</Label>
                             <Select
-                                value={data.taxIdentifierType}
+                                value={data.taxIdentifierType ? String(data.taxIdentifierType) : ""}
                                 onValueChange={(v) => updateField("taxIdentifierType", v)}
                             >
                                 <SelectTrigger
@@ -1867,7 +1867,7 @@ const ComprehensiveOwnerDetails = ({
                         <div className="space-y-2">
                             <Label>Marital Status *</Label>
                             <Select
-                                value={data.maritalStatus}
+                                value={data.maritalStatus ? String(data.maritalStatus) : ""}
                                 onValueChange={(v) => updateField("maritalStatus", v)}
                             >
                                 <SelectTrigger
@@ -1996,7 +1996,7 @@ const ComprehensiveOwnerDetails = ({
                             <div className="space-y-2">
                                 <Label>Name of Bank *</Label>
                                 <Select
-                                    value={data.bankName}
+                                    value={data.bankName ? String(data.bankName) : ""}
                                     onValueChange={(v) => updateField("bankName", v)}
                                 >
                                     <SelectTrigger
@@ -2100,7 +2100,7 @@ const ComprehensiveOwnerDetails = ({
                             <div className="space-y-2">
                                 <Label>Country *</Label>
                                 <Select
-                                    value={data.permCountry}
+                                    value={data.permCountry ? String(data.permCountry) : ""}
                                     onValueChange={(v) => updateField("permCountry", v)}
                                 >
                                     <SelectTrigger
@@ -2133,7 +2133,7 @@ const ComprehensiveOwnerDetails = ({
                                     <div className="space-y-2">
                                         <Label>Dzongkhag *</Label>
                                         <Select
-                                            value={data.permDzongkhag}
+                                            value={data.permDzongkhag ? String(data.permDzongkhag) : ""}
                                             onValueChange={(v) => updateField("permDzongkhag", v)}
                                         >
                                             <SelectTrigger
@@ -2175,7 +2175,7 @@ const ComprehensiveOwnerDetails = ({
                                                             o.curr_gewog_pk_code,
                                                         ) === String(data.permGewog),
                                                 )
-                                                    ? data.permGewog
+                                                    ? (data.permGewog ? String(data.permGewog) : "")
                                                     : ""
                                             }
                                             onValueChange={(v) => updateField("permGewog", v)}
@@ -2358,7 +2358,7 @@ const ComprehensiveOwnerDetails = ({
                             <div className="space-y-2">
                                 <Label>Country *</Label>
                                 <Select
-                                    value={data.currCountry}
+                                    value={data.currCountry ? String(data.currCountry) : ""}
                                     onValueChange={(v) => updateField("currCountry", v)}
                                 >
                                     <SelectTrigger
@@ -2391,7 +2391,7 @@ const ComprehensiveOwnerDetails = ({
                                     <div className="space-y-2">
                                         <Label>Dzongkhag *</Label>
                                         <Select
-                                            value={data.currDzongkhag}
+                                            value={data.currDzongkhag ? String(data.currDzongkhag) : ""}
                                             onValueChange={(v) => updateField("currDzongkhag", v)}
                                         >
                                             <SelectTrigger
@@ -2433,7 +2433,7 @@ const ComprehensiveOwnerDetails = ({
                                                             o.curr_gewog_pk_code,
                                                         ) === String(data.currGewog),
                                                 )
-                                                    ? data.currGewog
+                                                    ? (data.currGewog ? String(data.currGewog) : "")
                                                     : ""
                                             }
                                             onValueChange={(v) => updateField("currGewog", v)}
@@ -2692,7 +2692,7 @@ const ComprehensiveOwnerDetails = ({
                                                 PEP Category<span className="text-destructive">*</span>
                                             </Label>
                                             <Select
-                                                value={data.pepCategory}
+                                                value={data.pepCategory ? String(data.pepCategory) : ""}
                                                 onValueChange={(value) => {
                                                     onUpdate({
                                                         ...data,
@@ -2746,7 +2746,7 @@ const ComprehensiveOwnerDetails = ({
                                                 <span className="text-destructive">*</span>
                                             </Label>
                                             <Select
-                                                value={data.pepSubCategory}
+                                                value={data.pepSubCategory ? String(data.pepSubCategory) : ""}
                                                 onValueChange={(value) => {
                                                     onUpdate({ ...data, pepSubCategory: value });
                                                     if (onClearError)
@@ -2923,7 +2923,7 @@ const ComprehensiveOwnerDetails = ({
                                                         <span className="text-destructive">*</span>
                                                     </Label>
                                                     <Select
-                                                        value={pep.category || ""}
+                                                        value={pep.category ? String(pep.category) : ""}
                                                         onValueChange={(value) => {
                                                             handleRelatedPepCategoryChange(index, value);
                                                             if (onClearError)
@@ -2987,7 +2987,7 @@ const ComprehensiveOwnerDetails = ({
                                                         <span className="text-destructive">*</span>
                                                     </Label>
                                                     <Select
-                                                        value={pep.subCategory || ""}
+                                                        value={pep.subCategory ? String(pep.subCategory) : ""}
                                                         onValueChange={(v) => {
                                                             updateRelatedPep(index, "subCategory", v);
                                                             if (onClearError)
@@ -3192,7 +3192,7 @@ const ComprehensiveOwnerDetails = ({
                                                 Occupation <span className="text-red-500">*</span>
                                             </Label>
                                             <Select
-                                                value={data.occupation}
+                                                value={data.occupation ? String(data.occupation) : ""}
                                                 onValueChange={(v) => updateField("occupation", v)}
                                             >
                                                 <SelectTrigger
@@ -3285,7 +3285,7 @@ const ComprehensiveOwnerDetails = ({
                                                 Grade <span className="text-red-500">*</span>
                                             </Label>
                                             <Select
-                                                value={data.grade}
+                                                value={data.grade ? String(data.grade) : ""}
                                                 onValueChange={(v) => updateField("grade", v)}
                                             >
                                                 <SelectTrigger
@@ -3475,7 +3475,7 @@ const ComprehensiveOwnerDetails = ({
                                 <div className="space-y-2">
                                     <Label>Spouse Identification Type *</Label>
                                     <Select
-                                        value={data.spouseIdentificationType}
+                                        value={data.spouseIdentificationType ? String(data.spouseIdentificationType) : ""}
                                         onValueChange={(v) =>
                                             handleSpouseChange("spouseIdentificationType", v)
                                         }
@@ -3593,7 +3593,7 @@ const ComprehensiveOwnerDetails = ({
                                 <div className="space-y-2">
                                     <Label>Spouse Nationality *</Label>
                                     <Select
-                                        value={data.spouseNationality}
+                                        value={data.spouseNationality ? String(data.spouseNationality) : ""}
                                         onValueChange={(v) =>
                                             handleSpouseChange("spouseNationality", v)
                                         }
@@ -3696,7 +3696,7 @@ const ComprehensiveOwnerDetails = ({
                                 <div className="space-y-2">
                                     <Label>Spouse Tax Identifier Type</Label>
                                     <Select
-                                        value={data.spouseTaxIdentifierType}
+                                        value={data.spouseTaxIdentifierType ? String(data.spouseTaxIdentifierType) : ""}
                                         onValueChange={(v) =>
                                             handleSpouseChange("spouseTaxIdentifierType", v)
                                         }
@@ -3850,7 +3850,7 @@ const ComprehensiveOwnerDetails = ({
                                     <div className="space-y-2">
                                         <Label>Spouse Country *</Label>
                                         <Select
-                                            value={data.spousePermCountry}
+                                            value={data.spousePermCountry ? String(data.spousePermCountry) : ""}
                                             onValueChange={(v) =>
                                                 handleSpouseChange("spousePermCountry", v)
                                             }
@@ -3887,7 +3887,7 @@ const ComprehensiveOwnerDetails = ({
                                             <div className="space-y-2">
                                                 <Label>Spouse Dzongkhag *</Label>
                                                 <Select
-                                                    value={data.spousePermDzongkhag}
+                                                    value={data.spousePermDzongkhag ? String(data.spousePermDzongkhag) : ""}
                                                     onValueChange={(v) =>
                                                         handleSpouseChange("spousePermDzongkhag", v)
                                                     }
@@ -3933,7 +3933,7 @@ const ComprehensiveOwnerDetails = ({
                                                                     o.curr_gewog_pk_code,
                                                                 ) === String(data.spousePermGewog),
                                                         )
-                                                            ? data.spousePermGewog
+                                                            ? (data.spousePermGewog ? String(data.spousePermGewog) : "")
                                                             : ""
                                                     }
                                                     onValueChange={(v) =>
@@ -4442,6 +4442,43 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
 
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    // ========== LOAD SESSION DATA ON MOUNT ==========
+    useEffect(() => {
+        const stored = sessionStorage.getItem("businessLoanApplicationData");
+        if (stored) {
+            try {
+                const parsed = JSON.parse(stored);
+                console.log("Loaded session data:", parsed);
+
+                // Update businessData from parsed.businessDetail (excluding businessAddress)
+                if (parsed.businessDetail) {
+                    const { businessAddress: addr, ...restBusiness } = parsed.businessDetail;
+                    setBusinessData(prev => ({ ...prev, ...restBusiness }));
+                    if (addr) {
+                        setBusinessAddress(prev => ({ ...prev, ...addr }));
+                    }
+                }
+                // Update attachments
+                if (parsed.attachments) {
+                    setAttachments(parsed.attachments);
+                }
+                // Update ownership sections
+                if (parsed.ownerData) setOwnerData(parsed.ownerData);
+                if (parsed.partners) setPartners(parsed.partners);
+                if (parsed.ceo) setCeo(parsed.ceo);
+                if (parsed.boardMembers) setBoardMembers(parsed.boardMembers);
+                if (parsed.shareholders) setShareholders(parsed.shareholders);
+                if (parsed.trustees) setTrustees(parsed.trustees);
+                if (parsed.president) setPresident(parsed.president);
+                if (parsed.headOfAgency) setHeadOfAgency(parsed.headOfAgency);
+                if (parsed.headOfNGO) setHeadOfNGO(parsed.headOfNGO);
+            } catch (e) {
+                console.error("Failed to load session data", e);
+            }
+        }
+    }, []); // Run once on mount
+    // ================================================
+
     const clearError = (fieldPath: string) => {
         setErrors((prev) => {
             const newErrors = { ...prev };
@@ -4565,6 +4602,11 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
         }
     }, [businessAddress.dzongkhag, isBusinessBhutan]);
 
+    // --- Direct update for conversion effects (no resets) ---
+    const updateBusinessAddressField = (field: string, value: any) => {
+        setBusinessAddress(prev => ({ ...prev, [field]: value }));
+    };
+
     // Translate Business Address Gewog label to ID dynamically
     useEffect(() => {
         if (gewogOptions.length > 0 && businessAddress.gewog) {
@@ -4585,7 +4627,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                     ["gewog_name", "gewog", "name", "label"],
                 );
                 if (matchedId && matchedId !== businessAddress.gewog) {
-                    handleBusinessAddressChange("gewog", matchedId);
+                    updateBusinessAddressField("gewog", matchedId);
                 }
             }
         }
@@ -4648,6 +4690,42 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
         }
     }, [taxIdentifierTypeOptions, businessData.taxIdentifierType]);
 
+    // ========== Convert businessAddress.country label to ID ==========
+    useEffect(() => {
+        if (countryOptions.length > 0 && businessAddress.country) {
+            const isValid = countryOptions.some(
+                (opt) =>
+                    String(opt.country_pk_code || opt.id) === String(businessAddress.country)
+            );
+            if (!isValid) {
+                const pkCode = findPkCodeByLabel(businessAddress.country, countryOptions, [
+                    "country_name", "country"
+                ]);
+                if (pkCode && pkCode !== businessAddress.country) {
+                    updateBusinessAddressField("country", pkCode);
+                }
+            }
+        }
+    }, [countryOptions, businessAddress.country]);
+
+    // ========== Convert businessAddress.dzongkhag label to ID ==========
+    useEffect(() => {
+        if (isBusinessBhutan && dzongkhagOptions.length > 0 && businessAddress.dzongkhag) {
+            const isValid = dzongkhagOptions.some(
+                (opt) =>
+                    String(opt.dzongkhag_pk_code || opt.id) === String(businessAddress.dzongkhag)
+            );
+            if (!isValid) {
+                const pkCode = findPkCodeByLabel(businessAddress.dzongkhag, dzongkhagOptions, [
+                    "dzongkhag_name", "dzongkhag"
+                ]);
+                if (pkCode && pkCode !== businessAddress.dzongkhag) {
+                    updateBusinessAddressField("dzongkhag", pkCode);
+                }
+            }
+        }
+    }, [isBusinessBhutan, dzongkhagOptions, businessAddress.dzongkhag]);
+
     const handleBusinessDataChange = (field: string, value: any) => {
         setBusinessData((prev) => ({ ...prev, [field]: value }));
         const fieldPath = `business.${field}`;
@@ -4662,6 +4740,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
     const handleBusinessAddressChange = (field: string, value: any) => {
         setBusinessAddress((prev) => {
             const newState = { ...prev, [field]: value };
+            // Reset dependent fields only when the user changes country or dzongkhag
             if (field === "country") {
                 newState.dzongkhag = "";
                 newState.gewog = "";
@@ -5637,6 +5716,13 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                 dzongkhagOptions, ["dzongkhag_name", "dzongkhag"],
             );
         }
+        if (result.businessDetail?.businessAddress?.gewog) {
+            result.businessDetail.businessAddress.gewog = findLabelById(
+                result.businessDetail.businessAddress.gewog,
+                gewogOptions,
+                ["gewog_name", "gewog"],
+            );
+        }
 
         // Convert Industry Classification back to text before storage
         if (result.businessDetail?.industryClassification && industryOptions.length > 0) {
@@ -5916,7 +6002,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 Industry Classification <span className="text-red-500">*</span>
                             </Label>
                             <Select
-                                value={businessData.industryClassification}
+                                value={businessData.industryClassification ? String(businessData.industryClassification) : ""}
                                 onValueChange={(v) => handleBusinessDataChange("industryClassification", v)}
                             >
                                 <SelectTrigger className={getFieldStyle(!!errors["business.industryClassification"])}>
@@ -5981,7 +6067,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 Identification Type <span className="text-red-500">*</span>
                             </Label>
                             <Select
-                                value={businessData.identificationType}
+                                value={businessData.identificationType ? String(businessData.identificationType) : ""}
                                 onValueChange={(v) =>
                                     handleBusinessDataChange("identificationType", v)
                                 }
@@ -6150,7 +6236,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 Tax Identifier Type <span className="text-red-500">*</span>
                             </Label>
                             <Select
-                                value={businessData.taxIdentifierType}
+                                value={businessData.taxIdentifierType ? String(businessData.taxIdentifierType) : ""}
                                 onValueChange={(v) =>
                                     handleBusinessDataChange("taxIdentifierType", v)
                                 }
@@ -6223,7 +6309,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 Name of Bank <span className="text-red-500">*</span>
                             </Label>
                             <Select
-                                value={businessData.nameOfBank}
+                                value={businessData.nameOfBank ? String(businessData.nameOfBank) : ""}
                                 onValueChange={(v) => handleBusinessDataChange("nameOfBank", v)}
                             >
                                 <SelectTrigger
@@ -6323,7 +6409,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 Country <span className="text-red-500">*</span>
                             </Label>
                             <Select
-                                value={businessAddress.country}
+                                value={businessAddress.country ? String(businessAddress.country) : ""}
                                 onValueChange={(v) => handleBusinessAddressChange("country", v)}
                             >
                                 <SelectTrigger
@@ -6358,7 +6444,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                             </Label>
                             {isBusinessBhutan ? (
                                 <Select
-                                    value={businessAddress.dzongkhag}
+                                    value={businessAddress.dzongkhag ? String(businessAddress.dzongkhag) : ""}
                                     onValueChange={(v) =>
                                         handleBusinessAddressChange("dzongkhag", v)
                                     }
@@ -6409,7 +6495,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                             </Label>
                             {isBusinessBhutan ? (
                                 <Select
-                                    value={businessAddress.gewog}
+                                    value={businessAddress.gewog ? String(businessAddress.gewog) : ""}
                                     onValueChange={(v) => handleBusinessAddressChange("gewog", v)}
                                     disabled={!businessAddress.dzongkhag}
                                 >

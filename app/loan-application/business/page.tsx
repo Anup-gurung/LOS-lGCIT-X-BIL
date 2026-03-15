@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Header } from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -107,6 +107,100 @@ function BusinessLoanApplicationContent() {
 
   // User input tenure values based on api limit
   const [selectedYears, setSelectedYears] = useState<number | "">("");
+
+  // ---------- Session data for pre‑filling ----------
+  const [sessionData, setSessionData] = useState<any>(null);
+  const hasSetYearsRef = useRef(false);
+
+  // ---------- Load session data on mount ----------
+  useEffect(() => {
+    const saved = sessionStorage.getItem("businessLoanApplicationData");
+    if (saved) {
+      try {
+        setSessionData(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse session data", e);
+      }
+    }
+  }, []);
+
+  // ---------- Pre‑fill loan type from session once options are loaded ----------
+  useEffect(() => {
+    if (!sessionData) return;
+    if (selectedLoanType) return; // already set
+    if (loanTypeOptions.length === 0) return;
+    const loanTypeString = sessionData.loanTypeString;
+    if (!loanTypeString) return;
+    const index = loanTypeOptions.findIndex(opt => opt.loan_type === loanTypeString);
+    if (index !== -1) {
+      setSelectedLoanType(`${loanTypeOptions[index].pk_id}-${index}`);
+    }
+  }, [sessionData, loanTypeOptions, selectedLoanType]);
+
+  // ---------- Pre‑fill sector from session once sectors are loaded ----------
+  useEffect(() => {
+    if (!sessionData) return;
+    if (!selectedLoanType) return; // need loan type first
+    if (selectedSector) return;
+    if (loanSectorOptions.length === 0) return;
+    const sectorString = sessionData.loanSectorString;
+    if (!sectorString) return;
+    const option = loanSectorOptions.find(opt => opt.loan_sector === sectorString);
+    if (option) {
+      setSelectedSector(String(option.pk_id));
+    }
+  }, [sessionData, selectedLoanType, selectedSector, loanSectorOptions]);
+
+  // ---------- Pre‑fill sub‑sector from session once sub‑sectors are loaded ----------
+  useEffect(() => {
+    if (!sessionData) return;
+    if (!selectedSector) return;
+    if (selectedSubSector) return;
+    if (loanSubSectorOptions.length === 0) return;
+    const subSectorString = sessionData.loanSubSectorString;
+    if (!subSectorString) return;
+    const index = loanSubSectorOptions.findIndex(opt => opt.sub_sector === subSectorString);
+    if (index !== -1) {
+      setSelectedSubSector(`${loanSubSectorOptions[index].pk_id}-${index}`);
+    }
+  }, [sessionData, selectedSector, selectedSubSector, loanSubSectorOptions]);
+
+  // ---------- Pre‑fill category from session once categories are loaded ----------
+  useEffect(() => {
+    if (!sessionData) return;
+    if (!selectedSubSector) return;
+    if (selectedSubSectorCategory) return;
+    if (subSectorCategoryOptions.length === 0) return;
+    const categoryString = sessionData.loanSubSectorCategoryString;
+    if (!categoryString) return;
+    const index = subSectorCategoryOptions.findIndex(opt => opt.sub_cat_sector === categoryString);
+    if (index !== -1) {
+      setSelectedSubSectorCategory(`${subSectorCategoryOptions[index].pk_id}-${index}`);
+    }
+  }, [sessionData, selectedSubSector, selectedSubSectorCategory, subSectorCategoryOptions]);
+
+  // ---------- Pre‑fill loan amount and purpose ----------
+  useEffect(() => {
+    if (!sessionData) return;
+    if (sessionData.loanAmount) {
+      setTotalLoanInput(sessionData.loanAmount);
+    }
+    if (sessionData.loanPurpose) {
+      setLoanPurpose(sessionData.loanPurpose);
+    }
+  }, [sessionData]);
+
+  // ---------- Pre‑fill selected years after apiTenure is available ----------
+  useEffect(() => {
+    if (!sessionData) return;
+    if (hasSetYearsRef.current) return;
+    if (apiTenure === 0) return; // not ready
+    const years = sessionData.selectedYears;
+    if (years && years > 0 && years <= Math.floor(apiTenure / 12)) {
+      setSelectedYears(years);
+      hasSetYearsRef.current = true;
+    }
+  }, [sessionData, apiTenure]);
 
   // ---------- Initial load: fetch loan types ----------
   useEffect(() => {
@@ -792,7 +886,7 @@ function BusinessLoanApplicationContent() {
           )}
       </div>
 
-      {/* Document Popup (unchanged) */}
+      {/* Document Popup – Now only string values are stored */}
       <DocumentPopupBusiness
         open={showDocumentPopup}
         onOpenChange={setShowDocumentPopup}
@@ -804,14 +898,12 @@ function BusinessLoanApplicationContent() {
             selectedSubSectorCategory,
           );
 
+          // Store only the human‑readable values (strings) and numbers.
+          // ID fields (selectedLoanType, selectedSector, etc.) are NOT saved.
           const loanDetails = {
-            loanType: selectedLoanType,
             loanTypeString,
-            loanSector: selectedSector,
             loanSectorString,
-            loanSubSector: selectedSubSector,
             loanSubSectorString,
-            loanSubSectorCategory: selectedSubSectorCategory,
             loanSubSectorCategoryString,
             loanAmount: totalLoanInput,
             loanPurpose,

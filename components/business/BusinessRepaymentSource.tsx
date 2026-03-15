@@ -164,7 +164,7 @@ const findPkCodeByLabel = (
           option.pk_gewog_id ||
           option.pep_category_pk_code ||
           option.pep_sub_category_pk_code ||
-          option.tax_identifier_type_pk_code || // <-- added for tax identifier
+          option.tax_identifier_type_pk_code ||
           option.pk_code ||
           option.id ||
           option.code ||
@@ -517,7 +517,7 @@ export function BusinessRepaymentSourceForm({
   const [banksOptions, setBankOptions] = useState<any[]>([]);
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
-  const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]); // <-- new
+  const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
   const [bhutanNationalityCode, setBhutanNationalityCode] = useState<
     string | null
   >(null);
@@ -2619,6 +2619,36 @@ export function BusinessRepaymentSourceForm({
     }, 100);
   };
 
+  // Helper to get label from code using options
+  const getLabel = (
+    code: string,
+    options: any[],
+    labelField: string,
+  ): string => {
+    if (!code || !options) return "";
+    const option = options.find(
+      (opt) =>
+        String(
+          opt.bank_pk_code ||
+          opt.country_pk_code ||
+          opt.nationality_pk_code ||
+          opt.identity_type_pk_code ||
+          opt.marital_status_pk_code ||
+          opt.occ_pk_code ||
+          opt.lgal_constitution_pk_code ||
+          opt.dzongkhag_pk_code ||
+          opt.gewog_pk_code ||
+          opt.pep_category_pk_code ||
+          opt.pep_sub_category_pk_code ||
+          opt.id,
+        ) === String(code),
+    );
+    if (option) {
+      return option[labelField] || option.name || "";
+    }
+    return "";
+  };
+
   const handleNext = () => {
     let isValid = true;
 
@@ -2658,36 +2688,7 @@ export function BusinessRepaymentSourceForm({
       return;
     }
 
-    // --- Prepare data for session storage, adding string labels for code fields ---
-    const getLabel = (
-      code: string,
-      options: any[],
-      labelField: string,
-    ): string => {
-      if (!code || !options) return "";
-      const option = options.find(
-        (opt) =>
-          String(
-            opt.bank_pk_code ||
-            opt.country_pk_code ||
-            opt.nationality_pk_code ||
-            opt.identity_type_pk_code ||
-            opt.marital_status_pk_code ||
-            opt.occ_pk_code ||
-            opt.lgal_constitution_pk_code ||
-            opt.dzongkhag_pk_code ||
-            opt.gewog_pk_code ||
-            opt.pep_category_pk_code ||
-            opt.pep_sub_category_pk_code ||
-            opt.id,
-          ) === String(code),
-      );
-      if (option) {
-        return option[labelField] || option.name || "";
-      }
-      return "";
-    };
-
+    // --- Prepare data for session storage: replace codes with labels ---
     const repaymentSourceData = {
       businessIncome: businessIncomeData, // already contains fileId and fileName
       isGuarantorApplicable,
@@ -2706,259 +2707,123 @@ export function BusinessRepaymentSourceForm({
           ...cleanGuarantor
         } = g;
 
-        // Map each code field to its string label
-        const idTypeLabel = getLabel(
-          cleanGuarantor.idType,
-          identificationTypeOptions,
-          "identity_type",
-        );
-        const nationalityLabel = getLabel(
-          cleanGuarantor.nationality,
-          nationalityOptions,
-          "nationality",
-        );
-        const maritalStatusLabel = getLabel(
-          cleanGuarantor.maritalStatus,
-          maritalStatusOptions,
-          "marital_status",
-        );
-        const bankNameLabel = getLabel(
-          cleanGuarantor.bankName,
-          banksOptions,
-          "bank_name",
-        );
-        const permCountryLabel = getLabel(
-          cleanGuarantor.permCountry,
-          countryOptions,
-          "country",
-        );
-        const permDzongkhagLabel = getLabel(
-          cleanGuarantor.permDzongkhag,
-          dzongkhagOptions,
-          "dzongkhag",
-        );
-        let permGewogLabel = "";
-        if (
-          cleanGuarantor.permCountry &&
-          isBhutan(cleanGuarantor.permCountry)
-        ) {
-          permGewogLabel = getLabel(
-            cleanGuarantor.permGewog,
-            permGewogOptions,
-            "gewog",
-          );
-        } else {
-          permGewogLabel = cleanGuarantor.permGewog || "";
+        // Replace codes with labels in the original fields
+        if (cleanGuarantor.idType) {
+          cleanGuarantor.idType = getLabel(cleanGuarantor.idType, identificationTypeOptions, "identity_type");
         }
-        const currCountryLabel = getLabel(
-          cleanGuarantor.currCountry,
-          countryOptions,
-          "country",
-        );
-        const currDzongkhagLabel = getLabel(
-          cleanGuarantor.currDzongkhag,
-          dzongkhagOptions,
-          "dzongkhag",
-        );
-        let currGewogLabel = "";
-        if (
-          cleanGuarantor.currCountry &&
-          isBhutan(cleanGuarantor.currCountry)
-        ) {
-          currGewogLabel = getLabel(
-            cleanGuarantor.currGewog,
-            currGewogOptions,
-            "gewog",
-          );
-        } else {
-          currGewogLabel = cleanGuarantor.currGewog || "";
+        if (cleanGuarantor.nationality) {
+          cleanGuarantor.nationality = getLabel(cleanGuarantor.nationality, nationalityOptions, "nationality");
+        }
+        if (cleanGuarantor.maritalStatus) {
+          cleanGuarantor.maritalStatus = getLabel(cleanGuarantor.maritalStatus, maritalStatusOptions, "marital_status");
+        }
+        if (cleanGuarantor.bankName) {
+          cleanGuarantor.bankName = getLabel(cleanGuarantor.bankName, banksOptions, "bank_name");
+        }
+        if (cleanGuarantor.permCountry) {
+          cleanGuarantor.permCountry = getLabel(cleanGuarantor.permCountry, countryOptions, "country");
+        }
+        if (cleanGuarantor.permDzongkhag) {
+          cleanGuarantor.permDzongkhag = getLabel(cleanGuarantor.permDzongkhag, dzongkhagOptions, "dzongkhag");
+        }
+        if (cleanGuarantor.permGewog) {
+          cleanGuarantor.permGewog = getLabel(cleanGuarantor.permGewog, permGewogOptions, "gewog");
+        }
+        if (cleanGuarantor.currCountry) {
+          cleanGuarantor.currCountry = getLabel(cleanGuarantor.currCountry, countryOptions, "country");
+        }
+        if (cleanGuarantor.currDzongkhag) {
+          cleanGuarantor.currDzongkhag = getLabel(cleanGuarantor.currDzongkhag, dzongkhagOptions, "dzongkhag");
+        }
+        if (cleanGuarantor.currGewog) {
+          cleanGuarantor.currGewog = getLabel(cleanGuarantor.currGewog, currGewogOptions, "gewog");
         }
 
-        // Spouse labels
-        const spouseIdTypeLabel = getLabel(
-          cleanGuarantor.spouseIdType,
-          identificationTypeOptions,
-          "identity_type",
-        );
-        const spouseNationalityLabel = getLabel(
-          cleanGuarantor.spouseNationality,
-          nationalityOptions,
-          "nationality",
-        );
-        const spousePermCountryLabel = getLabel(
-          cleanGuarantor.spousePermCountry,
-          countryOptions,
-          "country",
-        );
-        const spousePermDzongkhagLabel = getLabel(
-          cleanGuarantor.spousePermDzongkhag,
-          dzongkhagOptions,
-          "dzongkhag",
-        );
-        let spousePermGewogLabel = "";
-        if (
-          cleanGuarantor.spousePermCountry &&
-          isBhutan(cleanGuarantor.spousePermCountry)
-        ) {
-          spousePermGewogLabel = getLabel(
-            cleanGuarantor.spousePermGewog,
-            spousePermGewogOptions,
-            "gewog",
-          );
-        } else {
-          spousePermGewogLabel = cleanGuarantor.spousePermGewog || "";
+        // Spouse fields
+        if (cleanGuarantor.spouseIdType) {
+          cleanGuarantor.spouseIdType = getLabel(cleanGuarantor.spouseIdType, identificationTypeOptions, "identity_type");
+        }
+        if (cleanGuarantor.spouseNationality) {
+          cleanGuarantor.spouseNationality = getLabel(cleanGuarantor.spouseNationality, nationalityOptions, "nationality");
+        }
+        if (cleanGuarantor.spousePermCountry) {
+          cleanGuarantor.spousePermCountry = getLabel(cleanGuarantor.spousePermCountry, countryOptions, "country");
+        }
+        if (cleanGuarantor.spousePermDzongkhag) {
+          cleanGuarantor.spousePermDzongkhag = getLabel(cleanGuarantor.spousePermDzongkhag, dzongkhagOptions, "dzongkhag");
+        }
+        if (cleanGuarantor.spousePermGewog) {
+          cleanGuarantor.spousePermGewog = getLabel(cleanGuarantor.spousePermGewog, spousePermGewogOptions, "gewog");
         }
 
-        const pepCategoryLabel = getLabel(
-          cleanGuarantor.pepCategory,
-          pepCategoryOptions,
-          "pep_category",
-        );
-        const pepSubCategoryLabel = getLabel(
-          cleanGuarantor.pepSubCategory,
-          pepSubCategoryOptions,
-          "pep_sub_category",
-        );
-        const occupationLabel = getLabel(
-          cleanGuarantor.occupation,
-          occupationOptions,
-          "occ_name",
-        );
-        const organizationNameLabel = getLabel(
-          cleanGuarantor.organizationName,
-          organizationOptions,
-          "lgal_constitution",
-        );
-        const taxIdentifierTypeLabel = getLabel(
-          cleanGuarantor.taxIdentifierType,
-          taxIdentifierTypeOptions,
-          "tax_identifier_type",
-        );
-        const spouseTaxIdentifierTypeLabel = getLabel(
-          cleanGuarantor.spouseTaxIdentifierType,
-          taxIdentifierTypeOptions,
-          "tax_identifier_type",
-        );
+        // PEP fields
+        if (cleanGuarantor.pepCategory) {
+          cleanGuarantor.pepCategory = getLabel(cleanGuarantor.pepCategory, pepCategoryOptions, "pep_category");
+        }
+        if (cleanGuarantor.pepSubCategory) {
+          cleanGuarantor.pepSubCategory = getLabel(cleanGuarantor.pepSubCategory, pepSubCategoryOptions, "pep_sub_category");
+        }
+        if (cleanGuarantor.occupation) {
+          cleanGuarantor.occupation = getLabel(cleanGuarantor.occupation, occupationOptions, "occ_name");
+        }
+        if (cleanGuarantor.organizationName) {
+          cleanGuarantor.organizationName = getLabel(cleanGuarantor.organizationName, organizationOptions, "lgal_constitution");
+        }
+        if (cleanGuarantor.taxIdentifierType) {
+          cleanGuarantor.taxIdentifierType = getLabel(cleanGuarantor.taxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type");
+        }
+        if (cleanGuarantor.spouseTaxIdentifierType) {
+          cleanGuarantor.spouseTaxIdentifierType = getLabel(cleanGuarantor.spouseTaxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type");
+        }
 
-        // For related PEPs
-        const relatedPepsWithLabels = (cleanGuarantor.relatedPeps || []).map(
-          (pep: any, idx: number) => {
-            const categoryLabel = getLabel(
-              pep.category,
-              pepCategoryOptions,
-              "pep_category",
-            );
-            const subCategoryLabel = getLabel(
-              pep.subCategory,
-              relatedPepOptionsMap?.[idx] || [],
-              "pep_sub_category",
-            );
-
-            const identificationTypeLabel = getLabel(
-              pep.identificationType,
-              identificationTypeOptions,
-              "identity_type",
-            );
-            const nationalityLabel = getLabel(
-              pep.nationality,
-              nationalityOptions,
-              "nationality",
-            );
-            const maritalStatusLabel = getLabel(
-              pep.maritalStatus,
-              maritalStatusOptions,
-              "marital_status",
-            );
-            const taxIdentifierTypeLabel = getLabel(
-              pep.taxIdentifierType,
-              taxIdentifierTypeOptions,
-              "tax_identifier_type",
-            );
-
-            const permCountryLabel = getLabel(
-              pep.permCountry,
-              countryOptions,
-              "country",
-            );
-            const currCountryLabel = getLabel(
-              pep.currCountry,
-              countryOptions,
-              "country",
-            );
-
-            let permDzongkhagLabel = pep.permDzongkhag;
-            let permGewogLabel = pep.permGewog;
-            if (pep.permCountry && isBhutan(pep.permCountry)) {
-              permDzongkhagLabel = getLabel(
-                pep.permDzongkhag,
-                dzongkhagOptions,
-                "dzongkhag",
-              );
-              permGewogLabel = getLabel(
-                pep.permGewog,
-                pep.permGewogOptions || [],
-                "gewog",
-              );
+        // Related PEPs
+        if (cleanGuarantor.relatedPeps && cleanGuarantor.relatedPeps.length > 0) {
+          cleanGuarantor.relatedPeps = cleanGuarantor.relatedPeps.map((pep: any, idx: number) => {
+            const pepCopy = { ...pep };
+            if (pepCopy.category) {
+              pepCopy.category = getLabel(pepCopy.category, pepCategoryOptions, "pep_category");
             }
-
-            let currDzongkhagLabel = pep.currDzongkhag;
-            let currGewogLabel = pep.currGewog;
-            if (pep.currCountry && isBhutan(pep.currCountry)) {
-              currDzongkhagLabel = getLabel(
-                pep.currDzongkhag,
-                dzongkhagOptions,
-                "dzongkhag",
-              );
-              currGewogLabel = getLabel(
-                pep.currGewog,
-                pep.currGewogOptions || [],
-                "gewog",
-              );
+            if (pepCopy.subCategory) {
+              pepCopy.subCategory = getLabel(pepCopy.subCategory, relatedPepOptionsMap?.[idx] || [], "pep_sub_category");
             }
+            if (pepCopy.identificationType) {
+              pepCopy.identificationType = getLabel(pepCopy.identificationType, identificationTypeOptions, "identity_type");
+            }
+            if (pepCopy.nationality) {
+              pepCopy.nationality = getLabel(pepCopy.nationality, nationalityOptions, "nationality");
+            }
+            if (pepCopy.maritalStatus) {
+              pepCopy.maritalStatus = getLabel(pepCopy.maritalStatus, maritalStatusOptions, "marital_status");
+            }
+            if (pepCopy.taxIdentifierType) {
+              pepCopy.taxIdentifierType = getLabel(pepCopy.taxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type");
+            }
+            if (pepCopy.permCountry) {
+              pepCopy.permCountry = getLabel(pepCopy.permCountry, countryOptions, "country");
+            }
+            if (pepCopy.permDzongkhag) {
+              pepCopy.permDzongkhag = getLabel(pepCopy.permDzongkhag, dzongkhagOptions, "dzongkhag");
+            }
+            if (pepCopy.permGewog) {
+              pepCopy.permGewog = getLabel(pepCopy.permGewog, pepCopy.permGewogOptions || [], "gewog");
+            }
+            if (pepCopy.currCountry) {
+              pepCopy.currCountry = getLabel(pepCopy.currCountry, countryOptions, "country");
+            }
+            if (pepCopy.currDzongkhag) {
+              pepCopy.currDzongkhag = getLabel(pepCopy.currDzongkhag, dzongkhagOptions, "dzongkhag");
+            }
+            if (pepCopy.currGewog) {
+              pepCopy.currGewog = getLabel(pepCopy.currGewog, pepCopy.currGewogOptions || [], "gewog");
+            }
+            // Remove temporary options arrays
+            delete pepCopy.permGewogOptions;
+            delete pepCopy.currGewogOptions;
+            return pepCopy;
+          });
+        }
 
-            return {
-              ...pep,
-              categoryLabel,
-              subCategoryLabel,
-              identificationTypeLabel,
-              nationalityLabel,
-              maritalStatusLabel,
-              taxIdentifierTypeLabel,
-              permCountryLabel,
-              permDzongkhagLabel,
-              permGewogLabel,
-              currCountryLabel,
-              currDzongkhagLabel,
-              currGewogLabel,
-            };
-          },
-        );
-
-        return {
-          ...cleanGuarantor,
-          idTypeLabel,
-          nationalityLabel,
-          maritalStatusLabel,
-          bankNameLabel,
-          permCountryLabel,
-          permDzongkhagLabel,
-          permGewogLabel,
-          currCountryLabel,
-          currDzongkhagLabel,
-          currGewogLabel,
-          spouseIdTypeLabel,
-          spouseNationalityLabel,
-          spousePermCountryLabel,
-          spousePermDzongkhagLabel,
-          spousePermGewogLabel,
-          pepCategoryLabel,
-          pepSubCategoryLabel,
-          occupationLabel,
-          organizationNameLabel,
-          taxIdentifierTypeLabel,
-          spouseTaxIdentifierTypeLabel,
-          relatedPeps: relatedPepsWithLabels,
-        };
+        return cleanGuarantor;
       }),
     };
 

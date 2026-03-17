@@ -7,7 +7,7 @@ import { API_CONFIG, getAuthHeaders, fetchWithRetry, getCachedData, setCachedDat
  * Implements caching and retry logic for rate limit handling
  */
 export async function fetchLoanData() {
-  const cacheKey = 'loan-data'
+  const cacheKey = 'loantype-data'
   
   try {
     // Check cache first
@@ -18,7 +18,7 @@ export async function fetchLoanData() {
     
     // Fetch with retry logic
     const response = await fetchWithRetry(
-      `${API_CONFIG.LMS_BASE_URL}/loan-data`,
+      `${API_CONFIG.LMS_BASE_URL}/loantype-data`,
       { headers: getAuthHeaders() }
     )
     
@@ -66,5 +66,44 @@ export async function fetchLoanData() {
     console.warn('No cached data available, returning empty data')
     return { loanType: [], loanSector: [] }
     
+  }
+}
+
+export async function fetchLoanTypeDetails(loanTypeCode: string) {
+  const cacheKey = `loan-type-details-${loanTypeCode}`
+
+  try {
+    const cachedData = getCachedData(cacheKey)
+    if (cachedData) return cachedData
+
+    const response = await fetchWithRetry(
+      `${API_CONFIG.LMS_BASE_URL}/loantype-details-data/${loanTypeCode}`,
+      { headers: getAuthHeaders() }
+    )
+
+    if (!response.ok) {
+      console.error("Loan Type Details API Error:", {
+        status: response.status,
+        statusText: response.statusText,
+      })
+
+      throw new Error(`Failed to fetch loan type details (${response.status})`)
+    }
+
+    const result = await response.json()
+
+    if (result?.data) {
+      setCachedData(cacheKey, result.data)
+      return result.data
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error fetching loan type details:", error)
+
+    const cachedData = getCachedData(cacheKey)
+    if (cachedData) return cachedData
+
+    return null
   }
 }

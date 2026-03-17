@@ -162,6 +162,7 @@ const [loading, setLoading] = useState(false)
                 <div className="flex gap-4 justify-center pt-4">
                   {/* New User */}
                   <Button
+                  disabled={loading}
                     onClick={handleNewUser}
                     variant="outline"
                     className="flex-1 max-w-[200px] border-2 border-[#003DA5] text-[#003DA5] hover:bg-[#003DA5] hover:text-white"

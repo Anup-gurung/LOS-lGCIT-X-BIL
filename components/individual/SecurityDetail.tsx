@@ -5788,7 +5788,7 @@ export function SecurityDetailsForm({
               className={`border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm ${secIndex === 0 ? "bg-white" : "bg-blue-50 border-blue-200"}`}
             >
               <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
-                Vehicle Details (If Applicable)
+                Vehicle Details
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

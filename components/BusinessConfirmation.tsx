@@ -47,6 +47,7 @@ interface ConfirmationProps {
   onBack: () => void;
   formData: any; // full session data
 
+  // Optional props for loan dropdown options (if needed for other sections)
   loanTypeOptions?: any[];
   loanSectorOptions?: any[];
   loanSubSectorOptions?: any[];
@@ -115,8 +116,7 @@ export function BusinessConfirmation({
   const [error, setError] = useState<string | null>(null);
 
   // ---------- Enhanced Session Storage & Hydration ----------
-  const SESSION_STORAGE_KEY = "loanApplicationData";
-  const LOCAL_STORAGE_KEY = "loanApplicationData"; // fallback if you also use localStorage
+  const SESSION_STORAGE_KEY = "businessLoanApplicationData"; // must match key used in parent
   const [loadedFormData, setLoadedFormData] = useState<any>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -126,20 +126,11 @@ export function BusinessConfirmation({
 
     if (!hasPropData && typeof window !== "undefined") {
       try {
-        // Try sessionStorage first
-        let stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
-          console.log("Loaded from sessionStorage:", parsed);
+          console.log("BusinessConfirmation loaded from sessionStorage:", parsed);
           setLoadedFormData(parsed);
-        } else {
-          // Fallback to localStorage
-          stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            console.log("Loaded from localStorage:", parsed);
-            setLoadedFormData(parsed);
-          }
         }
       } catch (e) {
         console.error("Failed to parse stored data", e);
@@ -157,34 +148,20 @@ export function BusinessConfirmation({
     return loadedFormData || {};
   }, [formData, loadedFormData]);
 
-  // Force re-render when options load (ensures labels update)
-  const [optionsLoaded, setOptionsLoaded] = useState(false);
-  useEffect(() => {
-    if (!optionsLoaded) setOptionsLoaded(true);
-  }, [
-    loanTypeOptions,
-    loanSectorOptions,
-    loanSubSectorOptions,
-    loanSubSectorCategoryOptions,
-  ]);
-
   // ---------- Extract all data from the effective session ----------
   const session = effectiveFormData;
 
-  // Loan details (top level – with fallback to nested loanData)
+  // --- Loan details ---
+  // Use the human‑readable strings stored in session (loanTypeString, etc.)
   const loanData = {
-    loanType: session.loanType || session.loanData?.loanType || "",
-    loanSector: session.loanSector || session.loanData?.loanSector || "",
-    loanSubSector:
-      session.loanSubSector || session.loanData?.loanSubSector || "",
-    loanSubSectorCategory:
-      session.loanSubSectorCategory ||
-      session.loanData?.loanSubSectorCategory ||
-      "",
+    loanTypeString: session.loanTypeString || "",
+    loanSectorString: session.loanSectorString || "",
+    loanSubSectorString: session.loanSubSectorString || "",
+    loanSubSectorCategoryString: session.loanSubSectorCategoryString || "",
     loanAmount: session.loanAmount || session.loanData?.loanAmount || "",
     loanPurpose: session.loanPurpose || session.loanData?.loanPurpose || "",
     interestRate: session.interestRate || session.loanData?.interestRate || "",
-    tenure: session.tenure || session.loanData?.tenure || "",
+    tenure: session.selectedMonths || session.tenure || "",
   };
 
   // Business details (inside businessDetail)
@@ -195,7 +172,6 @@ export function BusinessConfirmation({
     businessName: businessDetail.businessName || "",
     establishmentDate: businessDetail.establishmentDate || "",
     industryClassification: businessDetail.industryClassification || "",
-    // Top‑level identification fields might differ based on how they were saved
     identificationType:
       session.identificationType || businessDetail.identificationType || "",
     identificationNumber:
@@ -485,10 +461,10 @@ export function BusinessConfirmation({
   /* ---------------- Payload Builder (unchanged) ---------------- */
   const buildBilPayload = () => ({
     loanData: {
-      loanType: loanData.loanType,
-      loanSector: loanData.loanSector,
-      loanSubSector: loanData.loanSubSector,
-      loanSubSectorCategory: loanData.loanSubSectorCategory,
+      loanType: loanData.loanTypeString,
+      loanSector: loanData.loanSectorString,
+      loanSubSector: loanData.loanSubSectorString,
+      loanSubSectorCategory: loanData.loanSubSectorCategoryString,
       loanAmount: loanData.loanAmount,
       loanPurpose: loanData.loanPurpose,
     },
@@ -694,41 +670,12 @@ export function BusinessConfirmation({
       {/* LOAN DETAILS */}
       <AccordionSection title="Loan Details" defaultOpen={true}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-          <Field
-            label="Loan Type"
-            value={getOptionLabel(
-              loanTypeOptions,
-              loanData.loanType,
-              "pk_id",
-              "loan_type",
-            )}
-          />
-          <Field
-            label="Loan Sector"
-            value={getOptionLabel(
-              loanSectorOptions,
-              loanData.loanSector,
-              "loan_sector_id",
-              "loan_sector",
-            )}
-          />
-          <Field
-            label="Loan Sub-Sector"
-            value={getOptionLabel(
-              loanSubSectorOptions,
-              loanData.loanSubSector,
-              "sub_sector_id",
-              "sub_sector",
-            )}
-          />
+          <Field label="Loan Type" value={loanData.loanTypeString} />
+          <Field label="Loan Sector" value={loanData.loanSectorString} />
+          <Field label="Loan Sub-Sector" value={loanData.loanSubSectorString} />
           <Field
             label="Loan Sub-Sector Category"
-            value={getOptionLabel(
-              loanSubSectorCategoryOptions,
-              loanData.loanSubSectorCategory,
-              "sub_sector_cat_id",
-              "sub_cat_sector",
-            )}
+            value={loanData.loanSubSectorCategoryString}
           />
           <Field label="Loan Amount (Nu.)" value={loanData.loanAmount} />
           <Field label="Loan Purpose" value={loanData.loanPurpose} />
@@ -846,11 +793,11 @@ export function BusinessConfirmation({
                   value={
                     isBusinessBhutan
                       ? getOptionLabel(
-                          dzongkhagOptions,
-                          businessAddress.dzongkhag,
-                          "id",
-                          "dzongkhag_name",
-                        )
+                        dzongkhagOptions,
+                        businessAddress.dzongkhag,
+                        "id",
+                        "dzongkhag_name",
+                      )
                       : businessAddress.dzongkhag
                   }
                 />
@@ -859,11 +806,11 @@ export function BusinessConfirmation({
                   value={
                     isBusinessBhutan
                       ? getOptionLabel(
-                          gewogOptions,
-                          businessAddress.gewog,
-                          "id",
-                          "gewog_name",
-                        )
+                        gewogOptions,
+                        businessAddress.gewog,
+                        "id",
+                        "gewog_name",
+                      )
                       : businessAddress.gewog
                   }
                 />
@@ -1056,14 +1003,14 @@ export function BusinessConfirmation({
                               )}
                             />
                             {ownerData.permCountry &&
-                            countryOptions
-                              .find(
-                                (c) =>
-                                  String(c.id) ===
-                                  String(ownerData.permCountry),
-                              )
-                              ?.country_name?.toLowerCase()
-                              .includes("bhutan") ? (
+                              countryOptions
+                                .find(
+                                  (c) =>
+                                    String(c.id) ===
+                                    String(ownerData.permCountry),
+                                )
+                                ?.country_name?.toLowerCase()
+                                .includes("bhutan") ? (
                               <>
                                 <Field
                                   label="Dzongkhag"
@@ -1135,14 +1082,14 @@ export function BusinessConfirmation({
                               )}
                             />
                             {ownerData.currCountry &&
-                            countryOptions
-                              .find(
-                                (c) =>
-                                  String(c.id) ===
-                                  String(ownerData.currCountry),
-                              )
-                              ?.country_name?.toLowerCase()
-                              .includes("bhutan") ? (
+                              countryOptions
+                                .find(
+                                  (c) =>
+                                    String(c.id) ===
+                                    String(ownerData.currCountry),
+                                )
+                                ?.country_name?.toLowerCase()
+                                .includes("bhutan") ? (
                               <>
                                 <Field
                                   label="Dzongkhag"
@@ -1661,8 +1608,8 @@ export function BusinessConfirmation({
           )}
         {(!securityData.securityType ||
           securityData.securityType?.toLowerCase() === "not applicable") && (
-          <p className="text-gray-500 italic">No security details provided.</p>
-        )}
+            <p className="text-gray-500 italic">No security details provided.</p>
+          )}
       </AccordionSection>
 
       {/* REPAYMENT SOURCE */}
@@ -1787,13 +1734,13 @@ export function BusinessConfirmation({
                             )}
                           />
                           {guarantor.permCountry &&
-                          countryOptions
-                            .find(
-                              (c) =>
-                                String(c.id) === String(guarantor.permCountry),
-                            )
-                            ?.country_name?.toLowerCase()
-                            .includes("bhutan") ? (
+                            countryOptions
+                              .find(
+                                (c) =>
+                                  String(c.id) === String(guarantor.permCountry),
+                              )
+                              ?.country_name?.toLowerCase()
+                              .includes("bhutan") ? (
                             <>
                               <Field
                                 label="Dzongkhag"
@@ -1861,13 +1808,13 @@ export function BusinessConfirmation({
                             )}
                           />
                           {guarantor.currCountry &&
-                          countryOptions
-                            .find(
-                              (c) =>
-                                String(c.id) === String(guarantor.currCountry),
-                            )
-                            ?.country_name?.toLowerCase()
-                            .includes("bhutan") ? (
+                            countryOptions
+                              .find(
+                                (c) =>
+                                  String(c.id) === String(guarantor.currCountry),
+                              )
+                              ?.country_name?.toLowerCase()
+                              .includes("bhutan") ? (
                             <>
                               <Field
                                 label="Dzongkhag"

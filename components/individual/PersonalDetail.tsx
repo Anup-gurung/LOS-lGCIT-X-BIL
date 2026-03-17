@@ -36,6 +36,7 @@ import {
   fetchLegalConstitution,
   fetchPepCategory,
   fetchPepSubCategoryByCategory,
+  fetchTaxIdentifierType, // <-- NEW import
 } from "@/services/api";
 import { getNdiDataFromSession } from "@/lib/mapNdiData";
 import { getVerifiedCustomerDataFromSession } from "@/lib/mapCustomerData";
@@ -100,7 +101,7 @@ const createEmptyRelatedPep = () => ({
   currContact: "",
   currAlternateContact: "",
 
-  // Spouse Info
+  // Spouse Info (kept for data structure but not rendered)
   spouseIdentificationType: "",
   spouseIdentificationNo: "",
   spouseSalutation: "",
@@ -120,6 +121,7 @@ const createEmptyRelatedPep = () => ({
   spousePermThram: "",
   spousePermHouse: "",
   spousePermAddressProof: "",
+  spouseIdentificationProof: "",
   spouseEmail: "",
   spouseContact: "",
   spouseAlternateContact: "",
@@ -204,6 +206,8 @@ export function PersonalDetailsForm({
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
   const [pepSubCategoryOptions, setPepSubCategoryOptions] = useState<any[]>([]);
   const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
+  // NEW: tax identifier type options
+  const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
 
   // Maps for dynamic dropdowns inside the Related PEPs loop
   const [relatedPepOptionsMap, setRelatedPepOptionsMap] = useState<
@@ -250,10 +254,10 @@ export function PersonalDetailsForm({
     const selectedOption = maritalStatusOptions.find((option) => {
       const val = String(
         option.marital_status_pk_code ||
-          option.id ||
-          option.value ||
-          option.code ||
-          "",
+        option.id ||
+        option.value ||
+        option.code ||
+        "",
       );
       return val == status;
     });
@@ -300,21 +304,22 @@ export function PersonalDetailsForm({
     const getCode = (opt: any) =>
       String(
         opt.bank_pk_code ||
-          opt.country_pk_code ||
-          opt.nationality_pk_code ||
-          opt.identity_type_pk_code ||
-          opt.marital_status_pk_code ||
-          opt.occupation_pk_code ||
-          opt.dzongkhag_pk_code ||
-          opt.gewog_pk_code ||
-          opt.pep_category_pk_code ||
-          opt.pep_sub_category_pk_code ||
-          opt.lgal_constitution_pk_code ||
-          opt.legal_const_pk_code ||
-          opt.pk_code ||
-          opt.id ||
-          opt.code ||
-          "",
+        opt.country_pk_code ||
+        opt.nationality_pk_code ||
+        opt.identity_type_pk_code ||
+        opt.marital_status_pk_code ||
+        opt.occupation_pk_code ||
+        opt.dzongkhag_pk_code ||
+        opt.gewog_pk_code ||
+        opt.pep_category_pk_code ||
+        opt.pep_sub_category_pk_code ||
+        opt.lgal_constitution_pk_code ||
+        opt.legal_const_pk_code ||
+        opt.tax_identifier_type_pk_code ||   // <-- NEW
+        opt.pk_code ||
+        opt.id ||
+        opt.code ||
+        "",
       );
 
     // 1. Exact match on code (in case it's already properly assigned)
@@ -407,6 +412,9 @@ export function PersonalDetailsForm({
     fetchPepCategory()
       .then(setPepCategoryOptions)
       .catch(() => setPepCategoryOptions([]));
+    fetchTaxIdentifierType()   // <-- NEW
+      .then(setTaxIdentifierTypeOptions)
+      .catch(() => setTaxIdentifierTypeOptions([]));
   }, []);
 
   useEffect(() => {
@@ -524,8 +532,7 @@ export function PersonalDetailsForm({
       ) {
         const pkCode = findPkCodeByLabel(
           data.spousePermCountry,
-          countryOptions,
-          ["country", "name", "label"],
+          countryOptions, ["country", "name", "label"],
         );
         if (pkCode && pkCode !== data.spousePermCountry)
           updates.spousePermCountry = pkCode;
@@ -539,8 +546,7 @@ export function PersonalDetailsForm({
       ) {
         const pkCode = findPkCodeByLabel(
           data.spousePermDzongkhag,
-          dzongkhagOptions,
-          ["dzongkhag", "name", "label"],
+          dzongkhagOptions, ["dzongkhag", "name", "label"],
         );
         if (pkCode && pkCode !== data.spousePermDzongkhag)
           updates.spousePermDzongkhag = pkCode;
@@ -564,7 +570,8 @@ export function PersonalDetailsForm({
       identificationTypeOptions.length > 0 ||
       banksOptions.length > 0 ||
       nationalityOptions.length > 0 ||
-      maritalStatusOptions.length > 0
+      maritalStatusOptions.length > 0 ||
+      taxIdentifierTypeOptions.length > 0   // <-- NEW
     ) {
       const updates: any = {};
       if (
@@ -579,8 +586,7 @@ export function PersonalDetailsForm({
       ) {
         const pkCode = findPkCodeByLabel(
           data.identificationType,
-          identificationTypeOptions,
-          ["identity_type", "identification_type", "name", "label"],
+          identificationTypeOptions, ["identity_type", "identification_type", "name", "label"],
         );
         if (pkCode && pkCode !== data.identificationType)
           updates.identificationType = pkCode;
@@ -642,8 +648,7 @@ export function PersonalDetailsForm({
       ) {
         const pkCode = findPkCodeByLabel(
           data.spouseIdentificationType,
-          identificationTypeOptions,
-          ["identity_type", "identification_type", "name", "label"],
+          identificationTypeOptions, ["identity_type", "identification_type", "name", "label"],
         );
         if (pkCode && pkCode !== data.spouseIdentificationType)
           updates.spouseIdentificationType = pkCode;
@@ -664,6 +669,7 @@ export function PersonalDetailsForm({
         if (pkCode && pkCode !== data.spouseNationality)
           updates.spouseNationality = pkCode;
       }
+      // Tax identifier type conversions (applicant, spouse, related PEPs) will be handled by their own useEffect blocks later
       if (Object.keys(updates).length > 0)
         setData((prev: any) => ({ ...prev, ...updates }));
     }
@@ -672,6 +678,7 @@ export function PersonalDetailsForm({
     banksOptions,
     nationalityOptions,
     maritalStatusOptions,
+    taxIdentifierTypeOptions,   // <-- NEW
     data.identificationType,
     data.bankName,
     data.nationality,
@@ -783,6 +790,44 @@ export function PersonalDetailsForm({
     }
   }, [data.pepPerson, data.pepCategory]);
 
+  // Convert tax identifier type for main applicant when options load   <-- NEW
+  useEffect(() => {
+    if (taxIdentifierTypeOptions.length && data.taxIdentifierType) {
+      const isValid = taxIdentifierTypeOptions.some(
+        (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(data.taxIdentifierType)
+      );
+      if (!isValid) {
+        const pkCode = findPkCodeByLabel(
+          data.taxIdentifierType,
+          taxIdentifierTypeOptions,
+          ["tax_identifier_type", "name", "label"]
+        );
+        if (pkCode && pkCode !== data.taxIdentifierType) {
+          setData((prev: any) => ({ ...prev, taxIdentifierType: pkCode }));
+        }
+      }
+    }
+  }, [taxIdentifierTypeOptions, data.taxIdentifierType]);
+
+  // Convert tax identifier type for spouse when options load   <-- NEW
+  useEffect(() => {
+    if (taxIdentifierTypeOptions.length && data.spouseTaxIdentifierType) {
+      const isValid = taxIdentifierTypeOptions.some(
+        (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(data.spouseTaxIdentifierType)
+      );
+      if (!isValid) {
+        const pkCode = findPkCodeByLabel(
+          data.spouseTaxIdentifierType,
+          taxIdentifierTypeOptions,
+          ["tax_identifier_type", "name", "label"]
+        );
+        if (pkCode && pkCode !== data.spouseTaxIdentifierType) {
+          setData((prev: any) => ({ ...prev, spouseTaxIdentifierType: pkCode }));
+        }
+      }
+    }
+  }, [taxIdentifierTypeOptions, data.spouseTaxIdentifierType]);
+
   const handleFileChange = (fieldName: string, file: File | null) => {
     if (file) {
       const allowedTypes = [
@@ -800,8 +845,7 @@ export function PersonalDetailsForm({
       }
       if (file.size > 5 * 1024 * 1024) {
         setErrors({
-          ...errors,
-          [fieldName]: "File size must be less than 5MB",
+          ...errors, [fieldName]: "File size must be less than 5MB",
         });
         return;
       }
@@ -924,8 +968,7 @@ export function PersonalDetailsForm({
       try {
         const options = await fetchGewogsByDzongkhag(value);
         setRelatedPepCurrGewogMap((prev) => ({
-          ...prev,
-          [index]: options || [],
+          ...prev, [index]: options || [],
         }));
       } catch (e) {
         setRelatedPepCurrGewogMap((prev) => ({ ...prev, [index]: [] }));
@@ -980,11 +1023,10 @@ export function PersonalDetailsForm({
 
   // Utility to clean up the input field classes
   const getFieldStyle = (errorKey: string) => {
-    return `h-10 sm:h-12 w-full text-sm sm:text-base border ${
-      errors[errorKey]
-        ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
-        : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-    }`;
+    return `h-10 sm:h-12 w-full text-sm sm:text-base border ${errors[errorKey]
+      ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
+      : "border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+      }`;
   };
 
   const validateForm = () => {
@@ -1004,9 +1046,7 @@ export function PersonalDetailsForm({
     if (isEmpty(data.gender)) newErrors.gender = "Gender is required";
     if (isEmpty(data.dateOfBirth))
       newErrors.dateOfBirth = "Date of birth is required";
-    if (isEmpty(data.taxIdentifierType))
-      newErrors.taxIdentifierType = "Tax Identifier Type is required";
-    if (isEmpty(data.tpn)) newErrors.tpn = "TPN Number is required";
+    // Tax identifier fields are no longer required
 
     if (isNatBhutanese(data.nationality) && isEmpty(data.householdNumber)) {
       newErrors.householdNumber = "Household number is required";
@@ -1044,12 +1084,12 @@ export function PersonalDetailsForm({
           field: "spouseIdentificationExpiryDate",
           msg: "Spouse ID Expiry Date is required",
         },
-        {
-          field: "spouseTaxIdentifierType",
-          msg: "Spouse Tax Identifier Type is required",
-        },
-        { field: "spouseTpn", msg: "Spouse TPN is required" },
+        // Spouse tax fields no longer required
         { field: "spouseDateOfBirth", msg: "Spouse Date of Birth is required" },
+        {
+          field: "spouseIdentificationProof",
+          msg: "Spouse Identification Proof is required",
+        },
       ];
 
       spouseRequiredFields.forEach(({ field, msg }) => {
@@ -1175,6 +1215,10 @@ export function PersonalDetailsForm({
     if (!data.passportPhoto)
       newErrors.passportPhoto = "No Passport-size photo is uploaded";
 
+    // IDENTIFICATION PROOF (new field)
+    if (!data.identificationProof)
+      newErrors.identificationProof = "Identification proof is required";
+
     // EMPLOYMENT
     if (isEmpty(data.employmentStatus))
       newErrors.employmentStatus = "Employment status is required";
@@ -1212,11 +1256,10 @@ export function PersonalDetailsForm({
         newErrors.pepCategory = "PEP category is required";
       if (isEmpty(data.pepSubCategory))
         newErrors.pepSubCategory = "PEP sub category is required";
-      if (!data.identificationProof)
-        newErrors.identificationProof = "Identification proof required";
+      // Removed self identification proof validation here because it's now in personal details section
     }
 
-    // RELATED PEP - Comprehensive Validation
+    // RELATED PEP - Comprehensive Validation (excluding tax fields and spouse info)
     if (data.pepPerson === "no") {
       if (isEmpty(data.pepRelated))
         newErrors.pepRelated =
@@ -1254,10 +1297,7 @@ export function PersonalDetailsForm({
               "Required";
           if (isEmpty(pep.dateOfBirth))
             newErrors[`relatedPeps.${index}.dateOfBirth`] = "Required";
-          if (isEmpty(pep.taxIdentifierType))
-            newErrors[`relatedPeps.${index}.taxIdentifierType`] = "Required";
-          if (isEmpty(pep.tpn))
-            newErrors[`relatedPeps.${index}.tpn`] = "Required";
+          // Tax fields not required
           if (isNatBhutanese(pep.nationality) && isEmpty(pep.householdNumber))
             newErrors[`relatedPeps.${index}.householdNumber`] = "Required";
           if (isEmpty(pep.maritalStatus))
@@ -1323,89 +1363,10 @@ export function PersonalDetailsForm({
             newErrors[`relatedPeps.${index}.currContact`] = "Must be numeric";
           }
 
-          // Spouse Info
-          if (isMarriedStatus(pep.maritalStatus)) {
-            if (isEmpty(pep.spouseIdentificationType))
-              newErrors[`relatedPeps.${index}.spouseIdentificationType`] =
-                "Required";
-            if (isEmpty(pep.spouseIdentificationNo))
-              newErrors[`relatedPeps.${index}.spouseIdentificationNo`] =
-                "Required";
-            if (isEmpty(pep.spouseSalutation))
-              newErrors[`relatedPeps.${index}.spouseSalutation`] = "Required";
-            if (isEmpty(pep.spouseName))
-              newErrors[`relatedPeps.${index}.spouseName`] = "Required";
-            if (isEmpty(pep.spouseNationality))
-              newErrors[`relatedPeps.${index}.spouseNationality`] = "Required";
-            if (isEmpty(pep.spouseGender))
-              newErrors[`relatedPeps.${index}.spouseGender`] = "Required";
-            if (isEmpty(pep.spouseIdentificationIssueDate))
-              newErrors[`relatedPeps.${index}.spouseIdentificationIssueDate`] =
-                "Required";
-            if (isEmpty(pep.spouseIdentificationExpiryDate))
-              newErrors[`relatedPeps.${index}.spouseIdentificationExpiryDate`] =
-                "Required";
-            if (isEmpty(pep.spouseTaxIdentifierType))
-              newErrors[`relatedPeps.${index}.spouseTaxIdentifierType`] =
-                "Required";
-            if (isEmpty(pep.spouseTpn))
-              newErrors[`relatedPeps.${index}.spouseTpn`] = "Required";
-            if (isEmpty(pep.spouseDateOfBirth))
-              newErrors[`relatedPeps.${index}.spouseDateOfBirth`] = "Required";
-            if (
-              isNatBhutanese(pep.spouseNationality) &&
-              isEmpty(pep.spouseHouseholdNumber)
-            )
-              newErrors[`relatedPeps.${index}.spouseHouseholdNumber`] =
-                "Required";
-
-            if (isEmpty(pep.spousePermCountry))
-              newErrors[`relatedPeps.${index}.spousePermCountry`] = "Required";
-            if (isBhutanCountry(pep.spousePermCountry, countryOptions)) {
-              if (isEmpty(pep.spousePermDzongkhag))
-                newErrors[`relatedPeps.${index}.spousePermDzongkhag`] =
-                  "Required";
-              if (isEmpty(pep.spousePermGewog))
-                newErrors[`relatedPeps.${index}.spousePermGewog`] = "Required";
-              if (isEmpty(pep.spousePermVillage))
-                newErrors[`relatedPeps.${index}.spousePermVillage`] =
-                  "Required";
-              if (isEmpty(pep.spousePermThram))
-                newErrors[`relatedPeps.${index}.spousePermThram`] = "Required";
-              if (isEmpty(pep.spousePermHouse))
-                newErrors[`relatedPeps.${index}.spousePermHouse`] = "Required";
-            } else if (pep.spousePermCountry) {
-              if (isEmpty(pep.spousePermDzongkhag))
-                newErrors[`relatedPeps.${index}.spousePermDzongkhag`] =
-                  "Required";
-              if (isEmpty(pep.spousePermGewog))
-                newErrors[`relatedPeps.${index}.spousePermGewog`] = "Required";
-              if (isEmpty(pep.spousePermVillage))
-                newErrors[`relatedPeps.${index}.spousePermVillage`] =
-                  "Required";
-              if (isEmpty(pep.spousePermAddressProof))
-                newErrors[`relatedPeps.${index}.spousePermAddressProof`] =
-                  "Required";
-            }
-
-            if (isEmpty(pep.spouseEmail))
-              newErrors[`relatedPeps.${index}.spouseEmail`] = "Required";
-            else if (!isEmail(pep.spouseEmail))
-              newErrors[`relatedPeps.${index}.spouseEmail`] = "Invalid Format";
-
-            if (isEmpty(pep.spouseContact))
-              newErrors[`relatedPeps.${index}.spouseContact`] = "Required";
-            else if (!isNumeric(pep.spouseContact))
-              newErrors[`relatedPeps.${index}.spouseContact`] =
-                "Must be numeric";
-          }
+          // Spouse Info validation removed to match removal of spouse fields in render
         });
       }
     }
-
-    if (isEmpty(data.relatedToBil))
-      newErrors.relatedToBil =
-        "Please specify if you are related to BIL or not";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -1468,6 +1429,13 @@ export function PersonalDetailsForm({
           data.spousePermAddressProof,
         );
       if (data.familyTree) submitData.append("familyTree", data.familyTree);
+      if (data.identificationProof)
+        submitData.append("identificationProof", data.identificationProof);
+      if (data.spouseIdentificationProof)
+        submitData.append(
+          "spouseIdentificationProof",
+          data.spouseIdentificationProof,
+        );
 
       const response = await fetch("http://localhost:3001/api/personal", {
         method: "POST",
@@ -1496,6 +1464,31 @@ export function PersonalDetailsForm({
     onNext({ personalDetails: data, hasCoBorrower });
   };
 
+  // Filter identification types to EXCLUDE "Trade License Number" and "Company Registration Number"
+  const filteredIdentificationOptions = identificationTypeOptions.filter(
+    (option) => {
+      const label = (
+        option.identity_type ||
+        option.identification_type ||
+        option.name ||
+        ""
+      ).toLowerCase();
+      // Return true for options that do NOT contain the excluded keywords
+      return !(
+        label.includes("trade") ||
+        label.includes("license") ||
+        label.includes("company") ||
+        label.includes("registration")
+      );
+    },
+  );
+
+  // Filter tax identifier types to show only Personal Income Tax (PIT)   <-- NEW
+  const personalTaxIdentifierOptions = taxIdentifierTypeOptions.filter((opt) => {
+    const label = (opt.tax_identifier_type || opt.name || "").toLowerCase();
+    return label.includes("personal income tax") || label === "pit";
+  });
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -1516,7 +1509,7 @@ export function PersonalDetailsForm({
               value={
                 findPkCodeByLabel(
                   data.identificationType,
-                  identificationTypeOptions,
+                  filteredIdentificationOptions,
                   ["identity_type", "identification_type", "name", "label"],
                 ) || data.identificationType
               }
@@ -1534,13 +1527,13 @@ export function PersonalDetailsForm({
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
-                {identificationTypeOptions.length > 0 ? (
-                  identificationTypeOptions.map((option, index) => {
+                {filteredIdentificationOptions.length > 0 ? (
+                  filteredIdentificationOptions.map((option, index) => {
                     const value = String(
                       option.identity_type_pk_code ||
-                        option.identification_type_pk_code ||
-                        option.id ||
-                        index,
+                      option.identification_type_pk_code ||
+                      option.id ||
+                      index,
                     );
                     const label =
                       option.identity_type ||
@@ -1693,9 +1686,9 @@ export function PersonalDetailsForm({
                   nationalityOptions.map((option, index) => {
                     const value = String(
                       option.nationality_pk_code ||
-                        option.id ||
-                        option.code ||
-                        index,
+                      option.id ||
+                      option.code ||
+                      index,
                     );
                     const label =
                       option.nationality ||
@@ -1825,60 +1818,50 @@ export function PersonalDetailsForm({
             )}
           </div>
 
+          {/* Tax Identifier Type - Not required, shows only PIT */}
           <div className="space-y-2.5">
             <Label className="text-gray-800 font-semibold text-sm">
-              Tax Identifier Type <span className="text-red-500">*</span>
+              Tax Identifier Type
             </Label>
             <Select
               value={data.taxIdentifierType}
               onValueChange={(value) => {
                 setData({ ...data, taxIdentifierType: value });
-                if (!isRequired(value))
-                  setErrors((prev) => {
-                    const upd = { ...prev };
-                    delete upd.taxIdentifierType;
-                    return upd;
-                  });
               }}
             >
-              <SelectTrigger className={getFieldStyle("taxIdentifierType")}>
+              <SelectTrigger className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
-                <SelectItem value="BIT">BIT</SelectItem>
-                <SelectItem value="GST">GST</SelectItem>
-                <SelectItem value="CIT">CIT</SelectItem>
-                <SelectItem value="PIT">PIT</SelectItem>
+                {personalTaxIdentifierOptions.length > 0 ? (
+                  personalTaxIdentifierOptions.map((opt, i) => (
+                    <SelectItem
+                      key={i}
+                      value={String(opt.tax_identifier_type_pk_code || opt.id)}
+                    >
+                      {opt.tax_identifier_type || opt.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                )}
               </SelectContent>
             </Select>
-            {errors.taxIdentifierType && (
-              <p className="text-xs text-red-500 mt-1">
-                {errors.taxIdentifierType}
-              </p>
-            )}
           </div>
 
+          {/* TPN No - Not required */}
           <div className="space-y-2.5">
             <Label className="text-gray-800 font-semibold text-sm">
-              TPN No <span className="text-red-500">*</span>
+              TPN No
             </Label>
             <Input
               placeholder="Enter TPN"
               value={data.tpn || ""}
               onChange={(e) => {
                 setData({ ...data, tpn: e.target.value });
-                if (!isRequired(e.target.value))
-                  setErrors((prev) => {
-                    const upd = { ...prev };
-                    delete upd.tpn;
-                    return upd;
-                  });
               }}
-              className={getFieldStyle("tpn")}
+              className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
             />
-            {errors.tpn && (
-              <p className="text-xs text-red-500 mt-1">{errors.tpn}</p>
-            )}
           </div>
 
           {isNatBhutanese(data.nationality) && (
@@ -1934,10 +1917,10 @@ export function PersonalDetailsForm({
                   maritalStatusOptions.map((option, index) => {
                     const value = String(
                       option.marital_status_pk_code ||
-                        option.id ||
-                        option.value ||
-                        option.code ||
-                        index,
+                      option.id ||
+                      option.value ||
+                      option.code ||
+                      index,
                     );
                     const label =
                       option.marital_status ||
@@ -1967,876 +1950,7 @@ export function PersonalDetailsForm({
           </div>
         </div>
 
-        {/* 2. Spouse Details Section */}
-        {isMarried && (
-          <div className="mt-8 border-t pt-8 space-y-6">
-            <h3 className="text-lg font-bold text-[#003DA5] mb-4">
-              Spouse Personal Information
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-              <div className="space-y-1.5 sm:space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                  Spouse Identification Type{" "}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={
-                    findPkCodeByLabel(
-                      data.spouseIdentificationType,
-                      identificationTypeOptions,
-                      ["identity_type", "identification_type", "name", "label"],
-                    ) || data.spouseIdentificationType
-                  }
-                  onValueChange={(value) => {
-                    setData({ ...data, spouseIdentificationType: value });
-                    if (!isRequired(value))
-                      setErrors((prev) => {
-                        const upd = { ...prev };
-                        delete upd.spouseIdentificationType;
-                        return upd;
-                      });
-                  }}
-                >
-                  <SelectTrigger
-                    className={getFieldStyle("spouseIdentificationType")}
-                  >
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent sideOffset={4}>
-                    {identificationTypeOptions.length > 0 ? (
-                      identificationTypeOptions.map((option, index) => {
-                        const value = String(
-                          option.identity_type_pk_code ||
-                            option.identification_type_pk_code ||
-                            option.id ||
-                            index,
-                        );
-                        const label =
-                          option.identity_type ||
-                          option.identification_type ||
-                          option.name ||
-                          "Unknown";
-                        return (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        );
-                      })
-                    ) : (
-                      <SelectItem value="loading" disabled>
-                        Loading...
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                {errors.spouseIdentificationType && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseIdentificationType}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5 sm:space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                  Spouse ID No. <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  placeholder="Enter Spouse CID/ID"
-                  value={data.spouseIdentificationNo || ""}
-                  onChange={(e) => {
-                    setData({
-                      ...data,
-                      spouseIdentificationNo: e.target.value,
-                    });
-                    if (!isRequired(e.target.value))
-                      setErrors((prev) => {
-                        const upd = { ...prev };
-                        delete upd.spouseIdentificationNo;
-                        return upd;
-                      });
-                  }}
-                  className={getFieldStyle("spouseIdentificationNo")}
-                />
-                {errors.spouseIdentificationNo && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseIdentificationNo}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5 sm:space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                  Spouse Salutation <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={data.spouseSalutation}
-                  onValueChange={(value) => {
-                    setData({ ...data, spouseSalutation: value });
-                    if (!isRequired(value))
-                      setErrors((prev) => {
-                        const upd = { ...prev };
-                        delete upd.spouseSalutation;
-                        return upd;
-                      });
-                  }}
-                >
-                  <SelectTrigger className={getFieldStyle("spouseSalutation")}>
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent sideOffset={4}>
-                    <SelectItem value="mr">Mr.</SelectItem>
-                    <SelectItem value="mrs">Mrs.</SelectItem>
-                    <SelectItem value="ms">Ms.</SelectItem>
-                    <SelectItem value="dr">Dr.</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.spouseSalutation && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseSalutation}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5 sm:space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                  Spouse Name <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  placeholder="Enter Spouse Full Name"
-                  value={data.spouseName || ""}
-                  onChange={(e) => {
-                    let value = e.target.value;
-                    if (!/^[A-Za-z\s]*$/.test(value)) return;
-                    value = capitalizeWords(value);
-                    setData({ ...data, spouseName: value });
-                    if (!isRequired(value))
-                      setErrors((prev) => {
-                        const upd = { ...prev };
-                        delete upd.spouseName;
-                        return upd;
-                      });
-                  }}
-                  className={getFieldStyle("spouseName")}
-                />
-                {errors.spouseName && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseName}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5 sm:space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                  Spouse Nationality <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={findPkCodeByLabel(
-                    data.spouseNationality,
-                    nationalityOptions,
-                    ["nationality", "name", "label"],
-                  )}
-                  onValueChange={(value) => {
-                    setData({ ...data, spouseNationality: value });
-                    if (!isRequired(value))
-                      setErrors((prev) => {
-                        const upd = { ...prev };
-                        delete upd.spouseNationality;
-                        return upd;
-                      });
-                  }}
-                >
-                  <SelectTrigger className={getFieldStyle("spouseNationality")}>
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent sideOffset={4}>
-                    {nationalityOptions.length > 0 ? (
-                      nationalityOptions.map((option, index) => {
-                        const value = String(
-                          option.nationality_pk_code ||
-                            option.id ||
-                            option.code ||
-                            index,
-                        );
-                        const label =
-                          option.nationality ||
-                          option.name ||
-                          option.label ||
-                          "Unknown";
-                        return (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        );
-                      })
-                    ) : (
-                      <SelectItem value="loading" disabled>
-                        Loading...
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                {errors.spouseNationality && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseNationality}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5 sm:space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                  Spouse Gender <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={data.spouseGender}
-                  onValueChange={(value) => {
-                    setData({ ...data, spouseGender: value });
-                    if (!isRequired(value))
-                      setErrors((prev) => {
-                        const upd = { ...prev };
-                        delete upd.spouseGender;
-                        return upd;
-                      });
-                  }}
-                >
-                  <SelectTrigger className={getFieldStyle("spouseGender")}>
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent sideOffset={4}>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.spouseGender && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseGender}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5 sm:space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                  Spouse ID Issue Date <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="date"
-                  max={today}
-                  value={data.spouseIdentificationIssueDate || ""}
-                  onChange={(e) => {
-                    setData({
-                      ...data,
-                      spouseIdentificationIssueDate: e.target.value,
-                    });
-                    setErrors((prev) => {
-                      const upd = { ...prev };
-                      delete upd.spouseIdentificationIssueDate;
-                      return upd;
-                    });
-                  }}
-                  className={getFieldStyle("spouseIdentificationIssueDate")}
-                />
-                {errors.spouseIdentificationIssueDate && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseIdentificationIssueDate}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5 sm:space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                  Spouse ID Expiry Date <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="date"
-                  min={today}
-                  value={data.spouseIdentificationExpiryDate || ""}
-                  onChange={(e) => {
-                    setData({
-                      ...data,
-                      spouseIdentificationExpiryDate: e.target.value,
-                    });
-                    setErrors((prev) => {
-                      const upd = { ...prev };
-                      delete upd.spouseIdentificationExpiryDate;
-                      return upd;
-                    });
-                  }}
-                  className={getFieldStyle("spouseIdentificationExpiryDate")}
-                />
-                {errors.spouseIdentificationExpiryDate && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseIdentificationExpiryDate}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5 sm:space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                  Spouse Tax Identifier Type{" "}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={data.spouseTaxIdentifierType}
-                  onValueChange={(value) => {
-                    setData({ ...data, spouseTaxIdentifierType: value });
-                    if (!isRequired(value))
-                      setErrors((prev) => {
-                        const upd = { ...prev };
-                        delete upd.spouseTaxIdentifierType;
-                        return upd;
-                      });
-                  }}
-                >
-                  <SelectTrigger
-                    className={getFieldStyle("spouseTaxIdentifierType")}
-                  >
-                    <SelectValue placeholder="[Select]" />
-                  </SelectTrigger>
-                  <SelectContent sideOffset={4}>
-                    <SelectItem value="BIT">BIT</SelectItem>
-                    <SelectItem value="GST">GST</SelectItem>
-                    <SelectItem value="CIT">CIT</SelectItem>
-                    <SelectItem value="PIT">PIT</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.spouseTaxIdentifierType && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseTaxIdentifierType}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5 sm:space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                  Spouse TPN No <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  placeholder="Enter TPN"
-                  value={data.spouseTpn || ""}
-                  onChange={(e) => {
-                    setData({ ...data, spouseTpn: e.target.value });
-                    if (!isRequired(e.target.value))
-                      setErrors((prev) => {
-                        const upd = { ...prev };
-                        delete upd.spouseTpn;
-                        return upd;
-                      });
-                  }}
-                  className={getFieldStyle("spouseTpn")}
-                />
-                {errors.spouseTpn && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseTpn}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5 sm:space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                  Spouse Date of Birth <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="date"
-                  max={maxDobDate}
-                  value={data.spouseDateOfBirth || ""}
-                  onChange={(e) => {
-                    setData({ ...data, spouseDateOfBirth: e.target.value });
-                    setErrors((prev) => {
-                      const upd = { ...prev };
-                      delete upd.spouseDateOfBirth;
-                      return upd;
-                    });
-                  }}
-                  className={getFieldStyle("spouseDateOfBirth")}
-                />
-                {errors.spouseDateOfBirth && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.spouseDateOfBirth}
-                  </p>
-                )}
-              </div>
-
-              {isNatBhutanese(data.spouseNationality) && (
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse Household Number{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    placeholder="Enter Household Number"
-                    value={data.spouseHouseholdNumber || ""}
-                    onChange={(e) => {
-                      setData({
-                        ...data,
-                        spouseHouseholdNumber: e.target.value,
-                      });
-                      if (!isRequired(e.target.value))
-                        setErrors((prev) => {
-                          const upd = { ...prev };
-                          delete upd.spouseHouseholdNumber;
-                          return upd;
-                        });
-                    }}
-                    className={getFieldStyle("spouseHouseholdNumber")}
-                  />
-                  {errors.spouseHouseholdNumber && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.spouseHouseholdNumber}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Spouse Permanent Address */}
-            <div className="mt-6 pt-6 border-t border-dashed">
-              <h4 className="text-md font-semibold text-gray-700 mb-4">
-                Spouse Permanent Address
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse Country <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={data.spousePermCountry || ""}
-                    onValueChange={(value) => {
-                      setData({ ...data, spousePermCountry: value });
-                      if (!isRequired(value))
-                        setErrors((prev) => {
-                          const upd = { ...prev };
-                          delete upd.spousePermCountry;
-                          return upd;
-                        });
-                    }}
-                  >
-                    <SelectTrigger
-                      className={getFieldStyle("spousePermCountry")}
-                    >
-                      <SelectValue placeholder="[Select]" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4}>
-                      {countryOptions.length > 0 ? (
-                        countryOptions.map((option, index) => {
-                          const value = String(
-                            option.country_pk_code ||
-                              option.id ||
-                              option.code ||
-                              index,
-                          );
-                          const label =
-                            option.country ||
-                            option.name ||
-                            option.label ||
-                            "Unknown";
-                          return (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          );
-                        })
-                      ) : (
-                        <SelectItem value="loading" disabled>
-                          Loading...
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {errors.spousePermCountry && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.spousePermCountry}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    {isBhutanCountry(data.spousePermCountry, countryOptions)
-                      ? "Spouse Dzongkhag"
-                      : "Spouse State"}{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  {data.spousePermCountry &&
-                  !isBhutanCountry(data.spousePermCountry, countryOptions) ? (
-                    <Input
-                      placeholder="Enter State"
-                      value={data.spousePermDzongkhag || ""}
-                      onChange={(e) => {
-                        setData({
-                          ...data,
-                          spousePermDzongkhag: e.target.value,
-                        });
-                        if (!isRequired(e.target.value))
-                          setErrors((prev) => {
-                            const upd = { ...prev };
-                            delete upd.spousePermDzongkhag;
-                            return upd;
-                          });
-                      }}
-                      className={getFieldStyle("spousePermDzongkhag")}
-                    />
-                  ) : (
-                    <Select
-                      value={data.spousePermDzongkhag || ""}
-                      onValueChange={(value) => {
-                        setData({ ...data, spousePermDzongkhag: value });
-                        if (!isRequired(value))
-                          setErrors((prev) => {
-                            const upd = { ...prev };
-                            delete upd.spousePermDzongkhag;
-                            return upd;
-                          });
-                      }}
-                      disabled={
-                        !isBhutanCountry(data.spousePermCountry, countryOptions)
-                      }
-                    >
-                      <SelectTrigger
-                        className={getFieldStyle("spousePermDzongkhag")}
-                      >
-                        <SelectValue placeholder="[Select]" />
-                      </SelectTrigger>
-                      <SelectContent sideOffset={4}>
-                        {dzongkhagOptions.length > 0 ? (
-                          dzongkhagOptions.map((option, index) => {
-                            const value = String(
-                              option.dzongkhag_pk_code ||
-                                option.id ||
-                                option.code ||
-                                index,
-                            );
-                            const label =
-                              option.dzongkhag ||
-                              option.name ||
-                              option.label ||
-                              "Unknown";
-                            return (
-                              <SelectItem key={value} value={value}>
-                                {label}
-                              </SelectItem>
-                            );
-                          })
-                        ) : (
-                          <SelectItem value="loading" disabled>
-                            Loading...
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {errors.spousePermDzongkhag && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.spousePermDzongkhag}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    {isBhutanCountry(data.spousePermCountry, countryOptions)
-                      ? "Spouse Gewog"
-                      : "Spouse Province"}{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  {data.spousePermCountry &&
-                  !isBhutanCountry(data.spousePermCountry, countryOptions) ? (
-                    <Input
-                      placeholder="Enter Province"
-                      value={data.spousePermGewog || ""}
-                      onChange={(e) => {
-                        setData({ ...data, spousePermGewog: e.target.value });
-                        if (!isRequired(e.target.value))
-                          setErrors((prev) => {
-                            const upd = { ...prev };
-                            delete upd.spousePermGewog;
-                            return upd;
-                          });
-                      }}
-                      className={getFieldStyle("spousePermGewog")}
-                    />
-                  ) : (
-                    <Select
-                      value={
-                        isBhutanCountry(data.spousePermCountry, countryOptions)
-                          ? data.spousePermGewog
-                          : ""
-                      }
-                      onValueChange={(value) => {
-                        setData({ ...data, spousePermGewog: value });
-                        if (!isRequired(value))
-                          setErrors((prev) => {
-                            const upd = { ...prev };
-                            delete upd.spousePermGewog;
-                            return upd;
-                          });
-                      }}
-                      disabled={
-                        !isBhutanCountry(data.spousePermCountry, countryOptions)
-                      }
-                    >
-                      <SelectTrigger
-                        className={getFieldStyle("spousePermGewog")}
-                      >
-                        <SelectValue placeholder="[Select]" />
-                      </SelectTrigger>
-                      <SelectContent sideOffset={4}>
-                        {spousePermGewogOptions.length > 0 ? (
-                          spousePermGewogOptions.map((option, index) => {
-                            const value = String(
-                              option.gewog_pk_code ||
-                                option.id ||
-                                option.code ||
-                                index,
-                            );
-                            const label =
-                              option.gewog ||
-                              option.name ||
-                              option.label ||
-                              "Unknown";
-                            return (
-                              <SelectItem key={value} value={value}>
-                                {label}
-                              </SelectItem>
-                            );
-                          })
-                        ) : (
-                          <SelectItem value="loading" disabled>
-                            {data.spousePermDzongkhag
-                              ? "Loading..."
-                              : "Select Dzongkhag first"}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {errors.spousePermGewog && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.spousePermGewog}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    {isBhutanCountry(data.spousePermCountry, countryOptions)
-                      ? "Spouse Village/Street"
-                      : "Spouse Street"}{" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    placeholder={
-                      isBhutanCountry(data.spousePermCountry, countryOptions)
-                        ? "Enter Village/Street"
-                        : "Enter Street"
-                    }
-                    value={data.spousePermVillage || ""}
-                    onChange={(e) => {
-                      setData({ ...data, spousePermVillage: e.target.value });
-                      if (!isRequired(e.target.value))
-                        setErrors((prev) => {
-                          const upd = { ...prev };
-                          delete upd.spousePermVillage;
-                          return upd;
-                        });
-                    }}
-                    className={getFieldStyle("spousePermVillage")}
-                    disabled={!data.spousePermCountry}
-                  />
-                  {errors.spousePermVillage && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.spousePermVillage}
-                    </p>
-                  )}
-                </div>
-
-                {/* Conditional grid - show Thram and House only for Bhutan */}
-                {isBhutanCountry(data.spousePermCountry, countryOptions) && (
-                  <>
-                    <div className="space-y-1.5 sm:space-y-2.5">
-                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                        Spouse Thram No. <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        placeholder="Enter Thram No"
-                        value={data.spousePermThram || ""}
-                        onChange={(e) => {
-                          setData({ ...data, spousePermThram: e.target.value });
-                          if (!isRequired(e.target.value))
-                            setErrors((prev) => {
-                              const upd = { ...prev };
-                              delete upd.spousePermThram;
-                              return upd;
-                            });
-                        }}
-                        className={getFieldStyle("spousePermThram")}
-                      />
-                      {errors.spousePermThram && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors.spousePermThram}
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5 sm:space-y-2.5">
-                      <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                        Spouse House No. <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        placeholder="Enter House No"
-                        value={data.spousePermHouse || ""}
-                        onChange={(e) => {
-                          setData({ ...data, spousePermHouse: e.target.value });
-                          if (!isRequired(e.target.value))
-                            setErrors((prev) => {
-                              const upd = { ...prev };
-                              delete upd.spousePermHouse;
-                              return upd;
-                            });
-                        }}
-                        className={getFieldStyle("spousePermHouse")}
-                      />
-                      {errors.spousePermHouse && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors.spousePermHouse}
-                        </p>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Document Upload for Non-Bhutan Countries */}
-              {data.spousePermCountry &&
-                !isBhutanCountry(data.spousePermCountry, countryOptions) && (
-                  <div className="space-y-2.5 mt-4">
-                    <Label className="text-gray-800 font-semibold text-sm">
-                      Upload Spouse Address Proof Document{" "}
-                      <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        id="spousePermAddressProof"
-                        className="hidden"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) =>
-                          handleFileChange(
-                            "spousePermAddressProof",
-                            e.target.files?.[0] || null,
-                          )
-                        }
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-28 bg-transparent"
-                        onClick={() =>
-                          document
-                            .getElementById("spousePermAddressProof")
-                            ?.click()
-                        }
-                      >
-                        Choose File
-                      </Button>
-                      <span className="text-sm text-muted-foreground">
-                        {data.spousePermAddressProof || "No file chosen"}
-                      </span>
-                    </div>
-                    {errors.spousePermAddressProof && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors.spousePermAddressProof}
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-500">
-                      Allowed: PDF, JPG, PNG (Max 5MB)
-                    </p>
-                  </div>
-                )}
-            </div>
-
-            {/* Spouse Contact Details */}
-            <div className="mt-6 pt-6 border-t border-dashed">
-              <h4 className="text-md font-semibold text-gray-700 mb-4">
-                Spouse Contact Information
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse Email <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    type="email"
-                    placeholder="Enter Spouse Email"
-                    value={data.spouseEmail || ""}
-                    onChange={(e) => {
-                      setData({ ...data, spouseEmail: e.target.value });
-                      if (
-                        !isRequired(e.target.value) &&
-                        isEmail(e.target.value)
-                      )
-                        setErrors((prev) => {
-                          const upd = { ...prev };
-                          delete upd.spouseEmail;
-                          return upd;
-                        });
-                    }}
-                    className={getFieldStyle("spouseEmail")}
-                  />
-                  {errors.spouseEmail && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.spouseEmail}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse Contact No. <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    placeholder="Enter Contact Number"
-                    value={data.spouseContact || ""}
-                    onChange={(e) => {
-                      setData({ ...data, spouseContact: e.target.value });
-                      if (!isRequired(e.target.value))
-                        setErrors((prev) => {
-                          const upd = { ...prev };
-                          delete upd.spouseContact;
-                          return upd;
-                        });
-                    }}
-                    className={getFieldStyle("spouseContact")}
-                  />
-                  {errors.spouseContact && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.spouseContact}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5 sm:space-y-2.5">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Spouse Alternate Contact No.
-                  </Label>
-                  <Input
-                    placeholder="Enter Alternate Contact"
-                    value={data.spouseAlternateContact || ""}
-                    onChange={(e) => {
-                      setData({
-                        ...data,
-                        spouseAlternateContact: e.target.value,
-                      });
-                    }}
-                    className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* File Uploads (Family Tree, Bank, Passport) */}
+        {/* File Uploads (Family Tree, Identification Proof, Bank, Passport) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t mt-4">
           <div className="space-y-2.5">
             <Label className="text-gray-800 font-semibold text-sm">
@@ -2874,6 +1988,77 @@ export function PersonalDetailsForm({
               Allowed: PDF, JPG, PNG (Max 5MB)
             </p>
           </div>
+
+          <div className="space-y-2.5">
+            <Label className="text-gray-800 font-semibold text-sm">
+              Upload Identification Proof <span className="text-red-500">*</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                id="uploadIdentificationProof"
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) =>
+                  handleFileChange("identificationProof", e.target.files?.[0] || null)
+                }
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-28 bg-transparent"
+                onClick={() =>
+                  document.getElementById("uploadIdentificationProof")?.click()
+                }
+              >
+                Choose File
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {data.identificationProof || "No file chosen"}
+              </span>
+            </div>
+            {errors.identificationProof && (
+              <p className="text-xs text-red-500 mt-1">{errors.identificationProof}</p>
+            )}
+            <p className="text-xs text-gray-500">
+              Allowed: PDF, JPG, PNG (Max 5MB)
+            </p>
+          </div>
+
+          <div className="space-y-2.5">
+            <Label className="text-gray-800 font-semibold text-sm">
+              Upload Passport-size Photograph{" "}
+              <span className="text-red-500">*</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                id="uploadPassport"
+                className="hidden"
+                accept=".jpg,.jpeg,.png"
+                onChange={(e) =>
+                  handleFileChange("passportPhoto", e.target.files?.[0] || null)
+                }
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-28 bg-transparent"
+                onClick={() => document.getElementById("uploadPassport")?.click()}
+              >
+                Choose File
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {data.passportPhoto || "No file chosen"}
+              </span>
+            </div>
+            {errors.passportPhoto && (
+              <p className="text-xs text-red-500 mt-1">{errors.passportPhoto}</p>
+            )}
+            <p className="text-xs text-gray-500">Allowed: JPG, PNG (Max 5MB)</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2907,10 +2092,10 @@ export function PersonalDetailsForm({
                   banksOptions.map((option, index) => {
                     const value = String(
                       option.bank_pk_code ||
-                        option.id ||
-                        option.code ||
-                        option.bank_code ||
-                        index,
+                      option.id ||
+                      option.code ||
+                      option.bank_code ||
+                      index,
                     );
                     const label =
                       option.bank_name ||
@@ -2977,43 +2162,9 @@ export function PersonalDetailsForm({
             )}
           </div>
         </div>
-
-        <div className="space-y-2.5">
-          <Label className="text-gray-800 font-semibold text-sm">
-            Upload Passport-size Photograph{" "}
-            <span className="text-red-500">*</span>
-          </Label>
-          <div className="flex items-center gap-2">
-            <input
-              type="file"
-              id="uploadPassport"
-              className="hidden"
-              accept=".jpg,.jpeg,.png"
-              onChange={(e) =>
-                handleFileChange("passportPhoto", e.target.files?.[0] || null)
-              }
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-28 bg-transparent"
-              onClick={() => document.getElementById("uploadPassport")?.click()}
-            >
-              Choose File
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              {data.passportPhoto || "No file chosen"}
-            </span>
-          </div>
-          {errors.passportPhoto && (
-            <p className="text-xs text-red-500 mt-1">{errors.passportPhoto}</p>
-          )}
-          <p className="text-xs text-gray-500">Allowed: JPG, PNG (Max 5MB)</p>
-        </div>
       </div>
 
-      {/* 3. Permanent Address */}
+      {/* 2. Permanent Address */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           Permanent Address
@@ -3044,9 +2195,9 @@ export function PersonalDetailsForm({
                   countryOptions.map((option, index) => {
                     const value = String(
                       option.country_pk_code ||
-                        option.id ||
-                        option.code ||
-                        index,
+                      option.id ||
+                      option.code ||
+                      index,
                     );
                     const label =
                       option.country ||
@@ -3079,7 +2230,7 @@ export function PersonalDetailsForm({
               <span className="text-red-500">*</span>
             </Label>
             {data.permCountry &&
-            !isBhutanCountry(data.permCountry, countryOptions) ? (
+              !isBhutanCountry(data.permCountry, countryOptions) ? (
               <Input
                 placeholder="Enter State"
                 value={data.permDzongkhag || ""}
@@ -3116,9 +2267,9 @@ export function PersonalDetailsForm({
                     dzongkhagOptions.map((option, index) => {
                       const value = String(
                         option.dzongkhag_pk_code ||
-                          option.id ||
-                          option.code ||
-                          index,
+                        option.id ||
+                        option.code ||
+                        index,
                       );
                       const label =
                         option.dzongkhag ||
@@ -3154,7 +2305,7 @@ export function PersonalDetailsForm({
               <span className="text-red-500">*</span>
             </Label>
             {data.permCountry &&
-            !isBhutanCountry(data.permCountry, countryOptions) ? (
+              !isBhutanCountry(data.permCountry, countryOptions) ? (
               <Input
                 placeholder="Enter Province"
                 value={data.permGewog || ""}
@@ -3195,9 +2346,9 @@ export function PersonalDetailsForm({
                     permGewogOptions.map((option, index) => {
                       const value = String(
                         option.gewog_pk_code ||
-                          option.id ||
-                          option.code ||
-                          index,
+                        option.id ||
+                        option.code ||
+                        index,
                       );
                       const label =
                         option.gewog ||
@@ -3354,7 +2505,7 @@ export function PersonalDetailsForm({
           )}
       </div>
 
-      {/* 4. Current/Residential Address */}
+      {/* 3. Current/Residential Address */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           Current/Residential Address
@@ -3385,9 +2536,9 @@ export function PersonalDetailsForm({
                   countryOptions.map((option, index) => {
                     const value = String(
                       option.country_pk_code ||
-                        option.id ||
-                        option.code ||
-                        index,
+                      option.id ||
+                      option.code ||
+                      index,
                     );
                     const label =
                       option.country ||
@@ -3420,7 +2571,7 @@ export function PersonalDetailsForm({
               <span className="text-red-500">*</span>
             </Label>
             {data.currCountry &&
-            !isBhutanCountry(data.currCountry, countryOptions) ? (
+              !isBhutanCountry(data.currCountry, countryOptions) ? (
               <Input
                 placeholder="Enter State"
                 value={data.currDzongkhag || ""}
@@ -3457,9 +2608,9 @@ export function PersonalDetailsForm({
                     dzongkhagOptions.map((option, index) => {
                       const value = String(
                         option.dzongkhag_pk_code ||
-                          option.id ||
-                          option.code ||
-                          index,
+                        option.id ||
+                        option.code ||
+                        index,
                       );
                       const label =
                         option.dzongkhag ||
@@ -3495,7 +2646,7 @@ export function PersonalDetailsForm({
               <span className="text-red-500">*</span>
             </Label>
             {data.currCountry &&
-            !isBhutanCountry(data.currCountry, countryOptions) ? (
+              !isBhutanCountry(data.currCountry, countryOptions) ? (
               <Input
                 placeholder="Enter Province"
                 value={data.currGewog || ""}
@@ -3536,9 +2687,9 @@ export function PersonalDetailsForm({
                     currGewogOptions.map((option, index) => {
                       const value = String(
                         option.gewog_pk_code ||
-                          option.id ||
-                          option.code ||
-                          index,
+                        option.id ||
+                        option.code ||
+                        index,
                       );
                       const label =
                         option.gewog ||
@@ -3805,7 +2956,7 @@ export function PersonalDetailsForm({
           )}
       </div>
 
-      {/* 5. PEP Declaration */}
+      {/* 4. PEP Declaration */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           PEP Declaration
@@ -3950,45 +3101,7 @@ export function PersonalDetailsForm({
                 )}
               </div>
 
-              <div className="space-y-2.5">
-                <Label className="text-gray-800 font-semibold text-sm">
-                  Upload Identification Proof{" "}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    id="selfPepProof"
-                    className="hidden"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) =>
-                      handleFileChange(
-                        "identificationProof",
-                        e.target.files?.[0] || null,
-                      )
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-28 bg-transparent"
-                    onClick={() =>
-                      document.getElementById("selfPepProof")?.click()
-                    }
-                  >
-                    Choose File
-                  </Button>
-                  <span className="text-sm text-muted-foreground truncate max-w-[150px]">
-                    {data.identificationProof || "No file chosen"}
-                  </span>
-                </div>
-                {errors.identificationProof && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.identificationProof}
-                  </p>
-                )}
-              </div>
+              {/* Removed self identification proof upload from here */}
             </>
           )}
         </div>
@@ -4032,7 +3145,7 @@ export function PersonalDetailsForm({
           </div>
         )}
 
-        {/* COMPREHENSIVE RELATED PEP MULTIPLE ENTRIES */}
+        {/* COMPREHENSIVE RELATED PEP MULTIPLE ENTRIES (spouse info removed) */}
         {data.pepRelated === "yes" && (
           <div className="space-y-8 pt-4">
             <div className="flex justify-between items-center border-b pb-2">
@@ -4168,8 +3281,8 @@ export function PersonalDetailsForm({
                           relatedPepOptionsMap[index].map((option, idx) => {
                             const value = String(
                               option.pep_sub_category_pk_code ||
-                                option.id ||
-                                idx,
+                              option.id ||
+                              idx,
                             );
                             const label =
                               option.pep_sub_category ||
@@ -4253,13 +3366,12 @@ export function PersonalDetailsForm({
                       value={
                         findPkCodeByLabel(
                           pep.identificationType,
-                          identificationTypeOptions,
-                          [
-                            "identity_type",
-                            "identification_type",
-                            "name",
-                            "label",
-                          ],
+                          filteredIdentificationOptions, [
+                          "identity_type",
+                          "identification_type",
+                          "name",
+                          "label",
+                        ],
                         ) || pep.identificationType
                       }
                       onValueChange={(value) =>
@@ -4278,8 +3390,8 @@ export function PersonalDetailsForm({
                         <SelectValue placeholder="[Select]" />
                       </SelectTrigger>
                       <SelectContent sideOffset={4}>
-                        {identificationTypeOptions.length > 0 ? (
-                          identificationTypeOptions.map((opt, i) => (
+                        {filteredIdentificationOptions.length > 0 ? (
+                          filteredIdentificationOptions.map((opt, i) => (
                             <SelectItem
                               key={i}
                               value={String(
@@ -4512,14 +3624,14 @@ export function PersonalDetailsForm({
                     {errors[
                       `relatedPeps.${index}.identificationExpiryDate`
                     ] && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {
-                          errors[
+                        <p className="text-xs text-red-500 mt-1">
+                          {
+                            errors[
                             `relatedPeps.${index}.identificationExpiryDate`
-                          ]
-                        }
-                      </p>
-                    )}
+                            ]
+                          }
+                        </p>
+                      )}
                   </div>
 
                   <div className="space-y-2.5">
@@ -4548,10 +3660,10 @@ export function PersonalDetailsForm({
                     )}
                   </div>
 
+                  {/* Tax Identifier Type - Not required, shows only PIT */}
                   <div className="space-y-2.5">
                     <Label className="text-gray-800 font-semibold text-sm">
-                      Tax Identifier Type{" "}
-                      <span className="text-red-500">*</span>
+                      Tax Identifier Type
                     </Label>
                     <Select
                       value={pep.taxIdentifierType || ""}
@@ -4571,22 +3683,25 @@ export function PersonalDetailsForm({
                         <SelectValue placeholder="[Select]" />
                       </SelectTrigger>
                       <SelectContent sideOffset={4}>
-                        <SelectItem value="BIT">BIT</SelectItem>
-                        <SelectItem value="GST">GST</SelectItem>
-                        <SelectItem value="CIT">CIT</SelectItem>
-                        <SelectItem value="PIT">PIT</SelectItem>
+                        {personalTaxIdentifierOptions.length > 0 ? (
+                          personalTaxIdentifierOptions.map((opt, i) => (
+                            <SelectItem
+                              key={i}
+                              value={String(opt.tax_identifier_type_pk_code || opt.id)}
+                            >
+                              {opt.tax_identifier_type || opt.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>Loading...</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
-                    {errors[`relatedPeps.${index}.taxIdentifierType`] && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors[`relatedPeps.${index}.taxIdentifierType`]}
-                      </p>
-                    )}
                   </div>
 
                   <div className="space-y-2.5">
                     <Label className="text-gray-800 font-semibold text-sm">
-                      TPN No <span className="text-red-500">*</span>
+                      TPN No
                     </Label>
                     <Input
                       placeholder="Enter TPN"
@@ -4594,13 +3709,8 @@ export function PersonalDetailsForm({
                       onChange={(e) =>
                         handleRelatedPepChange(index, "tpn", e.target.value)
                       }
-                      className={getFieldStyle(`relatedPeps.${index}.tpn`)}
+                      className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
                     />
-                    {errors[`relatedPeps.${index}.tpn`] && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors[`relatedPeps.${index}.tpn`]}
-                      </p>
-                    )}
                   </div>
 
                   {isNatBhutanese(pep.nationality) && (
@@ -4673,880 +3783,8 @@ export function PersonalDetailsForm({
                     )}
                   </div>
                 </div>
-                {/* --- Spouse Information --- */}
-                {isMarriedStatus(pep.maritalStatus) && (
-                  <div className="mt-8 border-t border-dashed pt-8">
-                    <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
-                      Spouse Personal Information
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse Identification Type{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                          value={
-                            findPkCodeByLabel(
-                              pep.spouseIdentificationType,
-                              identificationTypeOptions,
-                              ["identity_type", "identification_type", "name"],
-                            ) || pep.spouseIdentificationType
-                          }
-                          onValueChange={(value) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spouseIdentificationType",
-                              value,
-                            )
-                          }
-                        >
-                          <SelectTrigger
-                            className={getFieldStyle(
-                              `relatedPeps.${index}.spouseIdentificationType`,
-                            )}
-                          >
-                            <SelectValue placeholder="[Select]" />
-                          </SelectTrigger>
-                          <SelectContent sideOffset={4}>
-                            {identificationTypeOptions.length > 0 ? (
-                              identificationTypeOptions.map((opt, i) => (
-                                <SelectItem
-                                  key={i}
-                                  value={String(
-                                    opt.identity_type_pk_code || opt.id || i,
-                                  )}
-                                >
-                                  {opt.identity_type ||
-                                    opt.identification_type ||
-                                    "Unknown"}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="loading" disabled>
-                                Loading...
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        {errors[
-                          `relatedPeps.${index}.spouseIdentificationType`
-                        ] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {
-                              errors[
-                                `relatedPeps.${index}.spouseIdentificationType`
-                              ]
-                            }
-                          </p>
-                        )}
-                      </div>
 
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse ID No. <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          placeholder="Enter ID No"
-                          value={pep.spouseIdentificationNo || ""}
-                          onChange={(e) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spouseIdentificationNo",
-                              e.target.value,
-                            )
-                          }
-                          className={getFieldStyle(
-                            `relatedPeps.${index}.spouseIdentificationNo`,
-                          )}
-                        />
-                        {errors[
-                          `relatedPeps.${index}.spouseIdentificationNo`
-                        ] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {
-                              errors[
-                                `relatedPeps.${index}.spouseIdentificationNo`
-                              ]
-                            }
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse Salutation{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                          value={pep.spouseSalutation || ""}
-                          onValueChange={(value) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spouseSalutation",
-                              value,
-                            )
-                          }
-                        >
-                          <SelectTrigger
-                            className={getFieldStyle(
-                              `relatedPeps.${index}.spouseSalutation`,
-                            )}
-                          >
-                            <SelectValue placeholder="[Select]" />
-                          </SelectTrigger>
-                          <SelectContent sideOffset={4}>
-                            <SelectItem value="mr">Mr.</SelectItem>
-                            <SelectItem value="mrs">Mrs.</SelectItem>
-                            <SelectItem value="ms">Ms.</SelectItem>
-                            <SelectItem value="dr">Dr.</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {errors[`relatedPeps.${index}.spouseSalutation`] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors[`relatedPeps.${index}.spouseSalutation`]}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse Name <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          placeholder="Enter Full Name"
-                          value={pep.spouseName || ""}
-                          onChange={(e) => {
-                            let value = e.target.value;
-                            if (!/^[A-Za-z\s]*$/.test(value)) return;
-                            value = capitalizeWords(value);
-                            handleRelatedPepChange(index, "spouseName", value);
-                          }}
-                          className={getFieldStyle(
-                            `relatedPeps.${index}.spouseName`,
-                          )}
-                        />
-                        {errors[`relatedPeps.${index}.spouseName`] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors[`relatedPeps.${index}.spouseName`]}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse Nationality{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                          value={
-                            findPkCodeByLabel(
-                              pep.spouseNationality,
-                              nationalityOptions,
-                              ["nationality", "name"],
-                            ) || pep.spouseNationality
-                          }
-                          onValueChange={(value) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spouseNationality",
-                              value,
-                            )
-                          }
-                        >
-                          <SelectTrigger
-                            className={getFieldStyle(
-                              `relatedPeps.${index}.spouseNationality`,
-                            )}
-                          >
-                            <SelectValue placeholder="[Select]" />
-                          </SelectTrigger>
-                          <SelectContent sideOffset={4}>
-                            {nationalityOptions.length > 0 ? (
-                              nationalityOptions.map((opt, i) => (
-                                <SelectItem
-                                  key={i}
-                                  value={String(
-                                    opt.nationality_pk_code || opt.id || i,
-                                  )}
-                                >
-                                  {opt.nationality || opt.name || "Unknown"}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="loading" disabled>
-                                Loading...
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        {errors[`relatedPeps.${index}.spouseNationality`] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors[`relatedPeps.${index}.spouseNationality`]}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse Gender <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                          value={pep.spouseGender || ""}
-                          onValueChange={(value) =>
-                            handleRelatedPepChange(index, "spouseGender", value)
-                          }
-                        >
-                          <SelectTrigger
-                            className={getFieldStyle(
-                              `relatedPeps.${index}.spouseGender`,
-                            )}
-                          >
-                            <SelectValue placeholder="[Select]" />
-                          </SelectTrigger>
-                          <SelectContent sideOffset={4}>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="female">Female</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {errors[`relatedPeps.${index}.spouseGender`] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors[`relatedPeps.${index}.spouseGender`]}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse ID Issue Date{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          type="date"
-                          max={today}
-                          value={pep.spouseIdentificationIssueDate || ""}
-                          onChange={(e) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spouseIdentificationIssueDate",
-                              e.target.value,
-                            )
-                          }
-                          className={getFieldStyle(
-                            `relatedPeps.${index}.spouseIdentificationIssueDate`,
-                          )}
-                        />
-                        {errors[
-                          `relatedPeps.${index}.spouseIdentificationIssueDate`
-                        ] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {
-                              errors[
-                                `relatedPeps.${index}.spouseIdentificationIssueDate`
-                              ]
-                            }
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse ID Expiry Date{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          type="date"
-                          min={today}
-                          value={pep.spouseIdentificationExpiryDate || ""}
-                          onChange={(e) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spouseIdentificationExpiryDate",
-                              e.target.value,
-                            )
-                          }
-                          className={getFieldStyle(
-                            `relatedPeps.${index}.spouseIdentificationExpiryDate`,
-                          )}
-                        />
-                        {errors[
-                          `relatedPeps.${index}.spouseIdentificationExpiryDate`
-                        ] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {
-                              errors[
-                                `relatedPeps.${index}.spouseIdentificationExpiryDate`
-                              ]
-                            }
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse Tax Identifier{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                          value={pep.spouseTaxIdentifierType || ""}
-                          onValueChange={(value) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spouseTaxIdentifierType",
-                              value,
-                            )
-                          }
-                        >
-                          <SelectTrigger
-                            className={getFieldStyle(
-                              `relatedPeps.${index}.spouseTaxIdentifierType`,
-                            )}
-                          >
-                            <SelectValue placeholder="[Select]" />
-                          </SelectTrigger>
-                          <SelectContent sideOffset={4}>
-                            <SelectItem value="BIT">BIT</SelectItem>
-                            <SelectItem value="GST">GST</SelectItem>
-                            <SelectItem value="CIT">CIT</SelectItem>
-                            <SelectItem value="PIT">PIT</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {errors[
-                          `relatedPeps.${index}.spouseTaxIdentifierType`
-                        ] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {
-                              errors[
-                                `relatedPeps.${index}.spouseTaxIdentifierType`
-                              ]
-                            }
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse TPN No <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          placeholder="Enter TPN"
-                          value={pep.spouseTpn || ""}
-                          onChange={(e) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spouseTpn",
-                              e.target.value,
-                            )
-                          }
-                          className={getFieldStyle(
-                            `relatedPeps.${index}.spouseTpn`,
-                          )}
-                        />
-                        {errors[`relatedPeps.${index}.spouseTpn`] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors[`relatedPeps.${index}.spouseTpn`]}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse Date of Birth{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          type="date"
-                          max={maxDobDate}
-                          value={pep.spouseDateOfBirth || ""}
-                          onChange={(e) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spouseDateOfBirth",
-                              e.target.value,
-                            )
-                          }
-                          className={getFieldStyle(
-                            `relatedPeps.${index}.spouseDateOfBirth`,
-                          )}
-                        />
-                        {errors[`relatedPeps.${index}.spouseDateOfBirth`] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors[`relatedPeps.${index}.spouseDateOfBirth`]}
-                          </p>
-                        )}
-                      </div>
-
-                      {isNatBhutanese(pep.spouseNationality) && (
-                        <div className="space-y-2.5">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Household Number{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            placeholder="Enter Household No"
-                            value={pep.spouseHouseholdNumber || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                "spouseHouseholdNumber",
-                                e.target.value,
-                              )
-                            }
-                            className={getFieldStyle(
-                              `relatedPeps.${index}.spouseHouseholdNumber`,
-                            )}
-                          />
-                          {errors[
-                            `relatedPeps.${index}.spouseHouseholdNumber`
-                          ] && (
-                            <p className="text-xs text-red-500 mt-1">
-                              {
-                                errors[
-                                  `relatedPeps.${index}.spouseHouseholdNumber`
-                                ]
-                              }
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <h5 className="text-sm font-bold text-gray-700 mb-4">
-                      Spouse Permanent Address
-                    </h5>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse Country <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                          value={pep.spousePermCountry || ""}
-                          onValueChange={(value) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spousePermCountry",
-                              value,
-                            )
-                          }
-                        >
-                          <SelectTrigger
-                            className={getFieldStyle(
-                              `relatedPeps.${index}.spousePermCountry`,
-                            )}
-                          >
-                            <SelectValue placeholder="[Select]" />
-                          </SelectTrigger>
-                          <SelectContent sideOffset={4}>
-                            {countryOptions.length > 0 ? (
-                              countryOptions.map((opt, i) => (
-                                <SelectItem
-                                  key={i}
-                                  value={String(
-                                    opt.country_pk_code || opt.id || i,
-                                  )}
-                                >
-                                  {opt.country || opt.name || "Unknown"}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="loading" disabled>
-                                Loading...
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        {errors[`relatedPeps.${index}.spousePermCountry`] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors[`relatedPeps.${index}.spousePermCountry`]}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          {isBhutanCountry(
-                            pep.spousePermCountry,
-                            countryOptions,
-                          )
-                            ? "Spouse Dzongkhag"
-                            : "Spouse State"}{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        {pep.spousePermCountry &&
-                        !isBhutanCountry(
-                          pep.spousePermCountry,
-                          countryOptions,
-                        ) ? (
-                          <Input
-                            placeholder="Enter State"
-                            value={pep.spousePermDzongkhag || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                "spousePermDzongkhag",
-                                e.target.value,
-                              )
-                            }
-                            className={getFieldStyle(
-                              `relatedPeps.${index}.spousePermDzongkhag`,
-                            )}
-                          />
-                        ) : (
-                          <Select
-                            value={pep.spousePermDzongkhag || ""}
-                            onValueChange={(value) =>
-                              handleRelatedPepChange(
-                                index,
-                                "spousePermDzongkhag",
-                                value,
-                              )
-                            }
-                            disabled={
-                              !isBhutanCountry(
-                                pep.spousePermCountry,
-                                countryOptions,
-                              )
-                            }
-                          >
-                            <SelectTrigger
-                              className={getFieldStyle(
-                                `relatedPeps.${index}.spousePermDzongkhag`,
-                              )}
-                            >
-                              <SelectValue placeholder="[Select]" />
-                            </SelectTrigger>
-                            <SelectContent sideOffset={4}>
-                              {dzongkhagOptions.length > 0 ? (
-                                dzongkhagOptions.map((opt, i) => (
-                                  <SelectItem
-                                    key={i}
-                                    value={String(
-                                      opt.dzongkhag_pk_code || opt.id || i,
-                                    )}
-                                  >
-                                    {opt.dzongkhag || opt.name || "Unknown"}
-                                  </SelectItem>
-                                ))
-                              ) : (
-                                <SelectItem value="loading" disabled>
-                                  Loading...
-                                </SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        )}
-                        {errors[`relatedPeps.${index}.spousePermDzongkhag`] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors[`relatedPeps.${index}.spousePermDzongkhag`]}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          {isBhutanCountry(
-                            pep.spousePermCountry,
-                            countryOptions,
-                          )
-                            ? "Spouse Gewog"
-                            : "Spouse Province"}{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        {pep.spousePermCountry &&
-                        !isBhutanCountry(
-                          pep.spousePermCountry,
-                          countryOptions,
-                        ) ? (
-                          <Input
-                            placeholder="Enter Province"
-                            value={pep.spousePermGewog || ""}
-                            onChange={(e) =>
-                              handleRelatedPepChange(
-                                index,
-                                "spousePermGewog",
-                                e.target.value,
-                              )
-                            }
-                            className={getFieldStyle(
-                              `relatedPeps.${index}.spousePermGewog`,
-                            )}
-                          />
-                        ) : (
-                          <Select
-                            value={pep.spousePermGewog || ""}
-                            onValueChange={(value) =>
-                              handleRelatedPepChange(
-                                index,
-                                "spousePermGewog",
-                                value,
-                              )
-                            }
-                            disabled={
-                              !isBhutanCountry(
-                                pep.spousePermCountry,
-                                countryOptions,
-                              )
-                            }
-                          >
-                            <SelectTrigger
-                              className={getFieldStyle(
-                                `relatedPeps.${index}.spousePermGewog`,
-                              )}
-                            >
-                              <SelectValue placeholder="[Select]" />
-                            </SelectTrigger>
-                            <SelectContent sideOffset={4}>
-                              {relatedPepSpouseGewogMap[index]?.length > 0 ? (
-                                relatedPepSpouseGewogMap[index].map(
-                                  (opt, i) => (
-                                    <SelectItem
-                                      key={i}
-                                      value={String(
-                                        opt.gewog_pk_code || opt.id || i,
-                                      )}
-                                    >
-                                      {opt.gewog || opt.name || "Unknown"}
-                                    </SelectItem>
-                                  ),
-                                )
-                              ) : (
-                                <SelectItem value="loading" disabled>
-                                  {pep.spousePermDzongkhag
-                                    ? "Loading..."
-                                    : "Select Dzongkhag first"}
-                                </SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        )}
-                        {errors[`relatedPeps.${index}.spousePermGewog`] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors[`relatedPeps.${index}.spousePermGewog`]}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          {isBhutanCountry(
-                            pep.spousePermCountry,
-                            countryOptions,
-                          )
-                            ? "Spouse Village/Street"
-                            : "Spouse Street"}{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          placeholder="Enter Location"
-                          value={pep.spousePermVillage || ""}
-                          onChange={(e) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spousePermVillage",
-                              e.target.value,
-                            )
-                          }
-                          className={getFieldStyle(
-                            `relatedPeps.${index}.spousePermVillage`,
-                          )}
-                          disabled={!pep.spousePermCountry}
-                        />
-                        {errors[`relatedPeps.${index}.spousePermVillage`] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors[`relatedPeps.${index}.spousePermVillage`]}
-                          </p>
-                        )}
-                      </div>
-
-                      {isBhutanCountry(
-                        pep.spousePermCountry,
-                        countryOptions,
-                      ) && (
-                        <>
-                          <div className="space-y-2.5">
-                            <Label className="text-gray-800 font-semibold text-sm">
-                              Spouse Thram No.{" "}
-                              <span className="text-red-500">*</span>
-                            </Label>
-                            <Input
-                              placeholder="Enter Thram No"
-                              value={pep.spousePermThram || ""}
-                              onChange={(e) =>
-                                handleRelatedPepChange(
-                                  index,
-                                  "spousePermThram",
-                                  e.target.value,
-                                )
-                              }
-                              className={getFieldStyle(
-                                `relatedPeps.${index}.spousePermThram`,
-                              )}
-                            />
-                            {errors[`relatedPeps.${index}.spousePermThram`] && (
-                              <p className="text-xs text-red-500 mt-1">
-                                {errors[`relatedPeps.${index}.spousePermThram`]}
-                              </p>
-                            )}
-                          </div>
-                          <div className="space-y-2.5">
-                            <Label className="text-gray-800 font-semibold text-sm">
-                              Spouse House No.{" "}
-                              <span className="text-red-500">*</span>
-                            </Label>
-                            <Input
-                              placeholder="Enter House No"
-                              value={pep.spousePermHouse || ""}
-                              onChange={(e) =>
-                                handleRelatedPepChange(
-                                  index,
-                                  "spousePermHouse",
-                                  e.target.value,
-                                )
-                              }
-                              className={getFieldStyle(
-                                `relatedPeps.${index}.spousePermHouse`,
-                              )}
-                            />
-                            {errors[`relatedPeps.${index}.spousePermHouse`] && (
-                              <p className="text-xs text-red-500 mt-1">
-                                {errors[`relatedPeps.${index}.spousePermHouse`]}
-                              </p>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {pep.spousePermCountry &&
-                      !isBhutanCountry(
-                        pep.spousePermCountry,
-                        countryOptions,
-                      ) && (
-                        <div className="space-y-2.5 mb-8">
-                          <Label className="text-gray-800 font-semibold text-sm">
-                            Upload Address Proof Document{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="file"
-                              id={`spouseProof-${index}`}
-                              className="hidden"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={(e) =>
-                                handleRelatedPepFileChange(
-                                  index,
-                                  "spousePermAddressProof",
-                                  e.target.files?.[0] || null,
-                                )
-                              }
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="w-28 bg-white"
-                              onClick={() =>
-                                document
-                                  .getElementById(`spouseProof-${index}`)
-                                  ?.click()
-                              }
-                            >
-                              Choose File
-                            </Button>
-                            <span className="text-sm text-muted-foreground truncate max-w-[200px]">
-                              {pep.spousePermAddressProof || "No file chosen"}
-                            </span>
-                          </div>
-                          {errors[
-                            `relatedPeps.${index}.spousePermAddressProof`
-                          ] && (
-                            <p className="text-xs text-red-500 mt-1">
-                              {
-                                errors[
-                                  `relatedPeps.${index}.spousePermAddressProof`
-                                ]
-                              }
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                    <h5 className="text-sm font-bold text-gray-700 mb-4">
-                      Spouse Contact Information
-                    </h5>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse Email <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          type="email"
-                          placeholder="Enter Email"
-                          value={pep.spouseEmail || ""}
-                          onChange={(e) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spouseEmail",
-                              e.target.value,
-                            )
-                          }
-                          className={getFieldStyle(
-                            `relatedPeps.${index}.spouseEmail`,
-                          )}
-                        />
-                        {errors[`relatedPeps.${index}.spouseEmail`] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors[`relatedPeps.${index}.spouseEmail`]}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Spouse Contact No.{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          placeholder="Enter Contact No"
-                          value={pep.spouseContact || ""}
-                          onChange={(e) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spouseContact",
-                              e.target.value,
-                            )
-                          }
-                          className={getFieldStyle(
-                            `relatedPeps.${index}.spouseContact`,
-                          )}
-                        />
-                        {errors[`relatedPeps.${index}.spouseContact`] && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors[`relatedPeps.${index}.spouseContact`]}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-2.5">
-                        <Label className="text-gray-800 font-semibold text-sm">
-                          Alternate Contact No.
-                        </Label>
-                        <Input
-                          placeholder="Enter Alternate Contact"
-                          value={pep.spouseAlternateContact || ""}
-                          onChange={(e) =>
-                            handleRelatedPepChange(
-                              index,
-                              "spouseAlternateContact",
-                              e.target.value,
-                            )
-                          }
-                          className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* Spouse Information removed entirely */}
 
                 {/* --- PEP Permanent Address --- */}
                 <div className="mt-8 border-t border-dashed pt-8">
@@ -5605,7 +3843,7 @@ export function PersonalDetailsForm({
                         <span className="text-red-500">*</span>
                       </Label>
                       {pep.permCountry &&
-                      !isBhutanCountry(pep.permCountry, countryOptions) ? (
+                        !isBhutanCountry(pep.permCountry, countryOptions) ? (
                         <Input
                           placeholder="Enter State"
                           value={pep.permDzongkhag || ""}
@@ -5676,7 +3914,7 @@ export function PersonalDetailsForm({
                         <span className="text-red-500">*</span>
                       </Label>
                       {pep.permCountry &&
-                      !isBhutanCountry(pep.permCountry, countryOptions) ? (
+                        !isBhutanCountry(pep.permCountry, countryOptions) ? (
                         <Input
                           placeholder="Enter Province"
                           value={pep.permGewog || ""}
@@ -5924,7 +4162,7 @@ export function PersonalDetailsForm({
                         <span className="text-red-500">*</span>
                       </Label>
                       {pep.currCountry &&
-                      !isBhutanCountry(pep.currCountry, countryOptions) ? (
+                        !isBhutanCountry(pep.currCountry, countryOptions) ? (
                         <Input
                           placeholder="Enter State"
                           value={pep.currDzongkhag || ""}
@@ -5995,7 +4233,7 @@ export function PersonalDetailsForm({
                         <span className="text-red-500">*</span>
                       </Label>
                       {pep.currCountry &&
-                      !isBhutanCountry(pep.currCountry, countryOptions) ? (
+                        !isBhutanCountry(pep.currCountry, countryOptions) ? (
                         <Input
                           placeholder="Enter Province"
                           value={pep.currGewog || ""}
@@ -6247,42 +4485,9 @@ export function PersonalDetailsForm({
         )}
       </div>
 
-      {/* 6. Related to BIL */}
-      <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
-        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
-          Related to BIL
-        </h2>
-        <div className="space-y-2.5">
-          <Label className="text-gray-800 font-semibold text-sm">
-            Related to BIL <span className="text-red-500">*</span>
-          </Label>
-          <Select
-            value={data.relatedToBil}
-            onValueChange={(value) => {
-              setData({ ...data, relatedToBil: value });
-              if (!isRequired(value))
-                setErrors((prev) => {
-                  const upd = { ...prev };
-                  delete upd.relatedToBil;
-                  return upd;
-                });
-            }}
-          >
-            <SelectTrigger className={getFieldStyle("relatedToBil")}>
-              <SelectValue placeholder="Select" />
-            </SelectTrigger>
-            <SelectContent sideOffset={4}>
-              <SelectItem value="yes">Yes</SelectItem>
-              <SelectItem value="no">No</SelectItem>
-            </SelectContent>
-          </Select>
-          {errors.relatedToBil && (
-            <p className="text-xs text-red-500 mt-1">{errors.relatedToBil}</p>
-          )}
-        </div>
-      </div>
+      {/* Removed Related to BIL section */}
 
-      {/* 7. Employment Status */}
+      {/* 5. Employment Status (renumbered) */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           Employment Status
@@ -6340,7 +4545,7 @@ export function PersonalDetailsForm({
         </div>
       </div>
 
-      {/* 8. Employment Details */}
+      {/* 6. Employment Details (conditional) */}
       {data.employmentStatus === "employed" && (
         <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
@@ -6394,9 +4599,9 @@ export function PersonalDetailsForm({
                     occupationOptions.map((option, index) => {
                       const value = String(
                         option.occ_pk_code ||
-                          option.occupation_pk_code ||
-                          option.id ||
-                          index,
+                        option.occupation_pk_code ||
+                        option.id ||
+                        index,
                       );
                       const label =
                         option.occ_name ||
@@ -6550,9 +4755,9 @@ export function PersonalDetailsForm({
                     organizationOptions.map((option, index) => {
                       const value = String(
                         option.lgal_constitution_pk_code ||
-                          option.legal_const_pk_code ||
-                          option.id ||
-                          index,
+                        option.legal_const_pk_code ||
+                        option.id ||
+                        index,
                       );
                       const label =
                         option.lgal_constitution ||
@@ -6722,6 +4927,902 @@ export function PersonalDetailsForm({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 7. Spouse Details Section (moved here) */}
+      {isMarried && (
+        <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
+            Spouse Personal Information
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                Spouse Identification Type{" "}
+                <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={
+                  findPkCodeByLabel(
+                    data.spouseIdentificationType,
+                    filteredIdentificationOptions,
+                    ["identity_type", "identification_type", "name", "label"],
+                  ) || data.spouseIdentificationType
+                }
+                onValueChange={(value) => {
+                  setData({ ...data, spouseIdentificationType: value });
+                  if (!isRequired(value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.spouseIdentificationType;
+                      return upd;
+                    });
+                }}
+              >
+                <SelectTrigger
+                  className={getFieldStyle("spouseIdentificationType")}
+                >
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent sideOffset={4}>
+                  {filteredIdentificationOptions.length > 0 ? (
+                    filteredIdentificationOptions.map((option, index) => {
+                      const value = String(
+                        option.identity_type_pk_code ||
+                        option.identification_type_pk_code ||
+                        option.id ||
+                        index,
+                      );
+                      const label =
+                        option.identity_type ||
+                        option.identification_type ||
+                        option.name ||
+                        "Unknown";
+                      return (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })
+                  ) : (
+                    <SelectItem value="loading" disabled>
+                      Loading...
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.spouseIdentificationType && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.spouseIdentificationType}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                Spouse ID No. <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                placeholder="Enter Spouse CID/ID"
+                value={data.spouseIdentificationNo || ""}
+                onChange={(e) => {
+                  setData({
+                    ...data,
+                    spouseIdentificationNo: e.target.value,
+                  });
+                  if (!isRequired(e.target.value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.spouseIdentificationNo;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("spouseIdentificationNo")}
+              />
+              {errors.spouseIdentificationNo && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.spouseIdentificationNo}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                Spouse Salutation <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={data.spouseSalutation}
+                onValueChange={(value) => {
+                  setData({ ...data, spouseSalutation: value });
+                  if (!isRequired(value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.spouseSalutation;
+                      return upd;
+                    });
+                }}
+              >
+                <SelectTrigger className={getFieldStyle("spouseSalutation")}>
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent sideOffset={4}>
+                  <SelectItem value="mr">Mr.</SelectItem>
+                  <SelectItem value="mrs">Mrs.</SelectItem>
+                  <SelectItem value="ms">Ms.</SelectItem>
+                  <SelectItem value="dr">Dr.</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.spouseSalutation && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.spouseSalutation}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                Spouse Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                placeholder="Enter Spouse Full Name"
+                value={data.spouseName || ""}
+                onChange={(e) => {
+                  let value = e.target.value;
+                  if (!/^[A-Za-z\s]*$/.test(value)) return;
+                  value = capitalizeWords(value);
+                  setData({ ...data, spouseName: value });
+                  if (!isRequired(value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.spouseName;
+                      return upd;
+                    });
+                }}
+                className={getFieldStyle("spouseName")}
+              />
+              {errors.spouseName && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.spouseName}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                Spouse Nationality <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={findPkCodeByLabel(
+                  data.spouseNationality,
+                  nationalityOptions, ["nationality", "name", "label"],
+                )}
+                onValueChange={(value) => {
+                  setData({ ...data, spouseNationality: value });
+                  if (!isRequired(value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.spouseNationality;
+                      return upd;
+                    });
+                }}
+              >
+                <SelectTrigger className={getFieldStyle("spouseNationality")}>
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent sideOffset={4}>
+                  {nationalityOptions.length > 0 ? (
+                    nationalityOptions.map((option, index) => {
+                      const value = String(
+                        option.nationality_pk_code ||
+                        option.id ||
+                        option.code ||
+                        index,
+                      );
+                      const label =
+                        option.nationality ||
+                        option.name ||
+                        option.label ||
+                        "Unknown";
+                      return (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })
+                  ) : (
+                    <SelectItem value="loading" disabled>
+                      Loading...
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.spouseNationality && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.spouseNationality}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                Spouse Gender <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={data.spouseGender}
+                onValueChange={(value) => {
+                  setData({ ...data, spouseGender: value });
+                  if (!isRequired(value))
+                    setErrors((prev) => {
+                      const upd = { ...prev };
+                      delete upd.spouseGender;
+                      return upd;
+                    });
+                }}
+              >
+                <SelectTrigger className={getFieldStyle("spouseGender")}>
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent sideOffset={4}>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.spouseGender && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.spouseGender}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                Spouse ID Issue Date <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="date"
+                max={today}
+                value={data.spouseIdentificationIssueDate || ""}
+                onChange={(e) => {
+                  setData({
+                    ...data,
+                    spouseIdentificationIssueDate: e.target.value,
+                  });
+                  setErrors((prev) => {
+                    const upd = { ...prev };
+                    delete upd.spouseIdentificationIssueDate;
+                    return upd;
+                  });
+                }}
+                className={getFieldStyle("spouseIdentificationIssueDate")}
+              />
+              {errors.spouseIdentificationIssueDate && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.spouseIdentificationIssueDate}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                Spouse ID Expiry Date <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="date"
+                min={today}
+                value={data.spouseIdentificationExpiryDate || ""}
+                onChange={(e) => {
+                  setData({
+                    ...data,
+                    spouseIdentificationExpiryDate: e.target.value,
+                  });
+                  setErrors((prev) => {
+                    const upd = { ...prev };
+                    delete upd.spouseIdentificationExpiryDate;
+                    return upd;
+                  });
+                }}
+                className={getFieldStyle("spouseIdentificationExpiryDate")}
+              />
+              {errors.spouseIdentificationExpiryDate && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.spouseIdentificationExpiryDate}
+                </p>
+              )}
+            </div>
+
+            {/* Spouse Tax Identifier Type - Not required, shows only PIT */}
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                Spouse Tax Identifier Type
+              </Label>
+              <Select
+                value={data.spouseTaxIdentifierType}
+                onValueChange={(value) => {
+                  setData({ ...data, spouseTaxIdentifierType: value });
+                }}
+              >
+                <SelectTrigger
+                  className={getFieldStyle("spouseTaxIdentifierType")}
+                >
+                  <SelectValue placeholder="[Select]" />
+                </SelectTrigger>
+                <SelectContent sideOffset={4}>
+                  {personalTaxIdentifierOptions.length > 0 ? (
+                    personalTaxIdentifierOptions.map((opt, i) => (
+                      <SelectItem
+                        key={i}
+                        value={String(opt.tax_identifier_type_pk_code || opt.id)}
+                      >
+                        {opt.tax_identifier_type || opt.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                Spouse TPN No
+              </Label>
+              <Input
+                placeholder="Enter TPN"
+                value={data.spouseTpn || ""}
+                onChange={(e) => {
+                  setData({ ...data, spouseTpn: e.target.value });
+                }}
+                className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+              />
+            </div>
+
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                Spouse Date of Birth <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="date"
+                max={maxDobDate}
+                value={data.spouseDateOfBirth || ""}
+                onChange={(e) => {
+                  setData({ ...data, spouseDateOfBirth: e.target.value });
+                  setErrors((prev) => {
+                    const upd = { ...prev };
+                    delete upd.spouseDateOfBirth;
+                    return upd;
+                  });
+                }}
+                className={getFieldStyle("spouseDateOfBirth")}
+              />
+              {errors.spouseDateOfBirth && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.spouseDateOfBirth}
+                </p>
+              )}
+            </div>
+
+            {isNatBhutanese(data.spouseNationality) && (
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Household Number{" "}
+                  <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  placeholder="Enter Household Number"
+                  value={data.spouseHouseholdNumber || ""}
+                  onChange={(e) => {
+                    setData({
+                      ...data,
+                      spouseHouseholdNumber: e.target.value,
+                    });
+                    if (!isRequired(e.target.value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.spouseHouseholdNumber;
+                        return upd;
+                      });
+                  }}
+                  className={getFieldStyle("spouseHouseholdNumber")}
+                />
+                {errors.spouseHouseholdNumber && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseHouseholdNumber}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Document Upload for Spouse Identification Proof */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t mt-4">
+            <div className="space-y-2.5">
+              <Label className="text-gray-800 font-semibold text-sm">
+                Upload Spouse Identification Proof <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  id="spouseIdentificationProof"
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) =>
+                    handleFileChange("spouseIdentificationProof", e.target.files?.[0] || null)
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-28 bg-transparent"
+                  onClick={() =>
+                    document.getElementById("spouseIdentificationProof")?.click()
+                  }
+                >
+                  Choose File
+                </Button>
+                <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                  {data.spouseIdentificationProof || "No file chosen"}
+                </span>
+              </div>
+              {errors.spouseIdentificationProof && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.spouseIdentificationProof}
+                </p>
+              )}
+              <p className="text-xs text-gray-500">
+                Allowed: PDF, JPG, PNG (Max 5MB)
+              </p>
+            </div>
+          </div>
+
+          {/* Spouse Permanent Address */}
+          <div className="mt-6 pt-6 border-t border-dashed">
+            <h4 className="text-md font-semibold text-gray-700 mb-4">
+              Spouse Permanent Address
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Country <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={data.spousePermCountry || ""}
+                  onValueChange={(value) => {
+                    setData({ ...data, spousePermCountry: value });
+                    if (!isRequired(value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.spousePermCountry;
+                        return upd;
+                      });
+                  }}
+                >
+                  <SelectTrigger
+                    className={getFieldStyle("spousePermCountry")}
+                  >
+                    <SelectValue placeholder="[Select]" />
+                  </SelectTrigger>
+                  <SelectContent sideOffset={4}>
+                    {countryOptions.length > 0 ? (
+                      countryOptions.map((option, index) => {
+                        const value = String(
+                          option.country_pk_code ||
+                          option.id ||
+                          option.code ||
+                          index,
+                        );
+                        const label =
+                          option.country ||
+                          option.name ||
+                          option.label ||
+                          "Unknown";
+                        return (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        Loading...
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {errors.spousePermCountry && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spousePermCountry}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  {isBhutanCountry(data.spousePermCountry, countryOptions)
+                    ? "Spouse Dzongkhag"
+                    : "Spouse State"}{" "}
+                  <span className="text-red-500">*</span>
+                </Label>
+                {data.spousePermCountry &&
+                  !isBhutanCountry(data.spousePermCountry, countryOptions) ? (
+                  <Input
+                    placeholder="Enter State"
+                    value={data.spousePermDzongkhag || ""}
+                    onChange={(e) => {
+                      setData({
+                        ...data,
+                        spousePermDzongkhag: e.target.value,
+                      });
+                      if (!isRequired(e.target.value))
+                        setErrors((prev) => {
+                          const upd = { ...prev };
+                          delete upd.spousePermDzongkhag;
+                          return upd;
+                        });
+                    }}
+                    className={getFieldStyle("spousePermDzongkhag")}
+                  />
+                ) : (
+                  <Select
+                    value={data.spousePermDzongkhag || ""}
+                    onValueChange={(value) => {
+                      setData({ ...data, spousePermDzongkhag: value });
+                      if (!isRequired(value))
+                        setErrors((prev) => {
+                          const upd = { ...prev };
+                          delete upd.spousePermDzongkhag;
+                          return upd;
+                        });
+                    }}
+                    disabled={
+                      !isBhutanCountry(data.spousePermCountry, countryOptions)
+                    }
+                  >
+                    <SelectTrigger
+                      className={getFieldStyle("spousePermDzongkhag")}
+                    >
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent sideOffset={4}>
+                      {dzongkhagOptions.length > 0 ? (
+                        dzongkhagOptions.map((option, index) => {
+                          const value = String(
+                            option.dzongkhag_pk_code ||
+                            option.id ||
+                            option.code ||
+                            index,
+                          );
+                          const label =
+                            option.dzongkhag ||
+                            option.name ||
+                            option.label ||
+                            "Unknown";
+                          return (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          );
+                        })
+                      ) : (
+                        <SelectItem value="loading" disabled>
+                          Loading...
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+                {errors.spousePermDzongkhag && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spousePermDzongkhag}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  {isBhutanCountry(data.spousePermCountry, countryOptions)
+                    ? "Spouse Gewog"
+                    : "Spouse Province"}{" "}
+                  <span className="text-red-500">*</span>
+                </Label>
+                {data.spousePermCountry &&
+                  !isBhutanCountry(data.spousePermCountry, countryOptions) ? (
+                  <Input
+                    placeholder="Enter Province"
+                    value={data.spousePermGewog || ""}
+                    onChange={(e) => {
+                      setData({ ...data, spousePermGewog: e.target.value });
+                      if (!isRequired(e.target.value))
+                        setErrors((prev) => {
+                          const upd = { ...prev };
+                          delete upd.spousePermGewog;
+                          return upd;
+                        });
+                    }}
+                    className={getFieldStyle("spousePermGewog")}
+                  />
+                ) : (
+                  <Select
+                    value={
+                      isBhutanCountry(data.spousePermCountry, countryOptions)
+                        ? data.spousePermGewog
+                        : ""
+                    }
+                    onValueChange={(value) => {
+                      setData({ ...data, spousePermGewog: value });
+                      if (!isRequired(value))
+                        setErrors((prev) => {
+                          const upd = { ...prev };
+                          delete upd.spousePermGewog;
+                          return upd;
+                        });
+                    }}
+                    disabled={
+                      !isBhutanCountry(data.spousePermCountry, countryOptions)
+                    }
+                  >
+                    <SelectTrigger
+                      className={getFieldStyle("spousePermGewog")}
+                    >
+                      <SelectValue placeholder="[Select]" />
+                    </SelectTrigger>
+                    <SelectContent sideOffset={4}>
+                      {spousePermGewogOptions.length > 0 ? (
+                        spousePermGewogOptions.map((option, index) => {
+                          const value = String(
+                            option.gewog_pk_code ||
+                            option.id ||
+                            option.code ||
+                            index,
+                          );
+                          const label =
+                            option.gewog ||
+                            option.name ||
+                            option.label ||
+                            "Unknown";
+                          return (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          );
+                        })
+                      ) : (
+                        <SelectItem value="loading" disabled>
+                          {data.spousePermDzongkhag
+                            ? "Loading..."
+                            : "Select Dzongkhag first"}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+                {errors.spousePermGewog && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spousePermGewog}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  {isBhutanCountry(data.spousePermCountry, countryOptions)
+                    ? "Spouse Village/Street"
+                    : "Spouse Street"}{" "}
+                  <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  placeholder={
+                    isBhutanCountry(data.spousePermCountry, countryOptions)
+                      ? "Enter Village/Street"
+                      : "Enter Street"
+                  }
+                  value={data.spousePermVillage || ""}
+                  onChange={(e) => {
+                    setData({ ...data, spousePermVillage: e.target.value });
+                    if (!isRequired(e.target.value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.spousePermVillage;
+                        return upd;
+                      });
+                  }}
+                  className={getFieldStyle("spousePermVillage")}
+                  disabled={!data.spousePermCountry}
+                />
+                {errors.spousePermVillage && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spousePermVillage}
+                  </p>
+                )}
+              </div>
+
+              {/* Conditional grid - show Thram and House only for Bhutan */}
+              {isBhutanCountry(data.spousePermCountry, countryOptions) && (
+                <>
+                  <div className="space-y-1.5 sm:space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      Spouse Thram No. <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder="Enter Thram No"
+                      value={data.spousePermThram || ""}
+                      onChange={(e) => {
+                        setData({ ...data, spousePermThram: e.target.value });
+                        if (!isRequired(e.target.value))
+                          setErrors((prev) => {
+                            const upd = { ...prev };
+                            delete upd.spousePermThram;
+                            return upd;
+                          });
+                      }}
+                      className={getFieldStyle("spousePermThram")}
+                    />
+                    {errors.spousePermThram && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.spousePermThram}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5 sm:space-y-2.5">
+                    <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                      Spouse House No. <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder="Enter House No"
+                      value={data.spousePermHouse || ""}
+                      onChange={(e) => {
+                        setData({ ...data, spousePermHouse: e.target.value });
+                        if (!isRequired(e.target.value))
+                          setErrors((prev) => {
+                            const upd = { ...prev };
+                            delete upd.spousePermHouse;
+                            return upd;
+                          });
+                      }}
+                      className={getFieldStyle("spousePermHouse")}
+                    />
+                    {errors.spousePermHouse && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.spousePermHouse}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Document Upload for Non-Bhutan Countries */}
+            {data.spousePermCountry &&
+              !isBhutanCountry(data.spousePermCountry, countryOptions) && (
+                <div className="space-y-2.5 mt-4">
+                  <Label className="text-gray-800 font-semibold text-sm">
+                    Upload Spouse Address Proof Document{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      id="spousePermAddressProof"
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) =>
+                        handleFileChange(
+                          "spousePermAddressProof",
+                          e.target.files?.[0] || null,
+                        )
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-28 bg-transparent"
+                      onClick={() =>
+                        document
+                          .getElementById("spousePermAddressProof")
+                          ?.click()
+                      }
+                    >
+                      Choose File
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      {data.spousePermAddressProof || "No file chosen"}
+                    </span>
+                  </div>
+                  {errors.spousePermAddressProof && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.spousePermAddressProof}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Allowed: PDF, JPG, PNG (Max 5MB)
+                  </p>
+                </div>
+              )}
+          </div>
+
+          {/* Spouse Contact Details */}
+          <div className="mt-6 pt-6 border-t border-dashed">
+            <h4 className="text-md font-semibold text-gray-700 mb-4">
+              Spouse Contact Information
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Email <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="email"
+                  placeholder="Enter Spouse Email"
+                  value={data.spouseEmail || ""}
+                  onChange={(e) => {
+                    setData({ ...data, spouseEmail: e.target.value });
+                    if (
+                      !isRequired(e.target.value) &&
+                      isEmail(e.target.value)
+                    )
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.spouseEmail;
+                        return upd;
+                      });
+                  }}
+                  className={getFieldStyle("spouseEmail")}
+                />
+                {errors.spouseEmail && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseEmail}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Contact No. <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  placeholder="Enter Contact Number"
+                  value={data.spouseContact || ""}
+                  onChange={(e) => {
+                    setData({ ...data, spouseContact: e.target.value });
+                    if (!isRequired(e.target.value))
+                      setErrors((prev) => {
+                        const upd = { ...prev };
+                        delete upd.spouseContact;
+                        return upd;
+                      });
+                  }}
+                  className={getFieldStyle("spouseContact")}
+                />
+                {errors.spouseContact && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.spouseContact}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
+                  Spouse Alternate Contact No.
+                </Label>
+                <Input
+                  placeholder="Enter Alternate Contact"
+                  value={data.spouseAlternateContact || ""}
+                  onChange={(e) => {
+                    setData({
+                      ...data,
+                      spouseAlternateContact: e.target.value,
+                    });
+                  }}
+                  className="h-10 sm:h-12 w-full text-sm sm:text-base border border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

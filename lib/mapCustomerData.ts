@@ -11,34 +11,51 @@ export interface CustomerApiResponse {
         party_id?: string;
         party_type?: string;
         party_name?: string;
-        party_gender?: string;
-        party_nationality?: string;
-        party_identity_type?: string;
+        party_gender?: any;        // Can be string or object
+        party_nationality?: any;    // Can be string or object
+        party_identity_type?: any;  // Can be string or object
         party_identity_no?: string;
         party_identity_issued_date?: string;
         party_identity_expiry_date?: string;
         party_date_of_birth?: string;
-        party_marital_status?: string;
-        party_bank_name?: string;
+        party_marital_status?: any; // Can be string or object
+        party_bank_name?: any;      // Can be string or object
         party_bank_account_no?: string;
         party_tpn_number?: string;
+        party_householder_number?: string;          // ADDED
+        party_tax_identifier_type?: any;            // ADDED
+        party_tax_identifier_no?: string | null;    // ADDED
+        party_identity_proof?: string;               // ADDED
+        party_photo_size?: string;                    // ADDED
+        party_family_tree?: string;                   // ADDED
+        party_related_declaration?: string;           // ADDED
+        party_business_estab_date?: string | null;    // ADDED
+        party_business_type?: string | null;          // ADDED
+        party_business_inds_type?: string | null;     // ADDED
       };
       address?: {
-        Permanent_address?: {
+        Bhutanese_Permanent_address?: {
           pty_adr_id?: string;
-          pty_adr_permanent_country?: string;
-          pty_adr_permanent_dzongkhag?: string;
-          pty_adr_permanent_gewog?: string;
+          pty_adr_permanent_country?: any;
+          pty_adr_permanent_dzongkhag?: any;
+          pty_adr_permanent_gewog?: any;
           pty_adr_permanent_street?: string;
           pty_adr_thram_no?: string;
           pty_adr_house_no?: string;
         };
+        Other_Permanent_address?: {
+          pty_adr_permanent_state?: string;
+          pty_adr_permanent_province?: string;
+          pty_adr_permanent_street?: string;
+        };
         resident_address?: {
-          pty_adr_resident_country?: string;
-          pty_adr_resident_dzongkhag?: string;
-          pty_adr_resident_gewog?: string;
+          pty_adr_resident_country?: any;
+          pty_adr_resident_dzongkhag?: any;
+          pty_adr_resident_gewog?: any;
           pty_adr_resident_street?: string;
-          pty_adr_resident_building_no?: string;
+          pty_adr_line_1?: string;
+          pty_adr_thram_no?: string;
+          pty_adr_house_no?: string;
         };
       };
       contact?: {
@@ -49,33 +66,34 @@ export interface CustomerApiResponse {
       };
       employment?: {
         pty_empl_id?: string;
-        pty_empl_occupation?: string;
-        pty_empl_employer_type?: string;
+        pty_empl_occupation?: any;
+        pty_empl_employer_type?: any;
+        pty_empl_type?: any;                         // ADDED
         pty_empl_organization_name?: string;
         pty_empl_organization_loc?: string;
         pty_empl_employee_id?: string;
         pty_empl_nature_of_service?: string;
-        pty_empl_appointment_date?: string;
+        pty_empl_appointment_date?: string | null;
         pty_empl_designation?: string;
         pty_empl_grade?: string;
+        pty_empl_contract_end_date?: string | null;  // ADDED
         pty_empl_annual_income?: string;
       };
       associate?: {
         asso_pty_id?: string;
         asso_associate_party_id?: string;
-        asso_relationship_type?: string;
+        asso_relationship_type?: any;                 // ADDED
       };
       pep?: {
         pep_id?: string;
         pep_party_id?: string;
         pep_declaration_type?: string | null;
-        pep_category?: string;
-        pep_sub_category?: string | null;
+        pep_category?: any;
+        pep_sub_category?: any | null;
         related_to_any_pep?: string;
       };
     };
   };
-  
 }
 
 export interface MappedFormData {
@@ -101,7 +119,18 @@ export interface MappedFormData {
   tpnNumber?: string;
   tpn?: string; // Form alias
   partyId?: string;
-  
+
+  // ADDED: household number (for Bhutanese)
+  householdNumber?: string;
+
+  // ADDED: tax identifier type (label)
+  taxIdentifierType?: string;
+
+  // ADDED: file names for identity proof, passport photo, family tree
+  identityProofName?: string;
+  passportPhotoName?: string;
+  familyTreeName?: string;
+
   // Contact Information
   phone?: string;
   contactNo?: string; // Form alias
@@ -111,7 +140,7 @@ export interface MappedFormData {
   alternateContactNo?: string; // Form alias
   currContact?: string; // Form uses currContact for current contact
   currEmail?: string; // Form uses currEmail for current email
-  
+
   // Permanent Address
   permanentCountry?: string;
   permCountry?: string; // Form alias
@@ -126,7 +155,7 @@ export interface MappedFormData {
   permThram?: string; // Form uses permThram
   houseNo?: string;
   permHouse?: string; // Form uses permHouse
-  
+
   // Current/Resident Address
   currentCountry?: string;
   currCountry?: string; // Form alias
@@ -142,7 +171,7 @@ export interface MappedFormData {
   currFlat?: string; // Form uses currFlat for Flat/Building No
   currThram?: string; // Form uses currThram for current address thram
   currHouse?: string; // Form uses currHouse for current address house number
-  
+
   // Employment Information
   occupation?: string;
   employerType?: string;
@@ -161,7 +190,8 @@ export interface MappedFormData {
   grade?: string;
   annualIncome?: string;
   annualSalary?: string; // Form uses annualSalary
-  
+  contractEndDate?: string; // ADDED
+
   // PEP Information
   pepDeclaration?: string;
   pepPerson?: string; // Form alias for PEP status (yes/no)
@@ -169,23 +199,50 @@ export interface MappedFormData {
   pepSubCategory?: string | null;
   relatedToAnyPep?: string;
   pepRelated?: string; // Form alias for related to PEP (yes/no)
-  
+
   // Metadata
   isVerified?: boolean;
   verifiedFields?: string[];
 }
 
+/**
+ * Safely extract a string from an API field that may be:
+ * - a primitive string
+ * - an object with common label keys (value, name, label, íd)
+ * - null/undefined
+ */
+function getStringValue(value: any, preferredKey?: string): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'object') {
+    // If a preferred key is given, try it first
+    if (preferredKey && value[preferredKey] && typeof value[preferredKey] === 'string') {
+      return value[preferredKey].trim();
+    }
+    // Common label keys in order of priority
+    const keys = ['value', 'name', 'label', 'íd'];
+    for (const key of keys) {
+      if (value[key] && typeof value[key] === 'string') {
+        return value[key].trim();
+      }
+    }
+    // Fallback: convert to string (should rarely happen)
+    return String(value);
+  }
+  return '';
+}
 
 /**
- * Safely extract value from object by trying multiple possible field names
+ * Safely extract value from object by trying multiple possible field names.
+ * Now uses getStringValue to handle objects.
  */
 function extractField(obj: any, ...fieldNames: string[]): string {
   for (const fieldName of fieldNames) {
     const value = obj?.[fieldName];
-    if (value !== null && value !== undefined && value !== '') {
-      const cleaned = String(value).trim();
-      if (cleaned) {
-        return cleaned;
+    if (value !== null && value !== undefined) {
+      const strValue = getStringValue(value);
+      if (strValue) {
+        return strValue;
       }
     }
   }
@@ -220,14 +277,14 @@ function safeGet(obj: any, path: string): any {
  */
 function mapLabelToCode(label: string, type: string): string {
   if (!label) return '';
-  
+
   const cleaned = String(label).trim();
   if (!cleaned) return '';
-  
+
   const labelLower = cleaned.toLowerCase();
-  
+
   console.log(`mapLabelToCode - Input: "${label}", Type: "${type}", Cleaned: "${cleaned}"`);
-  
+
   // Gender mappings - normalize abbreviations only
   if (type === 'gender') {
     if (labelLower === 'm') return 'male';
@@ -235,14 +292,14 @@ function mapLabelToCode(label: string, type: string): string {
     // Keep original API values (should already be 'male', 'female', 'other')
     return cleaned.toLowerCase(); // Ensure lowercase for consistency
   }
-  
+
   // Marital Status mappings - preserve exact API values, normalize common aliases
   if (type === 'maritalStatus') {
     if (labelLower === 'unmarried') return 'single';
     // Keep original API values for standard statuses
     return cleaned.toLowerCase(); // Ensure lowercase for consistency
   }
-  
+
   // Nationality mappings - preserve exact API values, only normalize codes
   if (type === 'nationality') {
     if (labelLower === 'bt' || labelLower === 'bhu') return 'Bhutanese';
@@ -252,7 +309,7 @@ function mapLabelToCode(label: string, type: string): string {
     // Keep original API value for full names
     return cleaned;
   }
-  
+
   // Country mappings (for addresses) - preserve exact API values, only normalize codes
   if (type === 'country') {
     if (labelLower === 'bt' || labelLower === 'btn') return 'Bhutan';
@@ -262,7 +319,7 @@ function mapLabelToCode(label: string, type: string): string {
     // Keep original API value for full country names
     return cleaned;
   }
-  
+
   // Identification Type mappings - preserve exact API values
   if (type === 'identificationType') {
     // Only normalize common abbreviations, otherwise keep original
@@ -270,7 +327,7 @@ function mapLabelToCode(label: string, type: string): string {
     // For everything else, return the original value as-is
     return cleaned;
   }
-  
+
   // Bank Name mappings - preserve exact API values, only normalize abbreviations
   if (type === 'bankName') {
     if (labelLower === 'bob') return 'Bank of Bhutan Limited';
@@ -280,13 +337,13 @@ function mapLabelToCode(label: string, type: string): string {
     // Keep original API value for full bank names
     return cleaned;
   }
-  
+
   // Salutation mappings - remove periods and normalize to lowercase
   if (type === 'salutation') {
     // Remove periods and convert to lowercase
     return cleaned.replace(/\./g, '').toLowerCase();
   }
-  
+
   // Default: return cleaned value as-is (preserve original for dropdown matching)
   console.log(`⚠️ No specific mapping for ${type}: "${cleaned}", returning: "${cleaned}"`);
   return cleaned;
@@ -298,9 +355,9 @@ function mapLabelToCode(label: string, type: string): string {
 function normalizeEmployerType(value: string): string {
   if (!value) return '';
   const normalized = value.toLowerCase().trim();
-  
+
   console.log(`🏢 normalizeEmployerType - Input: "${value}", Normalized: "${normalized}"`);
-  
+
   // Map common variations to form values
   if (normalized.includes('government') || normalized.includes('govt')) {
     console.log(`  → Matched: government`);
@@ -314,7 +371,7 @@ function normalizeEmployerType(value: string): string {
     console.log(`  → Matched: corporate`);
     return 'corporate';
   }
-  
+
   console.log(`  → No match, returning: "${value.trim()}"`);
   // Keep original value if no match
   return value.trim();
@@ -326,12 +383,12 @@ function normalizeEmployerType(value: string): string {
 function normalizeDesignation(value: string): string {
   if (!value) return '';
   const normalized = value.toLowerCase().trim();
-  
+
   // Map common variations to form values
   if (normalized.includes('manager') || normalized.includes('mgr')) return 'manager';
   if (normalized.includes('officer')) return 'officer';
   if (normalized.includes('assistant') || normalized.includes('asst')) return 'assistant';
-  
+
   // Keep original value if no match - user can see API value
   return value.trim();
 }
@@ -342,21 +399,21 @@ function normalizeDesignation(value: string): string {
 function normalizeGrade(value: string): string {
   if (!value) return '';
   const normalized = value.toLowerCase().trim();
-  
+
   // Remove "grade" prefix if present (e.g., "Grade 11" -> "11")
   const withoutPrefix = normalized.replace(/^grade\s*/i, '');
-  
+
   // If it's a valid numeric grade (1-11), return it
   const numericGrade = parseInt(withoutPrefix, 10);
   if (!isNaN(numericGrade) && numericGrade >= 1 && numericGrade <= 11) {
     return String(numericGrade);
   }
-  
+
   // Handle p-grades
   if (normalized === 'p1' || normalized === 'p-1') return 'p1';
   if (normalized === 'p2' || normalized === 'p-2') return 'p2';
   if (normalized === 'p3' || normalized === 'p-3') return 'p3';
-  
+
   return withoutPrefix; // Return cleaned value
 }
 
@@ -366,13 +423,13 @@ function normalizeGrade(value: string): string {
 function normalizeServiceNature(value: string): string {
   if (!value) return '';
   const normalized = value.toLowerCase().trim();
-  
+
   // Map common variations to form values
   if (normalized.includes('permanent') || normalized.includes('perm')) return 'permanent';
   if (normalized.includes('contract')) return 'contract';
   if (normalized.includes('temporary') || normalized.includes('temp')) return 'temporary';
   if (normalized.includes('regular')) return 'permanent'; // Regular service is typically permanent
-  
+
   return normalized; // Return as-is if no match (form will show placeholder)
 }
 
@@ -385,17 +442,17 @@ function extractSalutation(fullName: string, apiSalutation?: string): string {
   if (apiSalutation) {
     return mapLabelToCode(apiSalutation, 'salutation');
   }
-  
+
   // Otherwise, try to extract from the beginning of the name
   if (!fullName) return '';
-  
+
   const nameLower = fullName.toLowerCase();
-  
+
   if (nameLower.startsWith('mr')) return 'mr';
   if (nameLower.startsWith('mrs')) return 'mrs';
   if (nameLower.startsWith('ms')) return 'ms';
   if (nameLower.startsWith('dr')) return 'dr';
-  
+
   return ''; // No salutation found
 }
 
@@ -404,14 +461,14 @@ function extractSalutation(fullName: string, apiSalutation?: string): string {
  */
 function extractNameWithoutSalutation(fullName: string): string {
   if (!fullName) return '';
-  
+
   const trimmed = fullName.trim();
-  
+
   // Remove common salutation prefixes (case-insensitive, with or without period)
   const withoutSalutation = trimmed
     .replace(/^(Mr\.?|Mrs\.?|Ms\.?|Miss|Dr\.?)\s+/i, '')
     .trim();
-  
+
   // Always return something - prefer name without salutation, fallback to original
   const result = withoutSalutation || trimmed;
   console.log(`extractNameWithoutSalutation: "${fullName}" -> "${result}"`);
@@ -423,146 +480,129 @@ function extractNameWithoutSalutation(fullName: string): string {
  */
 export function mapCustomerDataToForm(response: CustomerApiResponse): MappedFormData {
   console.log('mapCustomerDataToForm - Input response:', response);
-  
+
   // Handle nested data structure (data.data.data)
   const customerData = response?.data?.data || response?.data;
-  
-  console.log('mapCustomerDataToForm - Extracted customerData:', customerData);
-  
+
   if (!customerData) {
     console.warn('mapCustomerDataToForm - No customer data found');
-    return {
-      isVerified: false, 
-      verifiedFields: []
-    };
+    return { isVerified: false, verifiedFields: [] };
   }
 
   const { personal, address, contact, employment, pep } = customerData as any;
-  
-  console.log('mapCustomerDataToForm - Destructured sections:', {
-    personal,
-    address,
-    contact,
-    employment,
-    pep
-  });
-  
-  // Log critical fields that user reported are missing
-  console.log('📋 CRITICAL FIELDS FROM API:');
-  console.log('   party_name:', personal?.party_name);
-  console.log('   party_gender:', personal?.party_gender);
-  console.log('   party_marital_status:', personal?.party_marital_status);
-  console.log('   party_nationality:', personal?.party_nationality);
-  console.log('   party_identity_type:', personal?.party_identity_type);
-  console.log('   party_bank_name:', personal?.party_bank_name);
-  console.log('   pty_adr_permanent_country:', address?.Permanent_address?.pty_adr_permanent_country);
-  console.log('\n🔍 ALL PERSONAL FIELDS:', Object.keys(personal || {}));
-  console.log('🔍 ALL PERMANENT ADDRESS FIELDS:', Object.keys(address?.Permanent_address || {}));
-  console.log('🔍 ALL RESIDENT ADDRESS FIELDS:', Object.keys(address?.resident_address || {}));
-  console.log('🔍 ALL ADDRESS STRUCTURE:', Object.keys(address || {}));
-  
+
+  // Determine which permanent address object exists (Bhutanese or Other)
+  const permAddress = address?.Bhutanese_Permanent_address || address?.Other_Permanent_address || {};
+  const resident = address?.resident_address || {};
+
+  // Permanent dzongkhag/gewog: label is in 'íd', code in 'value'
+  const permDzongkhagObj = permAddress?.pty_adr_permanent_dzongkhag;
+  const permGewogObj = permAddress?.pty_adr_permanent_gewog;
+
   const mappedData: MappedFormData = {
     // Personal Information
-    salutation: extractSalutation(personal?.party_name || '', personal?.party_salutation),
+    salutation: extractSalutation(personal?.party_name || '', getStringValue(personal?.party_salutation, 'value')),
     fullName: extractNameWithoutSalutation(personal?.party_name || ''),
-    applicantName: extractNameWithoutSalutation(personal?.party_name || ''), // Form uses applicantName
+    applicantName: extractNameWithoutSalutation(personal?.party_name || ''),
     dateOfBirth: formatDate(personal?.party_date_of_birth),
-    gender: mapLabelToCode(personal?.party_gender || '', 'gender'),
+    gender: mapLabelToCode(getStringValue(personal?.party_gender, 'value'), 'gender'),
     idNumber: personal?.party_identity_no || '',
-    identificationNo: personal?.party_identity_no || '', // Form uses identificationNo
-    idType: mapLabelToCode(personal?.party_identity_type || '', 'identificationType'),
-    identificationType: mapLabelToCode(personal?.party_identity_type || '', 'identificationType'), // Form uses identificationType
+    identificationNo: personal?.party_identity_no || '',
+    idType: mapLabelToCode(getStringValue(personal?.party_identity_type, 'value'), 'identificationType'),
+    identificationType: mapLabelToCode(getStringValue(personal?.party_identity_type, 'value'), 'identificationType'),
     identityIssuedDate: formatDate(personal?.party_identity_issued_date),
-    identificationIssueDate: formatDate(personal?.party_identity_issued_date), // Form uses identificationIssueDate
+    identificationIssueDate: formatDate(personal?.party_identity_issued_date),
     identityExpiryDate: formatDate(personal?.party_identity_expiry_date),
-    identificationExpiryDate: formatDate(personal?.party_identity_expiry_date), // Form uses identificationExpiryDate
-    maritalStatus: mapLabelToCode(extractField(personal, 'party_marital_status', 'marital_status', 'maritalStatus'), 'maritalStatus'),
-    nationality: mapLabelToCode(personal?.party_nationality || '', 'nationality'),
-    bankName: mapLabelToCode(extractField(personal, 'party_bank_name', 'bank_name', 'bankName'), 'bankName'),
-    bankAccount: extractField(personal, 'party_bank_account_no', 'bank_account_no', 'bankAccount'), // Form uses bankAccount
-    bankAccountNo: extractField(personal, 'party_bank_account_no', 'bank_account_no', 'bankAccount'),
-    tpnNumber: extractField(personal, 'party_tpn_number', 'tpn_number', 'tpn'),
-    tpn: extractField(personal, 'party_tpn_number', 'tpn_number', 'tpn'), // Form uses tpn
-    partyId: extractField(personal, 'party_id', 'id'),
+    identificationExpiryDate: formatDate(personal?.party_identity_expiry_date),
+    maritalStatus: mapLabelToCode(getStringValue(personal?.party_marital_status, 'value'), 'maritalStatus'),
+    nationality: mapLabelToCode(getStringValue(personal?.party_nationality, 'value'), 'nationality'),
+    bankName: mapLabelToCode(getStringValue(personal?.party_bank_name, 'value'), 'bankName'),
+    bankAccount: personal?.party_bank_account_no || '',
+    bankAccountNo: personal?.party_bank_account_no || '',
+    tpnNumber: personal?.party_tax_identifier_no || '',
+    tpn: personal?.party_tax_identifier_no || '',
+    partyId: personal?.party_id || '',
+    // NEW FIELDS
+    householdNumber: personal?.party_householder_number || '',
+    taxIdentifierType: getStringValue(personal?.party_tax_identifier_type, 'value'),
+    identityProofName: personal?.party_identity_proof || '',
+    passportPhotoName: personal?.party_photo_size || '',
+    familyTreeName: personal?.party_family_tree || '',
 
     // Contact Information
-    phone: extractField(contact, 'pty_ctc_contact_no', 'contact_no', 'phone'),
-    contactNo: extractField(contact, 'pty_ctc_contact_no', 'contact_no', 'phone'), // Form uses contactNo
-    email: extractField(contact, 'pty_ctc_email_id', 'email_id', 'email'),
-    emailId: extractField(contact, 'pty_ctc_email_id', 'email_id', 'email'), // Form uses emailId
-    alternatePhone: extractField(contact, 'pty_ctc_alternate_contact_no', 'alternate_contact_no', 'alternateContactNo'),
-    alternateContactNo: extractField(contact, 'pty_ctc_alternate_contact_no', 'alternate_contact_no', 'alternateContactNo'), // Form uses alternateContactNo
-    currContact: extractField(contact, 'pty_ctc_contact_no', 'contact_no', 'phone'), // Form uses currContact
-    currEmail: extractField(contact, 'pty_ctc_email_id', 'email_id', 'email'), // Form uses currEmail
+    phone: extractField(contact, 'pty_ctc_contact_no'),
+    contactNo: extractField(contact, 'pty_ctc_contact_no'),
+    email: extractField(contact, 'pty_ctc_email_id'),
+    emailId: extractField(contact, 'pty_ctc_email_id'),
+    alternatePhone: extractField(contact, 'pty_ctc_alternate_contact_no'),
+    alternateContactNo: extractField(contact, 'pty_ctc_alternate_contact_no'),
+    currContact: extractField(contact, 'pty_ctc_contact_no'),
+    currEmail: extractField(contact, 'pty_ctc_email_id'),
 
     // Permanent Address
-    // Permanent Address - keep exact API values for dropdown matching
-    permanentCountry: mapLabelToCode(extractField(address?.Permanent_address, 'pty_adr_permanent_country', 'permanent_country', 'country'), 'country'),
-    permCountry: mapLabelToCode(extractField(address?.Permanent_address, 'pty_adr_permanent_country', 'permanent_country', 'country'), 'country'), // Form uses permCountry
-    permanentDzongkhag: extractField(address?.Permanent_address, 'pty_adr_permanent_dzongkhag', 'permanent_dzongkhag', 'dzongkhag'), // Keep exact API value
-    permDzongkhag: extractField(address?.Permanent_address, 'pty_adr_permanent_dzongkhag', 'permanent_dzongkhag', 'dzongkhag'), // Form uses permDzongkhag - keep exact API value
-    permanentGewog: extractField(address?.Permanent_address, 'pty_adr_permanent_gewog', 'permanent_gewog', 'gewog'), // Keep exact API value
-    permGewog: extractField(address?.Permanent_address, 'pty_adr_permanent_gewog', 'permanent_gewog', 'gewog'), // Form uses permGewog - keep exact API value
-    permanentStreet: extractField(address?.Permanent_address, 'pty_adr_permanent_street', 'permanent_street', 'street'),
-    permStreet: extractField(address?.Permanent_address, 'pty_adr_permanent_street', 'permanent_street', 'street'), // Form uses permStreet
-    permVillage: extractField(address?.Permanent_address, 'pty_adr_permanent_street', 'permanent_street', 'street'), // Form uses permVillage for Village/Street
-    thramNo: extractField(address?.Permanent_address, 'pty_adr_thram_no', 'thram_no', 'thramNo'),
-    permThram: extractField(address?.Permanent_address, 'pty_adr_thram_no', 'thram_no', 'thramNo'), // Form uses permThram
-    houseNo: extractField(address?.Permanent_address, 'pty_adr_house_no', 'house_no', 'houseNo'),
-    permHouse: extractField(address?.Permanent_address, 'pty_adr_house_no', 'house_no', 'houseNo'), // Form uses permHouse
+    permanentCountry: mapLabelToCode(getStringValue(permAddress?.pty_adr_permanent_country, 'value'), 'country'),
+    permCountry: mapLabelToCode(getStringValue(permAddress?.pty_adr_permanent_country, 'value'), 'country'),
+    permanentDzongkhag: getStringValue(permDzongkhagObj, 'íd'), // label from 'íd'
+    permDzongkhag: getStringValue(permDzongkhagObj, 'íd'),
+    permanentGewog: getStringValue(permGewogObj, 'íd'),
+    permGewog: getStringValue(permGewogObj, 'íd'),
+    permanentStreet: extractField(permAddress, 'pty_adr_permanent_street'),
+    permStreet: extractField(permAddress, 'pty_adr_permanent_street'),
+    permVillage: extractField(permAddress, 'pty_adr_permanent_street'),
+    thramNo: extractField(permAddress, 'pty_adr_thram_no'),
+    permThram: extractField(permAddress, 'pty_adr_thram_no'),
+    houseNo: extractField(permAddress, 'pty_adr_house_no'),
+    permHouse: extractField(permAddress, 'pty_adr_house_no'),
 
-    // Current/Resident Address - keep exact API values for dropdown matching
-    currentCountry: mapLabelToCode(extractField(address?.resident_address, 'pty_adr_resident_country', 'resident_country', 'country'), 'country'),
-    currCountry: mapLabelToCode(extractField(address?.resident_address, 'pty_adr_resident_country', 'resident_country', 'country'), 'country'), // Form uses currCountry
-    currentDzongkhag: extractField(address?.resident_address, 'pty_adr_resident_dzongkhag', 'resident_dzongkhag', 'dzongkhag'), // Keep exact API value
-    currDzongkhag: extractField(address?.resident_address, 'pty_adr_resident_dzongkhag', 'resident_dzongkhag', 'dzongkhag'), // Form uses currDzongkhag - keep exact API value
-    currentGewog: extractField(address?.resident_address, 'pty_adr_resident_gewog', 'resident_gewog', 'gewog'), // Keep exact API value
-    currGewog: extractField(address?.resident_address, 'pty_adr_resident_gewog', 'resident_gewog', 'gewog'), // Form uses currGewog - keep exact API value
-    currentStreet: extractField(address?.resident_address, 'pty_adr_resident_street', 'resident_street', 'street'),
-    currStreet: extractField(address?.resident_address, 'pty_adr_resident_street', 'resident_street', 'street'), // Form uses currStreet
-    currVillage: extractField(address?.resident_address, 'pty_adr_resident_street', 'resident_street', 'street'), // Form uses currVillage for Village/Street
-    currentBuildingNo: extractField(address?.resident_address, 'pty_adr_resident_building_no', 'resident_building_no', 'buildingNo'),
-    currBuildingNo: extractField(address?.resident_address, 'pty_adr_resident_building_no', 'resident_building_no', 'buildingNo'), // Form uses currBuildingNo
-    currFlat: extractField(address?.resident_address, 'pty_adr_resident_building_no', 'resident_building_no', 'buildingNo'), // Form uses currFlat for Flat/Building No
-    currThram: extractField(address?.resident_address, 'pty_adr_resident_thram_no', 'resident_thram_no', 'thramNo', 'pty_adr_thram_no') || '', // Form uses currThram for current address
-    currHouse: extractField(address?.resident_address, 'pty_adr_resident_house_no', 'resident_house_no', 'houseNo', 'pty_adr_house_no') || '', // Form uses currHouse for current address
+    // Current/Resident Address
+    currentCountry: mapLabelToCode(getStringValue(resident?.pty_adr_resident_country, 'value'), 'country'),
+    currCountry: mapLabelToCode(getStringValue(resident?.pty_adr_resident_country, 'value'), 'country'),
+    currentDzongkhag: getStringValue(resident?.pty_adr_resident_dzongkhag, 'value'), // label from 'value'
+    currDzongkhag: getStringValue(resident?.pty_adr_resident_dzongkhag, 'value'),
+    currentGewog: getStringValue(resident?.pty_adr_resident_gewog, 'value'),
+    currGewog: getStringValue(resident?.pty_adr_resident_gewog, 'value'),
+    currentStreet: extractField(resident, 'pty_adr_resident_street'),
+    currStreet: extractField(resident, 'pty_adr_resident_street'),
+    currVillage: extractField(resident, 'pty_adr_resident_street'),
+    currentBuildingNo: extractField(resident, 'pty_adr_line_1', 'pty_adr_resident_building_no'),
+    currBuildingNo: extractField(resident, 'pty_adr_line_1', 'pty_adr_resident_building_no'),
+    currFlat: extractField(resident, 'pty_adr_line_1', 'pty_adr_resident_building_no'),
+    currThram: extractField(resident, 'pty_adr_thram_no') || '',
+    currHouse: extractField(resident, 'pty_adr_house_no') || '',
 
     // Employment Information
-    occupation: employment?.pty_empl_occupation || '',
-    employerType: normalizeEmployerType(extractField(employment, 'pty_empl_employer_type', 'employer_type', 'organizationType')),
-    organizationType: normalizeEmployerType(extractField(employment, 'pty_empl_employer_type', 'employer_type', 'organizationType')), // Form uses organizationType
-    employerName: extractField(employment, 'pty_empl_organization_name', 'organization_name', 'employerName'),
-    organizationName: extractField(employment, 'pty_empl_organization_name', 'organization_name', 'employerName'), // Form uses organizationName
-    employerLocation: extractField(employment, 'pty_empl_organization_loc', 'organization_location', 'employerLocation'),
-    organizationLocation: extractField(employment, 'pty_empl_organization_loc', 'organization_location', 'employerLocation'), // Form uses organizationLocation
-    orgLocation: extractField(employment, 'pty_empl_organization_loc', 'organization_location', 'employerLocation'), // Form uses orgLocation
-    employeeId: extractField(employment, 'pty_empl_employee_id', 'employee_id', 'employeeId'),
-    serviceNature: normalizeServiceNature(extractField(employment, 'pty_empl_nature_of_service', 'nature_of_service', 'serviceNature')),
-    natureOfService: normalizeServiceNature(extractField(employment, 'pty_empl_nature_of_service', 'nature_of_service', 'serviceNature')), // Form uses natureOfService
-    appointmentDate: formatDate(extractField(employment, 'pty_empl_appointment_date', 'appointment_date', 'appointmentDate')),
-    joiningDate: formatDate(extractField(employment, 'pty_empl_appointment_date', 'appointment_date', 'appointmentDate')), // Form uses joiningDate
-    designation: normalizeDesignation(extractField(employment, 'pty_empl_designation', 'designation')),
-    grade: normalizeGrade(extractField(employment, 'pty_empl_grade', 'grade')),
-    annualIncome: extractField(employment, 'pty_empl_annual_income', 'annual_income', 'annualIncome'),
-    annualSalary: extractField(employment, 'pty_empl_annual_income', 'annual_income', 'annualIncome'), // Form uses annualSalary
+    occupation: getStringValue(employment?.pty_empl_occupation, 'value'),
+    employerType: normalizeEmployerType(getStringValue(employment?.pty_empl_employer_type, 'value')),
+    organizationType: normalizeEmployerType(getStringValue(employment?.pty_empl_employer_type, 'value')),
+    employerName: extractField(employment, 'pty_empl_organization_name'),
+    organizationName: extractField(employment, 'pty_empl_organization_name'),
+    employerLocation: extractField(employment, 'pty_empl_organization_loc'),
+    organizationLocation: extractField(employment, 'pty_empl_organization_loc'),
+    orgLocation: extractField(employment, 'pty_empl_organization_loc'),
+    employeeId: extractField(employment, 'pty_empl_employee_id'),
+    serviceNature: normalizeServiceNature(extractField(employment, 'pty_empl_nature_of_service')),
+    natureOfService: normalizeServiceNature(extractField(employment, 'pty_empl_nature_of_service')),
+    appointmentDate: formatDate(extractField(employment, 'pty_empl_appointment_date')),
+    joiningDate: formatDate(extractField(employment, 'pty_empl_appointment_date')),
+    designation: normalizeDesignation(extractField(employment, 'pty_empl_designation')),
+    grade: normalizeGrade(extractField(employment, 'pty_empl_grade')),
+    annualIncome: extractField(employment, 'pty_empl_annual_income'),
+    annualSalary: extractField(employment, 'pty_empl_annual_income'),
+    contractEndDate: formatDate(extractField(employment, 'pty_empl_contract_end_date')), // ADDED
 
     // PEP Information
-    pepDeclaration: extractField(pep, 'pep_declaration_type', 'declaration_type'),
-    pepPerson: extractField(pep, 'pep_category', 'category') === 'Not Applicable' ? 'no' : 'yes', // Form uses pepPerson (yes/no)
-    pepCategory: extractField(pep, 'pep_category', 'category'),
-    pepSubCategory: extractField(pep, 'pep_sub_category', 'sub_category'),
-    relatedToAnyPep: extractField(pep, 'related_to_any_pep', 'relatedToAnyPep'),
-    pepRelated: extractField(pep, 'related_to_any_pep', 'relatedToAnyPep') === 'Yes' ? 'yes' : 'no', // Form uses pepRelated (yes/no)
-
+    pepDeclaration: extractField(pep, 'pep_declaration_type'),
+    pepPerson: getStringValue(pep?.pep_category, 'value') === 'Not Applicable' ? 'no' : 'yes',
+    pepCategory: getStringValue(pep?.pep_category, 'value'),
+    pepSubCategory: getStringValue(pep?.pep_sub_category, 'value'),
+    relatedToAnyPep: extractField(pep, 'related_to_any_pep'),
+    pepRelated: extractField(pep, 'related_to_any_pep') === 'Yes' ? 'yes' : 'no',
 
     // Metadata
-    isVerified: true
+    isVerified: true,
   };
 
-  // Diagnostic logging for missing fields
- 
-
-  // Filter verified fields after mappedData is fully defined
+  // Determine verified fields
   const fieldsToCheck = [
     'fullName', 'dateOfBirth', 'gender', 'idNumber', 'idType',
     'maritalStatus', 'nationality', 'phone', 'email',
@@ -570,16 +610,13 @@ export function mapCustomerDataToForm(response: CustomerApiResponse): MappedForm
     'currentCountry', 'currentDzongkhag', 'currentGewog',
     'occupation', 'employerName', 'designation', 'annualIncome'
   ];
-  
+
   mappedData.verifiedFields = fieldsToCheck.filter(field => {
-    // Only mark fields as verified if they have values
     const value = mappedData[field as keyof MappedFormData];
     return value !== '' && value !== null && value !== undefined;
   });
 
   console.log('mapCustomerDataToForm - Final mapped data:', mappedData);
-  console.log('mapCustomerDataToForm - Verified fields:', mappedData.verifiedFields);
-
   return mappedData;
 }
 
@@ -611,7 +648,7 @@ export function getVerifiedCustomerDataFromSession(): MappedFormData | null {
   try {
     console.log('🔍 getVerifiedCustomerDataFromSession: Checking sessionStorage...');
     const verifiedData = sessionStorage.getItem('verifiedCustomerData');
-    
+
     if (verifiedData) {
       const parsedData = JSON.parse(verifiedData);
       console.log('✅ getVerifiedCustomerDataFromSession: Data found!');

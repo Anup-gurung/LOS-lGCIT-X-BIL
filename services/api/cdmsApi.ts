@@ -11,22 +11,22 @@ async function fetchCDMSData(endpoint: string, cacheKey: string) {
     if (cachedData) {
       return cachedData
     }
-    
+
     // Fetch with retry logic
     const response = await fetchWithRetry(
       `${API_CONFIG.CDMS_BASE_URL}${endpoint}`,
       { headers: getAuthHeaders() }
     )
-    
+
     if (!response.ok) {
       if (response.status === 429) {
         throw new Error('Rate limit exceeded. Please wait and try again.')
       }
       throw new Error(`HTTP error! status: ${response.status}`)
     }
-    
+
     const result = await response.json()
-    
+
     // Handle different response structures (including double-nested data.data)
     let data = []
     if (result && result.data && result.data.data && Array.isArray(result.data.data)) {
@@ -38,22 +38,22 @@ async function fetchCDMSData(endpoint: string, cacheKey: string) {
     } else if (result && result.results && Array.isArray(result.results)) {
       data = result.results
     }
-    
+
     // Cache successful response
     if (data.length > 0) {
       setCachedData(cacheKey, data)
     }
-    
+
     return data
   } catch (error) {
     console.error(`Error fetching ${cacheKey}:`, error)
-    
+
     // Try to return cached data even if expired
     const cachedData = getCachedData(cacheKey)
     if (cachedData) {
       return cachedData
     }
-    
+
     return []
   }
 }
@@ -64,7 +64,6 @@ async function fetchCDMSData(endpoint: string, cacheKey: string) {
 export async function fetchMaritalStatus() {
   return fetchCDMSData('/marital-status', 'marital-status')
 }
-
 
 /**
  * Fetch banks list
@@ -118,6 +117,14 @@ export async function fetchOccupations() {
 }
 
 /**
+ * Fetch industry classification list
+ * Endpoint: /industry-classification
+ */
+export async function fetchIndustryClassification() {
+  return fetchCDMSData('/industry-classification', 'industry-classification')
+}
+
+/**
  * Fetch legal constitution (organizations) list
  */
 export async function fetchLegalConstitution() {
@@ -138,6 +145,14 @@ export async function fetchPepCategory() {
 export async function fetchPepSubCategoryByCategory(pepCategoryCode: string) {
   const cacheKey = `pep-sub-category-${pepCategoryCode}`
   return fetchCDMSData(`/pep-sub-category/by/pep-category/${pepCategoryCode}`, cacheKey)
+}
+
+/**
+ * NEW: Fetch tax identifier type list
+ * Endpoint: /tax-identifier-type
+ */
+export async function fetchTaxIdentifierType() {
+  return fetchCDMSData('/tax-identifier-type', 'tax-identifier-type')
 }
 
 /**
@@ -167,18 +182,18 @@ export async function fetchCustomerOnboardedDetails(payload: {
     } catch (e) {
       // CSRF token fetch failed, continue without it
     }
-    
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${API_CONFIG.ACCESS_TOKEN}`,
       'Accept': 'application/json'
     }
-    
+
     // Add CSRF token to headers if available
     if (csrfToken) {
       headers['X-CSRF-TOKEN'] = csrfToken
     }
-    
+
     const response = await fetch(
       `${API_CONFIG.CDMS_BASE_URL}/customer-onboarded-details`,
       {
@@ -187,9 +202,9 @@ export async function fetchCustomerOnboardedDetails(payload: {
         body: JSON.stringify(payload)
       }
     )
-    
+
     const responseText = await response.text()
-    
+
     if (!response.ok) {
       if (response.status === 429) {
         throw new Error('Rate limit exceeded. Please wait and try again.')
@@ -201,7 +216,7 @@ export async function fetchCustomerOnboardedDetails(payload: {
         throw new Error(`HTTP error! status: ${response.status}. Response: ${responseText}`)
       }
     }
-    
+
     const result = JSON.parse(responseText)
     return result
   } catch (error) {
@@ -209,4 +224,3 @@ export async function fetchCustomerOnboardedDetails(payload: {
     throw error
   }
 }
-

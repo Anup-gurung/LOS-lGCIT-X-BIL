@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation"; // <-- ADDED useRouter
 import { Header } from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,10 +49,18 @@ const Loading = () => {
 
 function LoanApplicationContent() {
   const searchParams = useSearchParams();
+  const router = useRouter(); // <-- ADDED router instance
   const stepParam = searchParams.get("step");
   const [currentStep, setCurrentStep] = useState(
     stepParam ? parseInt(stepParam) : 0,
   );
+
+  // Helper to update step and URL
+  const updateStep = (newStep: number) => {
+    setCurrentStep(newStep);
+    router.push(`?step=${newStep}`, { scroll: false });
+  };
+
   const [loanAmount, setLoanAmount] = useState([500000]);
   const [interestRate, setInterestRate] = useState([8.0]);
   const [tenure, setTenure] = useState([12]);
@@ -235,7 +243,7 @@ function LoanApplicationContent() {
     }
   }, [apiTenure]);
 
-  // ---------- Navigation Handlers (unchanged) ----------
+  // ---------- Navigation Handlers (UPDATED to use updateStep) ----------
   const handlePersonalDetailsNext = (data: any) => {
     const updatedFormData = { ...formData, ...data };
     setFormData(updatedFormData);
@@ -245,11 +253,11 @@ function LoanApplicationContent() {
     const mergedData = { ...existingParsed, ...data };
     sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-    setCurrentStep(data.hasCoBorrower ? 2 : 3);
+    updateStep(data.hasCoBorrower ? 2 : 3); // <-- CHANGED
   };
 
   const handlePersonalDetailsBack = () => {
-    setCurrentStep(0);
+    updateStep(0); // <-- CHANGED
   };
 
   const handleCoBorrowerDetailsNext = (data: any) => {
@@ -261,11 +269,11 @@ function LoanApplicationContent() {
     const mergedData = { ...existingParsed, ...data };
     sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-    setCurrentStep(3);
+    updateStep(3); // <-- CHANGED
   };
 
   const handleCoBorrowerDetailsBack = () => {
-    setCurrentStep(1);
+    updateStep(1); // <-- CHANGED
   };
 
   const handleSecurityDetailsNext = (data: any) => {
@@ -277,11 +285,11 @@ function LoanApplicationContent() {
     const mergedData = { ...existingParsed, ...data };
     sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-    setCurrentStep(4);
+    updateStep(4); // <-- CHANGED
   };
 
   const handleSecurityDetailsBack = () => {
-    setCurrentStep(2);
+    updateStep(2); // <-- CHANGED
   };
 
   const handleRepaymentSourceNext = (data: any) => {
@@ -293,11 +301,11 @@ function LoanApplicationContent() {
     const mergedData = { ...existingParsed, ...data };
     sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-    setCurrentStep(5);
+    updateStep(5); // <-- CHANGED
   };
 
   const handleRepaymentSourceBack = () => {
-    setCurrentStep(3);
+    updateStep(3); // <-- CHANGED
   };
 
   const handleConfirmationNext = (data: any) => {
@@ -306,7 +314,7 @@ function LoanApplicationContent() {
   };
 
   const handleConfirmationBack = () => {
-    setCurrentStep(4);
+    updateStep(4); // <-- CHANGED
   };
 
   // ---------- EMI Calculation ----------
@@ -878,7 +886,7 @@ function LoanApplicationContent() {
           </div>
         )}
 
-        {/* Navigation Buttons */}
+        {/* Navigation Buttons (only for step 0) */}
         {currentStep !== 1 &&
           currentStep !== 2 &&
           currentStep !== 3 &&
@@ -888,7 +896,7 @@ function LoanApplicationContent() {
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+                onClick={() => updateStep(Math.max(0, currentStep - 1))} // <-- CHANGED
                 disabled={currentStep === 0}
                 className="bg-gray-500 hover:bg-gray-600 text-white px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-6 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -940,7 +948,7 @@ function LoanApplicationContent() {
           const mergedData = { ...existingParsed, ...loanDetails };
           sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-          setCurrentStep(1);
+          updateStep(1); // <-- CHANGED
         }}
       />
     </div>

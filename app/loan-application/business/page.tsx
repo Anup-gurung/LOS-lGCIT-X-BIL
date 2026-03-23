@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation"; // <-- ADDED useRouter
 import { Header } from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,10 +49,17 @@ const Loading = () => (
 
 function BusinessLoanApplicationContent() {
   const searchParams = useSearchParams();
+  const router = useRouter(); // <-- ADDED router instance
   const stepParam = searchParams.get("step");
   const [currentStep, setCurrentStep] = useState(
     stepParam ? parseInt(stepParam) : 0,
   );
+
+  // Helper to update step and URL
+  const updateStep = (newStep: number) => {
+    setCurrentStep(newStep);
+    router.push(`?step=${newStep}`, { scroll: false });
+  };
 
   // Allowed loan sectors as per requirement
   const ALLOWED_SECTORS = [
@@ -383,19 +390,19 @@ function BusinessLoanApplicationContent() {
   const handleBusinessDetailsNext = (data: any) => {
     setFormData((prev: any) => ({ ...prev, ...data }));
     saveToSession(data);
-    setCurrentStep(2);
+    updateStep(2); // <-- CHANGED
   };
 
   const handleSecurityNext = (data: any) => {
     setFormData((prev: any) => ({ ...prev, ...data }));
     saveToSession(data);
-    setCurrentStep(3);
+    updateStep(3); // <-- CHANGED
   };
 
   const handleRepaymentSourceNext = (data: any) => {
     setFormData((prev: any) => ({ ...prev, ...data }));
     saveToSession(data);
-    setCurrentStep(4);
+    updateStep(4); // <-- CHANGED
   };
 
   const handleConfirmationNext = (data: any) => {
@@ -821,12 +828,12 @@ function BusinessLoanApplicationContent() {
           </div>
         )}
 
-        {/* ---------- Other Steps (unchanged) ---------- */}
+        {/* ---------- Other Steps ---------- */}
         {currentStep === 1 && (
           <div className="max-w-7xl mx-auto">
             <BusinessDetailsForm
               onNext={handleBusinessDetailsNext}
-              onBack={() => setCurrentStep(0)}
+              onBack={() => updateStep(0)} // <-- CHANGED
               formData={formData}
             />
           </div>
@@ -835,7 +842,7 @@ function BusinessLoanApplicationContent() {
           <div className="max-w-7xl mx-auto">
             <SecurityDetailBusiness
               onNext={handleSecurityNext}
-              onBack={() => setCurrentStep(1)}
+              onBack={() => updateStep(1)} // <-- CHANGED
               formData={formData}
             />
           </div>
@@ -844,7 +851,7 @@ function BusinessLoanApplicationContent() {
           <div className="max-w-7xl mx-auto">
             <BusinessRepaymentSourceForm
               onNext={handleRepaymentSourceNext}
-              onBack={() => setCurrentStep(2)}
+              onBack={() => updateStep(2)} // <-- CHANGED
               formData={formData}
             />
           </div>
@@ -853,13 +860,13 @@ function BusinessLoanApplicationContent() {
           <div className="max-w-7xl mx-auto">
             <BusinessConfirmation
               onNext={handleConfirmationNext}
-              onBack={() => setCurrentStep(3)}
+              onBack={() => updateStep(3)} // <-- CHANGED
               formData={formData}
             />
           </div>
         )}
 
-        {/* ---------- Global Navigation Buttons ---------- */}
+        {/* ---------- Global Navigation Buttons (only for step 0) ---------- */}
         {currentStep !== 1 &&
           currentStep !== 2 &&
           currentStep !== 3 &&
@@ -868,7 +875,7 @@ function BusinessLoanApplicationContent() {
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+                onClick={() => updateStep(Math.max(0, currentStep - 1))} // <-- CHANGED
                 disabled={currentStep === 0}
                 className="bg-gray-500 hover:bg-gray-600 text-white px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-6 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -916,7 +923,7 @@ function BusinessLoanApplicationContent() {
           setFormData((prev: any) => ({ ...prev, ...loanDetails }));
           saveToSession(loanDetails);
           setShowDocumentPopup(false);
-          setCurrentStep(1);
+          updateStep(1); // <-- CHANGED
         }}
       />
     </div>

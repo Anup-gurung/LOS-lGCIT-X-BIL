@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation"; // <-- ADDED useRouter
+import { useSearchParams, useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,7 @@ const Loading = () => {
 
 function LoanApplicationContent() {
   const searchParams = useSearchParams();
-  const router = useRouter(); // <-- ADDED router instance
+  const router = useRouter();
   const stepParam = searchParams.get("step");
   const [currentStep, setCurrentStep] = useState(
     stepParam ? parseInt(stepParam) : 0,
@@ -95,17 +95,17 @@ function LoanApplicationContent() {
   const [selectedYears, setSelectedYears] = useState<number | "">("");
 
   // Allowed loan sectors as per requirement (individual version)
-  const allowedLoanSectors = [
-    "Housing Sector",
-    "Transport Loans",
-    "Personal Loans",
-    "Staff Incentive Loans",
-    "Loan Against Term Deposits",
-    "Loans for Shares and Securities",
-    "Education Loans",
-    "Medical Loans",
-    "Agriculture and Livestock",
-  ];
+  // const allowedLoanSectors = [
+  //   "Housing Sector",
+  //   "Transport Loans",
+  //   "Personal Loans",
+  //   "Staff Incentive Loans",
+  //   "Loan Against Term Deposits",
+  //   "Loans for Shares and Securities",
+  //   "Education Loans",
+  //   "Medical Loans",
+  //   "Agriculture and Livestock",
+  // ];
 
   // ---------- Initial load: fetch loan types ----------
   useEffect(() => {
@@ -151,14 +151,15 @@ function LoanApplicationContent() {
     try {
       const sectors = await fetchLoanSectors(typeCode);
       // Filter by allowed sectors
-      const filtered = sectors.filter((sector: any) =>
-        allowedLoanSectors.some(
-          (allowed) =>
-            allowed.toLowerCase().trim() ===
-            (sector.loan_sector || "").toLowerCase().trim()
-        )
-      );
-      setLoanSectorOptions(filtered);
+      // const filtered = sectors.filter((sector: any) =>
+      //   allowedLoanSectors.some(
+      //     (allowed) =>
+      //       allowed.toLowerCase().trim() ===
+      //       (sector.loan_sector || "").toLowerCase().trim()
+      //   )
+      // );
+      // setLoanSectorOptions(filtered);
+      setLoanSectorOptions(sectors);
     } catch (error) {
       console.error("Failed to load sectors", error);
     } finally {
@@ -200,7 +201,6 @@ function LoanApplicationContent() {
     const index = parseInt(value.split("-")[1]);
     const subSector = loanSubSectorOptions[index];
     if (subSector) {
-      // Use correct field names from API
       setApiTenure(parseFloat(subSector.sub_sector_tenure || "0"));
       setApiInterestRate(parseFloat(subSector.sub_sector_interest_rate || "0"));
     }
@@ -243,7 +243,7 @@ function LoanApplicationContent() {
     }
   }, [apiTenure]);
 
-  // ---------- Navigation Handlers (UPDATED to use updateStep) ----------
+  // ---------- Navigation Handlers ----------
   const handlePersonalDetailsNext = (data: any) => {
     const updatedFormData = { ...formData, ...data };
     setFormData(updatedFormData);
@@ -253,11 +253,11 @@ function LoanApplicationContent() {
     const mergedData = { ...existingParsed, ...data };
     sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-    updateStep(data.hasCoBorrower ? 2 : 3); // <-- CHANGED
+    updateStep(data.hasCoBorrower ? 2 : 3);
   };
 
   const handlePersonalDetailsBack = () => {
-    updateStep(0); // <-- CHANGED
+    updateStep(0);
   };
 
   const handleCoBorrowerDetailsNext = (data: any) => {
@@ -269,11 +269,11 @@ function LoanApplicationContent() {
     const mergedData = { ...existingParsed, ...data };
     sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-    updateStep(3); // <-- CHANGED
+    updateStep(3);
   };
 
   const handleCoBorrowerDetailsBack = () => {
-    updateStep(1); // <-- CHANGED
+    updateStep(1);
   };
 
   const handleSecurityDetailsNext = (data: any) => {
@@ -285,11 +285,11 @@ function LoanApplicationContent() {
     const mergedData = { ...existingParsed, ...data };
     sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-    updateStep(4); // <-- CHANGED
+    updateStep(4);
   };
 
   const handleSecurityDetailsBack = () => {
-    updateStep(2); // <-- CHANGED
+    updateStep(2);
   };
 
   const handleRepaymentSourceNext = (data: any) => {
@@ -301,11 +301,11 @@ function LoanApplicationContent() {
     const mergedData = { ...existingParsed, ...data };
     sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-    updateStep(5); // <-- CHANGED
+    updateStep(5);
   };
 
   const handleRepaymentSourceBack = () => {
-    updateStep(3); // <-- CHANGED
+    updateStep(3);
   };
 
   const handleConfirmationNext = (data: any) => {
@@ -314,7 +314,7 @@ function LoanApplicationContent() {
   };
 
   const handleConfirmationBack = () => {
-    updateStep(4); // <-- CHANGED
+    updateStep(4);
   };
 
   // ---------- EMI Calculation ----------
@@ -327,7 +327,7 @@ function LoanApplicationContent() {
     }
 
     const P = amount;
-    const r = apiInterestRate / 12 / 100; // Monthly interest rate
+    const r = apiInterestRate / 12 / 100;
     const n = months;
 
     const emi = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
@@ -401,11 +401,16 @@ function LoanApplicationContent() {
               <div key={step} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
                   <div
+                    onClick={() => {
+                      if (index <= currentStep) {
+                        updateStep(index);
+                      }
+                    }}
                     className={`w-full h-12 md:h-14 flex items-center justify-center rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 shadow-sm ${index === currentStep
                       ? "bg-[#FF9800] text-white shadow-md scale-105"
                       : index < currentStep
-                        ? "bg-gray-300 text-gray-700"
-                        : "bg-white text-gray-500 border border-gray-200"
+                        ? "bg-gray-300 text-gray-700 cursor-pointer hover:bg-gray-400"
+                        : "bg-white text-gray-500 border border-gray-200 cursor-not-allowed"
                       }`}
                   >
                     {step}
@@ -439,7 +444,10 @@ function LoanApplicationContent() {
                   <button
                     key={step}
                     onClick={() => {
-                      setShowStepsMenu(false);
+                      if (index <= currentStep) {
+                        updateStep(index);
+                        setShowStepsMenu(false);
+                      }
                     }}
                     disabled={index > currentStep}
                     className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors first:rounded-t-lg last:rounded-b-lg ${index === currentStep
@@ -896,7 +904,7 @@ function LoanApplicationContent() {
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={() => updateStep(Math.max(0, currentStep - 1))} // <-- CHANGED
+                onClick={() => updateStep(Math.max(0, currentStep - 1))}
                 disabled={currentStep === 0}
                 className="bg-gray-500 hover:bg-gray-600 text-white px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-6 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -948,7 +956,7 @@ function LoanApplicationContent() {
           const mergedData = { ...existingParsed, ...loanDetails };
           sessionStorage.setItem("loanApplicationData", JSON.stringify(mergedData));
 
-          updateStep(1); // <-- CHANGED
+          updateStep(1);
         }}
       />
     </div>

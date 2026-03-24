@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { startNdiFlow } from "@/lib/startNdiFlow";
 
 import {
@@ -12,14 +12,19 @@ import {
   Search,
   AlertCircle,
   QrCode,
+  FileEdit,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getRoleFromStep } from "@/lib/mapNdiData";
+import { resetNDIScanCount } from "@/lib/indexDB";
 
 interface DocumentPopupProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProceed?: () => void;
-  searchStatus?: "searching" | "found" | "not_found";
+  searchStatus?: "searching" | "found" | "not_found" ;
+  setSearchStatus?: (status: "searching" | "found" | "not_found") => void
+
 }
 
 export default function DocumentPopup({
@@ -31,15 +36,28 @@ export default function DocumentPopup({
   const [loading, setLoading] = useState(false);
   const router = useRouter();   // ✅ inside component
 
+  const searchParams= useSearchParams();
+
   const handleNewUserNDI = async () => {
+//  await resetNDIScanCount();
+//  alert("scan count reset")
+
     try {
         setLoading(true);  // start loading
       // const redirectUrl = await startNdiFlow("/co-/loan-application?step=1"");
         const currentPath = window.location.pathname + window.location.search; // Get current path
-        const redirectUrl = await startNdiFlow(currentPath); // Pass current path as redirect
+        // const searchParams = useSearchParams();
+        const step = searchParams.get("step");
+
+        const role = getRoleFromStep(step);
+      console.log("Role", role)
+        const redirectUrl = await startNdiFlow(currentPath, role, "temp");
+
       router.push(redirectUrl);
+      console.log ("")
     } catch (error) {
       alert("Failed to start NDI verification");
+      console.log("error", error)
     }
   };
 
@@ -48,6 +66,11 @@ export default function DocumentPopup({
     if (onProceed) {
       onProceed();
     }
+  };
+
+  const handleNotAction = () => {
+    onOpenChange(false);
+    // TODO: Implement manual data entry logic
   };
 
   return (
@@ -143,6 +166,13 @@ export default function DocumentPopup({
               <QrCode className="h-4 w-4" />
               Continue with NDI
             </Button>
+                        <Button
+                            onClick={handleNotAction}
+                            className="w-full h-12 bg-[#003DA5] hover:bg-[#002D7A] text-white font-semibold rounded-xl transition-all gap-2"
+                        >
+                            <FileEdit className="h-4 w-4" />
+                            Enter Data Manually
+                        </Button>
           </div>
         )}
 

@@ -200,6 +200,11 @@ export interface MappedFormData {
   relatedToAnyPep?: string;
   pepRelated?: string; // Form alias for related to PEP (yes/no)
 
+
+
+  // Co-borrower
+  name?:string;
+  // conationality?:string;
   // Metadata
   isVerified?: boolean;
   verifiedFields?: string[];
@@ -598,6 +603,9 @@ export function mapCustomerDataToForm(response: CustomerApiResponse): MappedForm
     relatedToAnyPep: extractField(pep, 'related_to_any_pep'),
     pepRelated: extractField(pep, 'related_to_any_pep') === 'Yes' ? 'yes' : 'no',
 
+
+    name: extractNameWithoutSalutation(personal?.party_name || ''),
+    
     // Metadata
     isVerified: true,
   };
@@ -679,4 +687,228 @@ export function clearVerifiedCustomerDataFromSession(): void {
   } catch (error) {
     console.error('Error clearing verified customer data from session:', error);
   }
+}
+
+
+export interface CoBorrowerFormData {
+  // Personal Information
+  name?: string;
+  nationality?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  salutation?:string;
+  identificationNo?: string;
+  maritalStatus?: string;
+
+  identificationType?: string;
+  identificationIssueDate?: string;
+  identificationExpiryDate?: string;
+
+  tpn?: string;
+  taxIdentifierType?: string;
+  householdNumber?: string;
+
+  bankName?: string;
+  bankAccount?: string;
+
+  // Contact
+  currContact?: string;
+  currEmail?: string;
+
+  // Address
+  permCountry?: string;
+  permDzongkhag?: string;
+  permGewog?: string;
+
+  // Current/Resident Address
+  currentCountry?: string;
+  currCountry?: string; // Form alias
+  currentDzongkhag?: string;
+  currDzongkhag?: string; // Form alias
+  currGewog?: string;
+  currentStreet?: string;
+  currStreet?: string; // Form alias
+  currVillage?: string; // Form uses currVillage for Village/Street
+  currentBuildingNo?: string;
+  currBuildingNo?: string; // Form alias
+  currFlat?: string; // Form uses currFlat for Flat/Building No
+  currThram?: string; // Form uses currThram for current address thram
+  currHouse?: string; // Form uses currHouse for current address house number
+
+  // Employment
+  occupation?: string;
+  employerType?: string;
+  organizationName?: string;
+  designation?: string;
+  annualSalary?: string;
+
+  // PEP
+  pepPerson?: string;
+  pepCategory?: string;
+  pepRelated?: string;
+
+  // Metadata
+  isVerified?: boolean;
+  verifiedFields?: string[];
+}
+
+export function mapCoBorrowerData(
+  response: CustomerApiResponse
+): CoBorrowerFormData {
+
+  console.log('mapCoBorrowerData - Input:', response);
+
+  const customerData = response?.data?.data || response?.data;
+
+  if (!customerData) {
+    return { isVerified: false, verifiedFields: [] };
+  }
+
+  const { personal, address, contact, employment, pep } = customerData as any;
+
+  const permAddress =
+    address?.Bhutanese_Permanent_address ||
+    address?.Other_Permanent_address ||
+    {};
+
+  const resident = address?.resident_address || {};
+
+  const mappedData: CoBorrowerFormData = {
+    // =========================
+    // PERSONAL INFO
+    // =========================
+    name: extractNameWithoutSalutation(personal?.party_name || ''),
+
+    nationality: mapLabelToCode(getStringValue(personal?.party_nationality, 'value'), 'nationality'),
+
+    salutation: extractSalutation(personal?.party_name || '', getStringValue(personal?.party_salutation, 'value')),
+    dateOfBirth: formatDate(personal?.party_date_of_birth),
+
+    gender: mapLabelToCode(
+      getStringValue(personal?.party_gender, 'value'),
+      'gender'
+    ),
+
+    identificationNo: personal?.party_identity_no || '',
+
+    identificationType: mapLabelToCode(
+      getStringValue(personal?.party_identity_type, 'value'),
+      'identificationType'
+    ),
+
+    identificationIssueDate: formatDate(
+      personal?.party_identity_issued_date
+    ),
+
+    identificationExpiryDate: formatDate(
+      personal?.party_identity_expiry_date
+    ),
+
+    maritalStatus: mapLabelToCode(
+      getStringValue(personal?.party_marital_status, 'value'),
+      'maritalStatus'
+    ),
+
+    tpn: personal?.party_tax_identifier_no || '',
+    taxIdentifierType: getStringValue(
+      personal?.party_tax_identifier_type,
+      'value'
+    ),
+
+    householdNumber: personal?.party_householder_number || '',
+
+    bankName: mapLabelToCode(getStringValue(personal?.party_bank_name, 'value'), 'bankName'),
+
+    bankAccount: personal?.party_bank_account_no || '',
+
+    // =========================
+    // CONTACT
+    // =========================
+    currContact: extractField(contact, 'pty_ctc_contact_no'),
+    currEmail: extractField(contact, 'pty_ctc_email_id'),
+
+    // =========================
+    // ADDRESS
+    // =========================
+   currCountry: mapLabelToCode(getStringValue(resident?.pty_adr_resident_country, 'value'), 'country'),
+    currDzongkhag: getStringValue(resident?.pty_adr_resident_dzongkhag, 'value'), // label from 'value'
+    // currDzongkhag: getStringValue(resident?.pty_adr_resident_dzongkhag, 'value'),
+    currentCountry: getStringValue(resident?.pty_adr_resident_dzongkhag, 'value'),
+    currGewog: getStringValue(resident?.pty_adr_resident_gewog, 'value'),
+    currentStreet: extractField(resident, 'pty_adr_resident_street'),
+    currStreet: extractField(resident, 'pty_adr_resident_street'),
+    currVillage: extractField(resident, 'pty_adr_resident_street'),
+    currentBuildingNo: extractField(resident, 'pty_adr_line_1', 'pty_adr_resident_building_no'),
+    currBuildingNo: extractField(resident, 'pty_adr_line_1', 'pty_adr_resident_building_no'),
+    currFlat: extractField(resident, 'pty_adr_line_1', 'pty_adr_resident_building_no'),
+    currThram: extractField(resident, 'pty_adr_thram_no') || '',
+    currHouse: extractField(resident, 'pty_adr_house_no') || '',
+
+
+    // =========================
+    // EMPLOYMENT
+    // =========================
+    occupation: getStringValue(
+      employment?.pty_empl_occupation,
+      'value'
+    ),
+
+    employerType: normalizeEmployerType(
+      getStringValue(employment?.pty_empl_employer_type, 'value')
+    ),
+
+    organizationName: extractField(
+      employment,
+      'pty_empl_organization_name'
+    ),
+
+    designation: normalizeDesignation(
+      extractField(employment, 'pty_empl_designation')
+    ),
+
+    annualSalary: extractField(
+      employment,
+      'pty_empl_annual_income'
+    ),
+
+    // =========================
+    // PEP
+    // =========================
+    pepPerson:
+      getStringValue(pep?.pep_category, 'value') === 'Not Applicable'
+        ? 'no'
+        : 'yes',
+
+    pepCategory: getStringValue(pep?.pep_category, 'value'),
+
+    pepRelated:
+      extractField(pep, 'related_to_any_pep') === 'Yes'
+        ? 'yes'
+        : 'no',
+
+    // =========================
+    // METADATA
+    // =========================
+    isVerified: true,
+  };
+
+  // Verified fields
+  const fieldsToCheck = [
+    'name',
+    'dateOfBirth',
+    'gender',
+    'identificationNo',
+    'nationality',
+    'currContact',
+    'currEmail',
+  ];
+
+  mappedData.verifiedFields = fieldsToCheck.filter((field) => {
+    const value = mappedData[field as keyof CoBorrowerFormData];
+    return value !== '' && value !== null && value !== undefined;
+  });
+
+  console.log('mapCoBorrowerData - Output:', mappedData);
+
+  return mappedData;
 }

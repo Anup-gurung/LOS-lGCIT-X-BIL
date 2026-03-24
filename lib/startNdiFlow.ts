@@ -1,5 +1,18 @@
-export async function startNdiFlow(redirectPath?: string) {
+import { resetNDIScanCount } from "./indexDB";
 
+export async function startNdiFlow(
+  redirectPath?: string,
+  role: "applicant" | "co-applicant" | "guarantor" = "applicant",
+  refId: String = "applicant"
+) {
+  // 🔥 Reset all scan counts first (once)
+  // try {
+  //   await resetNDIScanCount();
+  //   console.log("✅ Scan counts reset before starting NDI flow");
+  // } catch (err) {
+  //   console.error("❌ Failed to reset scan counts:", err);
+  // }
+  
   const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL
 
   // Detect current page
@@ -55,6 +68,8 @@ export async function startNdiFlow(redirectPath?: string) {
       threadId,
       deepLinkURL,
       redirect: finalRedirect,
+      role,
+      refId,
     })
   )
 

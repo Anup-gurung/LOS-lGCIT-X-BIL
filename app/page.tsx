@@ -14,7 +14,7 @@ export default function HomePage() {
 
       {/* Action Cards */}
       <div className="container mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           <Link href="/loan-application">
             <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer h-full border-gray-200">
               <CardContent className="flex flex-col items-center justify-center p-10 text-center space-y-4">
@@ -63,7 +63,7 @@ export default function HomePage() {
             </Card>
           </Link>
 
-          <Link href="/resume">
+          {/* <Link href="/resume">
             <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer h-full border-gray-200">
               <CardContent className="flex flex-col items-center justify-center p-10 text-center space-y-4">
                 <div className="w-24 h-24 rounded-full bg-white border-4 border-[#003DA5] flex items-center justify-center">
@@ -77,7 +77,7 @@ export default function HomePage() {
                 </h3>
               </CardContent>
             </Card>
-          </Link>
+          </Link> */}
         </div>
       </div>
     </div>

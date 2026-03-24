@@ -3,6 +3,22 @@
  * Based on Bhutan NDI Technical Documentation v1.2
  */
 
+// lib/ndiRole.ts
+export const getRoleFromStep = (step: string | null) => {
+  switch (step) {
+    case "1":
+      return "applicant";
+    case "2":
+      return "co-applicant";
+    case "3":
+    case "4":
+      return "guarantor";
+    default:
+      return "applicant";
+  }
+};
+
+import { getNDIDataByRef } from './indexDB';
 import { NDICredential } from './ndiService';
 /**
  * Map text labels to their corresponding codes for dropdown values
@@ -151,7 +167,7 @@ if (type === 'nationality') {
         return ndiData[snakeKey];
       }
     }
-    return undefined;
+    return "";
   }
 
   /** Main mapping function */
@@ -161,15 +177,20 @@ if (type === 'nationality') {
     const formData: PersonalDetailFormData = {};
 
     // Gender
-    const genderRaw = getValue(ndiData, 'gender');
+    const genderRaw = getValue(ndiData, 'Gender');
     formData.gender = mapLabelToCode(genderRaw || '', 'gender');
     formData.salutation = determineSalutation(formData.gender);
 
     // Name
-    formData.applicantName = getValue(ndiData, 'fullName', 'name');
+    formData.applicantName = getValue(ndiData, 'Full Name', 'Name');
+    // const nameRaw = getValue(ndiData, 'Full Name', 'Name');
+    // console.log("Raw name value from NDI data:", nameRaw);
+    console.log('')
+    console.log("Mapped applicant name:", formData.applicantName);
 
     // Nationality
-      const nationalityRaw = getValue(ndiData, 'nationality', 'citizenship');
+      const nationalityRaw = getValue(ndiData, 'nationality', 'Citizenship');
+      console.log("Raw nationality value from NDI data:", nationalityRaw);
       formData.nationality = mapLabelToCode(nationalityRaw || '', 'nationality');
 
     // Identification
@@ -177,34 +198,38 @@ if (type === 'nationality') {
       ndiData,
       'citizenshipIdentificationNumber',
       'idNumber',
-      'id_number'
+      'id_number',
+      'ID Number'
     );
 
+    
     const idTypeRaw = getValue(ndiData, 'idType', 'id_type');
     formData.identificationType = mapLabelToCode(idTypeRaw || '', 'identificationType');
 
     // Date of birth
     formData.dateOfBirth = formatDateToISO(
-      getValue(ndiData, 'dateOfBirth', 'date_of_birth', 'dob')
+      getValue(ndiData, 'dateOfBirth', 'date_of_birth', 'dob', 'Date of Birth')
     );
 
-    console.log("Mobile from getValue:", getValue(ndiData, 'mobileNumber', 'mobile_number'));
+    // console.log("Mobile from getValue:", getValue(ndiData, 'mobileNumber', 'mobile_number'));
 
     // Contact
-    formData.currContact = getValue(
-      ndiData,
-      'mobileNumber',
-      'mobile_number',
-    );
-    console.log("Mapped mobile number:", formData.currContact);
+    // formData.currContact = getValue(
+    //   ndiData,
+    //   'mobileNumber',
+    //   'mobile_number',
+    // );
+    // console.log("Mapped mobile number:", formData.currContact);
 
-    formData.currEmail = getValue(
-      ndiData,
-      'email'
-    );
+    // formData.currEmail = getValue(
+    //   ndiData,
+    //   'email'
+    // );
+  //  formData.currContact = getValue(ndiData, 'mobileNumber', 'phone') || '';
+  // formData.currEmail = getValue(ndiData, 'email') || '';
 
     // Permanent Address
-    formData.permCountry = 'Bhutan';
+    formData.permCountry = matchDropdown(COUNTRIES, getValue(ndiData, 'country'));
     formData.permDzongkhag = matchDropdown(
       DZONGKHAGS,
       getValue(ndiData, 'dzongkhag')
@@ -222,7 +247,7 @@ if (type === 'nationality') {
     formData.permThram = getValue(ndiData, 'thramNumber', 'thram_number');
     formData.permHouse = getValue(ndiData, 'houseNumber', 'house_no');
     // Copy permanent to current if not present
-    formData.currCountry = 'Bhutan';
+    formData.currCountry = formData.permCountry;
     formData.currDzongkhag = formData.permDzongkhag;
     formData.currGewog = formData.permGewog;
     formData.currVillage = formData.permVillage;
@@ -231,6 +256,16 @@ if (type === 'nationality') {
 
     console.log("Mapped Form Data:", formData);
 
+
+
+    // Co-borrower
+       // Name
+      //  console.log("Form data fields for co-borrower",formData.fields )
+    formData.name = getValue(ndiData, 'Full Name', 'Name');
+    const nameRaw = getValue(ndiData, 'Full Name', 'Name');
+    console.log("Raw name value from NDI data:", nameRaw);
+    console.log('')
+    // console.log("Mapped co-borrower name:", formData.name);
     return formData;
   }
 
@@ -240,19 +275,19 @@ if (type === 'nationality') {
 export function storeNdiDataInSession(ndiData: NDICredential): void {
   const mappedData = mapNdiDataToPersonalDetail(ndiData);
   sessionStorage.setItem('ndi_verified_data', JSON.stringify(ndiData));
-  sessionStorage.setItem('ndi_mapped_personal_details', JSON.stringify(mappedData));
+  sessionStorage.setItem('verifiedCustomerData', JSON.stringify(mappedData));
   console.log('NDI data stored in session:', { raw: ndiData, mapped: mappedData });
 }
 
 export function getNdiDataFromSession(): PersonalDetailFormData | null {
   try {
-    const mappedData = sessionStorage.getItem('ndi_mapped_personal_details');
+    const mappedData = sessionStorage.getItem('verifiedCustomerData');
     if (mappedData) return JSON.parse(mappedData);
 
     const rawData = sessionStorage.getItem('ndi_verified_data');
     if (rawData) {
       const mapped = mapNdiDataToPersonalDetail(JSON.parse(rawData));
-      sessionStorage.setItem('ndi_mapped_personal_details', JSON.stringify(mapped));
+      sessionStorage.setItem('verifiedCustomerData', JSON.stringify(mapped));
       return mapped;
     }
   } catch (error) {
@@ -263,5 +298,298 @@ export function getNdiDataFromSession(): PersonalDetailFormData | null {
 
 export function clearNdiDataFromSession(): void {
   sessionStorage.removeItem('ndi_verified_data');
-  sessionStorage.removeItem('ndi_mapped_personal_details');
+  sessionStorage.removeItem('verifiedCustomerData');
 }
+
+export const loadNDIFromIndexedDBToSession = async (refId: string) => {
+  try {
+    console.log("🔍 Loading NDI data from IndexedDB...");
+
+    const ndiIndexedData = await getNDIDataByRef(refId);
+
+    if (!ndiIndexedData) {
+      console.warn("⚠️ No NDI data found in IndexedDB");
+      return null;
+    }
+
+    const rawData = ndiIndexedData?.data || ndiIndexedData;
+
+    console.log("📦 Raw IndexedDB NDI:", rawData);
+
+    // ✅ Map data
+    const mappedData = mapNdiDataToPersonalDetail(rawData);
+
+    // ✅ Store ONLY mapped data
+    storeNdiDataInSession(mappedData);
+    console.log("✅ Mapped NDI data stored in session:", mappedData);
+
+    return mappedData;
+  } catch (error) {
+    console.error("❌ Failed to load from IndexedDB:", error);
+    return null;
+  }
+};
+
+export interface CoBorrowerFormData {
+  name?: string;
+  salutation?: string;
+  nationality?: string;
+  identificationType?: string;
+  identificationNo?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  maritalStatus?: string;
+
+  currEmail?: string;
+  currContact?: string;
+
+  permCountry?: string;
+  permDzongkhag?: string;
+  permGewog?: string;
+  permVillage?: string;
+  permHouse?: string;
+  permThram?: string;
+
+  currCountry?: string;
+  currDzongkhag?: string;
+  currGewog?: string;
+  currVillage?: string;
+  currHouseNo?: string;
+  currThram?: string;
+
+  isVerified?: boolean;
+  verifiedFields?: string[];
+
+}export interface CoBorrowerFormData {
+  name?: string;
+  salutation?: string;
+  nationality?: string;
+  identificationType?: string;
+  identificationNo?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  maritalStatus?: string;
+
+  currEmail?: string;
+  currContact?: string;
+
+  permCountry?: string;
+  permDzongkhag?: string;
+  permGewog?: string;
+  permVillage?: string;
+  permHouse?: string;
+  permThram?: string;
+
+  currCountry?: string;
+  currDzongkhag?: string;
+  currGewog?: string;
+  currVillage?: string;
+  currHouseNo?: string;
+  currThram?: string;
+
+  isVerified?: boolean;
+  verifiedFields?: string[];
+}
+
+export function mapNdiDataToCoBorrower(ndiData: any) {
+  console.log("Mapping NDI data for CoBorrower:", ndiData);
+
+  return {
+    name: getValue(ndiData, 'Full Name', 'Name'),
+  
+    
+    nationality: mapLabelToCode(
+      getValue(ndiData, 'nationality', 'Citizenship') || '',
+      'nationality'
+    ),
+
+    gender: mapLabelToCode(
+      getValue(ndiData, 'Gender') || '',
+      'gender'
+    ),
+
+    dateOfBirth: formatDateToISO(
+      getValue(ndiData, 'dateOfBirth', 'dob', 'Date of Birth')
+    ),
+
+    identificationNo: getValue(
+      ndiData,
+      'citizenshipIdentificationNumber',
+      'ID Number'
+    ),
+
+    identificationType: mapLabelToCode(
+      getValue(ndiData, 'idType', 'ID Type') || '',
+      'identificationType'
+    ),
+
+    maritalStatus: '',
+
+    // Contact
+    currContact: getValue(ndiData, 'mobileNumber', 'phone'),
+    currEmail: getValue(ndiData, 'email'),
+
+    // Address (optional reuse)
+    permCountry: 'Bhutan',
+    permDzongkhag: getValue(ndiData, 'dzongkhag'),
+    permGewog: getValue(ndiData, 'gewog'),
+
+    isVerified: true,
+  };
+}
+
+
+export interface SecurityFormData {
+  name?: string;
+  salutation?: string;
+  nationality?: string;
+  identificationType?: string;
+  identificationNo?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  maritalStatus?: string;
+
+  currEmail?: string;
+  currContact?: string;
+
+  permCountry?: string;
+  permDzongkhag?: string;
+  permGewog?: string;
+  permVillage?: string;
+  permHouse?: string;
+  permThram?: string;
+
+  currCountry?: string;
+  currDzongkhag?: string;
+  currGewog?: string;
+  currVillage?: string;
+  currHouseNo?: string;
+  currThram?: string;
+
+  isVerified?: boolean;
+  verifiedFields?: string[];
+}
+
+export function mapNdiDataToSecurityGuarantor(ndiData: any) {
+  console.log("Mapping NDI data for CoBorrower:", ndiData);
+
+  return {
+    name: getValue(ndiData, 'Full Name', 'Name'),
+    
+    nationality: mapLabelToCode(
+      getValue(ndiData, 'nationality', 'Citizenship') || '',
+      'nationality'
+    ),
+
+    gender: mapLabelToCode(
+      getValue(ndiData, 'Gender') || '',
+      'gender'
+    ),
+
+    dateOfBirth: formatDateToISO(
+      getValue(ndiData, 'dateOfBirth', 'dob', 'Date of Birth')
+    ),
+
+    identificationNo: getValue(
+      ndiData,
+      'citizenshipIdentificationNumber',
+      'ID Number'
+    ),
+
+    identificationType: mapLabelToCode(
+      getValue(ndiData, 'idType', 'ID Type') || '',
+      'identificationType'
+    ),
+
+    maritalStatus: '',
+
+    // Contact
+    currContact: getValue(ndiData, 'mobileNumber', 'phone'),
+    currEmail: getValue(ndiData, 'email'),
+
+    // Address (optional reuse)
+    permCountry: 'Bhutan',
+    permDzongkhag: getValue(ndiData, 'dzongkhag'),
+    permGewog: getValue(ndiData, 'gewog'),
+
+    isVerified: true,
+  };
+}
+
+export interface RepaymentFormData {
+  name?: string;
+  salutation?: string;
+  nationality?: string;
+  identificationType?: string;
+  identificationNo?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  maritalStatus?: string;
+
+  currEmail?: string;
+  currContact?: string;
+
+  permCountry?: string;
+  permDzongkhag?: string;
+  permGewog?: string;
+  permVillage?: string;
+  permHouse?: string;
+  permThram?: string;
+
+  currCountry?: string;
+  currDzongkhag?: string;
+  currGewog?: string;
+  currVillage?: string;
+  currHouseNo?: string;
+  currThram?: string;
+
+  isVerified?: boolean;
+  verifiedFields?: string[];
+}
+
+export function mapNdiDataToRepaymentGuarantor(ndiData: any) {
+  console.log("Mapping NDI data for CoBorrower:", ndiData);
+
+  return {
+    name: getValue(ndiData, 'Full Name', 'Name'),
+    
+    nationality: mapLabelToCode(
+      getValue(ndiData, 'nationality', 'Citizenship') || '',
+      'nationality'
+    ),
+
+    gender: mapLabelToCode(
+      getValue(ndiData, 'Gender') || '',
+      'gender'
+    ),
+
+    dateOfBirth: formatDateToISO(
+      getValue(ndiData, 'dateOfBirth', 'dob', 'Date of Birth')
+    ),
+
+    identificationNo: getValue(
+      ndiData,
+      'citizenshipIdentificationNumber',
+      'ID Number'
+    ),
+
+    identificationType: mapLabelToCode(
+      getValue(ndiData, 'idType', 'ID Type') || '',
+      'identificationType'
+    ),
+
+    maritalStatus: '',
+
+    // Contact
+    currContact: getValue(ndiData, 'mobileNumber', 'phone'),
+    currEmail: getValue(ndiData, 'email'),
+
+    // Address (optional reuse)
+    permCountry: 'Bhutan',
+    permDzongkhag: getValue(ndiData, 'dzongkhag'),
+    permGewog: getValue(ndiData, 'gewog'),
+
+    isVerified: true,
+  };
+}
+

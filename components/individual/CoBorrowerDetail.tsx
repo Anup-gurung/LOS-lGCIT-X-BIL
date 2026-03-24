@@ -18,10 +18,11 @@ import { Trash2, PlusCircle } from "lucide-react";
 // Import mapping utility and the Popup component
 import {
   mapCustomerDataToForm,
+  mapCoBorrowerData,
   getVerifiedCustomerDataFromSession,
 } from "@/lib/mapCustomerData";
 import DocumentPopup from "@/components/BILSearchStatus"; // Adjust path if needed
-
+import { mapNdiDataToCoBorrower } from "@/lib/mapNdiData";
 import {
   fetchMaritalStatus,
   fetchNationality,
@@ -549,40 +550,47 @@ export function CoBorrowerDetailsForm({
     }
   }, [formData]);
 
-  // Load permanent gewogs for all co-borrowers
-  useEffect(() => {
-    const loadPermGewogs = async () => {
-      const updatedCoBorrowers = [...coBorrowers];
-      let needsUpdate = false;
+  // 🔥 Load Co-Borrower NDI Data from session
+useEffect(() => {
+  try {
+    const stored = sessionStorage.getItem("verifiedCoBorrowerData");
 
-      for (let i = 0; i < coBorrowers.length; i++) {
-        const coBorrower = coBorrowers[i];
-        if (coBorrower.permDzongkhag) {
-          try {
-            const options = await fetchGewogsByDzongkhag(
-              coBorrower.permDzongkhag,
-            );
-            updatedCoBorrowers[i] = {
-              ...updatedCoBorrowers[i],
-              permGewogOptions: options,
-            };
-            needsUpdate = true;
-          } catch (error) {
-            updatedCoBorrowers[i] = {
-              ...updatedCoBorrowers[i],
-              permGewogOptions: [],
-            };
-            needsUpdate = true;
-          }
-        }
-      }
+    if (!stored) return;
 
-      if (needsUpdate) {
-        setCoBorrowers(updatedCoBorrowers);
-      }
+    const parsed = JSON.parse(stored);
+
+    let mapped = mapNdiDataToCoBorrower(parsed);
+
+    // Convert labels → PK codes
+    mapped = {
+      ...mapped,
+      nationality: findPkCodeByLabel(
+        mapped.nationality,
+        nationalityOptions,
+        ["nationality", "name", "label"]
+      ),
+      maritalStatus: findPkCodeByLabel(
+        mapped.maritalStatus,
+        maritalStatusOptions,
+        ["marital_status", "name", "label"]
+      ),
+      identificationType: findPkCodeByLabel(
+        mapped.identificationType,
+        identificationTypeOptions,
+        ["identity_type", "name", "label"]
+      ),
     };
-    loadPermGewogs();
-  }, [coBorrowers.map((cb) => cb.permDzongkhag).join(",")]);
+
+    setCoBorrowers((prev) => {
+      const updated = [...prev];
+      updated[0] = { ...updated[0], ...mapped };
+      return updated;
+    });
+
+  } catch (err) {
+    console.error(err);
+  }
+}, [nationalityOptions, maritalStatusOptions, identificationTypeOptions]);
 
   // Load current gewogs for all co-borrowers
   useEffect(() => {
@@ -791,7 +799,7 @@ export function CoBorrowerDetailsForm({
       const result = await response.json();
 
       if (response.ok && result?.success && result?.data) {
-        const mappedData = mapCustomerDataToForm(result);
+        const mappedData = mapCoBorrowerData(result);
         setCoBorrowers((prev) => {
           const updated = [...prev];
           updated[index] = {
@@ -1476,11 +1484,7 @@ export function CoBorrowerDetailsForm({
                 </Select>
               </div>
             </div>
-          </div>
-
-          {/* Dates and TPN Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="space-y-2.5">
+                        <div className="space-y-2.5">
               <Label
                 htmlFor={`co-identificationIssueDate-${index}`}
                 className="text-gray-800 font-semibold text-sm"
@@ -1537,6 +1541,67 @@ export function CoBorrowerDetailsForm({
                 </p>
               )}
             </div>
+          </div>
+
+          {/* Dates and TPN Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* <div className="space-y-2.5">
+              <Label
+                htmlFor={`co-identificationIssueDate-${index}`}
+                className="text-gray-800 font-semibold text-sm"
+              >
+                Identification Issue Date
+                <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                type="date"
+                id={`co-identificationIssueDate-${index}`}
+                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                value={formatDateForInput(coBorrower.identificationIssueDate)}
+                onChange={(e) =>
+                  updateCoBorrowerField(
+                    index,
+                    "identificationIssueDate",
+                    e.target.value,
+                  )
+                }
+                required
+              />
+              {errors.identificationIssueDate && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.identificationIssueDate}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2.5">
+              <Label
+                htmlFor={`co-identificationExpiryDate-${index}`}
+                className="text-gray-800 font-semibold text-sm"
+              >
+                Identification Expiry Date{" "}
+                <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                type="date"
+                id={`co-identificationExpiryDate-${index}`}
+                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                value={formatDateForInput(coBorrower.identificationExpiryDate)}
+                onChange={(e) =>
+                  updateCoBorrowerField(
+                    index,
+                    "identificationExpiryDate",
+                    e.target.value,
+                  )
+                }
+                required
+              />
+              {errors.identificationExpiryDate && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.identificationExpiryDate}
+                </p>
+              )}
+            </div> */}
 
             <div className="space-y-2.5">
               <Label

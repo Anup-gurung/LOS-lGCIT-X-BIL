@@ -52,6 +52,110 @@ const formatDateForInput = (dateString: string | null | undefined) => {
   }
 };
 
+// ================== Module-level helpers for PK resolution ==================
+const getOptionPkCode = (opt: any): string => {
+  if (!opt) return "";
+  return String(
+    opt.bank_pk_code ||
+    opt.country_pk_code ||
+    opt.nationality_pk_code ||
+    opt.identity_type_pk_code ||
+    opt.marital_status_pk_code ||
+    opt.occupation_pk_code ||
+    opt.occ_pk_code ||
+    opt.lgal_constitution_pk_code ||
+    opt.legal_const_pk_code ||
+    opt.dzongkhag_pk_code ||
+    opt.pk_dzongkhag_id ||
+    opt.dzongkhag_pk_id ||
+    opt.gewog_pk_code ||
+    opt.curr_gewog_pk_code ||
+    opt.pk_gewog_id ||
+    opt.gewog_pk_id ||
+    opt.pep_category_pk_code ||
+    opt.pep_sub_category_pk_code ||
+    opt.tax_identifier_type_pk_code ||
+    opt.pk_code ||
+    opt.id ||
+    opt.code ||
+    "",
+  );
+};
+
+const getOptionLabel = (opt: any): string => {
+  if (!opt) return "";
+  return String(
+    opt.gewog ||
+    opt.gewog_name ||
+    opt.gewogName ||
+    opt.dzongkhag ||
+    opt.dzongkhag_name ||
+    opt.dzongkhagName ||
+    opt.country ||
+    opt.country_name ||
+    opt.countryName ||
+    opt.nationality ||
+    opt.identity_type ||
+    opt.identification_type ||
+    opt.marital_status ||
+    opt.occ_name ||
+    opt.occupation ||
+    opt.lgal_constitution ||
+    opt.legal_const_name ||
+    opt.bank_name ||
+    opt.bank ||
+    opt.bankName ||
+    opt.pep_category ||
+    opt.pep_sub_category ||
+    opt.tax_identifier_type ||
+    opt.name ||
+    opt.label ||
+    "Unknown"
+  );
+};
+
+const findPkCodeByLabelStatic = (
+  label: string,
+  options: any[],
+  labelFields?: string[],
+): string => {
+  if (!label || !options || !Array.isArray(options)) return label;
+  const trimmedLabel = String(label).trim().toLowerCase();
+  const strippedLabel = trimmedLabel.replace(/\s+/g, "");
+  const inputWords = trimmedLabel.split(/\s+/).filter((w) => w.length > 0);
+
+  for (const option of options) {
+    const pkCode = getOptionPkCode(option);
+    if (String(pkCode).toLowerCase() === trimmedLabel) return pkCode;
+  }
+
+  const checkMatch = (optVal: string) => {
+    if (!optVal) return false;
+    const t = String(optVal).trim().toLowerCase();
+    const s = t.replace(/\s+/g, "");
+    if (s === strippedLabel || t === trimmedLabel) return true;
+    const optWords = t.split(/\s+/).filter((w) => w.length > 0);
+    if (inputWords.length > 0 && optWords.length > 0) {
+      return inputWords.every((w) => optWords.some((ow) => ow === w || ow.includes(w) || w.includes(ow)));
+    }
+    return false;
+  };
+
+  for (const option of options) {
+    const fields = labelFields ? labelFields.map((f) => option[f]).filter(Boolean) : [];
+    fields.push(getOptionLabel(option));
+    if (fields.some((v) => checkMatch(String(v)))) return getOptionPkCode(option);
+  }
+
+  if (trimmedLabel.length >= 4) {
+    for (const option of options) {
+      const lbl = getOptionLabel(option).toLowerCase();
+      if (lbl.includes(trimmedLabel) || trimmedLabel.includes(lbl)) return getOptionPkCode(option);
+    }
+  }
+  return label;
+};
+
 // Helper to filter out Trade License and Company Registration from identification types
 const getFilteredIdentificationOptions = (options: any[]) => {
   return options.filter((opt) => {
@@ -536,72 +640,126 @@ export function RepaymentSourceForm({
     }
   }, [formData]);
 
-  // --- DYNAMIC GEWOG LOADING (Per Guarantor) ---
+  // --- DYNAMIC GEWOG LOADING (Per Guarantor) via robust loadAndResolveGewogs ---
+  const loadAndResolveGewogs = async (
+    dzongkhag: string,
+    currentValue: string,
+  ) => {
+    if (!dzongkhag) return null;
+    try {
+      let dzongkhagCode = dzongkhag;
+      const isNumeric = /^\d+$/.test(String(dzongkhag).trim());
+      if (!isNumeric && dzongkhagOptions.length > 0) {
+        const resolved = findPkCodeByLabelStatic(dzongkhag, dzongkhagOptions, ["dzongkhag", "dzongkhag_name", "dzongkhagName", "name", "label"]);
+        if (resolved) dzongkhagCode = resolved;
+      }
+      const options = await fetchGewogsByDzongkhag(dzongkhagCode);
+      let resolvedValue = currentValue;
+      if (resolvedValue && options.length > 0) {
+        const pkCode = findPkCodeByLabelStatic(resolvedValue, options, ["gewog", "gewog_name", "gewogName", "name", "label"]);
+        if (pkCode && pkCode !== resolvedValue) resolvedValue = pkCode;
+      }
+      return { options, resolvedValue };
+    } catch {
+      return { options: [], resolvedValue: currentValue };
+    }
+  };
+
   useEffect(() => {
-    const loadPermGewogs = async () => {
-      const updated = [...guarantors];
-      let needsUpdate = false;
-      for (let i = 0; i < guarantors.length; i++) {
-        const g = guarantors[i];
+    const run = async () => {
+      const jobs = guarantors.map(async (g, i) => {
         if (g.permDzongkhag) {
-          try {
-            const opts = await fetchGewogsByDzongkhag(g.permDzongkhag);
-            updated[i] = { ...updated[i], permGewogOptions: opts };
-            needsUpdate = true;
-          } catch (e) {
-            updated[i] = { ...updated[i], permGewogOptions: [] };
-            needsUpdate = true;
+          const res = await loadAndResolveGewogs(g.permDzongkhag, g.permGewog);
+          return { i, dzongkhag: g.permDzongkhag, ...(res || { options: [], resolvedValue: g.permGewog }) };
+        }
+        return { i, dzongkhag: null, options: [], resolvedValue: g.permGewog };
+      });
+      const results = await Promise.all(jobs);
+      setGuarantors((prev) => {
+        if (prev.length !== results.length) return prev;
+        let changed = false;
+        const updated = [...prev];
+        for (const res of results) {
+          const g = updated[res.i];
+          if (!g) continue;
+          if (res.dzongkhag) {
+            const optChanged = !g.permGewogOptions || g.permGewogOptions.length !== (res.options?.length || 0);
+            const valChanged = res.resolvedValue !== g.permGewog;
+            if (optChanged || valChanged) {
+              updated[res.i] = { ...g, permGewogOptions: res.options || [], permGewog: res.resolvedValue || g.permGewog };
+              changed = true;
+            }
           }
         }
-      }
-      if (needsUpdate) setGuarantors(updated);
+        return changed ? updated : prev;
+      });
     };
-    loadPermGewogs();
-  }, [guarantors.map((g) => g.permDzongkhag).join(",")]);
+    run();
+  }, [guarantors.map((g) => `${g.permDzongkhag}-${g.permGewog}`).join(","), dzongkhagOptions.length]);
 
   useEffect(() => {
-    const loadCurrGewogs = async () => {
-      const updated = [...guarantors];
-      let needsUpdate = false;
-      for (let i = 0; i < guarantors.length; i++) {
-        const g = guarantors[i];
+    const run = async () => {
+      const jobs = guarantors.map(async (g, i) => {
         if (g.currDzongkhag) {
-          try {
-            const opts = await fetchGewogsByDzongkhag(g.currDzongkhag);
-            updated[i] = { ...updated[i], currGewogOptions: opts };
-            needsUpdate = true;
-          } catch (e) {
-            updated[i] = { ...updated[i], currGewogOptions: [] };
-            needsUpdate = true;
+          const res = await loadAndResolveGewogs(g.currDzongkhag, g.currGewog);
+          return { i, dzongkhag: g.currDzongkhag, ...(res || { options: [], resolvedValue: g.currGewog }) };
+        }
+        return { i, dzongkhag: null, options: [], resolvedValue: g.currGewog };
+      });
+      const results = await Promise.all(jobs);
+      setGuarantors((prev) => {
+        if (prev.length !== results.length) return prev;
+        let changed = false;
+        const updated = [...prev];
+        for (const res of results) {
+          const g = updated[res.i];
+          if (!g) continue;
+          if (res.dzongkhag) {
+            const optChanged = !g.currGewogOptions || g.currGewogOptions.length !== (res.options?.length || 0);
+            const valChanged = res.resolvedValue !== g.currGewog;
+            if (optChanged || valChanged) {
+              updated[res.i] = { ...g, currGewogOptions: res.options || [], currGewog: res.resolvedValue || g.currGewog };
+              changed = true;
+            }
           }
         }
-      }
-      if (needsUpdate) setGuarantors(updated);
+        return changed ? updated : prev;
+      });
     };
-    loadCurrGewogs();
-  }, [guarantors.map((g) => g.currDzongkhag).join(",")]);
+    run();
+  }, [guarantors.map((g) => `${g.currDzongkhag}-${g.currGewog}`).join(","), dzongkhagOptions.length]);
 
   useEffect(() => {
-    const loadSpousePermGewogs = async () => {
-      const updated = [...guarantors];
-      let needsUpdate = false;
-      for (let i = 0; i < guarantors.length; i++) {
-        const g = guarantors[i];
+    const run = async () => {
+      const jobs = guarantors.map(async (g, i) => {
         if (g.spousePermDzongkhag) {
-          try {
-            const opts = await fetchGewogsByDzongkhag(g.spousePermDzongkhag);
-            updated[i] = { ...updated[i], spousePermGewogOptions: opts };
-            needsUpdate = true;
-          } catch (e) {
-            updated[i] = { ...updated[i], spousePermGewogOptions: [] };
-            needsUpdate = true;
+          const res = await loadAndResolveGewogs(g.spousePermDzongkhag, g.spousePermGewog);
+          return { i, dzongkhag: g.spousePermDzongkhag, ...(res || { options: [], resolvedValue: g.spousePermGewog }) };
+        }
+        return { i, dzongkhag: null, options: [], resolvedValue: g.spousePermGewog };
+      });
+      const results = await Promise.all(jobs);
+      setGuarantors((prev) => {
+        if (prev.length !== results.length) return prev;
+        let changed = false;
+        const updated = [...prev];
+        for (const res of results) {
+          const g = updated[res.i];
+          if (!g) continue;
+          if (res.dzongkhag) {
+            const optChanged = !g.spousePermGewogOptions || g.spousePermGewogOptions.length !== (res.options?.length || 0);
+            const valChanged = res.resolvedValue !== g.spousePermGewog;
+            if (optChanged || valChanged) {
+              updated[res.i] = { ...g, spousePermGewogOptions: res.options || [], spousePermGewog: res.resolvedValue || g.spousePermGewog };
+              changed = true;
+            }
           }
         }
-      }
-      if (needsUpdate) setGuarantors(updated);
+        return changed ? updated : prev;
+      });
     };
-    loadSpousePermGewogs();
-  }, [guarantors.map((g) => g.spousePermDzongkhag).join(",")]);
+    run();
+  }, [guarantors.map((g) => `${g.spousePermDzongkhag}-${g.spousePermGewog}`).join(","), dzongkhagOptions.length]);
 
   // --- PEP SUBCATEGORY LOADING ---
   useEffect(() => {
@@ -805,44 +963,172 @@ export function RepaymentSourceForm({
   };
 
   const handleLookupProceed = (index: number) => {
-    const g = guarantors[index];
-    if (g.lookupStatus === "found" && g.fetchedCustomerData) {
-      const d = g.fetchedCustomerData;
-      const mapped = {
-        guarantorName: d.name || "",
-        salutation: d.salutation || "",
-        nationality: d.nationality ? String(d.nationality) : "",
+    const guarantor = guarantors[index];
+    if (guarantor.lookupStatus === "found" && guarantor.fetchedCustomerData) {
+      const d = guarantor.fetchedCustomerData;
+
+      // ---- Resolve all dropdown label → PK codes ----
+      const resolvedNationality = findPkCodeByLabelStatic(d.nationality, nationalityOptions, ["nationality", "name", "label"]) || d.nationality || "";
+      const resolvedMaritalStatus = findPkCodeByLabelStatic(d.maritalStatus, maritalStatusOptions, ["marital_status", "name", "label"]) || d.maritalStatus || "";
+      const resolvedBankName = findPkCodeByLabelStatic(d.bankName, banksOptions, ["bank_name", "name", "label", "bank"]) || d.bankName || "";
+      const resolvedOccupation = findPkCodeByLabelStatic(d.occupation, occupationOptions, ["occ_name", "occupation", "name", "label"]) || d.occupation || "";
+      const resolvedOrganization = findPkCodeByLabelStatic(d.organizationName || d.employerName, organizationOptions, ["lgal_constitution", "legal_const_name", "name", "label"]) || d.organizationName || d.employerName || "";
+      const resolvedPermCountry = findPkCodeByLabelStatic(d.permCountry || d.permanentCountry, countryOptions, ["country", "country_name", "name", "label"]) || d.permCountry || "";
+      const resolvedPermDzongkhag = findPkCodeByLabelStatic(d.permDzongkhag || d.permanentDzongkhag, dzongkhagOptions, ["dzongkhag", "dzongkhag_name", "name", "label"]) || d.permDzongkhag || "";
+      const resolvedCurrCountry = findPkCodeByLabelStatic(d.currCountry || d.currentCountry, countryOptions, ["country", "country_name", "name", "label"]) || d.currCountry || "";
+      const resolvedCurrDzongkhag = findPkCodeByLabelStatic(d.currDzongkhag || d.currentDzongkhag, dzongkhagOptions, ["dzongkhag", "dzongkhag_name", "name", "label"]) || d.currDzongkhag || "";
+      const mappedTaxIdentifier = findPkCodeByLabelStatic(d.taxIdentifierType, taxIdentifierTypeOptions, ["tax_identifier_type", "name", "label"]) || d.taxIdentifierType || "";
+      const resolvedPepCategory = findPkCodeByLabelStatic(d.pepCategory, pepCategoryOptions, ["pep_category", "name", "label"]) || d.pepCategory || "";
+
+      // Spouse
+      const resolvedSpouseNationality = findPkCodeByLabelStatic(d.spouseNationality, nationalityOptions, ["nationality", "name", "label"]) || d.spouseNationality || "";
+      const resolvedSpousePermCountry = findPkCodeByLabelStatic(d.spousePermCountry, countryOptions, ["country", "country_name", "name", "label"]) || d.spousePermCountry || "";
+      const resolvedSpousePermDzongkhag = findPkCodeByLabelStatic(d.spousePermDzongkhag, dzongkhagOptions, ["dzongkhag", "dzongkhag_name", "name", "label"]) || d.spousePermDzongkhag || "";
+      const resolvedSpouseTaxIdentifierType = findPkCodeByLabelStatic(d.spouseTaxIdentifierType, taxIdentifierTypeOptions, ["tax_identifier_type", "name", "label"]) || d.spouseTaxIdentifierType || "";
+
+      // Employment Status Derivation
+      let derivedEmploymentStatus = d.employmentStatus ? String(d.employmentStatus).toLowerCase() : "";
+      if (derivedEmploymentStatus === "self employed") derivedEmploymentStatus = "self-employed";
+      if (!derivedEmploymentStatus && (resolvedOccupation || d.employerType || d.organizationName || d.employeeId)) {
+        derivedEmploymentStatus = "employed";
+      }
+
+      // Employer Type
+      let resolvedEmployerType = "";
+      const rawEmployer = String(d.employerType || d.organizationType || "").toLowerCase();
+      if (rawEmployer.includes("gov") || rawEmployer.includes("civil") || rawEmployer.includes("public") || rawEmployer.includes("armed") || rawEmployer.includes("ministry") || rawEmployer.includes("rgob") || rawEmployer.includes("authority") || rawEmployer.includes("council") || rawEmployer.includes("police") || rawEmployer.includes("royal")) {
+        resolvedEmployerType = "government";
+      } else if (rawEmployer.includes("priv") || rawEmployer.includes("pvt") || rawEmployer.includes("enterprise") || rawEmployer.includes("business") || rawEmployer.includes("shop")) {
+        resolvedEmployerType = "private";
+      } else if (rawEmployer.includes("corp") || rawEmployer.includes("institution") || rawEmployer.includes("bank") || rawEmployer.includes("limited") || rawEmployer.includes("ltd") || rawEmployer.includes("dhi") || rawEmployer.includes("board") || rawEmployer.includes("agency") || rawEmployer.includes("ngo")) {
+        resolvedEmployerType = "corporate";
+      }
+
+      // Designation
+      let resolvedDesignation = String(d.designation || "").toLowerCase();
+      if (resolvedDesignation.includes("manag") || resolvedDesignation.includes("dir") || resolvedDesignation.includes("head") || resolvedDesignation.includes("chief")) resolvedDesignation = "manager";
+      else if (resolvedDesignation.includes("officer") || resolvedDesignation.includes("clerk") || resolvedDesignation.includes("exec") || resolvedDesignation.includes("analyst")) resolvedDesignation = "officer";
+      else if (resolvedDesignation.includes("assist") || resolvedDesignation.includes("helper") || resolvedDesignation.includes("support")) resolvedDesignation = "assistant";
+      else resolvedDesignation = "";
+
+      // Service Nature
+      let resolvedServiceNature = String(d.serviceNature || d.natureOfService || "").toLowerCase();
+      if (resolvedServiceNature.includes("perm") || resolvedServiceNature.includes("regula")) resolvedServiceNature = "permanent";
+      else if (resolvedServiceNature.includes("contract")) resolvedServiceNature = "contract";
+      else if (resolvedServiceNature.includes("temp") || resolvedServiceNature.includes("casual")) resolvedServiceNature = "temporary";
+      else resolvedServiceNature = "";
+
+      // Grade
+      let resolvedGrade = String(d.grade || "").toLowerCase();
+      if (resolvedGrade.includes("p1")) resolvedGrade = "p1";
+      else if (resolvedGrade.includes("p2")) resolvedGrade = "p2";
+      else if (resolvedGrade.includes("p3")) resolvedGrade = "p3";
+      else {
+        const gMatch = resolvedGrade.match(/\d+/);
+        if (gMatch) { const n = parseInt(gMatch[0]); resolvedGrade = (n >= 1 && n <= 11) ? String(n) : ""; }
+        else resolvedGrade = "";
+      }
+
+      // PEP
+      const rawPepRelated = String(d.pepRelated || d.relatedToAnyPep || "").toLowerCase();
+      const resolvedRelatedToPep = rawPepRelated === "yes" ? "yes" : rawPepRelated === "no" ? "no" : "";
+
+      const formattedData = {
+        nationality: resolvedNationality,
         idIssueDate: formatDateForInput(d.identificationIssueDate),
         idExpiryDate: formatDateForInput(d.identificationExpiryDate),
         dateOfBirth: formatDateForInput(d.dateOfBirth),
         tpnNo: d.tpn || "",
+        taxIdentifierType: mappedTaxIdentifier,
         householdNumber: d.householdNumber || "",
-        maritalStatus: d.maritalStatus ? String(d.maritalStatus) : "",
-        gender: d.gender ? String(d.gender) : "",
-        email: d.email || "",
-        contact: d.contact || "",
-        occupation: d.occupation ? String(d.occupation) : "",
-        taxIdentifierType: d.taxIdentifierType ? String(d.taxIdentifierType) : "",
-        permCountry: d.permCountry ? String(d.permCountry) : "",
-        permDzongkhag: d.permDzongkhag ? String(d.permDzongkhag) : "",
-        permGewog: d.permGewog ? String(d.permGewog) : "",
-        permVillage: d.permVillage || "",
-        currCountry: d.currCountry ? String(d.currCountry) : "",
-        currDzongkhag: d.currDzongkhag ? String(d.currDzongkhag) : "",
-        currGewog: d.currGewog ? String(d.currGewog) : "",
-        currVillage: d.currVillage || "",
+        maritalStatus: resolvedMaritalStatus,
+        gender: d.gender ? String(d.gender).toLowerCase() : "",
+        email: d.email || d.currEmail || "",
+        contact: d.contact || d.currContact || "",
+        currAlternateContact: d.alternatePhone || d.currAlternateContact || "",
+        bankName: resolvedBankName,
+        bankAccountNumber: d.bankAccount || d.bankAccountNo || "",
+        idProof: d.identityProofName || d.idProofDocument || "",
+        passportPhoto: d.passportPhotoName || d.passportPhoto || "",
+        familyTree: d.familyTreeName || d.familyTree || "",
+
+        // Permanent Address
+        permCountry: resolvedPermCountry,
+        permDzongkhag: resolvedPermDzongkhag,
+        permGewog: d.permGewog || d.permanentGewog || "",
+        permVillage: d.permVillage || d.permanentStreet || "",
+        permThram: d.permThram || d.thramNo || "",
+        permHouse: d.permHouse || d.houseNo || "",
+
+        // Current Address
+        currCountry: resolvedCurrCountry,
+        currDzongkhag: resolvedCurrDzongkhag,
+        currGewog: d.currGewog || d.currentGewog || "",
+        currVillage: d.currVillage || d.currentStreet || "",
+        currHouse: d.currHouse || d.currFlat || d.currentBuildingNo || "",
+
+        // Employment
+        employmentStatus: derivedEmploymentStatus,
+        employeeId: d.employeeId || "",
+        occupation: resolvedOccupation,
+        employerType: resolvedEmployerType,
+        designation: resolvedDesignation,
+        grade: resolvedGrade,
+        organizationName: resolvedOrganization,
+        orgLocation: d.orgLocation || d.organizationLocation || "",
+        joiningDate: formatDateForInput(d.joiningDate || d.appointmentDate),
+        serviceNature: resolvedServiceNature,
+        annualSalary: d.annualSalary || d.annualIncome || "",
+        contractEndDate: formatDateForInput(d.contractEndDate),
+
+        // PEP
+        isPep: d.pepPerson || (String(d.pepDeclaration || "").toLowerCase() === "yes" ? "yes" : "no"),
+        pepCategory: resolvedPepCategory,
+        pepSubCategory: d.pepSubCategory || "",
+        relatedToPep: resolvedRelatedToPep,
+
+        // Spouse
+        spouseNationality: resolvedSpouseNationality,
+        spouseTaxIdentifierType: resolvedSpouseTaxIdentifierType,
+        spousePermCountry: resolvedSpousePermCountry,
+        spousePermDzongkhag: resolvedSpousePermDzongkhag,
+        spousePermGewog: d.spousePermGewog || "",
+        spousePermVillage: d.spousePermVillage || "",
+        spousePermThram: d.spousePermThram || "",
+        spousePermHouse: d.spousePermHouse || "",
+        spouseIdentificationType: d.spouseIdentificationType || "",
+        spouseIdentificationNo: d.spouseIdentificationNo || "",
+        spouseSalutation: d.spouseSalutation ? String(d.spouseSalutation).toLowerCase().replace(/\./g, "") : "",
+        spouseName: d.spouseName || "",
+        spouseGender: d.spouseGender ? String(d.spouseGender).toLowerCase() : "",
+        spouseIdentificationIssueDate: formatDateForInput(d.spouseIdentificationIssueDate),
+        spouseIdentificationExpiryDate: formatDateForInput(d.spouseIdentificationExpiryDate),
+        spouseTpn: d.spouseTpn || "",
+        spouseDateOfBirth: formatDateForInput(d.spouseDateOfBirth),
+        spouseHouseholdNumber: d.spouseHouseholdNumber || "",
+        spouseEmail: d.spouseEmail || "",
+        spouseContact: d.spouseContact || "",
+        spouseAlternateContact: d.spouseAlternateContact || "",
       };
 
       setGuarantors((prev) => {
-        const up = [...prev];
-        up[index] = { ...up[index], ...mapped, showLookupPopup: false };
-        return up;
+        const updated = [...prev];
+        updated[index] = {
+          ...prev[index],
+          ...formattedData,
+          guarantorName: d.name || d.applicantName || prev[index].guarantorName,
+          salutation: d.salutation || prev[index].salutation,
+          idType: prev[index].idType,
+          idNumber: prev[index].idNumber,
+          showLookupPopup: false,
+        };
+        return updated;
       });
     } else {
       setGuarantors((prev) => {
-        const up = [...prev];
-        up[index].showLookupPopup = false;
-        return up;
+        const updated = [...prev];
+        updated[index] = { ...updated[index], showLookupPopup: false };
+        return updated;
       });
     }
   };
@@ -2444,7 +2730,240 @@ export function RepaymentSourceForm({
                 )}
               </div>
 
-              {/* D. PEP DECLARATION */}
+              {/* D. EMPLOYMENT DETAILS */}
+              <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
+                <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+                  Employment Details (Guarantor {index + 1})
+                </h2>
+
+                {/* Employment Status Radio */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">
+                    Employment Status <span className="text-red-500">*</span>
+                  </Label>
+                  <RadioGroup
+                    value={guarantor.employmentStatus || ""}
+                    onValueChange={(val) => updateGuarantorField(index, "employmentStatus", val)}
+                    className="flex flex-wrap gap-6"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="employed" id={`emp-employed-${index}`} />
+                      <Label htmlFor={`emp-employed-${index}`}>Employed</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="self-employed" id={`emp-self-${index}`} />
+                      <Label htmlFor={`emp-self-${index}`}>Self Employed</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="unemployed" id={`emp-un-${index}`} />
+                      <Label htmlFor={`emp-un-${index}`}>Unemployed</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Employment Fields - shown when employed */}
+                {(guarantor.employmentStatus === "employed" || guarantor.employmentStatus === "self-employed") && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Employee ID
+                        </Label>
+                        <Input
+                          placeholder="Enter Employee ID"
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          value={guarantor.employeeId || ""}
+                          onChange={(e) => updateGuarantorField(index, "employeeId", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Occupation <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.occupation}
+                          onValueChange={(val) => updateGuarantorField(index, "occupation", val)}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {occupationOptions.length > 0 ? (
+                              occupationOptions.map((option, optionIndex) => {
+                                const key = option.occ_pk_code || option.occupation_pk_code || option.id || `occ-${optionIndex}`;
+                                const value = String(option.occ_pk_code || option.occupation_pk_code || option.id || optionIndex);
+                                const label = option.occ_name || option.occupation || option.name || "Unknown";
+                                return <SelectItem key={key} value={value}>{label}</SelectItem>;
+                              })
+                            ) : (
+                              <SelectItem value="loading" disabled>Loading...</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Type of Employer <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.employerType}
+                          onValueChange={(val) => updateGuarantorField(index, "employerType", val)}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            <SelectItem value="government">Government</SelectItem>
+                            <SelectItem value="private">Private</SelectItem>
+                            <SelectItem value="corporate">Corporate</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Designation <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.designation}
+                          onValueChange={(val) => updateGuarantorField(index, "designation", val)}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            <SelectItem value="manager">Manager</SelectItem>
+                            <SelectItem value="officer">Officer</SelectItem>
+                            <SelectItem value="assistant">Assistant</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Grade <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.grade}
+                          onValueChange={(val) => updateGuarantorField(index, "grade", val)}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((n) => (
+                              <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                            ))}
+                            <SelectItem value="p1">P1</SelectItem>
+                            <SelectItem value="p2">P2</SelectItem>
+                            <SelectItem value="p3">P3</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Organization Name <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.organizationName}
+                          onValueChange={(val) => updateGuarantorField(index, "organizationName", val)}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {guarantor.organizationName && !organizationOptions.find((o: any) => String(o.lgal_constitution_pk_code || o.legal_const_pk_code || o.id) === guarantor.organizationName) && (
+                              <SelectItem value={guarantor.organizationName}>{guarantor.organizationName}</SelectItem>
+                            )}
+                            {organizationOptions.length > 0 ? (
+                              organizationOptions.map((option: any, optionIndex: number) => {
+                                const key = option.lgal_constitution_pk_code || option.legal_const_pk_code || option.id || `org-${optionIndex}`;
+                                const value = String(option.lgal_constitution_pk_code || option.legal_const_pk_code || option.id || optionIndex);
+                                const label = option.lgal_constitution || option.legal_const_name || option.name || "Unknown";
+                                return <SelectItem key={key} value={value}>{label}</SelectItem>;
+                              })
+                            ) : (
+                              <SelectItem value="loading" disabled>Loading...</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">Organization Location</Label>
+                        <Input
+                          placeholder="Enter Location"
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          value={guarantor.orgLocation || ""}
+                          onChange={(e) => updateGuarantorField(index, "orgLocation", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">Service Joining Date</Label>
+                        <Input
+                          type="date"
+                          max={today}
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          value={guarantor.joiningDate || ""}
+                          onChange={(e) => updateGuarantorField(index, "joiningDate", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Nature of Service <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.serviceNature}
+                          onValueChange={(val) => updateGuarantorField(index, "serviceNature", val)}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            <SelectItem value="permanent">Permanent</SelectItem>
+                            <SelectItem value="contract">Contract</SelectItem>
+                            <SelectItem value="temporary">Temporary</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Gross Annual Salary Income <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          type="number"
+                          placeholder="Enter Annual Salary"
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          value={guarantor.annualSalary || ""}
+                          onChange={(e) => updateGuarantorField(index, "annualSalary", e.target.value)}
+                        />
+                      </div>
+                      {guarantor.serviceNature === "contract" && (
+                        <div className="space-y-3">
+                          <Label className="text-sm font-semibold">
+                            Contract End Date <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            type="date"
+                            min={today}
+                            className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                            value={guarantor.contractEndDate || ""}
+                            onChange={(e) => updateGuarantorField(index, "contractEndDate", e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* E. PEP DECLARATION */}
               <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
                   PEP Declaration (Guarantor {index + 1})
@@ -3737,400 +4256,7 @@ export function RepaymentSourceForm({
                   </div>
                 )}
               </div>
-
-              {/* Employment Status */}
-              <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm mt-6">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
-                  Employment Status
-                </h2>
-
-                <div className="space-y-4">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Employment Status <span className="text-red-500">*</span>
-                  </Label>
-                  <RadioGroup
-                    value={guarantor.employmentStatus}
-                    onValueChange={(value) =>
-                      updateGuarantorField(index, "employmentStatus", value)
-                    }
-                    className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="employed"
-                        id={`employed-${index}`}
-                      />
-                      <Label
-                        htmlFor={`employed-${index}`}
-                        className="font-normal cursor-pointer text-sm"
-                      >
-                        Employed
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="unemployed"
-                        id={`unemployed-${index}`}
-                      />
-                      <Label
-                        htmlFor={`unemployed-${index}`}
-                        className="font-normal cursor-pointer text-sm"
-                      >
-                        Unemployed
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="self-employed"
-                        id={`self-employed-${index}`}
-                      />
-                      <Label
-                        htmlFor={`self-employed-${index}`}
-                        className="font-normal cursor-pointer text-sm"
-                      >
-                        Self-employed
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-              </div>
-
-              {/* Employment Details */}
-              {guarantor.employmentStatus === "employed" && (
-                <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm mt-6">
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
-                    Employment Details
-                  </h2>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`employeeId-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Employee ID <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id={`employeeId-${index}`}
-                        placeholder="Enter ID"
-                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        value={guarantor.employeeId || ""}
-                        onChange={(e) =>
-                          updateGuarantorField(
-                            index,
-                            "employeeId",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`occupation-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Occupation <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={guarantor.occupation}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "occupation", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent sideOffset={4}>
-                          {occupationOptions.length > 0 ? (
-                            occupationOptions.map((option, optionIndex) => {
-                              const key =
-                                option.occ_pk_code ||
-                                option.occupation_pk_code ||
-                                option.id ||
-                                `occupation-${optionIndex}`;
-                              const value = String(
-                                option.occ_pk_code ||
-                                option.occupation_pk_code ||
-                                option.id ||
-                                optionIndex,
-                              );
-                              const label =
-                                option.occ_name ||
-                                option.occupation ||
-                                option.name ||
-                                "Unknown";
-
-                              return (
-                                <SelectItem key={key} value={label}>
-                                  {label}
-                                </SelectItem>
-                              );
-                            })
-                          ) : (
-                            <SelectItem value="loading" disabled>
-                              Loading...
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`employerType-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Type of Employer <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={guarantor.employerType}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "employerType", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent sideOffset={4}>
-                          <SelectItem value="government">Government</SelectItem>
-                          <SelectItem value="private">Private</SelectItem>
-                          <SelectItem value="corporate">Corporate</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`designation-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Designation <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={guarantor.designation}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "designation", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent sideOffset={4}>
-                          <SelectItem value="manager">Manager</SelectItem>
-                          <SelectItem value="officer">Officer</SelectItem>
-                          <SelectItem value="assistant">Assistant</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`grade-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Grade <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={guarantor.grade}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "grade", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent sideOffset={4}>
-                          <SelectItem value="p1">P1</SelectItem>
-                          <SelectItem value="p2">P2</SelectItem>
-                          <SelectItem value="p3">P3</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`organizationName-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Organization Name{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={guarantor.organizationName}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "organizationName", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent sideOffset={4}>
-                          {organizationOptions.length > 0 ? (
-                            organizationOptions.map((option, optionIndex) => {
-                              const key =
-                                option.lgal_constitution_pk_code ||
-                                option.legal_const_pk_code ||
-                                option.id ||
-                                `org-${optionIndex}`;
-                              const value = String(
-                                option.lgal_constitution_pk_code ||
-                                option.legal_const_pk_code ||
-                                option.id ||
-                                optionIndex,
-                              );
-                              const label =
-                                option.lgal_constitution ||
-                                option.legal_const_name ||
-                                option.name ||
-                                "Unknown";
-
-                              return (
-                                <SelectItem key={key} value={value}>
-                                  {label}
-                                </SelectItem>
-                              );
-                            })
-                          ) : (
-                            <SelectItem value="loading" disabled>
-                              Loading...
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`orgLocation-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Organization Location{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id={`orgLocation-${index}`}
-                        placeholder="Enter Full Name"
-                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        value={guarantor.orgLocation || ""}
-                        onChange={(e) =>
-                          updateGuarantorField(
-                            index,
-                            "orgLocation",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`joiningDate-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Service Joining Date{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        type="date"
-                        id={`joiningDate-${index}`}
-                        max={today}
-                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        value={guarantor.joiningDate || ""}
-                        onChange={(e) =>
-                          updateGuarantorField(
-                            index,
-                            "joiningDate",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`serviceNature-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Nature of Service{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={guarantor.serviceNature}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "serviceNature", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent sideOffset={4}>
-                          <SelectItem value="permanent">Permanent</SelectItem>
-                          <SelectItem value="contract">Contract</SelectItem>
-                          <SelectItem value="temporary">Temporary</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`annualSalary-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Gross Annual Salary Income{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        type="number"
-                        id={`annualSalary-${index}`}
-                        placeholder="Enter Annual Salary"
-                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        value={guarantor.annualSalary || ""}
-                        onChange={(e) =>
-                          updateGuarantorField(
-                            index,
-                            "annualSalary",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* Contract End Date - Only visible when Nature of Service is Contract */}
-                  {guarantor.serviceNature === "contract" && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2.5">
-                        <Label
-                          htmlFor={`contractEndDate-${index}`}
-                          className="text-gray-800 font-semibold text-sm"
-                        >
-                          Contract End Date{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          type="date"
-                          id={`contractEndDate-${index}`}
-                          min={today}
-                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                          value={guarantor.contractEndDate || ""}
-                          onChange={(e) =>
-                            updateGuarantorField(
-                              index,
-                              "contractEndDate",
-                              e.target.value,
-                            )
-                          }
-                          required
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Spouse Details Section - moved here */}
+              {/* Spouse Details Section */}
               {isMarried && (
                 <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm mt-6">
                   <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">

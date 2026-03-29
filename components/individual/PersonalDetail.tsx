@@ -138,6 +138,14 @@ const normalizeData = (sourceData: any) => {
   // 3. Bank Account Mapping
   if (!d.bankAccount && (d.bankAccountNo || d.accountNumber)) d.bankAccount = d.bankAccountNo || d.accountNumber;
 
+  // 3.5 File Upload Mappings
+  if (!d.familyTree && (d.familyTreeName || d.familyTreeDocument)) d.familyTree = d.familyTreeName || d.familyTreeDocument;
+  if (!d.identificationProof && (d.idProofDocument || d.identityProofName || d.idProof)) d.identificationProof = d.idProofDocument || d.identityProofName || d.idProof;
+  if (!d.passportPhoto && (d.passportPhotoName || d.passportPhotoDocument)) d.passportPhoto = d.passportPhotoName || d.passportPhotoDocument;
+  if (!d.currAddressProof && (d.currAddressProofDocument || d.addressProof || d.addressProofName)) d.currAddressProof = d.currAddressProofDocument || d.addressProof || d.addressProofName;
+  if (!d.permAddressProof && (d.permAddressProofDocument || d.addressProof || d.addressProofName)) d.permAddressProof = d.permAddressProofDocument || d.addressProof || d.addressProofName;
+  if (!d.spouseIdentificationProof && (d.spouseIdentificationProofName || d.spouseIdProof || d.spouseIdentificationProofDocument)) d.spouseIdentificationProof = d.spouseIdentificationProofName || d.spouseIdProof || d.spouseIdentificationProofDocument;
+
   // 4. Employment Status Inference
   if (!d.employmentStatus && (d.employeeId || d.occupation || d.employerName || d.organizationName || d.annualSalary)) {
     d.employmentStatus = "employed";

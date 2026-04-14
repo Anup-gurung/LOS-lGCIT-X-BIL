@@ -47,18 +47,7 @@ const LOAN_DETAIL_FIELDS = [
   "maxApiTenureMonths", "selectedYears", "selectedMonths", "interestRate"
 ];
 
-// Allowed loan sectors as per requirement (individual version)
-const allowedLoanSectors = [
-  "Housing Sector",
-  "Transport Loans",
-  "Personal Loans",
-  "Staff Incentive Loans",
-  "Loan Against Term Deposits",
-  "Loans for Shares and Securities",
-  "Education Loans",
-  "Medical Loans",
-  "Agriculture and Livestock",
-];
+
 
 const SESSION_KEY = "loanApplicationForm";
 
@@ -325,15 +314,7 @@ function LoanApplicationContent() {
     setIsLoadingSectors(true);
     try {
       const sectors = await fetchLoanSectors(typeCode);
-      // Filter by allowed sectors
-      const filtered = sectors.filter((sector: any) =>
-        allowedLoanSectors.some(
-          (allowed) =>
-            allowed.toLowerCase().trim() ===
-            (sector.loan_sector || "").toLowerCase().trim()
-        )
-      );
-      setLoanSectorOptions(filtered);
+      setLoanSectorOptions(sectors);
     } catch (error) {
       console.error("Failed to load sectors", error);
     } finally {

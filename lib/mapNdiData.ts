@@ -44,32 +44,24 @@ function mapLabelToCode(label: string, type: string): string {
  
   // Nationality mappings
   if (type === 'nationality') {
-    if (labelLower.includes('bhutan')) return cleaned;
-    if (labelLower.includes('indian') || labelLower.includes('india')) return cleaned;
-    if (labelLower.includes('nepali') || labelLower.includes('nepal')) return cleaned;
-    if (labelLower.includes('bangladeshi') || labelLower.includes('bangladesh')) return cleaned;
-    return cleaned; // Fallback
+    const val = labelLower;
+    if (val.includes('bhutan')) return 'Bhutanese';
+    if (val.includes('india') || val.includes('indian')) return 'Indian';
+    if (val.includes('nepal') || val.includes('nepali')) return 'Nepali';
+    if (val.includes('bangladesh') || val.includes('bangladeshi')) return 'Bangladeshi';
+    return label;
   }
   
-  // Identification Type mappings
+  // Identification Type mappings - preserve exact API values
   if (type === 'identificationType') {
-    if (labelLower.includes('citizenship') || labelLower === 'cid') return cleaned;
-    if (labelLower.includes('work') || labelLower.includes('permit')) return cleaned;
-    if (labelLower === 'passport') return cleaned;
-    return cleaned; // Fallback
+    // Only normalize common abbreviations, otherwise keep original
+    if (labelLower === 'cid') return 'Citizenship Identification';
+    if (labelLower.includes('citizenship')) return 'Citizenship Identification';
+    // For everything else, return the original value as-is
+    return cleaned;
   }
  
 
-// Inside mapLabelToCode
-if (type === 'nationality') {
-    const val = labelLower;
-    if (val.includes('bhutan')) return 'Bhutan';
-    if (val.includes('india')) return 'India';
-    if (val.includes('nepal')) return 'Nepal';
-    if (val.includes('bangladesh')) return 'Bangladesh';
-    return label;
-}
- 
   
   // Default: return cleaned value as-is
   console.log(`No mapping found for ${type}: "${cleaned}", returning as-is`);
@@ -191,7 +183,7 @@ if (type === 'nationality') {
     // Nationality
       const nationalityRaw = getValue(ndiData, 'nationality', 'Citizenship');
       console.log("Raw nationality value from NDI data:", nationalityRaw);
-      formData.nationality = mapLabelToCode(nationalityRaw || '', 'nationality');
+      formData.nationality = mapLabelToCode(nationalityRaw || 'Bhutanese', 'nationality');
 
     // Identification
     formData.identificationNo = getValue(
@@ -203,8 +195,8 @@ if (type === 'nationality') {
     );
 
     
-    const idTypeRaw = getValue(ndiData, 'idType', 'id_type');
-    formData.identificationType = mapLabelToCode(idTypeRaw || '', 'identificationType');
+    const idTypeRaw = getValue(ndiData, 'idType', 'id_type', 'ID Type');
+    formData.identificationType = mapLabelToCode(idTypeRaw || 'Citizenship Identification', 'identificationType');
 
     // Date of birth
     formData.dateOfBirth = formatDateToISO(
@@ -399,7 +391,7 @@ export function mapNdiDataToCoBorrower(ndiData: any) {
   
     
     nationality: mapLabelToCode(
-      getValue(ndiData, 'nationality', 'Citizenship') || '',
+      getValue(ndiData, 'nationality', 'Citizenship') || 'Bhutanese',
       'nationality'
     ),
 
@@ -419,7 +411,7 @@ export function mapNdiDataToCoBorrower(ndiData: any) {
     ),
 
     identificationType: mapLabelToCode(
-      getValue(ndiData, 'idType', 'ID Type') || '',
+      getValue(ndiData, 'idType', 'ID Type') || 'Citizenship Identification',
       'identificationType'
     ),
 
@@ -471,13 +463,13 @@ export interface SecurityFormData {
 }
 
 export function mapNdiDataToSecurityGuarantor(ndiData: any) {
-  console.log("Mapping NDI data for CoBorrower:", ndiData);
+  console.log("Mapping NDI data for Security Guarantor:", ndiData);
 
   return {
-    name: getValue(ndiData, 'Full Name', 'Name'),
+    guarantorName: getValue(ndiData, 'Full Name', 'Name'),
     
     nationality: mapLabelToCode(
-      getValue(ndiData, 'nationality', 'Citizenship') || '',
+      getValue(ndiData, 'nationality', 'Citizenship') || 'Bhutanese',
       'nationality'
     ),
 
@@ -490,22 +482,22 @@ export function mapNdiDataToSecurityGuarantor(ndiData: any) {
       getValue(ndiData, 'dateOfBirth', 'dob', 'Date of Birth')
     ),
 
-    identificationNo: getValue(
+    idNumber: getValue(
       ndiData,
       'citizenshipIdentificationNumber',
       'ID Number'
     ),
 
-    identificationType: mapLabelToCode(
-      getValue(ndiData, 'idType', 'ID Type') || '',
+    idType: mapLabelToCode(
+      getValue(ndiData, 'idType', 'ID Type') || 'Citizenship Identification',
       'identificationType'
     ),
 
     maritalStatus: '',
 
     // Contact
-    currContact: getValue(ndiData, 'mobileNumber', 'phone'),
-    currEmail: getValue(ndiData, 'email'),
+    contact: getValue(ndiData, 'mobileNumber', 'phone'),
+    email: getValue(ndiData, 'email'),
 
     // Address (optional reuse)
     permCountry: 'Bhutan',
@@ -548,13 +540,13 @@ export interface RepaymentFormData {
 }
 
 export function mapNdiDataToRepaymentGuarantor(ndiData: any) {
-  console.log("Mapping NDI data for CoBorrower:", ndiData);
+  console.log("Mapping NDI data for Repayment Guarantor:", ndiData);
 
   return {
-    name: getValue(ndiData, 'Full Name', 'Name'),
+    guarantorName: getValue(ndiData, 'Full Name', 'Name'),
     
     nationality: mapLabelToCode(
-      getValue(ndiData, 'nationality', 'Citizenship') || '',
+      getValue(ndiData, 'nationality', 'Citizenship') || 'Bhutanese',
       'nationality'
     ),
 
@@ -567,22 +559,22 @@ export function mapNdiDataToRepaymentGuarantor(ndiData: any) {
       getValue(ndiData, 'dateOfBirth', 'dob', 'Date of Birth')
     ),
 
-    identificationNo: getValue(
+    idNumber: getValue(
       ndiData,
       'citizenshipIdentificationNumber',
       'ID Number'
     ),
 
-    identificationType: mapLabelToCode(
-      getValue(ndiData, 'idType', 'ID Type') || '',
+    idType: mapLabelToCode(
+      getValue(ndiData, 'idType', 'ID Type') || 'Citizenship Identification',
       'identificationType'
     ),
 
     maritalStatus: '',
 
     // Contact
-    currContact: getValue(ndiData, 'mobileNumber', 'phone'),
-    currEmail: getValue(ndiData, 'email'),
+    contact: getValue(ndiData, 'mobileNumber', 'phone'),
+    email: getValue(ndiData, 'email'),
 
     // Address (optional reuse)
     permCountry: 'Bhutan',

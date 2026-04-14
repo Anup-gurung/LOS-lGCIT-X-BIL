@@ -328,7 +328,7 @@ function mapLabelToCode(label: string, type: string): string {
   // Identification Type mappings - preserve exact API values
   if (type === 'identificationType') {
     // Only normalize common abbreviations, otherwise keep original
-    if (labelLower === 'cid') return 'Citizenship Identity card';
+    if (labelLower === 'cid') return 'Citizenship Identification';
     // For everything else, return the original value as-is
     return cleaned;
   }
@@ -655,19 +655,20 @@ export function isFieldVerified(fieldName: string, mappedData: MappedFormData): 
 export function getVerifiedCustomerDataFromSession(): MappedFormData | null {
   try {
     console.log('🔍 getVerifiedCustomerDataFromSession: Checking sessionStorage...');
-    const verifiedData = sessionStorage.getItem('verifiedCustomerData');
+    
+    // Check for both the standard key and the potentially misspelled key from some sources
+    let verifiedData = sessionStorage.getItem('verifiedCustomerData');
+    if (!verifiedData) {
+      verifiedData = sessionStorage.getItem('verifiedCustomeData');
+      if (verifiedData) console.log('⚠️ getVerifiedCustomerDataFromSession: Data found under misspelled key "verifiedCustomeData"');
+    }
 
     if (verifiedData) {
       const parsedData = JSON.parse(verifiedData);
       console.log('✅ getVerifiedCustomerDataFromSession: Data found!');
-      console.log('   Data keys:', Object.keys(parsedData));
-      console.log('   Applicant Name:', parsedData.applicantName);
-      console.log('   Email:', parsedData.currEmail || parsedData.email);
-      console.log('   Phone:', parsedData.currContact || parsedData.phone);
       return parsedData;
     } else {
-      console.log('❌ getVerifiedCustomerDataFromSession: No data in sessionStorage');
-      console.log('   Available keys:', Object.keys(sessionStorage));
+      console.log('❌ getVerifiedCustomerDataFromSession: No data found in keys "verifiedCustomerData" or "verifiedCustomeData"');
     }
   } catch (error) {
     console.error('❌ Error retrieving verified customer data from session:', error);

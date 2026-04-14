@@ -174,13 +174,28 @@ const findPkCodeByLabel = (
     if (inputWords.length > 0 && optionWords.length > 0) {
       const allWordsMatch = inputWords.every((word) =>
         optionWords.some(
-          (optWord) => optWord === word || optWord.includes(word) || word.includes(optWord),
+          (optWord) =>
+            optWord === word ||
+            optWord.includes(word) ||
+            // NOTE: word.includes(optWord) removed — causes "unmarried".includes("married")=true false match
+            (word.startsWith("identi") && optWord.startsWith("identi"))
         ),
       );
       if (allWordsMatch) return true;
     }
     return false;
   };
+
+  // 0.5. Exact label match pass FIRST (prevents fuzzy from matching e.g. "unmarried" -> "married")
+  for (const option of options) {
+    if (labelFields) {
+      for (const field of labelFields) {
+        const val = String(option[field] || "").trim().toLowerCase();
+        if (val && val === trimmedLabel) return getOptionPkCode(option);
+      }
+    }
+    if (getOptionLabel(option).trim().toLowerCase() === trimmedLabel) return getOptionPkCode(option);
+  }
 
   // 1. Precise Match Look-up Loop
   for (const option of options) {
@@ -201,7 +216,7 @@ const findPkCodeByLabel = (
     if (matched) return getOptionPkCode(option);
   }
 
-  // 2. Fuzzy Match (includes) for longer strings as worst-case scenario check
+  // 2. Fuzzy Match — only option-contains-input (not input-contains-option to avoid false matches)
   if (trimmedLabel.length >= 4) {
     for (const option of options) {
       const possibleLabels = new Set<string>();
@@ -214,10 +229,7 @@ const findPkCodeByLabel = (
 
       for (const optionValue of possibleLabels) {
         const optionLabelStr = String(optionValue).trim().toLowerCase();
-        if (
-          optionLabelStr.includes(trimmedLabel) ||
-          trimmedLabel.includes(optionLabelStr)
-        ) {
+        if (optionLabelStr.includes(trimmedLabel)) {
           return getOptionPkCode(option);
         }
       }
@@ -850,9 +862,30 @@ export function CoBorrowerDetailsForm({
   onBack,
   formData,
 }: CoBorrowerDetailsFormProps) {
-  const [coBorrowers, setCoBorrowers] = useState<any[]>(
-    formData.coBorrowers || [createEmptyCoBorrower()],
-  );
+  const [coBorrowers, setCoBorrowers] = useState<any[]>(() => {
+    return formData.coBorrowers || [createEmptyCoBorrower()];
+  });
+
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const stored = sessionStorage.getItem("verifiedCoborrowerData");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed && Object.keys(parsed).length > 0) {
+          setCoBorrowers((prev) => {
+            let merged = [...prev];
+            merged[0] = { ...createEmptyCoBorrower(), ...merged[0], ...parsed };
+            return merged;
+          });
+        }
+      } catch (e) {
+        console.error("Error parsing verifiedCoborrowerData", e);
+      }
+    }
+  }, []);
 
   // Dropdown States (shared across all co-borrowers)
   const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([]);
@@ -1012,7 +1045,13 @@ export function CoBorrowerDetailsForm({
       });
 
       if (hasData && formData.coBorrowers) {
-        setCoBorrowers(formData.coBorrowers);
+        setCoBorrowers((prev) => {
+          const updated = [...formData.coBorrowers];
+          if (prev[0] && prev[0].isVerified && (!updated[0] || !updated[0].isVerified)) {
+            updated[0] = { ...updated[0], ...prev[0] };
+          }
+          return updated;
+        });
       }
     }
   }, [formData]);
@@ -1778,18 +1817,52 @@ export function CoBorrowerDetailsForm({
     );
 
     if (!hasErrors) {
-      const coBorrowerData = { coBorrowers: validatedCoBorrowers };
+      // Resolve PK codes to human-readable label strings before submitting
+      const getLabel = (value: string, options: any[], labelField: string, codeField: string) => {
+        if (!value) return value;
+        const opt = options.find((o: any) => String(o[codeField] || o.id) === String(value));
+        return opt ? (opt[labelField] || opt.name || opt.label || value) : value;
+      };
 
-      // Retrieve existing data from sessionStorage
-      const existingData = sessionStorage.getItem("loanApplicationData");
-      const allData = existingData ? JSON.parse(existingData) : {};
+      const resolvedCoBorrowers = validatedCoBorrowers.map((cb: any) => {
+        const resolved = { ...cb };
+        resolved.identificationType = getLabel(cb.identificationType, identificationTypeOptions, "identity_type", "identity_type_pk_code");
+        resolved.nationality = getLabel(cb.nationality, nationalityOptions, "nationality", "nationality_pk_code");
+        resolved.maritalStatus = getLabel(cb.maritalStatus, maritalStatusOptions, "marital_status", "marital_status_pk_code");
+        resolved.bankName = getLabel(cb.bankName, banksOptions, "bank_name", "bank_pk_code");
+        resolved.taxIdentifierType = getLabel(cb.taxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type", "tax_identifier_type_pk_code");
+        resolved.permCountry = getLabel(cb.permCountry, countryOptions, "country", "country_pk_code");
+        resolved.currCountry = getLabel(cb.currCountry, countryOptions, "country", "country_pk_code");
+        resolved.permDzongkhag = getLabel(cb.permDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+        resolved.currDzongkhag = getLabel(cb.currDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+        resolved.pepCategory = getLabel(cb.pepCategory, pepCategoryOptions, "pep_category", "pep_category_pk_code");
+        resolved.pepSubCategory = getLabel(cb.pepSubCategory, cb.pepSubCategoryOptions || [], "pep_sub_category", "pep_sub_category_pk_code");
+        resolved.permGewog = getLabel(cb.permGewog, cb.permGewogOptions || [], "gewog", "gewog_pk_code");
+        resolved.currGewog = getLabel(cb.currGewog, cb.currGewogOptions || [], "gewog", "gewog_pk_code");
+        resolved.occupation = getLabel(cb.occupation, occupationOptions, "occ_name", "occ_pk_code");
+        resolved.organizationName = getLabel(cb.organizationName, organizationOptions, "lgal_constitution", "lgal_constitution_pk_code");
+        resolved.spouseIdentificationType = getLabel(cb.spouseIdentificationType, identificationTypeOptions, "identity_type", "identity_type_pk_code");
+        resolved.spouseNationality = getLabel(cb.spouseNationality, nationalityOptions, "nationality", "nationality_pk_code");
+        resolved.spouseTaxIdentifierType = getLabel(cb.spouseTaxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type", "tax_identifier_type_pk_code");
+        resolved.spousePermCountry = getLabel(cb.spousePermCountry, countryOptions, "country", "country_pk_code");
+        resolved.spousePermDzongkhag = getLabel(cb.spousePermDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+        resolved.spousePermGewog = getLabel(cb.spousePermGewog, cb.spousePermGewogOptions || [], "gewog", "gewog_pk_code");
+        // Related PEPs
+        if (Array.isArray(cb.relatedPeps)) {
+          resolved.relatedPeps = cb.relatedPeps.map((pep: any, index: number) => ({
+            ...pep,
+            identificationType: getLabel(pep.identificationType, identificationTypeOptions, "identity_type", "identity_type_pk_code"),
+            nationality: getLabel(pep.nationality, nationalityOptions, "nationality", "nationality_pk_code"),
+            permCountry: getLabel(pep.permCountry, countryOptions, "country", "country_pk_code"),
+            currCountry: getLabel(pep.currCountry, countryOptions, "country", "country_pk_code"),
+            category: getLabel(pep.category, pepCategoryOptions, "pep_category", "pep_category_pk_code"),
+            subCategory: getLabel(pep.subCategory, cb.relatedPepOptionsMap?.[index] || [], "pep_sub_category", "pep_sub_category_pk_code"),
+          }));
+        }
+        return resolved;
+      });
 
-      // Merge and save to sessionStorage
-      const updatedData = { ...allData, ...coBorrowerData };
-      sessionStorage.setItem(
-        "loanApplicationData",
-        JSON.stringify(updatedData),
-      );
+      const coBorrowerData = { coBorrowers: resolvedCoBorrowers };
 
       onNext(coBorrowerData);
     }
@@ -1927,6 +2000,16 @@ export function CoBorrowerDetailsForm({
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent>
+                    {coBorrower.identificationType &&
+                      !filteredIdentificationOptions.find(
+                        (o) =>
+                          String(o.identity_type_pk_code || o.id) ===
+                          String(coBorrower.identificationType)
+                      ) && (
+                        <SelectItem value={coBorrower.identificationType}>
+                          {coBorrower.identificationType}
+                        </SelectItem>
+                      )}
                     {filteredIdentificationOptions.length > 0 ? (
                       filteredIdentificationOptions.map((option, optionIndex) => {
                         const key =

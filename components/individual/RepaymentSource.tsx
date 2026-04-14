@@ -124,9 +124,40 @@ const findPkCodeByLabelStatic = (
   const strippedLabel = trimmedLabel.replace(/\s+/g, "");
   const inputWords = trimmedLabel.split(/\s+/).filter((w) => w.length > 0);
 
+  const getCode = (opt: any) =>
+    String(
+      opt.bank_pk_code ||
+      opt.country_pk_code ||
+      opt.nationality_pk_code ||
+      opt.identity_type_pk_code ||
+      opt.marital_status_pk_code ||
+      opt.occ_pk_code ||
+      opt.occupation_pk_code ||
+      opt.dzongkhag_pk_code ||
+      opt.gewog_pk_code ||
+      opt.pep_category_pk_code ||
+      opt.pep_sub_category_pk_code ||
+      opt.lgal_constitution_pk_code ||
+      opt.legal_const_pk_code ||
+      opt.tax_identifier_type_pk_code ||
+      opt.pk_code ||
+      opt.id ||
+      opt.code ||
+      ""
+    );
+
+  const getLabelFallback = (opt: any) =>
+    String(
+      opt.gewog || opt.dzongkhag || opt.country || opt.nationality ||
+      opt.identity_type || opt.identification_type || opt.marital_status ||
+      opt.occ_name || opt.occupation || opt.lgal_constitution || opt.legal_const_name ||
+      opt.bank_name || opt.bank || opt.name || opt.label || "Unknown"
+    );
+
+  // 0. Exact match on code
   for (const option of options) {
-    const pkCode = getOptionPkCode(option);
-    if (String(pkCode).toLowerCase() === trimmedLabel) return pkCode;
+    const code = getCode(option);
+    if (code && String(code).toLowerCase() === trimmedLabel) return code;
   }
 
   const checkMatch = (optVal: string) => {
@@ -136,21 +167,40 @@ const findPkCodeByLabelStatic = (
     if (s === strippedLabel || t === trimmedLabel) return true;
     const optWords = t.split(/\s+/).filter((w) => w.length > 0);
     if (inputWords.length > 0 && optWords.length > 0) {
-      return inputWords.every((w) => optWords.some((ow) => ow === w || ow.includes(w) || w.includes(ow)));
+      return inputWords.every((w) =>
+        optWords.some(
+          (ow) =>
+            ow === w ||
+            ow.includes(w) ||
+            (w.startsWith("identi") && ow.startsWith("identi"))
+        )
+      );
     }
     return false;
   };
 
+  // 0.5. Exact label match pass
   for (const option of options) {
     const fields = labelFields ? labelFields.map((f) => option[f]).filter(Boolean) : [];
-    fields.push(getOptionLabel(option));
-    if (fields.some((v) => checkMatch(String(v)))) return getOptionPkCode(option);
+    fields.push(getLabelFallback(option));
+    if (fields.some((v) => String(v).trim().toLowerCase() === trimmedLabel)) return getCode(option);
   }
 
+  // 1. Fuzzy match
+  for (const option of options) {
+    const fields = labelFields ? labelFields.map((f) => option[f]).filter(Boolean) : [];
+    fields.push(getLabelFallback(option));
+    if (fields.some((v) => checkMatch(String(v)))) return getCode(option);
+  }
+
+  // 2. Partial Match Fallback
   if (trimmedLabel.length >= 4) {
     for (const option of options) {
-      const lbl = getOptionLabel(option).toLowerCase();
-      if (lbl.includes(trimmedLabel) || trimmedLabel.includes(lbl)) return getOptionPkCode(option);
+      const lbl = getLabelFallback(option).toLowerCase();
+      // Handle married/unmarried specifically
+      if (trimmedLabel === "unmarried" && lbl === "unmarried") return getCode(option);
+      if (trimmedLabel === "married" && lbl === "married") return getCode(option);
+      if (lbl.includes(trimmedLabel)) return getCode(option);
     }
   }
   return label;
@@ -350,35 +400,65 @@ export function RepaymentSourceForm({
   formData,
 }: RepaymentSourceFormProps) {
   // --- STATE ---
-  const [incomeData, setIncomeData] = useState(
-    formData?.incomeDetails || {
-      repaymentGuarantor: "no",
+  const [incomeData, setIncomeData] = useState(() => {
+    // Priority: formData.repaymentSource, then legacy formData.incomeDetails, then default
+    const source = formData?.repaymentSource || formData?.incomeDetails || {};
+    return {
+      repaymentGuarantor: source.repaymentGuarantor || "no",
       // Monthly salary categories
-      enableMonthlySalaryCivil: false,
-      enableMonthlySalaryCorporate: false,
-      enableMonthlySalaryPrivate: false,
-      monthlySalaryCivil: "",
-      monthlySalaryCorporate: "",
-      monthlySalaryPrivate: "",
+      enableMonthlySalaryCivil: source.enableMonthlySalaryCivil ?? false,
+      enableMonthlySalaryCorporate: source.enableMonthlySalaryCorporate ?? false,
+      enableMonthlySalaryPrivate: source.enableMonthlySalaryPrivate ?? false,
+      monthlySalaryCivil: source.monthlySalaryCivil || "",
+      monthlySalaryCorporate: source.monthlySalaryCorporate || "",
+      monthlySalaryPrivate: source.monthlySalaryPrivate || "",
       // Other income types
-      enableRentalIncome: false,
-      enableBusinessIncome: false,
-      enableVehicleHiring: false,
-      enableDividendIncome: false,
-      enableAgricultureIncome: false,
-      enableTruckTaxiIncome: false,
-      rentalIncome: "",
-      businessIncome: "",
-      vehicleHiringIncome: "",
-      dividendIncome: "",
-      agricultureIncome: "",
-      truckTaxiIncome: "",
-      repaymentProof: null as File | null,
-    },
-  );
+      enableRentalIncome: source.enableRentalIncome ?? false,
+      enableBusinessIncome: source.enableBusinessIncome ?? false,
+      enableVehicleHiring: source.enableVehicleHiring ?? false,
+      enableDividendIncome: source.enableDividendIncome ?? false,
+      enableAgricultureIncome: source.enableAgricultureIncome ?? false,
+      enableTruckTaxiIncome: source.enableTruckTaxiIncome ?? false,
+      rentalIncome: source.rentalIncome || "",
+      businessIncome: source.businessIncome || "",
+      vehicleHiringIncome: source.vehicleHiringIncome || "",
+      dividendIncome: source.dividendIncome || "",
+      agricultureIncome: source.agricultureIncome || "",
+      truckTaxiIncome: source.truckTaxiIncome || "",
+      repaymentProof: source.repaymentProof || null,
+    };
+  });
 
   // Guarantors Array (Independent Objects)
-  const [guarantors, setGuarantors] = useState<any[]>([createEmptyGuarantor()]);
+  const [guarantors, setGuarantors] = useState<any[]>(() => {
+    return formData?.repaymentSource?.guarantors || [createEmptyGuarantor()];
+  });
+
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    // Only load verified data if we don't have form data from previous session/step navigation
+    const hasData = formData?.repaymentSource || formData?.incomeDetails;
+    if (!hasData) {
+      const stored = sessionStorage.getItem("verifiedRepaymentData");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed && Object.keys(parsed).length > 0) {
+            setIncomeData((prev: any) => ({ ...prev, repaymentGuarantor: "yes" }));
+            setGuarantors((prev) => {
+              let updated = [...prev];
+              updated[0] = { ...updated[0], ...parsed };
+              return updated;
+            });
+          }
+        } catch (e) {
+          console.error("Error parsing verifiedRepaymentData", e);
+        }
+      }
+    }
+  }, [formData]);
 
   // Dropdown Options (Shared)
   const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
@@ -394,6 +474,94 @@ export function RepaymentSourceForm({
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
   // NEW: tax identifier type options
   const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
+
+  // --- CONVERSION: Consistently map labels to PK codes across all Guarantors ---
+  useEffect(() => {
+    if (
+      !nationalityOptions.length && !identificationTypeOptions.length && !countryOptions.length &&
+      !taxIdentifierTypeOptions.length && !dzongkhagOptions.length && !maritalStatusOptions.length &&
+      !occupationOptions.length && !banksOptions.length && !pepCategoryOptions.length
+    ) return;
+
+    setGuarantors((prev) => {
+      let hasChanges = false;
+      const mapped = prev.map((g) => {
+        let updated = { ...g };
+
+        const fieldsToResolve = [
+          { field: 'nationality', opts: nationalityOptions, keys: ["nationality", "name", "label"] },
+          { field: 'idType', opts: identificationTypeOptions, keys: ["identity_type", "identification_type", "name", "label"] },
+          { field: 'maritalStatus', opts: maritalStatusOptions, keys: ["marital_status", "name", "label"] },
+          { field: 'permCountry', opts: countryOptions, keys: ["country", "name", "label"] },
+          { field: 'permDzongkhag', opts: dzongkhagOptions, keys: ["dzongkhag", "name", "label"] },
+          { field: 'currCountry', opts: countryOptions, keys: ["country", "name", "label"] },
+          { field: 'currDzongkhag', opts: dzongkhagOptions, keys: ["dzongkhag", "name", "label"] },
+          { field: 'bankName', opts: banksOptions, keys: ["bank_name", "name", "label", "bank"] },
+          { field: 'taxIdentifierType', opts: taxIdentifierTypeOptions, keys: ["tax_identifier_type", "name", "label"] },
+          { field: 'occupation', opts: occupationOptions, keys: ["occ_name", "occupation", "name", "label"] },
+          { field: 'orgLocation', opts: dzongkhagOptions, keys: ["dzongkhag", "name", "label"] },
+          { field: 'pepCategory', opts: pepCategoryOptions, keys: ["pep_category", "name", "label"] },
+          { field: 'spouseIdentificationType', opts: identificationTypeOptions, keys: ["identity_type", "identification_type", "name", "label"] },
+          { field: 'spouseNationality', opts: nationalityOptions, keys: ["nationality", "name", "label"] },
+          { field: 'spouseTaxIdentifierType', opts: taxIdentifierTypeOptions, keys: ["tax_identifier_type", "name", "label"] },
+        ];
+
+        fieldsToResolve.forEach(({ field, opts, keys }) => {
+          if (updated[field] && opts.length > 0) {
+            const pk = findPkCodeByLabelStatic(updated[field], opts, keys);
+            if (pk && pk !== updated[field]) {
+              updated[field] = pk;
+              hasChanges = true;
+            }
+          }
+        });
+
+        // Resolve Related PEP fields if they exist
+        if (updated.relatedPeps?.length > 0) {
+          const resolvedPeps = updated.relatedPeps.map((pep: any) => {
+            let p = { ...pep };
+            const pepFields = [
+              { field: 'nationality', opts: nationalityOptions, keys: ["nationality", "name", "label"] },
+              { field: 'identificationType', opts: identificationTypeOptions, keys: ["identity_type", "identification_type", "name", "label"] },
+              { field: 'maritalStatus', opts: maritalStatusOptions, keys: ["marital_status", "name", "label"] },
+              { field: 'category', opts: pepCategoryOptions, keys: ["pep_category", "name", "label"] },
+              { field: 'taxIdentifierType', opts: taxIdentifierTypeOptions, keys: ["tax_identifier_type", "name", "label"] },
+              { field: 'permCountry', opts: countryOptions, keys: ["country", "name", "label"] },
+              { field: 'permDzongkhag', opts: dzongkhagOptions, keys: ["dzongkhag", "name", "label"] },
+              { field: 'currCountry', opts: countryOptions, keys: ["country", "name", "label"] },
+              { field: 'currDzongkhag', opts: dzongkhagOptions, keys: ["dzongkhag", "name", "label"] },
+            ];
+            pepFields.forEach(({ field, opts, keys }) => {
+              if (p[field] && opts.length > 0) {
+                const pk = findPkCodeByLabelStatic(p[field], opts, keys);
+                if (pk && pk !== p[field]) {
+                  p[field] = pk;
+                  hasChanges = true;
+                }
+              }
+            });
+            return p;
+          });
+          if (hasChanges) updated.relatedPeps = resolvedPeps;
+        }
+
+        return updated;
+      });
+
+      return hasChanges ? mapped : prev;
+    });
+  }, [
+    nationalityOptions.length,
+    identificationTypeOptions.length,
+    countryOptions.length,
+    dzongkhagOptions.length,
+    maritalStatusOptions.length,
+    occupationOptions.length,
+    banksOptions.length,
+    taxIdentifierTypeOptions.length,
+    pepCategoryOptions.length,
+    guarantors.length
+  ]);
 
   // Constants
   const today = new Date().toISOString().split("T")[0];
@@ -629,12 +797,24 @@ export function RepaymentSourceForm({
           Array.isArray(savedGuarantors) &&
           savedGuarantors.length > 0
         ) {
-          setGuarantors(savedGuarantors);
+          setGuarantors((prev) => {
+            const updated = [...savedGuarantors];
+            if (prev[0] && prev[0].isVerified && (!updated[0] || !updated[0].isVerified)) {
+              updated[0] = { ...updated[0], ...prev[0] };
+            }
+            return updated;
+          });
         }
       } else if (formData.incomeDetails) {
         setIncomeData((prev: any) => ({ ...prev, ...formData.incomeDetails }));
         if (formData.guarantors && Array.isArray(formData.guarantors)) {
-          setGuarantors(formData.guarantors);
+          setGuarantors((prev) => {
+            const updated = [...formData.guarantors];
+            if (prev[0] && prev[0].isVerified && (!updated[0] || !updated[0].isVerified)) {
+              updated[0] = { ...updated[0], ...prev[0] };
+            }
+            return updated;
+          });
         }
       }
     }
@@ -761,94 +941,96 @@ export function RepaymentSourceForm({
     run();
   }, [guarantors.map((g) => `${g.spousePermDzongkhag}-${g.spousePermGewog}`).join(","), dzongkhagOptions.length]);
 
-  // --- PEP SUBCATEGORY LOADING ---
+  // --- ENHANCED METADATA REHYDRATION (Per Guarantor & Related PEPs) ---
   useEffect(() => {
-    const loadPepSub = async () => {
-      const updated = [...guarantors];
-      let needsUpdate = false;
-      for (let i = 0; i < guarantors.length; i++) {
-        if (guarantors[i].isPep === "yes" && guarantors[i].pepCategory) {
-          try {
-            const opts = await fetchPepSubCategoryByCategory(
-              guarantors[i].pepCategory,
-            );
-            updated[i] = { ...updated[i], pepSubCategoryOptions: opts || [] };
-            needsUpdate = true;
-          } catch (e) {
-            updated[i] = { ...updated[i], pepSubCategoryOptions: [] };
-            needsUpdate = true;
-          }
-        } else {
-          updated[i] = { ...updated[i], pepSubCategoryOptions: [] };
-          needsUpdate = true;
-        }
-      }
-      if (needsUpdate) setGuarantors(updated);
-    };
-    loadPepSub();
-  }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
+    const rehydrateMetadata = async () => {
+      let changed = false;
+      const updatedGuarantors = await Promise.all(guarantors.map(async (g, gIdx) => {
+        let updatedG = { ...g };
+        let gChanged = false;
 
-  // --- CONVERSION: Tax Identifier Type for Guarantor (when options load) --- <-- NEW
-  useEffect(() => {
-    if (taxIdentifierTypeOptions.length) {
-      setGuarantors((prev) =>
-        prev.map((g) => {
-          if (g.taxIdentifierType) {
-            const isValid = taxIdentifierTypeOptions.some(
-              (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(g.taxIdentifierType)
-            );
-            if (!isValid) {
-              const pkCode = findPkCodeByLabel(
-                g.taxIdentifierType,
-                taxIdentifierTypeOptions,
-                ["tax_identifier_type", "name", "label"]
-              );
-              if (pkCode && pkCode !== g.taxIdentifierType) {
-                return { ...g, taxIdentifierType: pkCode };
+        // 1. Resolve Pep Subcategories for Guarantor
+        if (updatedG.isPep === "yes" && updatedG.pepCategory) {
+          try {
+            const options = await fetchPepSubCategoryByCategory(updatedG.pepCategory);
+            if (!updatedG.pepSubCategoryOptions || updatedG.pepSubCategoryOptions.length !== (options?.length || 0)) {
+              updatedG.pepSubCategoryOptions = options || [];
+              gChanged = true;
+            }
+            // If subcategory is label, resolve it
+            if (updatedG.pepSubCategory && options?.length > 0) {
+              const pk = findPkCodeByLabelStatic(updatedG.pepSubCategory, options, ["pep_sub_category", "name", "label"]);
+              if (pk && pk !== updatedG.pepSubCategory) {
+                updatedG.pepSubCategory = pk;
+                gChanged = true;
               }
             }
-          }
-          if (g.spouseTaxIdentifierType) {
-            const isValid = taxIdentifierTypeOptions.some(
-              (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(g.spouseTaxIdentifierType)
-            );
-            if (!isValid) {
-              const pkCode = findPkCodeByLabel(
-                g.spouseTaxIdentifierType,
-                taxIdentifierTypeOptions,
-                ["tax_identifier_type", "name", "label"]
-              );
-              if (pkCode && pkCode !== g.spouseTaxIdentifierType) {
-                return { ...g, spouseTaxIdentifierType: pkCode };
-              }
-            }
-          }
-          if (g.relatedPeps) {
-            const updatedPeps = g.relatedPeps.map((pep: any) => {
-              if (pep.taxIdentifierType) {
-                const isValid = taxIdentifierTypeOptions.some(
-                  (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(pep.taxIdentifierType)
-                );
-                if (!isValid) {
-                  const pkCode = findPkCodeByLabel(
-                    pep.taxIdentifierType,
-                    taxIdentifierTypeOptions,
-                    ["tax_identifier_type", "name", "label"]
-                  );
-                  if (pkCode && pkCode !== pep.taxIdentifierType) {
-                    return { ...pep, taxIdentifierType: pkCode };
-                  }
+          } catch (e) {}
+        }
+
+        // 2. Resolve metadata for Related PEPs (Subcategories and Gewogs)
+        if (updatedG.relatedPeps && Array.isArray(updatedG.relatedPeps)) {
+          const updatedPeps = await Promise.all(updatedG.relatedPeps.map(async (pep, pIdx) => {
+            let p = { ...pep };
+            let pChanged = false;
+
+            // Fetch Subcategories for PEP relative
+            if (p.category) {
+              try {
+                const opts = await fetchPepSubCategoryByCategory(p.category);
+                if (!updatedG.relatedPepOptionsMap[pIdx] || updatedG.relatedPepOptionsMap[pIdx].length !== (opts?.length || 0)) {
+                  updatedG.relatedPepOptionsMap = { ...updatedG.relatedPepOptionsMap, [pIdx]: opts || [] };
+                  gChanged = true;
                 }
+                if (p.subCategory && opts?.length > 0) {
+                  const pk = findPkCodeByLabelStatic(p.subCategory, opts, ["pep_sub_category", "name", "label"]);
+                  if (pk && pk !== p.subCategory) { p.subCategory = pk; pChanged = true; }
+                }
+              } catch (e) {}
+            }
+
+            // Fetch Gewogs for PEP relative
+            const dzConfigs = [
+              { dz: p.permDzongkhag, mapKey: 'relatedPepPermGewogMap', field: 'permGewog' },
+              { dz: p.currDzongkhag, mapKey: 'relatedPepCurrGewogMap', field: 'currGewog' },
+              { dz: p.spousePermDzongkhag, mapKey: 'relatedPepSpouseGewogMap', field: 'spousePermGewog' }
+            ] as const;
+
+            for (const { dz, mapKey, field } of dzConfigs) {
+              if (dz) {
+                try {
+                  const opts = await fetchGewogsByDzongkhag(dz);
+                  const currentOpts = updatedG[mapKey as keyof typeof updatedG] as Record<number, any[]>;
+                  if (!currentOpts[pIdx] || currentOpts[pIdx].length !== (opts?.length || 0)) {
+                    (updatedG[mapKey as keyof typeof updatedG] as Record<number, any[]>) = { ...currentOpts, [pIdx]: opts || [] };
+                    gChanged = true;
+                  }
+                  if (p[field as keyof typeof p] && opts?.length > 0) {
+                    const pk = findPkCodeByLabelStatic(p[field as keyof typeof p] as string, opts, ["gewog", "name", "label"]);
+                    if (pk && pk !== p[field as keyof typeof p]) { (p[field as keyof typeof p] as any) = pk; pChanged = true; }
+                  }
+                } catch (e) {}
               }
-              return pep;
-            });
-            return { ...g, relatedPeps: updatedPeps };
+            }
+            return pChanged ? p : pep;
+          }));
+          if (updatedPeps.some((p, i) => p !== updatedG.relatedPeps[i])) {
+            updatedG.relatedPeps = updatedPeps;
+            gChanged = true;
           }
-          return g;
-        })
-      );
-    }
-  }, [taxIdentifierTypeOptions]);
+        }
+
+        if (gChanged) changed = true;
+        return gChanged ? updatedG : g;
+      }));
+
+      if (changed) setGuarantors(updatedGuarantors);
+    };
+
+    rehydrateMetadata();
+  }, [guarantors.length]); // Focus on initialization and manual additionstions]);
+
+
 
   // --- HANDLERS ---
 
@@ -858,7 +1040,8 @@ export function RepaymentSourceForm({
 
   const handleRepaymentProofChange = (file: File | null) => {
     if (file) {
-      setIncomeData((prev: any) => ({ ...prev, repaymentProof: file }));
+      // Store the filename string (not the File object) so it survives JSON serialization in session
+      setIncomeData((prev: any) => ({ ...prev, repaymentProof: file.name }));
     }
   };
 
@@ -979,6 +1162,7 @@ export function RepaymentSourceForm({
       const resolvedCurrDzongkhag = findPkCodeByLabelStatic(d.currDzongkhag || d.currentDzongkhag, dzongkhagOptions, ["dzongkhag", "dzongkhag_name", "name", "label"]) || d.currDzongkhag || "";
       const mappedTaxIdentifier = findPkCodeByLabelStatic(d.taxIdentifierType, taxIdentifierTypeOptions, ["tax_identifier_type", "name", "label"]) || d.taxIdentifierType || "";
       const resolvedPepCategory = findPkCodeByLabelStatic(d.pepCategory, pepCategoryOptions, ["pep_category", "name", "label"]) || d.pepCategory || "";
+      const resolvedIdType = findPkCodeByLabelStatic(d.idType || d.identificationType, identificationTypeOptions, ["identity_type", "identification_type", "name", "label"]) || d.idType || d.identificationType || "";
 
       // Spouse
       const resolvedSpouseNationality = findPkCodeByLabelStatic(d.spouseNationality, nationalityOptions, ["nationality", "name", "label"]) || d.spouseNationality || "";
@@ -1035,6 +1219,8 @@ export function RepaymentSourceForm({
 
       const formattedData = {
         nationality: resolvedNationality,
+        idType: resolvedIdType,
+        idNumber: d.idNumber || d.identificationNo || "",
         idIssueDate: formatDateForInput(d.identificationIssueDate),
         idExpiryDate: formatDateForInput(d.identificationExpiryDate),
         dateOfBirth: formatDateForInput(d.dateOfBirth),
@@ -1308,20 +1494,62 @@ export function RepaymentSourceForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const getLabel = (value: string, options: any[], labelField: string, codeField: string) => {
+      if (!value) return value;
+      const opt = options.find((o: any) => String(o[codeField] || o.id) === String(value));
+      return opt ? (opt[labelField] || opt.name || opt.label || opt.bankName || opt.bank || opt.dzongkhag || opt.gewog || opt.country || value) : value;
+    };
+
+    const resolvedGuarantors = (incomeData.repaymentGuarantor === "yes" ? guarantors : []).map((g: any) => {
+      const resolved = { ...g };
+      resolved.idType = getLabel(g.idType, identificationTypeOptions, "identity_type", "identity_type_pk_code");
+      resolved.nationality = getLabel(g.nationality, nationalityOptions, "nationality", "nationality_pk_code");
+      resolved.maritalStatus = getLabel(g.maritalStatus, maritalStatusOptions, "marital_status", "marital_status_pk_code");
+      resolved.bankName = getLabel(g.bankName, banksOptions, "bank_name", "bank_pk_code");
+      resolved.taxIdentifierType = getLabel(g.taxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type", "tax_identifier_type_pk_code");
+      resolved.permCountry = getLabel(g.permCountry, countryOptions, "country", "country_pk_code");
+      resolved.currCountry = getLabel(g.currCountry, countryOptions, "country", "country_pk_code");
+      resolved.permDzongkhag = getLabel(g.permDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+      resolved.currDzongkhag = getLabel(g.currDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+      resolved.permGewog = getLabel(g.permGewog, g.permGewogOptions || [], "gewog", "gewog_pk_code");
+      resolved.currGewog = getLabel(g.currGewog, g.currGewogOptions || [], "gewog", "gewog_pk_code");
+      resolved.occupation = getLabel(g.occupation, occupationOptions, "occ_name", "occ_pk_code");
+      resolved.organizationName = getLabel(g.organizationName, organizationOptions, "lgal_constitution", "lgal_constitution_pk_code");
+
+      // Spouse Resolution
+      resolved.spouseIdentificationType = getLabel(g.spouseIdentificationType, identificationTypeOptions, "identity_type", "identity_type_pk_code");
+      resolved.spouseNationality = getLabel(g.spouseNationality, nationalityOptions, "nationality", "nationality_pk_code");
+      resolved.spouseTaxIdentifierType = getLabel(g.spouseTaxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type", "tax_identifier_type_pk_code");
+      resolved.spousePermCountry = getLabel(g.spousePermCountry, countryOptions, "country", "country_pk_code");
+      resolved.spousePermDzongkhag = getLabel(g.spousePermDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+      resolved.spousePermGewog = getLabel(g.spousePermGewog, g.spousePermGewogOptions || [], "gewog", "gewog_pk_code");
+      resolved.pepCategory = getLabel(g.pepCategory, pepCategoryOptions, "pep_category", "pep_category_pk_code");
+      resolved.pepSubCategory = getLabel(g.pepSubCategory, g.pepSubCategoryOptions || [], "pep_sub_category", "pep_sub_category_pk_code");
+
+      if (Array.isArray(g.relatedPeps)) {
+        resolved.relatedPeps = g.relatedPeps.map((pep: any, i: number) => ({
+          ...pep,
+          identificationType: getLabel(pep.identificationType, identificationTypeOptions, "identity_type", "identity_type_pk_code"),
+          nationality: getLabel(pep.nationality, nationalityOptions, "nationality", "nationality_pk_code"),
+          permCountry: getLabel(pep.permCountry, countryOptions, "country", "country_pk_code"),
+          permDzongkhag: getLabel(pep.permDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code"),
+          permGewog: getLabel(pep.permGewog, g.relatedPepPermGewogMap?.[i] || [], "gewog", "gewog_pk_code"),
+          currCountry: getLabel(pep.currCountry, countryOptions, "country", "country_pk_code"),
+          currDzongkhag: getLabel(pep.currDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code"),
+          currGewog: getLabel(pep.currGewog, g.relatedPepCurrGewogMap?.[i] || [], "gewog", "gewog_pk_code"),
+          category: getLabel(pep.category, pepCategoryOptions, "pep_category", "pep_category_pk_code"),
+          subCategory: getLabel(pep.subCategory, g.relatedPepOptionsMap?.[i] || [], "pep_sub_category", "pep_sub_category_pk_code"),
+        }));
+      }
+      return resolved;
+    });
+
     const repaymentData = {
       repaymentSource: {
         ...incomeData,
-        guarantors: incomeData.repaymentGuarantor === "yes" ? guarantors : [],
+        guarantors: resolvedGuarantors,
       },
     };
-
-    // Retrieve existing data from sessionStorage
-    const existingData = sessionStorage.getItem("loanApplicationData");
-    const allData = existingData ? JSON.parse(existingData) : {};
-
-    // Merge and save to sessionStorage
-    const updatedData = { ...allData, ...repaymentData };
-    sessionStorage.setItem("loanApplicationData", JSON.stringify(updatedData));
 
     onNext(repaymentData);
   };
@@ -1650,7 +1878,9 @@ export function RepaymentSourceForm({
               </Button>
               <span className="text-sm text-muted-foreground truncate max-w-[200px]">
                 {incomeData.repaymentProof
-                  ? incomeData.repaymentProof.name
+                  ? (typeof incomeData.repaymentProof === "string"
+                      ? incomeData.repaymentProof
+                      : (incomeData.repaymentProof as File).name)
                   : "No file chosen"}
               </span>
             </div>

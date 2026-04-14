@@ -60,7 +60,7 @@ const allowedLoanSectors = [
   "Agriculture and Livestock",
 ];
 
-const SESSION_KEY = "loanApplicationform";
+const SESSION_KEY = "loanApplicationForm";
 
 // Helper to load form data from sessionStorage (flattened)
 function loadFormDataFromSession(): Record<string, any> {
@@ -218,19 +218,21 @@ function LoanApplicationContent() {
       setIsLoadingSectors(true);
       try {
         const sectors = await fetchLoanSectors(typeCode);
-        const filteredSectors = sectors.filter((sector: any) =>
-          allowedLoanSectors.some(
-            (allowed) =>
-              allowed.toLowerCase().trim() ===
-              (sector.loan_sector || "").toLowerCase().trim()
-          )
-        );
-        setLoanSectorOptions(filteredSectors);
+        // const filteredSectors = sectors.filter((sector: any) =>
+        //   allowedLoanSectors.some(
+        //     (allowed) =>
+        //       allowed.toLowerCase().trim() ===
+        //       (sector.loan_sector || "").toLowerCase().trim()
+        //   )
+        // );
+        setLoanSectorOptions(sectors);
 
         // 3. Restore sector if present
         if (saved.loanSector) {
           const savedSectorId = saved.loanSector;
-          const sectorExists = filteredSectors.some(s => String(s.pk_id) === savedSectorId);
+          // const sectorExists = filteredSectors.some(s => String(s.pk_id) === savedSectorId);
+          const sectorExists = sectors.some(s => String(s.pk_id) === savedSectorId);
+
           if (sectorExists) {
             setSelectedSector(savedSectorId);
 

@@ -166,13 +166,28 @@ const findPkCodeByLabel = (
     if (inputWords.length > 0 && optionWords.length > 0) {
       const allWordsMatch = inputWords.every((word) =>
         optionWords.some(
-          (optWord) => optWord === word || optWord.includes(word) || word.includes(optWord),
+          (optWord) =>
+            optWord === word ||
+            optWord.includes(word) ||
+            // NOTE: word.includes(optWord) removed — causes "unmarried".includes("married")=true false match
+            (word.startsWith("identi") && optWord.startsWith("identi"))
         ),
       );
       if (allWordsMatch) return true;
     }
     return false;
   };
+
+  // 0.5. Exact label match pass FIRST (prevents fuzzy from matching e.g. "unmarried" -> "married")
+  for (const option of options) {
+    if (labelFields) {
+      for (const field of labelFields) {
+        const val = String(option[field] || "").trim().toLowerCase();
+        if (val && val === trimmedLabel) return getOptionPkCode(option);
+      }
+    }
+    if (getOptionLabel(option).trim().toLowerCase() === trimmedLabel) return getOptionPkCode(option);
+  }
 
   // 1. Precise Match Look-up Loop
   for (const option of options) {
@@ -193,7 +208,7 @@ const findPkCodeByLabel = (
     if (matched) return getOptionPkCode(option);
   }
 
-  // 2. Fuzzy Match (includes) for longer strings as worst-case scenario check
+  // 2. Fuzzy Match — only option-contains-input (not input-contains-option to avoid false matches)
   if (trimmedLabel.length >= 4) {
     for (const option of options) {
       const possibleLabels = new Set<string>();
@@ -206,10 +221,7 @@ const findPkCodeByLabel = (
 
       for (const optionValue of possibleLabels) {
         const optionLabelStr = String(optionValue).trim().toLowerCase();
-        if (
-          optionLabelStr.includes(trimmedLabel) ||
-          trimmedLabel.includes(optionLabelStr)
-        ) {
+        if (optionLabelStr.includes(trimmedLabel)) {
           return getOptionPkCode(option);
         }
       }
@@ -435,10 +447,44 @@ export function SecurityDetailsForm({
   formData,
 }: SecurityDetailsFormProps) {
   // State for Securities
-  const [securities, setSecurities] = useState<any[]>([createEmptySecurity()]);
+  const [securities, setSecurities] = useState<any[]>(() => {
+    return formData?.securityDetails || [createEmptySecurity()];
+  });
 
   // State for Guarantors
-  const [guarantors, setGuarantors] = useState<any[]>([createEmptyGuarantor()]);
+  const [guarantors, setGuarantors] = useState<any[]>(() => {
+    return formData?.additionalGuarantors || [createEmptyGuarantor()];
+  });
+
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    // Only load verified data if we don't have form data from previous session/step navigation
+    const hasData = formData?.securityDetails || formData?.additionalGuarantors;
+    if (!hasData) {
+      const stored = sessionStorage.getItem("verifiedSecurityData");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed && Object.keys(parsed).length > 0) {
+            setSecurities((prev) => {
+              let updated = [...prev];
+              updated[0] = { ...updated[0], ownershipType: "other" };
+              return updated;
+            });
+            setGuarantors((prev) => {
+              let updated = [...prev];
+              updated[0] = { ...updated[0], ...parsed };
+              return updated;
+            });
+          }
+        } catch (e) {
+          console.error("Error parsing verifiedSecurityData", e);
+        }
+      }
+    }
+  }, [formData]);
 
   // Global/Form errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -599,11 +645,80 @@ export function SecurityDetailsForm({
     if (formData && Object.keys(formData).length > 0) {
       if (formData.securityDetails) {
         if (Array.isArray(formData.securityDetails)) {
-          setSecurities(formData.securityDetails);
+          setSecurities((prev) => {
+            const updated = formData.securityDetails.map((sec: any) => {
+              const secTypeRaw = sec.securityType ? String(sec.securityType).trim().toLowerCase() : "";
+              const ownTypeRaw = sec.ownershipType ? String(sec.ownershipType).trim().toLowerCase() : "";
+
+              let normSecType = sec.securityType || "";
+              if (secTypeRaw === "not applicable") normSecType = "Not Applicable";
+              else if (secTypeRaw === "land") normSecType = "land";
+              else if (secTypeRaw === "building" || secTypeRaw.includes("building & land")) normSecType = "building";
+              else if (secTypeRaw === "vehicle") normSecType = "vehicle";
+              else if (secTypeRaw === "equipment" || secTypeRaw.includes("plant")) normSecType = "equipment";
+              else if (secTypeRaw === "fd" || secTypeRaw.includes("fixed deposit")) normSecType = "fd";
+              else if (secTypeRaw === "insurance") normSecType = "insurance";
+              else if (secTypeRaw === "ppf") normSecType = "PPF";
+              else if (secTypeRaw === "share" || secTypeRaw.includes("security")) normSecType = "Share";
+              else if (secTypeRaw === "stocks") normSecType = "Stocks";
+
+              let normOwnType = sec.ownershipType || "";
+              if (ownTypeRaw === "self" || ownTypeRaw === "self owned" || ownTypeRaw === "sole owner") normOwnType = "self";
+              else if (ownTypeRaw === "joint" || ownTypeRaw === "joint owners") normOwnType = "joint";
+              else if (ownTypeRaw === "third-party" || ownTypeRaw === "third party" || ownTypeRaw === "other" || ownTypeRaw === "other owners") normOwnType = "other";
+
+              return {
+                ...createEmptySecurity(),
+                ...sec,
+                securityType: normSecType,
+                ownershipType: normOwnType,
+              };
+            });
+
+            // Retain verified external guarantor if needed
+            if (prev[0] && (prev[0].ownershipType === "other" || prev[0].ownershipType === "joint") && (!updated[0] || (updated[0].ownershipType !== "other" && updated[0].ownershipType !== "joint"))) {
+              if (typeof window !== "undefined" && sessionStorage.getItem("verifiedSecurityData")) {
+                updated[0] = { ...updated[0], ownershipType: "other" };
+              }
+            }
+            return updated;
+          });
         } else if (typeof formData.securityDetails === "object") {
-          setSecurities([
-            { ...createEmptySecurity(), ...formData.securityDetails },
-          ]);
+          setSecurities((prev) => {
+            const sec = formData.securityDetails;
+            const secTypeRaw = sec.securityType ? String(sec.securityType).trim().toLowerCase() : "";
+            const ownTypeRaw = sec.ownershipType ? String(sec.ownershipType).trim().toLowerCase() : "";
+
+            let normSecType = sec.securityType || "";
+            if (secTypeRaw === "not applicable") normSecType = "Not Applicable";
+            else if (secTypeRaw === "land") normSecType = "land";
+            else if (secTypeRaw === "building" || secTypeRaw.includes("building & land")) normSecType = "building";
+            else if (secTypeRaw === "vehicle") normSecType = "vehicle";
+            else if (secTypeRaw === "equipment" || secTypeRaw.includes("plant")) normSecType = "equipment";
+            else if (secTypeRaw === "fd" || secTypeRaw.includes("fixed deposit")) normSecType = "fd";
+            else if (secTypeRaw === "insurance") normSecType = "insurance";
+            else if (secTypeRaw === "ppf") normSecType = "PPF";
+            else if (secTypeRaw === "share" || secTypeRaw.includes("security")) normSecType = "Share";
+            else if (secTypeRaw === "stocks") normSecType = "Stocks";
+
+            let normOwnType = sec.ownershipType || "";
+            if (ownTypeRaw === "self" || ownTypeRaw === "self owned" || ownTypeRaw === "sole owner") normOwnType = "self";
+            else if (ownTypeRaw === "joint" || ownTypeRaw === "joint owners") normOwnType = "joint";
+            else if (ownTypeRaw === "third-party" || ownTypeRaw === "third party" || ownTypeRaw === "other" || ownTypeRaw === "other owners") normOwnType = "other";
+
+            const updated = [{
+              ...createEmptySecurity(),
+              ...sec,
+              securityType: normSecType,
+              ownershipType: normOwnType,
+            }];
+            if (prev[0] && (prev[0].ownershipType === "other" || prev[0].ownershipType === "joint") && updated[0].ownershipType !== "other" && updated[0].ownershipType !== "joint") {
+              if (typeof window !== "undefined" && sessionStorage.getItem("verifiedSecurityData")) {
+                updated[0] = { ...updated[0], ownershipType: "other" };
+              }
+            }
+            return updated;
+          });
         }
       }
 
@@ -611,7 +726,16 @@ export function SecurityDetailsForm({
         formData.additionalGuarantors &&
         Array.isArray(formData.additionalGuarantors)
       ) {
-        setGuarantors(formData.additionalGuarantors);
+        setGuarantors((prev) => {
+          const updated = formData.additionalGuarantors.map((g: any) => ({
+            ...createEmptyGuarantor(),
+            ...g,
+          }));
+          if (prev[0] && prev[0].isVerified && (!updated[0] || !updated[0].isVerified)) {
+            updated[0] = { ...updated[0], ...prev[0] };
+          }
+          return updated;
+        });
       }
     }
   }, [formData]);
@@ -896,6 +1020,174 @@ export function SecurityDetailsForm({
     };
     loadPepSubCategories();
   }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
+  // --- CONVERSION: Map labels back to PK codes for both Securities and Guarantors --- 
+  useEffect(() => {
+    // Only proceed if options are loaded
+    if (!nationalityOptions.length && !identificationTypeOptions.length && !countryOptions.length &&
+      !taxIdentifierTypeOptions.length && !dzongkhagOptions.length && !maritalStatusOptions.length &&
+      !occupationOptions.length && !banksOptions.length) {
+      return;
+    }
+
+    // 1. Normalize Securities
+    setSecurities((prev) => {
+      let hasChanges = false;
+      const mapped = prev.map((s) => {
+        let updated = { ...s };
+
+        // Convert Dzongkhag (for Land/Property/Building)
+        if (updated.dzongkhag && dzongkhagOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.dzongkhag, dzongkhagOptions, ["dzongkhag", "name", "label"]);
+          if (pkCode && pkCode !== updated.dzongkhag) {
+            updated.dzongkhag = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        // Convert fdBank (for Fixed Deposit)
+        if (updated.fdBank && banksOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.fdBank, banksOptions, ["bank_name", "bank", "name", "label"]);
+          if (pkCode && pkCode !== updated.fdBank) {
+            updated.fdBank = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        return updated;
+      });
+      return hasChanges ? mapped : prev;
+    });
+
+    // 2. Normalize Guarantors
+    setGuarantors((prev) => {
+      let hasChanges = false;
+      const mapped = prev.map((g) => {
+        let updated = { ...g };
+
+        // Convert nationality
+        if (updated.nationality && nationalityOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.nationality, nationalityOptions, ["nationality", "name", "label"]);
+          if (pkCode && pkCode !== updated.nationality) {
+            updated.nationality = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        // Convert idType
+        if (updated.idType && identificationTypeOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.idType, identificationTypeOptions, ["identity_type", "identification_type", "name", "label"]);
+          if (pkCode && pkCode !== updated.idType) {
+            updated.idType = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        // Convert permCountry
+        if (updated.permCountry && countryOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.permCountry, countryOptions, ["country", "country_name", "name", "label"]);
+          if (pkCode && pkCode !== updated.permCountry) {
+            updated.permCountry = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        // Convert currCountry
+        if (updated.currCountry && countryOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.currCountry, countryOptions, ["country", "country_name", "name", "label"]);
+          if (pkCode && pkCode !== updated.currCountry) {
+            updated.currCountry = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        // Convert maritalStatus
+        if (updated.maritalStatus && maritalStatusOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.maritalStatus, maritalStatusOptions, ["marital_status", "name", "label", "value"]);
+          if (pkCode && pkCode !== updated.maritalStatus) {
+            updated.maritalStatus = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        // Convert occupation
+        if (updated.occupation && occupationOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.occupation, occupationOptions, ["occ_name", "occupation", "name", "label"]);
+          if (pkCode && pkCode !== updated.occupation) {
+            updated.occupation = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        // Convert bankName
+        if (updated.bankName && banksOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.bankName, banksOptions, ["bank_name", "bank", "name", "label"]);
+          if (pkCode && pkCode !== updated.bankName) {
+            updated.bankName = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        // Convert permDzongkhag
+        if (updated.permDzongkhag && dzongkhagOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.permDzongkhag, dzongkhagOptions, ["dzongkhag", "name", "label"]);
+          if (pkCode && pkCode !== updated.permDzongkhag) {
+            updated.permDzongkhag = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        // Convert currDzongkhag
+        if (updated.currDzongkhag && dzongkhagOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.currDzongkhag, dzongkhagOptions, ["dzongkhag", "name", "label"]);
+          if (pkCode && pkCode !== updated.currDzongkhag) {
+            updated.currDzongkhag = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        // Convert spouseNationality
+        if (updated.spouseNationality && nationalityOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.spouseNationality, nationalityOptions, ["nationality", "name", "label"]);
+          if (pkCode && pkCode !== updated.spouseNationality) {
+            updated.spouseNationality = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        // Convert spouseIdentificationType
+        if (updated.spouseIdentificationType && identificationTypeOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.spouseIdentificationType, identificationTypeOptions, ["identity_type", "registration_type", "name", "label"]);
+          if (pkCode && pkCode !== updated.spouseIdentificationType) {
+            updated.spouseIdentificationType = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        // Convert taxIdentifierType
+        if (updated.taxIdentifierType && taxIdentifierTypeOptions.length > 0) {
+          const pkCode = findPkCodeByLabel(updated.taxIdentifierType, taxIdentifierTypeOptions, ["tax_identifier_type", "name", "label"]);
+          if (pkCode && pkCode !== updated.taxIdentifierType) {
+            updated.taxIdentifierType = pkCode;
+            hasChanges = true;
+          }
+        }
+
+        return updated;
+      });
+
+      return hasChanges ? mapped : prev;
+    });
+  }, [
+    nationalityOptions.length,
+    identificationTypeOptions.length,
+    countryOptions.length,
+    dzongkhagOptions.length,
+    maritalStatusOptions.length,
+    occupationOptions.length,
+    banksOptions.length,
+    taxIdentifierTypeOptions.length,
+    guarantors.map(g => `${g.nationality}-${g.idType}-${g.permCountry}-${g.currCountry}-${g.spouseNationality}-${g.spouseIdentificationType}-${g.taxIdentifierType}`).join(",")
+  ]);
 
   // --- FILE UPLOAD HANDLERS ---
   const handleFileChange = (
@@ -1665,25 +1957,62 @@ export function SecurityDetailsForm({
     const areSecuritiesValid = validateSecurities();
     if (!areSecuritiesValid) return;
 
-    const hasThirdParty = securities.some(
-      (s) => s.ownershipType === "third-party",
+    const hasGuarantorRequired = securities.some(
+      (s) => s.ownershipType === "other" || s.ownershipType === "joint",
     );
 
-    if (hasThirdParty) {
+    if (hasGuarantorRequired) {
       const allGuarantorsValid = validateAllGuarantors();
       if (!allGuarantorsValid) return;
     }
 
-    const securityData = {
-      securityDetails: securities,
-      additionalGuarantors: guarantors,
+    const getLabel = (value: string, options: any[], labelField: string, codeField: string) => {
+      if (!value) return value;
+      const opt = options.find((o: any) => String(o[codeField] || o.id) === String(value));
+      return opt ? (opt[labelField] || opt.name || opt.label || value) : value;
     };
 
-    const existingData = sessionStorage.getItem("loanApplicationData");
-    const allData = existingData ? JSON.parse(existingData) : {};
+    const resolvedGuarantors = guarantors.map((g: any) => {
+      const resolved = { ...g };
+      resolved.idType = getLabel(g.idType, identificationTypeOptions, "identity_type", "identity_type_pk_code");
+      resolved.nationality = getLabel(g.nationality, nationalityOptions, "nationality", "nationality_pk_code");
+      resolved.maritalStatus = getLabel(g.maritalStatus, maritalStatusOptions, "marital_status", "marital_status_pk_code");
+      resolved.bankName = getLabel(g.bankName, banksOptions, "bank_name", "bank_pk_code");
+      resolved.taxIdentifierType = getLabel(g.taxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type", "tax_identifier_type_pk_code");
+      resolved.permCountry = getLabel(g.permCountry, countryOptions, "country", "country_pk_code");
+      resolved.currCountry = getLabel(g.currCountry, countryOptions, "country", "country_pk_code");
+      resolved.permDzongkhag = getLabel(g.permDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+      resolved.currDzongkhag = getLabel(g.currDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+      resolved.permGewog = getLabel(g.permGewog, g.permGewogOptions || [], "gewog", "gewog_pk_code");
+      resolved.currGewog = getLabel(g.currGewog, g.currGewogOptions || [], "gewog", "gewog_pk_code");
+      resolved.occupation = getLabel(g.occupation, occupationOptions, "occ_name", "occ_pk_code");
+      resolved.organizationName = getLabel(g.organizationName, organizationOptions, "lgal_constitution", "lgal_constitution_pk_code");
+      resolved.spouseIdentificationType = getLabel(g.spouseIdentificationType, identificationTypeOptions, "identity_type", "identity_type_pk_code");
+      resolved.spouseNationality = getLabel(g.spouseNationality, nationalityOptions, "nationality", "nationality_pk_code");
+      resolved.spouseTaxIdentifierType = getLabel(g.spouseTaxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type", "tax_identifier_type_pk_code");
+      resolved.spousePermCountry = getLabel(g.spousePermCountry, countryOptions, "country", "country_pk_code");
+      resolved.spousePermDzongkhag = getLabel(g.spousePermDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+      resolved.spousePermGewog = getLabel(g.spousePermGewog, g.spousePermGewogOptions || [], "gewog", "gewog_pk_code");
+      resolved.pepCategory = getLabel(g.pepCategory, pepCategoryOptions, "pep_category", "pep_category_pk_code");
+      resolved.pepSubCategory = getLabel(g.pepSubCategory, g.pepSubCategoryOptions || [], "pep_sub_category", "pep_sub_category_pk_code");
+      if (Array.isArray(g.relatedPeps)) {
+        resolved.relatedPeps = g.relatedPeps.map((pep: any, index: number) => ({
+          ...pep,
+          identificationType: getLabel(pep.identificationType, identificationTypeOptions, "identity_type", "identity_type_pk_code"),
+          nationality: getLabel(pep.nationality, nationalityOptions, "nationality", "nationality_pk_code"),
+          permCountry: getLabel(pep.permCountry, countryOptions, "country", "country_pk_code"),
+          currCountry: getLabel(pep.currCountry, countryOptions, "country", "country_pk_code"),
+          category: getLabel(pep.category, pepCategoryOptions, "pep_category", "pep_category_pk_code"),
+          subCategory: getLabel(pep.subCategory, g.relatedPepOptionsMap?.[index] || [], "pep_sub_category", "pep_sub_category_pk_code"),
+        }));
+      }
+      return resolved;
+    });
 
-    const updatedData = { ...allData, ...securityData };
-    sessionStorage.setItem("loanApplicationData", JSON.stringify(updatedData));
+    const securityData = {
+      securityDetails: securities,
+      additionalGuarantors: resolvedGuarantors,
+    };
 
     onNext(securityData);
   };
@@ -5654,8 +5983,9 @@ export function SecurityDetailsForm({
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
-                    <SelectItem value="self">Self Owned</SelectItem>
-                    <SelectItem value="third-party">Third Party</SelectItem>
+                    <SelectItem value="self">Sole Owner</SelectItem>
+                    <SelectItem value="joint">Joint Owners</SelectItem>
+                    <SelectItem value="other">Other Owners</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -6058,7 +6388,7 @@ export function SecurityDetailsForm({
                     htmlFor="building-area"
                     className="text-gray-800 font-semibold text-sm"
                   >
-                    Building Area (Sq. Ft){" "}
+                    House No.{" "}
                     <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -6928,8 +7258,8 @@ export function SecurityDetailsForm({
         </div>
       ))}
 
-      {/* Guarantor sections - only show if ANY security has ownership type "third-party" */}
-      {securities.some((s) => s.ownershipType === "third-party") && (
+      {/* Guarantor sections - only show if ANY security has ownership type "other" or "joint" */}
+      {securities.some((s) => s.ownershipType === "other" || s.ownershipType === "joint") && (
         <>
           {/* Render all guarantors */}
           {guarantors.map((guarantor, index) =>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const API_CONFIG = {
-  CDMS_BASE_URL: 'http://119.2.100.178/api/cdms',
+  CDMS_BASE_URL: ' https://eservices-uat.bil.bt/api/cdms',
   ACCESS_TOKEN: 'rEwOrW10rgTC75dqY5zfQO0SGgJUcPQU8Ue6x7XuXftaE0V5DgVE8NVe4BFq',
 };
 

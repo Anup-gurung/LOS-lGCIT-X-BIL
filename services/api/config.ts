@@ -1,7 +1,7 @@
 // API Configuration
 export const API_CONFIG = {
-  CDMS_BASE_URL: 'http://119.2.100.178/api/cdms',
-  LMS_BASE_URL: 'http://119.2.100.178/api/lms',
+  CDMS_BASE_URL: ' https://eservices-uat.bil.bt/api/cdms',
+  LMS_BASE_URL: ' https://eservices-uat.bil.bt/api/lms',
   ACCESS_TOKEN: 'rEwOrW10rgTC75dqY5zfQO0SGgJUcPQU8Ue6x7XuXftaE0V5DgVE8NVe4BFq',
   MAX_RETRIES: 3,
   RETRY_DELAY: 1000, // 1 second

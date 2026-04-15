@@ -18,9 +18,17 @@ const [loading, setLoading] = useState(false)
   try {
     setLoading(true);
     
-    const redirectUrl = await startNdiFlow("/loan-application?step=1");
+    const redirectUrl = await startNdiFlow
+    ("/loan-application?step=1",
+      "applicant",
+      undefined,
+      "redirect"
+
+    );
     
-    router.push(redirectUrl);
+    if (typeof redirectUrl === "string") {
+  router.push(redirectUrl);
+}
   } catch (error) {
     setLoading(false)
     alert("Failed to start NDI verification");

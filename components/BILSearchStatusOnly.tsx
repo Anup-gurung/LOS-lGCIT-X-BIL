@@ -3,124 +3,239 @@
 import Image from "next/image";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useSearchParams } from "next/navigation";
+import { startNdiFlow } from "@/lib/startNdiFlow";
+
 import {
-    Loader2,
-    CheckCircle2,
-    Search,
-    AlertCircle,
-    FileEdit,
+  Loader2,
+  CheckCircle2,
+  Search,
+  AlertCircle,
+  QrCode,
+  FileEdit,
 } from "lucide-react";
 
+import { useEffect, useState } from "react";
+import { getRoleFromStep } from "@/lib/mapNdiData";
+
 interface DocumentPopupProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    onProceed?: () => void;
-    searchStatus?: "searching" | "found" | "not_found";
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onProceed?: () => void;
+  searchStatus?: "searching" | "found" | "not_found";
+  idNo?: string;
 }
 
-export default function DocumentPopupOnly({
-    open,
-    onOpenChange,
-    onProceed,
-    searchStatus = "searching",
+export default function DocumentPopup({
+  open,
+  onOpenChange,
+  onProceed,
+  searchStatus = "searching",
 }: DocumentPopupProps) {
-    // Generic handler to close popup and trigger the proceed callback
-    const handleAction = () => {
-        onOpenChange(false);
-        if (onProceed) {
-            onProceed();
+  const searchParams = useSearchParams();
+
+  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+
+  const [qrData, setQrData] = useState<any>(null);
+  const [waiting, setWaiting] = useState(false);
+
+  // ✅ Start NDI (INLINE)
+  const handleNewUserNDI = async () => {
+    if (!email) {
+      setEmailError("Email is required");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError("Enter a valid email address");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setEmailError("");
+
+      const currentPath =
+        window.location.pathname + window.location.search;
+
+      const step = searchParams.get("step");
+      const role = getRoleFromStep(step);
+
+      const result = await startNdiFlow(
+        currentPath,
+        role,
+        email,
+        // undefined,
+        "inline"
+      );
+      console.log("NDI flow result:", result);
+
+      // ✅ EXTRACT THREAD ID CORRECTLY
+      const threadId = typeof result === "object" && result !== null ? result.threadId : undefined;
+      console.log("Extracted threadId:", threadId);
+
+      // Ensure result is an object before accessing threadId
+      if (typeof result === "object" && result !== null) {
+        setQrData({
+          ...result,
+          threadId, // FORCE IT
+        });
+        setWaiting(true);
+      } else {
+        alert("Invalid response from NDI flow");
+      }
+    } catch (error) {
+      alert("Failed to start NDI verification");
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL;
+  // ✅ Poll NDI status
+  useEffect(() => {
+    if (!waiting || !qrData?.threadId) return;
+    console.log("Starting to poll NDI status for threadId:", qrData.threadId);
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `${BACKEND}/api/proof-result/${qrData.threadId}`
+        );
+        const data = await res.json();
+                console.log("API response status", res.status)
+        console.log("Polling NDI status for threadId:", qrData.threadId, "Status response:", data);
+
+
+      console.log("Polling response:", data)
+
+        if (data.status === "COMPLETED") {
+          clearInterval(interval);
+          
+        const userData = data.attributes;
+
+        // ✅ Store NDI user data
+        sessionStorage.setItem(
+          "ndiCoBorrowerUserData",
+          JSON.stringify(userData)
+        );
+
+        // Optional: store full response
+        sessionStorage.setItem(
+          "ndiFullResponse",
+          JSON.stringify({
+            ...data,
+            threadId: qrData.threadId
+          })
+        );
+
+          onOpenChange(false);
+          onProceed?.();
         }
-    };
+      } catch (err) {
+        console.log("Polling error:", err);
+      }
+    }, 3000);
 
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md p-8 rounded-2xl border-none shadow-2xl">
-                {/* Accessibility: DialogTitle is required */}
-                <DialogTitle className="sr-only">
-                    {searchStatus === "searching"
-                        ? "Searching Database"
-                        : searchStatus === "found"
-                            ? "Record Found"
-                            : "User Not Registered"}
-                </DialogTitle>
+    return () => clearInterval(interval);
+  }, [waiting, qrData]);
 
-                {/* Branding Header */}
-                <div className="flex flex-col items-center mb-2">
-                    <Image
-                        src="/logo.png"
-                        alt="Bhutan Insurance Logo"
-                        width={90}
-                        height={90}
-                        className="object-contain"
-                    />
-                </div>
+  const handleFoundAction = () => {
+    onOpenChange(false);
+    onProceed?.();
+  };
 
-                {/* 1. SEARCHING / LOADING STATE */}
-                {searchStatus === "searching" && (
-                    <div className="flex flex-col items-center justify-center py-6 space-y-5">
-                        <div className="relative">
-                            <Loader2 className="h-16 w-16 text-[#003DA5] animate-spin" />
-                            <Search className="h-6 w-6 text-[#003DA5] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                        </div>
-                        <div className="text-center space-y-2">
-                            <h3 className="text-xl font-bold text-gray-900 tracking-tight">
-                                Verifying Co-Borrower
-                            </h3>
-                            <p className="text-sm text-gray-500 max-w-[280px] leading-relaxed">
-                                Please wait while we search the BIL database for existing
-                                records...
-                            </p>
-                        </div>
-                    </div>
-                )}
+  const handleNotAction = () => {
+    onOpenChange(false);
+  };
 
-                {/* 2. FOUND STATE (Existing User) */}
-                {searchStatus === "found" && (
-                    <div className="flex flex-col items-center justify-center py-4 space-y-5 text-center">
-                        <div className="bg-green-50 p-4 rounded-full">
-                            <CheckCircle2 className="h-12 w-12 text-green-600" />
-                        </div>
-                        <div className="space-y-2">
-                            <h3 className="text-xl font-bold text-gray-900">Record Found</h3>
-                            <p className="text-sm text-gray-600 leading-relaxed px-4">
-                                This co-borrower is already registered with BIL. Their
-                                information will be automatically retrieved.
-                            </p>
-                        </div>
-                        <Button
-                            className="w-full h-12 bg-[#003DA5] hover:bg-[#002D7A] text-white font-semibold rounded-xl transition-all"
-                            onClick={handleAction}
-                        >
-                            Continue with Existing Data
-                        </Button>
-                    </div>
-                )}
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-8 rounded-2xl shadow-2xl">
 
-                {/* 3. NOT FOUND STATE (Manual Entry) */}
-                {searchStatus === "not_found" && (
-                    <div className="flex flex-col items-center justify-center py-4 space-y-5 text-center">
-                        <div className="bg-orange-50 p-4 rounded-full">
-                            <AlertCircle className="h-12 w-12 text-orange-600" />
-                        </div>
-                        <div className="space-y-2">
-                            <h3 className="text-xl font-bold text-gray-900">
-                                User Not Registered
-                            </h3>
-                            <p className="text-sm text-gray-600 leading-relaxed px-4">
-                                Please enter the data manually as the user is not registered with the BIL.
-                            </p>
-                        </div>
+        <DialogTitle className="sr-only">
+          {searchStatus === "searching"
+            ? "Searching"
+            : searchStatus === "found"
+            ? "Found"
+            : "Not Found"}
+        </DialogTitle>
 
-                        <Button
-                            onClick={handleAction}
-                            className="w-full h-12 bg-[#003DA5] hover:bg-[#002D7A] text-white font-semibold rounded-xl transition-all gap-2"
-                        >
-                            <FileEdit className="h-4 w-4" />
-                            Enter Data Manually
-                        </Button>
-                    </div>
-                )}
-            </DialogContent>
-        </Dialog>
-    );
+        {/* Logo */}
+        <div className="flex justify-center mb-2">
+          <Image src="/logo.png" alt="Logo" width={90} height={90} />
+        </div>
+
+        {/* SEARCHING */}
+        {searchStatus === "searching" && (
+          <div className="text-center space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto text-blue-600" />
+            <p>Searching database...</p>
+          </div>
+        )}
+
+        {/* FOUND */}
+        {searchStatus === "found" && (
+          <div className="text-center space-y-4">
+            <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto" />
+            <p>User found</p>
+            <Button onClick={handleFoundAction}>
+              Continue
+            </Button>
+          </div>
+        )}
+
+        {/* NOT FOUND */}
+        {searchStatus === "not_found" && (
+          <div className="space-y-4 text-center">
+
+            <AlertCircle className="h-12 w-12 text-orange-500 mx-auto" />
+
+            <p>User not registered</p>
+
+            {/* Email */}
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailError("");
+              }}
+              placeholder="Enter email"
+              className="w-full border p-2 rounded"
+            />
+
+            {emailError && (
+              <p className="text-red-500 text-sm">{emailError}</p>
+            )}
+
+            {/* Start NDI */}
+            <Button onClick={handleNewUserNDI} disabled={loading}>
+              {loading ? "Generating..." : "Continue with NDI"}
+            </Button>
+
+            {/* QR DISPLAY */}
+            {waiting && qrData && (
+              <div className="mt-4 space-y-2">
+                <p>Scan QR using NDI app</p>
+                <img
+                  src={qrData.qrCodeImage}
+                  className="w-40 mx-auto"
+                />
+                <p className="text-xs text-gray-500">
+                  Waiting for verification...
+                </p>
+              </div>
+            )}
+
+            <Button variant="outline" onClick={handleNotAction}>
+              Enter Manually
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 }

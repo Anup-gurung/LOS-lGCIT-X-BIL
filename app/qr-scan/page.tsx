@@ -21,7 +21,8 @@ export default function QRScanPage() {
   const [proofData, setProofData] = useState<Record<string, any> | null>(null)
   const [mappedFormData, setMappedFormData] = useState<PersonalDetailFormData | null>(null)
   const [status, setStatus] = useState<'pending' | 'completed' | 'error'>('pending')
-  
+  const [isHovered, setIsHovered] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   // Backend URL from .env
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
@@ -53,6 +54,30 @@ export default function QRScanPage() {
     return () => clearTimeout(timer)
   }, [qrUrl])
 
+    useEffect(() => {
+      const checkDevice = () => {
+        const userAgent = navigator.userAgent || navigator.vendor
+
+        const isMobileDevice =
+          /android|iphone|ipad|ipod|opera mini|iemobile|mobile/i.test(userAgent)
+
+        setIsMobile(isMobileDevice)
+        console.log("Detected mobile device, showing open wallet button with deep link:", qrUrl)
+
+      }
+
+      checkDevice()
+    }, [])
+useEffect(() => {
+  const checkMobile = () => {
+    setIsMobile(window.innerWidth < 768)
+  }
+
+  checkMobile()
+  window.addEventListener("resize", checkMobile)
+
+  return () => window.removeEventListener("resize", checkMobile)
+}, [])
 const handleRegenerateQR = async () => {
   try {
     // Reset all states
@@ -92,7 +117,9 @@ const handleRegenerateQR = async () => {
     const proofData = await proofRes.json()
 
     const { proofRequestURL, threadId, deepLinkURL } = proofData.data
+console.log("Regenerated proof data:", proofData)
 
+console.log("threadId ", threadId)
     // Update state (same as first flow)
     setQrUrl(proofRequestURL)
     setThreadId(threadId)
@@ -168,7 +195,7 @@ useEffect(() => {
       try {
         const res = await fetch(`${BACKEND_URL}/api/proof-result/${threadId}`)
         const data = await res.json()
-
+console.log("Polling proof result:", { res, data })
         if (res.status === 202) {
           console.log("Proof still pending...")
           return
@@ -362,7 +389,13 @@ useEffect(() => {
           </div>
 
           {/* Right QR / Proof Card */}
-          <Card className="shadow-2xl border-gray-200">
+          <Card className="shadow-2xl border-gray-200 mx-auto justify-center"
+          style={{
+            width: "600px",
+            minHeight: "750px",
+            background: "#F8F8F8"
+          }}
+          >
             <CardContent className="p-10 space-y-6">
 
       {isSuccess ? (
@@ -412,43 +445,178 @@ useEffect(() => {
       ) : (
         // 🔵 Original QR UI & Instructions before expiry
         <>
-          <h2 className="text-2xl font-bold text-center">
-            Scan with Bhutan NDI Wallet
-          </h2>
+        <h2 className="text-2xl font-bold text-center">
+          Scan with <span className="text-[#5AC994]">Bhutan NDI </span>Wallet
+        </h2>
           <div className="flex flex-col items-center py-6 space-y-4">
+          {isMobile &&qrUrl && (
+            <>
+              <button
+                onClick={() => window.location.href = qrUrl}
+                className="text-white font-semibold rounded-lg shadow hover:opacity-90 transition"
+                style={{
+                  width: "300px",
+                  height: "50px",
+                  backgroundColor: "#5AC994",
+                  fontSize: "16px"
+                }}
+              >
+                Open Bhutan NDI Wallet
+              </button>
+
+              {/* OR Divider */}
+              <div className="flex items-center w-full max-w-xs">
+                <div className="flex-grow h-px bg-gray-300"></div>
+                <span className="px-3 text-gray-500 text-sm">OR</span>
+                <div className="flex-grow h-px bg-gray-300"></div>
+              </div>
+            </>
+          )}
+             {/* 🔳 QR Code */}
+{/* {qrUrl ? (
+  <div className="relative p-4 bg-white rounded-xl border-4 border-[#5AC994] shadow-lg">
+    <QRCodeCanvas value={qrUrl} size={200} level="H" />
+
+    <div className="absolute inset-0 flex items-center justify-center">
+      <Image
+        src="/QRlogo.svg"
+        alt="NDI Logo"
+        width={80}
+        height={80}
+        className="bg-white p-2 rounded-full shadow"
+      />
+    </div>
+  </div>
+) : (
+  <p className="text-gray-500">Loading QR...</p>
+)} */}
             {qrUrl ? (
-              <div className="p-4 bg-white rounded-xl border-4 border-green-400 shadow-lg">
+              <div className="relative p-4 bg-white rounded-xl border-4 border-[#5AC994] shadow-lg">
                 <QRCodeCanvas 
                 value={qrUrl} 
-                size={260} 
+                size={200} 
                 level="H"/>
                   {/* 🔥 Logo overlay */}
             <div className="absolute inset-0 flex items-center justify-center">
-              {/* <Image
-                src="/LOS-lGCIT-X-BIL\images\ndi.png" // 👈 put your NDI logo in public/
+              <Image
+                src="/QRlogo.svg" // 👉 place in public/
                 alt="NDI Logo"
-                width={60}
-                height={60}
-                className="bg-white p-2 rounded-md shadow"
-              /> */}
+                width={80}
+                height={80}
+                className="bg-white p-2 rounded-full shadow"
+              />
               </div>
               </div>
             ) : (
               <p className="text-gray-500">Loading QR...</p>
             )}
 
-            <div className="space-y-3 text-gray-700 text-left">
-              <p><strong>1.</strong> Open the Bhutan NDI Wallet application.</p>
+            <div className="space-y-2 text-[#A1A0A0] text-[16px] text-left max-w-sm">
+              <p>1. Open the Bhutan NDI Wallet on your phone</p>
               <div>
-                <p><strong>2.</strong> Ensure your wallet contains the verified Foundational credentials</p>
-                <ul className="list-disc list-inside ml-6 mt-1 space-y-1">
+              <p className="text-[#A1A0A0] text-[16px] leading-relaxed">
+                2. Tap the Scan button{" "}
+                <span className="inline-flex align-middle">
+                  <Image
+                    src="/scaniconimg.svg"
+                    alt="Scan"
+                    width={30}
+                    height={30}
+                    className="inline-block"
+                  />
+                </span>{" "}
+                located on the menu bar and scan the QR code.
+              </p>     
+              {/* <ul className="list-disc list-inside ml-6 mt-1 space-y-1"> */}
                   {/* <li>Foundational ID VC</li>
                   <li>Phone Number VC</li>
                   <li>Email Address VC</li>
                   <li>Current Address VC</li> */}
-                </ul>
+                {/* </ul>/ */}
+                {/* 🎥 Watch Video Guide */}
+              <div className="flex justify-center mt-6 mb-6">
+                <button
+                  onClick={() =>
+                    window.open("https://www.youtube.com/@BhutanNDI", "_blank")
+                  }
+                  onMouseEnter={() => setIsHovered(true)}
+                  onMouseLeave={() => setIsHovered(false)}
+                  className="flex items-center justify-center gap-2 w-[200px] h-[44px] rounded-full border-2 border-[#5AC994] text-[#5AC994] text-sm font-medium transition-all duration-300  hover:shadow-md"
+                >
+                  Watch video guide
+
+                  <img
+                    src={isHovered ? "/PlayButton.svg" : "/PlayButtonHover.svg"}
+                    alt="Play"
+                    width={20}
+                    height={20}
+                    className="transition-all duration-300"
+                  />
+                </button>
               </div>
-              <p><strong>3.</strong> Tap <strong>Scan</strong> and scan the QR code.</p>
+                  {/* 📲 Download Section */}
+              <div className="text-center space-y-3">
+                <p className="text-medium text-[ #A1A0A0 ] semi-bold">
+                  Don’t have the Bhutan NDI Wallet?{" "}
+                  <span className="text-[#5AC994] font-medium semi-bold">
+                    Download Now!
+                  </span>
+                </p>
+
+                <div className="flex gap-4 justify-center">
+                  <a
+                    href="https://play.google.com/store/search?q=NDI&c=apps"
+                    target="_blank"
+                  >
+                    <Image
+                      src="/PlayStore.jpg"
+                      alt="Google Play"
+                      width={140}
+                      height={40}
+                    />
+                  </a>
+
+                  <a
+                    href="https://apps.apple.com/us/app/bhutan-ndi/id1645493166"
+                    target="_blank"
+                  >
+                    <Image
+                      src="/AppStore.jpg"
+                      alt="App Store"
+                      width={140}
+                      height={40}
+                    />
+                  </a>
+                </div>
+              </div>
+
+               {/* 📞 Support */}
+            <div className="text-center text-sm text-gray-600 pt-4">
+              <p className="text-[#5AC994] font-medium mb-3">Get Support</p>
+
+              <div className="flex justify-center  gap-6 items-center flex-wrap">
+
+                {/* Email */}
+                <div className="flex items-center gap-2">
+                  <Image src="/Mail.svg" alt="Email" width={18} height={18} />
+                  <a href="mailto:ndifeedback@dhi.bt" className="underline">
+                    ndifeedback@dhi.bt
+                  </a>
+                </div>
+
+                {/* Phone */}
+                <div className="flex items-center gap-2">
+                  <Image src="/Call.svg" alt="Phone" width={18} height={18} />
+                  <a href="tel:1199" className="underline">
+                    1199
+                  </a>
+                </div>
+
+              </div>
+            </div>
+
+              </div>
+              {/* <p><strong>3.</strong> Tap <strong>Scan</strong> and scan the QR code.</p> */}
               {/* <p><strong>4.</strong> Review and approve the credential sharing request.</p> */}
             </div>
           </div>

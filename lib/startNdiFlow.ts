@@ -3,63 +3,82 @@ import { resetNDIScanCount } from "./indexDB";
 export async function startNdiFlow(
   redirectPath?: string,
   role: "applicant" | "co-applicant" | "guarantor" = "applicant",
-  refId: String = "applicant"
-) {
-  // 🔥 Reset all scan counts first (once)
-  // try {
-  //   await resetNDIScanCount();
-  //   console.log("✅ Scan counts reset before starting NDI flow");
-  // } catch (err) {
-  //   console.error("❌ Failed to reset scan counts:", err);
-  // }
-  
-  const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL
+  emailId?: string,
+  // refId?: string,
+  mode: "redirect" | "inline" = "redirect"
+): Promise<
+  | string
+  | {
+      proofRequestURL: string;
+      qrCodeImage: string;
+      threadId: string;
+      deepLinkURL: string;
+    }
+> {
+  console.log("Starting NDI flow with:", {
+    redirectPath,
+    role,
+    emailId,
+    // refId,
+    mode,
+  });
 
-  // Detect current page
+  const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL;
+
   const currentPath =
-    typeof window !== "undefined" ? window.location.pathname : "/"
+    typeof window !== "undefined" ? window.location.pathname : "/";
 
-  // If called from login → force redirect to loan application
   const finalRedirect =
     currentPath === "/login"
       ? "/loan-application?step=1"
-      : redirectPath || currentPath
+      : redirectPath || currentPath;
 
-  // 1 Authenticate
+  // 1️⃣ AUTH
   const authRes = await fetch(`${BACKEND}/api/ndi/auth`, {
     method: "POST",
-  })
+  });
 
   if (!authRes.ok) {
-    throw new Error("NDI authentication failed")
+    throw new Error("NDI authentication failed");
   }
 
-  const authData = await authRes.json()
+  const authData = await authRes.json();
 
-  // 2 Request proof
+  // 2️⃣ PROOF REQUEST (IMPORTANT)
   const proofRes = await fetch(`${BACKEND}/api/ndi-verifier/proof-request`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${authData.access_token}`,
+      "Content-Type": "application/json",
     },
-  })
+    body: JSON.stringify({
+      role,
+      // refId,       
+      email: emailId, // ✅ email for co-borrower
+    }),
+  });
 
   if (!proofRes.ok) {
-    throw new Error("Proof request failed")
+    throw new Error("Proof request failed");
   }
 
+  const proofData = await proofRes.json();
+  console.log("NDI Proof Request Response:", proofData);
 
+  const { proofRequestURL, threadId, deepLinkURL, qrCodeImage } =
+    proofData.data;
 
-  const proofData = await proofRes.json()
-  // const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    console.log("threadId received:", threadId);
 
-  const { proofRequestURL, threadId, deepLinkURL, qrCodeImage } = proofData.data
-
-  const isMobile = 
-    typeof window !== "undefined" &&
-    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-
-  // 3 Store session
+    // ALWAYS return consistent structure
+    const normalized = {
+      threadId,
+      proofRequestURL,
+      qrCodeImage,
+      deepLinkURL,
+      emailId,
+    };
+  // 3️⃣ STORE SESSION
   sessionStorage.setItem(
     "ndiProof",
     JSON.stringify({
@@ -69,22 +88,15 @@ export async function startNdiFlow(
       deepLinkURL,
       redirect: finalRedirect,
       role,
-      refId,
+      // refId,
+      emailId,
     })
-  )
+  );
 
-
-  // 4 Redirect to QR page
-  console.log("Redirecting to QR scan with:", {
-    proofRequestURL,
-    threadId,
-    deepLinkURL,
-    finalRedirect,
-  })
-    if (isMobile) {
-    console.log("Mobile detected, redirecting to deep link:", deepLinkURL)
-    return deepLinkURL
+  // 4️⃣ MODE CONTROL
+  if (mode === "inline") {
+    return normalized;
   }
-  
-  return `/qr-scan?redirect=${encodeURIComponent(finalRedirect)}`
+
+  return `/qr-scan?redirect=${encodeURIComponent(finalRedirect)}`;
 }

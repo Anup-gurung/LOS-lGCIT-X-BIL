@@ -36,7 +36,7 @@ import {
   fetchLegalConstitution,
   fetchPepCategory,
   fetchPepSubCategoryByCategory,
-  fetchTaxIdentifierType, // <-- NEW import
+  fetchTaxIdentifierType,
 } from "@/services/api";
 import { getNdiDataFromSession } from "@/lib/mapNdiData";
 import { getVerifiedCustomerDataFromSession } from "@/lib/mapCustomerData";
@@ -60,14 +60,11 @@ interface PersonalDetailsFormProps {
 
 // Initialize empty related PEP entry with comprehensive fields
 const createEmptyRelatedPep = () => ({
-  // PEP Info
   relationship: "",
   identificationNo: "",
   category: "",
   subCategory: "",
   identificationProof: "",
-
-  // Personal Info
   identificationType: "",
   salutation: "",
   applicantName: "",
@@ -80,8 +77,6 @@ const createEmptyRelatedPep = () => ({
   tpn: "",
   householdNumber: "",
   maritalStatus: "",
-
-  // PEP Permanent Address
   permCountry: "",
   permDzongkhag: "",
   permGewog: "",
@@ -89,8 +84,6 @@ const createEmptyRelatedPep = () => ({
   permThram: "",
   permHouse: "",
   permAddressProof: "",
-
-  // PEP Current Address
   currCountry: "",
   currDzongkhag: "",
   currGewog: "",
@@ -100,8 +93,6 @@ const createEmptyRelatedPep = () => ({
   currEmail: "",
   currContact: "",
   currAlternateContact: "",
-
-  // Spouse Info (kept for data structure but not rendered)
   spouseIdentificationType: "",
   spouseIdentificationNo: "",
   spouseSalutation: "",
@@ -127,108 +118,168 @@ const createEmptyRelatedPep = () => ({
   spouseAlternateContact: "",
 });
 
+// Utility to normalize NDI/Session data to component's strict fields
+const normalizeData = (sourceData: any) => {
+  if (!sourceData) return {};
+  let d = { ...sourceData };
+
+  // 1. Personal Info Mappings
+  if (!d.identificationNo && d.idNumber) d.identificationNo = d.idNumber;
+  if (!d.identificationType && d.idType) d.identificationType = d.idType;
+  if (!d.identificationIssueDate && d.identityIssuedDate) d.identificationIssueDate = d.identityIssuedDate;
+  if (!d.identificationExpiryDate && d.identityExpiryDate) d.identificationExpiryDate = d.identityExpiryDate;
+
+  // 2. Contact & Address Mappings
+  if (!d.currContact && (d.contactNo || d.phone)) d.currContact = d.contactNo || d.phone;
+  if (!d.currAlternateContact && (d.alternatePhone || d.alternateContactNo)) d.currAlternateContact = d.alternatePhone || d.alternateContactNo;
+  if (!d.currEmail && (d.emailId || d.email)) d.currEmail = d.emailId || d.email;
+  if (!d.currFlat && (d.currBuildingNo || d.currentBuildingNo)) d.currFlat = d.currBuildingNo || d.currentBuildingNo;
+
+  // 3. Bank Account Mapping
+  if (!d.bankAccount && (d.bankAccountNo || d.accountNumber)) d.bankAccount = d.bankAccountNo || d.accountNumber;
+
+  // 3.5 File Upload Mappings
+  if (!d.familyTree && (d.familyTreeName || d.familyTreeDocument)) d.familyTree = d.familyTreeName || d.familyTreeDocument;
+  if (!d.identificationProof && (d.idProofDocument || d.identityProofName || d.idProof)) d.identificationProof = d.idProofDocument || d.identityProofName || d.idProof;
+  if (!d.passportPhoto && (d.passportPhotoName || d.passportPhotoDocument)) d.passportPhoto = d.passportPhotoName || d.passportPhotoDocument;
+  if (!d.currAddressProof && (d.currAddressProofDocument || d.addressProof || d.addressProofName)) d.currAddressProof = d.currAddressProofDocument || d.addressProof || d.addressProofName;
+  if (!d.permAddressProof && (d.permAddressProofDocument || d.addressProof || d.addressProofName)) d.permAddressProof = d.permAddressProofDocument || d.addressProof || d.addressProofName;
+  if (!d.spouseIdentificationProof && (d.spouseIdentificationProofName || d.spouseIdProof || d.spouseIdentificationProofDocument)) d.spouseIdentificationProof = d.spouseIdentificationProofName || d.spouseIdProof || d.spouseIdentificationProofDocument;
+
+  // 4. Employment Status Inference
+  if (!d.employmentStatus && (d.employeeId || d.occupation || d.employerName || d.organizationName || d.annualSalary)) {
+    d.employmentStatus = "employed";
+  }
+
+  // 5. Employment Details Refinements
+  if (d.employerType || d.organizationType) {
+    const typeStr = String(d.employerType || d.organizationType || "").toLowerCase();
+    if (typeStr.includes("gov")) d.employerType = "government";
+    else if (typeStr.includes("priv")) d.employerType = "private";
+    else if (typeStr.includes("corp") || typeStr.includes("institution") || typeStr.includes("bank") || typeStr.includes("limited")) {
+      d.employerType = "corporate";
+    }
+  }
+
+  if (!d.organizationName && d.employerName) d.organizationName = d.employerName;
+  if (!d.orgLocation && (d.employerLocation || d.organizationLocation)) d.orgLocation = d.employerLocation || d.organizationLocation;
+
+  if (!d.serviceNature && d.natureOfService) d.serviceNature = d.natureOfService;
+  if (d.serviceNature) {
+    const natStr = String(d.serviceNature).toLowerCase();
+    if (natStr.includes("perm")) d.serviceNature = "permanent";
+    else if (natStr.includes("contract")) d.serviceNature = "contract";
+    else if (natStr.includes("temp")) d.serviceNature = "temporary";
+  }
+
+  if (d.grade) d.grade = String(d.grade).toLowerCase();
+
+  if (d.designation) {
+    const desig = String(d.designation).toLowerCase();
+    if (desig.includes("manag")) d.designation = "manager";
+    else if (desig.includes("offic")) d.designation = "officer";
+    else if (desig.includes("assist")) d.designation = "assistant";
+  }
+
+  // 6. Related PEPs Default structure
+  if (!d.relatedPeps) {
+    if (d.pepRelated === "yes") {
+      d.relatedPeps = [
+        {
+          ...createEmptyRelatedPep(),
+          relationship: d.pepRelationship || "",
+          identificationNo: d.pepIdentification || "",
+          category: d.pepCategory || "",
+          subCategory: d.pepSubCat2 || "",
+          identificationProof: d.identificationProof || "",
+        },
+      ];
+    } else {
+      d.relatedPeps = [createEmptyRelatedPep()];
+    }
+  }
+
+  return d;
+};
+
 export function PersonalDetailsForm({
   onNext,
   onBack,
   formData,
 }: PersonalDetailsFormProps) {
   const [data, setData] = useState(() => {
-    console.log("========== PersonalDetail INIT ==========");
-
-    // PRIORITY 1: Check for verified customer data (existing users)
-    const verifiedData = getVerifiedCustomerDataFromSession();
-    if (verifiedData && Object.keys(verifiedData).length > 0) {
-      console.log("✅ INIT: Loading verified customer data:", verifiedData);
-      let initialData = { ...verifiedData };
-
-      if (!(initialData as any).relatedPeps) {
-        (initialData as any).relatedPeps = [createEmptyRelatedPep()];
-      }
-      console.log("========== Init Complete ==========\n");
-      return initialData as any;
+    // 1. Priority: Main form data (the most up-to-date persistence)
+    // Only use it if it actually contains personal detail fields, not just loan detail defaults
+    const existingPersonalData = formData?.personalDetails || formData || {};
+    if (existingPersonalData.applicantName || existingPersonalData.identificationNo) {
+      return normalizeData(existingPersonalData);
     }
-
-    // PRIORITY 2: Check for NDI verified data (new users)
-    const ndiData = getNdiDataFromSession();
-    if (ndiData && Object.keys(ndiData).length > 0) {
-      console.log("✅ INIT: Loading NDI data:", ndiData);
-      let initialData = { ...ndiData };
-
-      if (!(initialData as any).relatedPeps) {
-        (initialData as any).relatedPeps = [createEmptyRelatedPep()];
+    
+    // 2. Priority: Special Session storage (verified customer data, NDI data)
+    // Only used if the main form data is empty (initial load for existing user)
+    if (typeof window !== 'undefined') {
+      const verifiedData = getVerifiedCustomerDataFromSession();
+      if (verifiedData && Object.keys(verifiedData).length > 0) {
+        return normalizeData(verifiedData);
       }
-      console.log("========== Init Complete ==========\n");
-      return initialData as any;
-    }
-
-    // PRIORITY 3: Use formData from page
-    console.log("⚠️ INIT: No verified/NDI data, using formData:", formData);
-    let initialData = formData?.personalDetails || formData || {};
-
-    // --- MIGRATION LOGIC FOR RELATED PEPS ---
-    if (!(initialData as any).relatedPeps) {
-      if ((initialData as any).pepRelated === "yes") {
-        (initialData as any).relatedPeps = [
-          {
-            ...createEmptyRelatedPep(),
-            relationship: (initialData as any).pepRelationship || "",
-            identificationNo: (initialData as any).pepIdentification || "",
-            category: (initialData as any).pepCategory || "",
-            subCategory: (initialData as any).pepSubCat2 || "",
-            identificationProof: (initialData as any).identificationProof || "",
-          },
-        ];
-      } else {
-        (initialData as any).relatedPeps = [createEmptyRelatedPep()];
+      
+      const ndiData = getNdiDataFromSession();
+      if (ndiData && Object.keys(ndiData).length > 0) {
+        return normalizeData(ndiData);
       }
     }
 
-    console.log("========== Init Complete ==========\n");
-    return initialData as any;
+    return normalizeData(existingPersonalData);
   });
+
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    
+    // Safety check: if data is still mostly empty, try session again (mount sync)
+    if (!data.applicantName && !data.identificationNo) {
+      const verifiedData = getVerifiedCustomerDataFromSession();
+      if (verifiedData && Object.keys(verifiedData).length > 0) {
+        setData(normalizeData(verifiedData));
+        return;
+      }
+
+      const ndiData = getNdiDataFromSession();
+      if (ndiData && Object.keys(ndiData).length > 0) {
+        setData(normalizeData(ndiData));
+        return;
+      }
+    }
+  }, []);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCoBorrowerDialog, setShowCoBorrowerDialog] = useState(false);
   const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([]);
   const [banksOptions, setBanksOptions] = useState<any[]>([]);
   const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
-  const [identificationTypeOptions, setIdentificationTypeOptions] = useState<
-    any[]
-  >([]);
+  const [identificationTypeOptions, setIdentificationTypeOptions] = useState<any[]>([]);
   const [countryOptions, setCountryOptions] = useState<any[]>([]);
   const [dzongkhagOptions, setDzongkhagOptions] = useState<any[]>([]);
   const [permGewogOptions, setPermGewogOptions] = useState<any[]>([]);
   const [currGewogOptions, setCurrGewogOptions] = useState<any[]>([]);
-  const [spousePermGewogOptions, setSpousePermGewogOptions] = useState<any[]>(
-    [],
-  );
+  const [spousePermGewogOptions, setSpousePermGewogOptions] = useState<any[]>([]);
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
   const [pepSubCategoryOptions, setPepSubCategoryOptions] = useState<any[]>([]);
   const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
-  // NEW: tax identifier type options
   const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
 
-  // Maps for dynamic dropdowns inside the Related PEPs loop
-  const [relatedPepOptionsMap, setRelatedPepOptionsMap] = useState<
-    Record<number, any[]>
-  >({});
-  const [relatedPepSpouseGewogMap, setRelatedPepSpouseGewogMap] = useState<
-    Record<number, any[]>
-  >({});
-  const [relatedPepPermGewogMap, setRelatedPepPermGewogMap] = useState<
-    Record<number, any[]>
-  >({});
-  const [relatedPepCurrGewogMap, setRelatedPepCurrGewogMap] = useState<
-    Record<number, any[]>
-  >({});
+  const [relatedPepOptionsMap, setRelatedPepOptionsMap] = useState<Record<number, any[]>>({});
+  const [relatedPepSpouseGewogMap, setRelatedPepSpouseGewogMap] = useState<Record<number, any[]>>({});
+  const [relatedPepPermGewogMap, setRelatedPepPermGewogMap] = useState<Record<number, any[]>>({});
+  const [relatedPepCurrGewogMap, setRelatedPepCurrGewogMap] = useState<Record<number, any[]>>({});
 
   const today = new Date().toISOString().split("T")[0];
   const fifteenYearsAgo = new Date();
   fifteenYearsAgo.setFullYear(fifteenYearsAgo.getFullYear() - 15);
   const maxDobDate = fifteenYearsAgo.toISOString().split("T")[0];
 
-  // --- HELPER: Nationality Check ---
   const isNatBhutanese = (nationalityId: string) => {
     if (!nationalityId) return false;
     const n = nationalityOptions.find((opt) => {
@@ -244,7 +295,6 @@ export function PersonalDetailsForm({
     return lowerLabel.includes("bhutan") && !lowerLabel.includes("non");
   };
 
-  // --- HELPER: Determine if Married ---
   const isMarriedStatus = (status: any) => {
     if (!status) return false;
     const statusStr = String(status).toLowerCase();
@@ -297,9 +347,13 @@ export function PersonalDetailsForm({
   const findPkCodeByLabel = (
     label: string,
     options: any[],
-    labelFields: string[],
+    labelFields?: string[],
   ): string => {
-    if (!label) return "";
+    if (!label || !options || !Array.isArray(options)) return label;
+
+    const trimmedLabel = String(label).trim().toLowerCase();
+    const strippedLabel = trimmedLabel.replace(/\s+/g, "");
+    const inputWords = trimmedLabel.split(/\s+/).filter((w) => w.length > 0);
 
     const getCode = (opt: any) =>
       String(
@@ -308,6 +362,7 @@ export function PersonalDetailsForm({
         opt.nationality_pk_code ||
         opt.identity_type_pk_code ||
         opt.marital_status_pk_code ||
+        opt.occ_pk_code ||
         opt.occupation_pk_code ||
         opt.dzongkhag_pk_code ||
         opt.gewog_pk_code ||
@@ -315,71 +370,91 @@ export function PersonalDetailsForm({
         opt.pep_sub_category_pk_code ||
         opt.lgal_constitution_pk_code ||
         opt.legal_const_pk_code ||
-        opt.tax_identifier_type_pk_code ||   // <-- NEW
+        opt.tax_identifier_type_pk_code ||
         opt.pk_code ||
         opt.id ||
         opt.code ||
         "",
       );
 
-    // 1. Exact match on code (in case it's already properly assigned)
+    const getOptionLabelFallback = (opt: any) =>
+      String(
+        opt.gewog || opt.dzongkhag || opt.country || opt.nationality ||
+        opt.identity_type || opt.identification_type || opt.marital_status ||
+        opt.occ_name || opt.occupation || opt.lgal_constitution || opt.legal_const_name ||
+        opt.bank_name || opt.bank || opt.name || opt.label || "Unknown"
+      );
+
+    // 0. Exact match on code
     for (const option of options) {
       const code = getCode(option);
-      if (code && code === String(label)) {
+      if (code && String(code).toLowerCase() === trimmedLabel) {
         return code;
       }
     }
 
-    const labelLower = String(label).toLowerCase().trim();
-    const cleanLabel = labelLower.replace(/[^a-z0-9]/g, "");
+    const checkMatch = (optVal: string) => {
+      if (!optVal) return false;
+      const t = String(optVal).trim().toLowerCase();
+      const s = t.replace(/\s+/g, "");
+      if (s === strippedLabel || t === trimmedLabel) return true;
+      const optWords = t.split(/\s+/).filter((w) => w.length > 0);
+      if (inputWords.length > 0 && optWords.length > 0) {
+        return inputWords.every((w) =>
+          optWords.some(
+            (ow) =>
+              ow === w ||
+              ow.includes(w) ||
+              // NOTE: w.includes(ow) removed — causes "unmarried".includes("married")=true false match
+              (w.startsWith("identi") && ow.startsWith("identi"))
+          )
+        );
+      }
+      return false;
+    };
 
-    // 2. Strict match on label
+    // 0.5. Exact label match pass (before any fuzzy matching)
     for (const option of options) {
-      for (const field of labelFields) {
-        const optionLabel = String(option[field] || "")
-          .toLowerCase()
-          .trim();
-        const cleanOptionLabel = optionLabel.replace(/[^a-z0-9]/g, "");
-        if (cleanOptionLabel && cleanOptionLabel === cleanLabel) {
-          return getCode(option);
-        }
-      }
+      const fields = labelFields ? labelFields.map((f) => option[f]).filter(Boolean) : [];
+      fields.push(getOptionLabelFallback(option));
+      if (fields.some((v) => String(v).trim().toLowerCase() === trimmedLabel)) return getCode(option);
     }
 
-    // 3. Partial match
-    if (cleanLabel.length >= 4) {
+    // 1. Label Match (fuzzy)
+    for (const option of options) {
+      const fields = labelFields ? labelFields.map((f) => option[f]).filter(Boolean) : [];
+      fields.push(getOptionLabelFallback(option));
+      if (fields.some((v) => checkMatch(String(v)))) return getCode(option);
+    }
+
+    // 2. Partial Match Fallback — only option-contains-input, not input-contains-option
+    if (trimmedLabel.length >= 4) {
       for (const option of options) {
-        for (const field of labelFields) {
-          const optionLabel = String(option[field] || "")
-            .toLowerCase()
-            .trim();
-          const cleanOptionLabel = optionLabel.replace(/[^a-z0-9]/g, "");
-          if (cleanOptionLabel && cleanOptionLabel.includes(cleanLabel)) {
-            return getCode(option);
-          }
-        }
+        const lbl = getOptionLabelFallback(option).toLowerCase();
+        // Specifically handle married/unmarried to avoid cross-matches
+        if (trimmedLabel === "unmarried" && lbl === "unmarried") return getCode(option);
+        if (trimmedLabel === "married" && lbl === "married") return getCode(option);
+        if (lbl.includes(trimmedLabel)) return getCode(option);
       }
     }
 
-    return String(label);
+    return label;
   };
 
   useEffect(() => {
     const verifiedData = getVerifiedCustomerDataFromSession();
     if (verifiedData && Object.keys(verifiedData).length > 0) {
       setData((prevData: any) => ({
-        ...verifiedData,
         ...prevData,
-        relatedPeps: prevData.relatedPeps || [createEmptyRelatedPep()],
+        ...normalizeData(verifiedData),
       }));
       return;
     }
     const ndiData = getNdiDataFromSession();
     if (ndiData && Object.keys(ndiData).length > 0) {
       setData((prevData: any) => ({
-        ...ndiData,
         ...prevData,
-        relatedPeps: prevData.relatedPeps || [createEmptyRelatedPep()],
+        ...normalizeData(ndiData),
       }));
     }
   }, []);
@@ -412,7 +487,7 @@ export function PersonalDetailsForm({
     fetchPepCategory()
       .then(setPepCategoryOptions)
       .catch(() => setPepCategoryOptions([]));
-    fetchTaxIdentifierType()   // <-- NEW
+    fetchTaxIdentifierType()
       .then(setTaxIdentifierTypeOptions)
       .catch(() => setTaxIdentifierTypeOptions([]));
   }, []);
@@ -440,28 +515,12 @@ export function PersonalDetailsForm({
 
       if (hasData) {
         setData((prev: any) => {
-          const merged = {
+          const mergedRaw = {
             ...prev,
             ...(formData.personalDetails || {}),
             ...formData,
           };
-          if (!merged.relatedPeps) {
-            if (merged.pepRelated === "yes") {
-              merged.relatedPeps = [
-                {
-                  ...createEmptyRelatedPep(),
-                  relationship: merged.pepRelationship || "",
-                  identificationNo: merged.pepIdentification || "",
-                  category: merged.pepCategory || "",
-                  subCategory: merged.pepSubCat2 || "",
-                  identificationProof: merged.identificationProof || "",
-                },
-              ];
-            } else {
-              merged.relatedPeps = [createEmptyRelatedPep()];
-            }
-          }
-          return merged;
+          return normalizeData(mergedRaw);
         });
       }
     }
@@ -571,7 +630,7 @@ export function PersonalDetailsForm({
       banksOptions.length > 0 ||
       nationalityOptions.length > 0 ||
       maritalStatusOptions.length > 0 ||
-      taxIdentifierTypeOptions.length > 0   // <-- NEW
+      taxIdentifierTypeOptions.length > 0
     ) {
       const updates: any = {};
       if (
@@ -669,16 +728,15 @@ export function PersonalDetailsForm({
         if (pkCode && pkCode !== data.spouseNationality)
           updates.spouseNationality = pkCode;
       }
-      // Tax identifier type conversions (applicant, spouse, related PEPs) will be handled by their own useEffect blocks later
       if (Object.keys(updates).length > 0)
         setData((prev: any) => ({ ...prev, ...updates }));
     }
   }, [
-    identificationTypeOptions,
-    banksOptions,
-    nationalityOptions,
-    maritalStatusOptions,
-    taxIdentifierTypeOptions,   // <-- NEW
+    identificationTypeOptions.length,
+    banksOptions.length,
+    nationalityOptions.length,
+    maritalStatusOptions.length,
+    taxIdentifierTypeOptions.length,
     data.identificationType,
     data.bankName,
     data.nationality,
@@ -690,10 +748,11 @@ export function PersonalDetailsForm({
   useEffect(() => {
     if (occupationOptions.length > 0 && data.occupation) {
       const isValidPkCode = occupationOptions.find(
-        (o) => String(o.occupation_pk_code || o.id) === data.occupation,
+        (o) => String(o.occ_pk_code || o.occupation_pk_code || o.id) === String(data.occupation),
       );
       if (!isValidPkCode) {
         const pkCode = findPkCodeByLabel(data.occupation, occupationOptions, [
+          "occ_name",
           "occupation",
           "name",
           "label",
@@ -703,6 +762,26 @@ export function PersonalDetailsForm({
       }
     }
   }, [occupationOptions, data.occupation]);
+
+  useEffect(() => {
+    if (organizationOptions.length > 0 && data.organizationName) {
+      const isValidPkCode = organizationOptions.find(
+        (o) => String(o.lgal_constitution_pk_code || o.legal_const_pk_code || o.id) === String(data.organizationName),
+      );
+      if (!isValidPkCode) {
+        const pkCode = findPkCodeByLabel(data.organizationName, organizationOptions, [
+          "lgal_constitution",
+          "legal_const_name",
+          "name",
+          "label",
+        ]);
+        if (pkCode && pkCode !== data.organizationName) {
+          setData((prev: any) => ({ ...prev, organizationName: pkCode }));
+        }
+      }
+    }
+  }, [organizationOptions, data.organizationName]);
+
 
   // Load Gewogs
   useEffect(() => {
@@ -760,14 +839,76 @@ export function PersonalDetailsForm({
       if (pkCode && pkCode !== data.currGewog)
         setData((prev: any) => ({ ...prev, currGewog: pkCode }));
     }
-  }, [currGewogOptions, data.currGewog]);
+  }, [currGewogOptions, data.currGewog]);  // Rehydrate Related PEP metadata (Gewogs and Subcategories) on mount/load
+  useEffect(() => {
+    if (!data.relatedPeps || !Array.isArray(data.relatedPeps)) return;
+
+    data.relatedPeps.forEach(async (rpValue: any, index: number) => {
+      // 1. Fetch Sub-categories if category exists
+      const catCode = rpValue.category;
+      if (catCode && !relatedPepOptionsMap[index]) {
+        try {
+          const options = await fetchPepSubCategoryByCategory(catCode);
+          setRelatedPepOptionsMap(prev => ({ ...prev, [index]: options || [] }));
+        } catch (e) {}
+      }
+
+      // 2. Fetch/Resolve Gewogs for all address dzongkhags
+      const dzPairs = [
+        { dz: rpValue.permDzongkhag, mapKey: 'relatedPepPermGewogMap', setter: setRelatedPepPermGewogMap },
+        { dz: rpValue.currDzongkhag, mapKey: 'relatedPepCurrGewogMap', setter: setRelatedPepCurrGewogMap },
+        { dz: rpValue.spousePermDzongkhag, mapKey: 'relatedPepSpouseGewogMap', setter: setRelatedPepSpouseGewogMap }
+      ];
+
+      dzPairs.forEach(async ({ dz, setter }) => {
+        if (dz && dz.length > 0) {
+          try {
+            const options = await fetchGewogsByDzongkhag(dz);
+            setter(prev => ({ ...prev, [index]: options || [] }));
+          } catch (e) {}
+        }
+      });
+    });
+  }, [data.relatedPeps?.length]);
+
+  // Effect to resolve Related PEP Gewog labels to PK codes when options load
+  useEffect(() => {
+    if (!data.relatedPeps || !Array.isArray(data.relatedPeps)) return;
+    let changed = false;
+    const updatedPeps = data.relatedPeps.map((rp: any, index: number) => {
+      let newRp = { ...rp };
+      
+      const pOpts = relatedPepPermGewogMap[index];
+      if (pOpts?.length > 0 && rp.permGewog && !pOpts.find(o => String(o.gewog_pk_code || o.id) === String(rp.permGewog))) {
+        const pk = findPkCodeByLabel(rp.permGewog, pOpts, ["gewog", "name", "label"]);
+        if (pk && pk !== rp.permGewog) {
+          newRp.permGewog = pk;
+          changed = true;
+        }
+      }
+
+      const cOpts = relatedPepCurrGewogMap[index];
+      if (cOpts?.length > 0 && rp.currGewog && !cOpts.find(o => String(o.gewog_pk_code || o.id) === String(rp.currGewog))) {
+        const pk = findPkCodeByLabel(rp.currGewog, cOpts, ["gewog", "name", "label"]);
+        if (pk && pk !== rp.currGewog) {
+          newRp.currGewog = pk;
+          changed = true;
+        }
+      }
+      return newRp;
+    });
+
+    if (changed) {
+      setData((prev: any) => ({ ...prev, relatedPeps: updatedPeps }));
+    }
+  }, [relatedPepPermGewogMap, relatedPepCurrGewogMap]);
 
   useEffect(() => {
     if (
       spousePermGewogOptions.length > 0 &&
       data.spousePermGewog &&
       !spousePermGewogOptions.find(
-        (g) => String(g.gewog_pk_code || g.id) === data.spousePermGewog,
+        (g) => String(g.gewog_pk_code || g.id) === String(data.spousePermGewog),
       )
     ) {
       const pkCode = findPkCodeByLabel(
@@ -778,7 +919,7 @@ export function PersonalDetailsForm({
       if (pkCode && pkCode !== data.spousePermGewog)
         setData((prev: any) => ({ ...prev, spousePermGewog: pkCode }));
     }
-  }, [spousePermGewogOptions, data.spousePermGewog]);
+  }, [spousePermGewogOptions.length, data.spousePermGewog]);
 
   useEffect(() => {
     if (data.pepPerson === "yes" && data.pepCategory) {
@@ -790,43 +931,41 @@ export function PersonalDetailsForm({
     }
   }, [data.pepPerson, data.pepCategory]);
 
-  // Convert tax identifier type for main applicant when options load   <-- NEW
   useEffect(() => {
     if (taxIdentifierTypeOptions.length && data.taxIdentifierType) {
       const isValid = taxIdentifierTypeOptions.some(
         (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(data.taxIdentifierType)
       );
       if (!isValid) {
-        const pkCode = findPkCodeByLabel(
+        const pkCodeValue = findPkCodeByLabel(
           data.taxIdentifierType,
           taxIdentifierTypeOptions,
           ["tax_identifier_type", "name", "label"]
         );
-        if (pkCode && pkCode !== data.taxIdentifierType) {
-          setData((prev: any) => ({ ...prev, taxIdentifierType: pkCode }));
+        if (pkCodeValue && pkCodeValue !== data.taxIdentifierType) {
+          setData((prev: any) => ({ ...prev, taxIdentifierType: pkCodeValue }));
         }
       }
     }
-  }, [taxIdentifierTypeOptions, data.taxIdentifierType]);
+  }, [taxIdentifierTypeOptions.length, data.taxIdentifierType]);
 
-  // Convert tax identifier type for spouse when options load   <-- NEW
   useEffect(() => {
     if (taxIdentifierTypeOptions.length && data.spouseTaxIdentifierType) {
       const isValid = taxIdentifierTypeOptions.some(
         (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(data.spouseTaxIdentifierType)
       );
       if (!isValid) {
-        const pkCode = findPkCodeByLabel(
+        const pkCodeValue = findPkCodeByLabel(
           data.spouseTaxIdentifierType,
           taxIdentifierTypeOptions,
           ["tax_identifier_type", "name", "label"]
         );
-        if (pkCode && pkCode !== data.spouseTaxIdentifierType) {
-          setData((prev: any) => ({ ...prev, spouseTaxIdentifierType: pkCode }));
+        if (pkCodeValue && pkCodeValue !== data.spouseTaxIdentifierType) {
+          setData((prev: any) => ({ ...prev, spouseTaxIdentifierType: pkCodeValue }));
         }
       }
     }
-  }, [taxIdentifierTypeOptions, data.spouseTaxIdentifierType]);
+  }, [taxIdentifierTypeOptions.length, data.spouseTaxIdentifierType]);
 
   const handleFileChange = (fieldName: string, file: File | null) => {
     if (file) {
@@ -858,7 +997,6 @@ export function PersonalDetailsForm({
     }
   };
 
-  // --- HANDLERS FOR MULTIPLE PEP DECLARATIONS ---
   const handleAddRelatedPep = () => {
     setData({
       ...data,
@@ -871,7 +1009,6 @@ export function PersonalDetailsForm({
       (_: any, i: number) => i !== index,
     );
 
-    // Cleanup dynamic maps
     const newOptionsMap: Record<number, any[]> = {};
     const newSpouseGewogMap: Record<number, any[]> = {};
     const newPermGewogMap: Record<number, any[]> = {};
@@ -1013,7 +1150,6 @@ export function PersonalDetailsForm({
     }
   };
 
-  // Utilities
   const isEmpty = (val: any) =>
     val === undefined || val === null || String(val).trim() === "";
   const isEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
@@ -1021,7 +1157,6 @@ export function PersonalDetailsForm({
   const capitalizeWords = (value: string) =>
     value.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 
-  // Utility to clean up the input field classes
   const getFieldStyle = (errorKey: string) => {
     return `h-10 sm:h-12 w-full text-sm sm:text-base border ${errors[errorKey]
       ? "!border-red-500 focus:!ring-red-500 focus:!border-red-500"
@@ -1046,7 +1181,6 @@ export function PersonalDetailsForm({
     if (isEmpty(data.gender)) newErrors.gender = "Gender is required";
     if (isEmpty(data.dateOfBirth))
       newErrors.dateOfBirth = "Date of birth is required";
-    // Tax identifier fields are no longer required
 
     if (isNatBhutanese(data.nationality) && isEmpty(data.householdNumber)) {
       newErrors.householdNumber = "Household number is required";
@@ -1084,7 +1218,6 @@ export function PersonalDetailsForm({
           field: "spouseIdentificationExpiryDate",
           msg: "Spouse ID Expiry Date is required",
         },
-        // Spouse tax fields no longer required
         { field: "spouseDateOfBirth", msg: "Spouse Date of Birth is required" },
         {
           field: "spouseIdentificationProof",
@@ -1215,7 +1348,6 @@ export function PersonalDetailsForm({
     if (!data.passportPhoto)
       newErrors.passportPhoto = "No Passport-size photo is uploaded";
 
-    // IDENTIFICATION PROOF (new field)
     if (!data.identificationProof)
       newErrors.identificationProof = "Identification proof is required";
 
@@ -1256,17 +1388,15 @@ export function PersonalDetailsForm({
         newErrors.pepCategory = "PEP category is required";
       if (isEmpty(data.pepSubCategory))
         newErrors.pepSubCategory = "PEP sub category is required";
-      // Removed self identification proof validation here because it's now in personal details section
     }
 
-    // RELATED PEP - Comprehensive Validation (excluding tax fields and spouse info)
+    // RELATED PEP 
     if (data.pepPerson === "no") {
       if (isEmpty(data.pepRelated))
         newErrors.pepRelated =
           "Please specify if you are related to a PEP or not";
       if (data.pepRelated === "yes") {
         (data.relatedPeps || []).forEach((pep: any, index: number) => {
-          // PEP Metadata
           if (isEmpty(pep.relationship))
             newErrors[`relatedPeps.${index}.relationship`] = "Required";
           if (isEmpty(pep.identificationNo))
@@ -1278,7 +1408,6 @@ export function PersonalDetailsForm({
           if (isEmpty(pep.identificationProof))
             newErrors[`relatedPeps.${index}.identificationProof`] = "Required";
 
-          // Personal Info
           if (isEmpty(pep.identificationType))
             newErrors[`relatedPeps.${index}.identificationType`] = "Required";
           if (isEmpty(pep.salutation))
@@ -1297,13 +1426,12 @@ export function PersonalDetailsForm({
               "Required";
           if (isEmpty(pep.dateOfBirth))
             newErrors[`relatedPeps.${index}.dateOfBirth`] = "Required";
-          // Tax fields not required
+
           if (isNatBhutanese(pep.nationality) && isEmpty(pep.householdNumber))
             newErrors[`relatedPeps.${index}.householdNumber`] = "Required";
           if (isEmpty(pep.maritalStatus))
             newErrors[`relatedPeps.${index}.maritalStatus`] = "Required";
 
-          // PEP Permanent Address
           if (isEmpty(pep.permCountry))
             newErrors[`relatedPeps.${index}.permCountry`] = "Required";
           if (isBhutanCountry(pep.permCountry, countryOptions)) {
@@ -1328,7 +1456,6 @@ export function PersonalDetailsForm({
               newErrors[`relatedPeps.${index}.permAddressProof`] = "Required";
           }
 
-          // PEP Current Address
           if (isEmpty(pep.currCountry))
             newErrors[`relatedPeps.${index}.currCountry`] = "Required";
           if (isBhutanCountry(pep.currCountry, countryOptions)) {
@@ -1362,8 +1489,6 @@ export function PersonalDetailsForm({
           } else if (!isNumeric(pep.currContact)) {
             newErrors[`relatedPeps.${index}.currContact`] = "Must be numeric";
           }
-
-          // Spouse Info validation removed to match removal of spouse fields in render
         });
       }
     }
@@ -1459,12 +1584,59 @@ export function PersonalDetailsForm({
     }
   };
 
-  const handleCoBorrowerResponse = (hasCoBorrower: boolean) => {
-    setShowCoBorrowerDialog(false);
-    onNext({ personalDetails: data, hasCoBorrower });
+  const resolveLabelsForSubmit = (d: any): any => {
+    const resolved = { ...d };
+
+    const getLabel = (value: string, options: any[], labelField: string, codeField: string) => {
+      if (!value) return value;
+      const opt = options.find((o: any) => String(o[codeField] || o.id) === String(value));
+      return opt ? (opt[labelField] || opt.name || opt.label || value) : value;
+    };
+
+    resolved.identificationType = getLabel(d.identificationType, identificationTypeOptions, "identity_type", "identity_type_pk_code");
+    resolved.nationality = getLabel(d.nationality, nationalityOptions, "nationality", "nationality_pk_code");
+    resolved.maritalStatus = getLabel(d.maritalStatus, maritalStatusOptions, "marital_status", "marital_status_pk_code");
+    resolved.bankName = getLabel(d.bankName, banksOptions, "bank_name", "bank_pk_code");
+    resolved.permCountry = getLabel(d.permCountry, countryOptions, "country", "country_pk_code");
+    resolved.currCountry = getLabel(d.currCountry, countryOptions, "country", "country_pk_code");
+    resolved.permDzongkhag = getLabel(d.permDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+    resolved.currDzongkhag = getLabel(d.currDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+    resolved.permGewog = getLabel(d.permGewog, permGewogOptions, "gewog", "gewog_pk_code");
+    resolved.currGewog = getLabel(d.currGewog, currGewogOptions, "gewog", "gewog_pk_code");
+    resolved.occupation = getLabel(d.occupation, occupationOptions, "occ_name", "occ_pk_code");
+    resolved.organizationName = getLabel(d.organizationName, organizationOptions, "lgal_constitution", "lgal_constitution_pk_code");
+    resolved.taxIdentifierType = getLabel(d.taxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type", "tax_identifier_type_pk_code");
+    resolved.pepCategory = getLabel(d.pepCategory, pepCategoryOptions, "pep_category", "pep_category_pk_code");
+    resolved.pepSubCategory = getLabel(d.pepSubCategory, pepSubCategoryOptions, "pep_sub_category", "pep_sub_category_pk_code");
+
+    // Spouse fields
+    resolved.spouseIdentificationType = getLabel(d.spouseIdentificationType, identificationTypeOptions, "identity_type", "identity_type_pk_code");
+    resolved.spouseNationality = getLabel(d.spouseNationality, nationalityOptions, "nationality", "nationality_pk_code");
+    resolved.spousePermCountry = getLabel(d.spousePermCountry, countryOptions, "country", "country_pk_code");
+    resolved.spousePermDzongkhag = getLabel(d.spousePermDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+    resolved.spousePermGewog = getLabel(d.spousePermGewog, spousePermGewogOptions, "gewog", "gewog_pk_code");
+
+    // Related PEPs
+    if (Array.isArray(d.relatedPeps)) {
+      resolved.relatedPeps = d.relatedPeps.map((pep: any, index: number) => ({
+        ...pep,
+        identificationType: getLabel(pep.identificationType, identificationTypeOptions, "identity_type", "identity_type_pk_code"),
+        nationality: getLabel(pep.nationality, nationalityOptions, "nationality", "nationality_pk_code"),
+        permCountry: getLabel(pep.permCountry, countryOptions, "country", "country_pk_code"),
+        currCountry: getLabel(pep.currCountry, countryOptions, "country", "country_pk_code"),
+        category: getLabel(pep.category, pepCategoryOptions, "pep_category", "pep_category_pk_code"),
+        subCategory: getLabel(pep.subCategory, relatedPepOptionsMap[index] || [], "pep_sub_category", "pep_sub_category_pk_code"),
+      }));
+    }
+
+    return resolved;
   };
 
-  // Filter identification types to EXCLUDE "Trade License Number" and "Company Registration Number"
+  const handleCoBorrowerResponse = (hasCoBorrower: boolean) => {
+    setShowCoBorrowerDialog(false);
+    onNext({ personalDetails: resolveLabelsForSubmit(data), hasCoBorrower });
+  };
+
   const filteredIdentificationOptions = identificationTypeOptions.filter(
     (option) => {
       const label = (
@@ -1473,7 +1645,6 @@ export function PersonalDetailsForm({
         option.name ||
         ""
       ).toLowerCase();
-      // Return true for options that do NOT contain the excluded keywords
       return !(
         label.includes("trade") ||
         label.includes("license") ||
@@ -1483,7 +1654,6 @@ export function PersonalDetailsForm({
     },
   );
 
-  // Filter tax identifier types to show only Personal Income Tax (PIT)   <-- NEW
   const personalTaxIdentifierOptions = taxIdentifierTypeOptions.filter((opt) => {
     const label = (opt.tax_identifier_type || opt.name || "").toLowerCase();
     return label.includes("personal income tax") || label === "pit";
@@ -1506,13 +1676,7 @@ export function PersonalDetailsForm({
               Identification Type <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={
-                findPkCodeByLabel(
-                  data.identificationType,
-                  filteredIdentificationOptions,
-                  ["identity_type", "identification_type", "name", "label"],
-                ) || data.identificationType
-              }
+              value={data.identificationType || ""}
               onValueChange={(value) => {
                 setData({ ...data, identificationType: value });
                 if (!isRequired(value))
@@ -1818,13 +1982,13 @@ export function PersonalDetailsForm({
             )}
           </div>
 
-          {/* Tax Identifier Type - Not required, shows only PIT */}
+          {/* Tax Identifier Type */}
           <div className="space-y-2.5">
             <Label className="text-gray-800 font-semibold text-sm">
               Tax Identifier Type
             </Label>
             <Select
-              value={data.taxIdentifierType}
+              value={data.taxIdentifierType || ""}
               onValueChange={(value) => {
                 setData({ ...data, taxIdentifierType: value });
               }}
@@ -1849,7 +2013,6 @@ export function PersonalDetailsForm({
             </Select>
           </div>
 
-          {/* TPN No - Not required */}
           <div className="space-y-2.5">
             <Label className="text-gray-800 font-semibold text-sm">
               TPN No
@@ -1950,7 +2113,7 @@ export function PersonalDetailsForm({
           </div>
         </div>
 
-        {/* File Uploads (Family Tree, Identification Proof, Bank, Passport) */}
+        {/* File Uploads */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t mt-4">
           <div className="space-y-2.5">
             <Label className="text-gray-800 font-semibold text-sm">
@@ -1977,7 +2140,7 @@ export function PersonalDetailsForm({
               >
                 Choose File
               </Button>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-muted-foreground truncate max-w-[200px]">
                 {data.familyTree || "No file chosen"}
               </span>
             </div>
@@ -2014,7 +2177,7 @@ export function PersonalDetailsForm({
               >
                 Choose File
               </Button>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-muted-foreground truncate max-w-[200px]">
                 {data.identificationProof || "No file chosen"}
               </span>
             </div>
@@ -2050,7 +2213,7 @@ export function PersonalDetailsForm({
               >
                 Choose File
               </Button>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-muted-foreground truncate max-w-[200px]">
                 {data.passportPhoto || "No file chosen"}
               </span>
             </div>
@@ -2088,6 +2251,11 @@ export function PersonalDetailsForm({
                 <SelectValue placeholder="[Select]" />
               </SelectTrigger>
               <SelectContent sideOffset={4}>
+                {data.bankName && banksOptions.length > 0 && !banksOptions.find((o) => String(o.bank_pk_code || o.id) === (findPkCodeByLabel(data.bankName, banksOptions, ["bank_name", "name", "label"]) || data.bankName)) && (
+                  <SelectItem value={findPkCodeByLabel(data.bankName, banksOptions, ["bank_name", "name", "label"]) || data.bankName}>
+                    {data.bankName}
+                  </SelectItem>
+                )}
                 {banksOptions.length > 0 ? (
                   banksOptions.map((option, index) => {
                     const value = String(
@@ -2489,7 +2657,7 @@ export function PersonalDetailsForm({
                 >
                   Choose File
                 </Button>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-muted-foreground truncate max-w-[200px]">
                   {data.permAddressProof || "No file chosen"}
                 </span>
               </div>
@@ -2940,7 +3108,7 @@ export function PersonalDetailsForm({
                 >
                   Choose File
                 </Button>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-muted-foreground truncate max-w-[200px]">
                   {data.currAddressProof || "No file chosen"}
                 </span>
               </div>
@@ -3100,8 +3268,6 @@ export function PersonalDetailsForm({
                   </p>
                 )}
               </div>
-
-              {/* Removed self identification proof upload from here */}
             </>
           )}
         </div>
@@ -3145,7 +3311,6 @@ export function PersonalDetailsForm({
           </div>
         )}
 
-        {/* COMPREHENSIVE RELATED PEP MULTIPLE ENTRIES (spouse info removed) */}
         {data.pepRelated === "yes" && (
           <div className="space-y-8 pt-4">
             <div className="flex justify-between items-center border-b pb-2">
@@ -3176,7 +3341,6 @@ export function PersonalDetailsForm({
                   )}
                 </div>
 
-                {/* --- PEP Declaration Information --- */}
                 <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
                   PEP Declaration Information
                 </h4>
@@ -3352,7 +3516,6 @@ export function PersonalDetailsForm({
                   </div>
                 </div>
 
-                {/* --- Personal Information --- */}
                 <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
                   Personal Information
                 </h4>
@@ -3660,7 +3823,7 @@ export function PersonalDetailsForm({
                     )}
                   </div>
 
-                  {/* Tax Identifier Type - Not required, shows only PIT */}
+                  {/* Tax Identifier Type */}
                   <div className="space-y-2.5">
                     <Label className="text-gray-800 font-semibold text-sm">
                       Tax Identifier Type
@@ -3784,9 +3947,6 @@ export function PersonalDetailsForm({
                   </div>
                 </div>
 
-                {/* Spouse Information removed entirely */}
-
-                {/* --- PEP Permanent Address --- */}
                 <div className="mt-8 border-t border-dashed pt-8">
                   <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
                     Permanent Address
@@ -4105,7 +4265,6 @@ export function PersonalDetailsForm({
                     )}
                 </div>
 
-                {/* --- PEP Current/Residential Address --- */}
                 <div className="mt-8 border-t border-dashed pt-8">
                   <h4 className="text-sm font-bold text-[#003DA5] mb-4 uppercase tracking-wide">
                     Current/Residential Address
@@ -4485,9 +4644,7 @@ export function PersonalDetailsForm({
         )}
       </div>
 
-      {/* Removed Related to BIL section */}
-
-      {/* 5. Employment Status (renumbered) */}
+      {/* 5. Employment Status */}
       <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
           Employment Status
@@ -4545,7 +4702,7 @@ export function PersonalDetailsForm({
         </div>
       </div>
 
-      {/* 6. Employment Details (conditional) */}
+      {/* 6. Employment Details */}
       {data.employmentStatus === "employed" && (
         <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
@@ -4580,7 +4737,14 @@ export function PersonalDetailsForm({
                 Occupation <span className="text-red-500">*</span>
               </Label>
               <Select
-                value={data.occupation}
+                value={
+                  findPkCodeByLabel(data.occupation, occupationOptions, [
+                    "occ_name",
+                    "occupation",
+                    "name",
+                    "label",
+                  ]) || data.occupation
+                }
                 onValueChange={(value) => {
                   setData({ ...data, occupation: value });
                   if (value)
@@ -4595,6 +4759,31 @@ export function PersonalDetailsForm({
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
+                  {data.occupation &&
+                    occupationOptions.length > 0 &&
+                    !occupationOptions.find(
+                      (o) =>
+                        String(o.occ_pk_code || o.occupation_pk_code || o.id) ===
+                        (findPkCodeByLabel(data.occupation, occupationOptions, [
+                          "occ_name",
+                          "occupation",
+                          "name",
+                          "label",
+                        ]) || data.occupation)
+                    ) && (
+                      <SelectItem
+                        value={
+                          findPkCodeByLabel(data.occupation, occupationOptions, [
+                            "occ_name",
+                            "occupation",
+                            "name",
+                            "label",
+                          ]) || data.occupation
+                        }
+                      >
+                        {data.occupation}
+                      </SelectItem>
+                    )}
                   {occupationOptions.length > 0 ? (
                     occupationOptions.map((option, index) => {
                       const value = String(
@@ -4736,7 +4925,14 @@ export function PersonalDetailsForm({
                 Organization Name <span className="text-red-500">*</span>
               </Label>
               <Select
-                value={data.organizationName}
+                value={
+                  findPkCodeByLabel(data.organizationName, organizationOptions, [
+                    "lgal_constitution",
+                    "legal_const_name",
+                    "name",
+                    "label",
+                  ]) || data.organizationName
+                }
                 onValueChange={(value) => {
                   setData({ ...data, organizationName: value });
                   if (value)
@@ -4751,6 +4947,31 @@ export function PersonalDetailsForm({
                   <SelectValue placeholder="[Select]" />
                 </SelectTrigger>
                 <SelectContent sideOffset={4}>
+                  {data.organizationName &&
+                    organizationOptions.length > 0 &&
+                    !organizationOptions.find(
+                      (o) =>
+                        String(o.lgal_constitution_pk_code || o.legal_const_pk_code || o.id) ===
+                        (findPkCodeByLabel(data.organizationName, organizationOptions, [
+                          "lgal_constitution",
+                          "legal_const_name",
+                          "name",
+                          "label",
+                        ]) || data.organizationName)
+                    ) && (
+                      <SelectItem
+                        value={
+                          findPkCodeByLabel(data.organizationName, organizationOptions, [
+                            "lgal_constitution",
+                            "legal_const_name",
+                            "name",
+                            "label",
+                          ]) || data.organizationName
+                        }
+                      >
+                        {data.organizationName}
+                      </SelectItem>
+                    )}
                   {organizationOptions.length > 0 ? (
                     organizationOptions.map((option, index) => {
                       const value = String(
@@ -4930,7 +5151,7 @@ export function PersonalDetailsForm({
         </div>
       )}
 
-      {/* 7. Spouse Details Section (moved here) */}
+      {/* 7. Spouse Details Section */}
       {isMarried && (
         <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm">
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
@@ -5233,13 +5454,13 @@ export function PersonalDetailsForm({
               )}
             </div>
 
-            {/* Spouse Tax Identifier Type - Not required, shows only PIT */}
+            {/* Spouse Tax Identifier Type */}
             <div className="space-y-1.5 sm:space-y-2.5">
               <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
                 Spouse Tax Identifier Type
               </Label>
               <Select
-                value={data.spouseTaxIdentifierType}
+                value={data.spouseTaxIdentifierType || ""}
                 onValueChange={(value) => {
                   setData({ ...data, spouseTaxIdentifierType: value });
                 }}
@@ -5337,7 +5558,6 @@ export function PersonalDetailsForm({
             )}
           </div>
 
-          {/* Document Upload for Spouse Identification Proof */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t mt-4">
             <div className="space-y-2.5">
               <Label className="text-gray-800 font-semibold text-sm">
@@ -5379,7 +5599,6 @@ export function PersonalDetailsForm({
             </div>
           </div>
 
-          {/* Spouse Permanent Address */}
           <div className="mt-6 pt-6 border-t border-dashed">
             <h4 className="text-md font-semibold text-gray-700 mb-4">
               Spouse Permanent Address
@@ -5640,7 +5859,6 @@ export function PersonalDetailsForm({
                 )}
               </div>
 
-              {/* Conditional grid - show Thram and House only for Bhutan */}
               {isBhutanCountry(data.spousePermCountry, countryOptions) && (
                 <>
                   <div className="space-y-1.5 sm:space-y-2.5">
@@ -5695,7 +5913,6 @@ export function PersonalDetailsForm({
               )}
             </div>
 
-            {/* Document Upload for Non-Bhutan Countries */}
             {data.spousePermCountry &&
               !isBhutanCountry(data.spousePermCountry, countryOptions) && (
                 <div className="space-y-2.5 mt-4">
@@ -5745,7 +5962,6 @@ export function PersonalDetailsForm({
               )}
           </div>
 
-          {/* Spouse Contact Details */}
           <div className="mt-6 pt-6 border-t border-dashed">
             <h4 className="text-md font-semibold text-gray-700 mb-4">
               Spouse Contact Information

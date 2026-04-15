@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,6 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Trash2, PlusCircle, Upload } from "lucide-react";
 
-// Import mapping utility and the Popup component
 import { mapCustomerDataToForm } from "@/lib/mapCustomerData";
 import DocumentPopup from "@/components/BILSearchStatus";
 import {
@@ -33,7 +32,6 @@ import {
   fetchTaxIdentifierType,
 } from "@/services/api";
 
-// ================== IndexedDB Helpers ==================
 import { storeFile, deleteFile } from "@/lib/indexDB";
 
 // ================== Validation Helpers ==================
@@ -120,7 +118,6 @@ const RestrictedInput = ({
 };
 // ================== END Restricted Input ==================
 
-// Helper to format dates to YYYY-MM-DD
 const formatDateForInput = (dateString: string | null | undefined) => {
   if (!dateString) return "";
   try {
@@ -132,7 +129,6 @@ const formatDateForInput = (dateString: string | null | undefined) => {
   }
 };
 
-// Initialize empty related PEP entry
 const createEmptyRelatedPep = () => ({
   relationship: "",
   category: "",
@@ -174,7 +170,6 @@ const createEmptyRelatedPep = () => ({
   currGewogOptions: [] as any[],
 });
 
-// Initialize empty security entry
 const createEmptySecurity = () => ({
   securityType: "",
   ownershipType: "",
@@ -225,7 +220,6 @@ const createEmptySecurity = () => ({
   gewogOptions: [] as any[],
 });
 
-// Initialize empty guarantor (UPDATED: added spouseIdentificationProof and spouseIdentificationProofId)
 const createEmptyGuarantor = () => ({
   idType: "",
   idNumber: "",
@@ -242,7 +236,6 @@ const createEmptyGuarantor = () => ({
   identificationProofId: "",
   spouseName: "",
   spouseContact: "",
-  // Spouse personal fields (including new identity proof upload)
   spouseIdType: "",
   spouseIdNumber: "",
   spouseSalutation: "",
@@ -264,7 +257,6 @@ const createEmptyGuarantor = () => ({
   spousePermAddressProofId: "",
   spouseEmail: "",
   spouseAlternateContact: "",
-  // NEW: Spouse identity proof upload
   spouseIdentificationProof: "",
   spouseIdentificationProofId: "",
   spousePermGewogOptions: [] as any[],
@@ -333,8 +325,110 @@ export function SecurityDetailBusiness({
   onBack,
   formData,
 }: SecurityDetailsFormProps) {
-  const [securities, setSecurities] = useState<any[]>([createEmptySecurity()]);
-  const [guarantors, setGuarantors] = useState<any[]>([createEmptyGuarantor()]);
+  // ================== STATIC MAPPING HELPERS ==================
+  // Map human-readable labels to internal IDs for securityType
+  const mapSecurityTypeToId = (value: string): string => {
+    if (!value) return "";
+    const l = value.toLowerCase().trim();
+    const typeMap: Record<string, string> = {
+      "not applicable": "Not Applicable",
+      land: "land",
+      "building & land": "building",
+      vehicle: "vehicle",
+      "plant, machinery, and equipment": "equipment",
+      "fixed deposit": "fd",
+      insurance: "insurance",
+      "pension & provident fund": "PPF",
+      "share & security": "Share",
+      stocks: "Stocks",
+    };
+    return typeMap[l] || value; // keep original if not found
+  };
+
+  // Map human-readable labels to internal IDs for ownershipType
+  const mapOwnershipTypeToId = (value: string): string => {
+    if (!value) return "";
+    const l = value.toLowerCase().trim();
+    const ownMap: Record<string, string> = {
+      "sole owner": "self",
+      "joint owners": "joint",
+      "other owners": "other",
+      self: "self",
+      joint: "joint",
+      other: "other",
+    };
+    return ownMap[l] || value;
+  };
+
+  // Apply static mapping to a security object
+  const normalizeSecurityFields = (sec: any) => {
+    return {
+      ...sec,
+      securityType: mapSecurityTypeToId(sec.securityType),
+      ownershipType: mapOwnershipTypeToId(sec.ownershipType),
+    };
+  };
+  // ================== END STATIC MAPPING ==================
+
+  // --- LAZY INITIALIZATION FROM SESSION STORAGE ---
+  // This ensures the data is available before the first render,
+  // so the conditional UI sections are displayed immediately.
+  const [securities, setSecurities] = useState<any[]>(() => {
+    try {
+      const savedRaw = sessionStorage.getItem("businessLoanApplicationDataRaw");
+      const saved = savedRaw || sessionStorage.getItem("businessLoanApplicationData");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.securityDetails) {
+          const savedSecurities = Array.isArray(parsed.securityDetails)
+            ? parsed.securityDetails
+            : [parsed.securityDetails];
+          let merged = savedSecurities.map((sec: any) => ({
+            ...createEmptySecurity(),
+            ...sec,
+            gewogOptions: sec.gewogOptions || [],
+          }));
+          merged = merged.map(normalizeSecurityFields);
+          return merged;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load securities from sessionStorage during init", e);
+    }
+    return [createEmptySecurity()];
+  });
+
+  const [guarantors, setGuarantors] = useState<any[]>(() => {
+    try {
+      const savedRaw = sessionStorage.getItem("businessLoanApplicationDataRaw");
+      const saved = savedRaw || sessionStorage.getItem("businessLoanApplicationData");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.securityGuarantors && Array.isArray(parsed.securityGuarantors)) {
+          return parsed.securityGuarantors.map((g: any) => {
+            const base = createEmptyGuarantor();
+            const merged = { ...base, ...g };
+            if (g.relatedPeps && Array.isArray(g.relatedPeps)) {
+              merged.relatedPeps = g.relatedPeps.map((pep: any) => ({
+                ...createEmptyRelatedPep(),
+                ...pep,
+              }));
+            } else {
+              merged.relatedPeps = [createEmptyRelatedPep()];
+            }
+            return merged;
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load guarantors from sessionStorage during init", e);
+    }
+    return [createEmptyGuarantor()];
+  });
+
+  // Mark that session data has been loaded (to prevent the formData effect from overwriting)
+  const sessionLoadedRef = useRef(true);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
@@ -348,7 +442,136 @@ export function SecurityDetailBusiness({
   const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
-  const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]); // <-- new
+  const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
+
+  // ================== LABEL-TO-ID HELPERS (dynamic, requires API options) ==================
+  const convertLabelsToIds = (data: any[]) => {
+    return data.map((sec) => {
+      const newSec = { ...sec };
+
+      // Convert dynamic IDs if options are loaded
+      if (newSec.dzongkhag && dzongkhagOptions.length > 0) {
+        const matched = dzongkhagOptions.find(
+          (opt: any) =>
+            (opt.dzongkhag_name || opt.dzongkhag || "").toLowerCase() ===
+            String(newSec.dzongkhag).toLowerCase(),
+        );
+        if (matched)
+          newSec.dzongkhag = String(
+            matched.id || matched.pk_dzongkhag_id || matched.dzongkhag_pk_code,
+          );
+      }
+
+      if (newSec.fdBank && banksOptions.length > 0) {
+        const matched = banksOptions.find(
+          (opt: any) =>
+            (opt.bank_name || opt.name || opt.label || "").toLowerCase() ===
+            String(newSec.fdBank).toLowerCase(),
+        );
+        if (matched)
+          newSec.fdBank = String(matched.bank_pk_code || matched.id);
+      }
+
+      return newSec;
+    });
+  };
+
+  const convertLabelsToIdsForGuarantors = (data: any[]) => {
+    return data.map((g) => {
+      const newG = { ...g };
+
+      // Basic fields
+      if (newG.idType && identificationTypeOptions.length > 0) {
+        const matched = identificationTypeOptions.find(
+          (opt: any) =>
+            (opt.identity_type || opt.identification_type || "").toLowerCase() ===
+            String(newG.idType).toLowerCase(),
+        );
+        if (matched)
+          newG.idType = String(
+            matched.identity_type_pk_code ||
+            matched.identification_type_pk_code ||
+            matched.id,
+          );
+      }
+
+      if (newG.nationality && nationalityOptions.length > 0) {
+        const matched = nationalityOptions.find(
+          (opt: any) =>
+            (opt.nationality || opt.name || "").toLowerCase() ===
+            String(newG.nationality).toLowerCase(),
+        );
+        if (matched)
+          newG.nationality = String(matched.nationality_pk_code || matched.id);
+      }
+
+      if (newG.maritalStatus && maritalStatusOptions.length > 0) {
+        const matched = maritalStatusOptions.find(
+          (opt: any) =>
+            (opt.marital_status || opt.name || "").toLowerCase() ===
+            String(newG.maritalStatus).toLowerCase(),
+        );
+        if (matched)
+          newG.maritalStatus = String(matched.marital_status_pk_code || matched.id);
+      }
+
+      // Address fields
+      if (newG.permDzongkhag && dzongkhagOptions.length > 0) {
+        const matched = dzongkhagOptions.find(
+          (opt: any) =>
+            (opt.dzongkhag_name || opt.dzongkhag || "").toLowerCase() ===
+            String(newG.permDzongkhag).toLowerCase(),
+        );
+        if (matched)
+          newG.permDzongkhag = String(
+            matched.id || matched.pk_dzongkhag_id || matched.dzongkhag_pk_code,
+          );
+      }
+      if (newG.currDzongkhag && dzongkhagOptions.length > 0) {
+        const matched = dzongkhagOptions.find(
+          (opt: any) =>
+            (opt.dzongkhag_name || opt.dzongkhag || "").toLowerCase() ===
+            String(newG.currDzongkhag).toLowerCase(),
+        );
+        if (matched)
+          newG.currDzongkhag = String(
+            matched.id || matched.pk_dzongkhag_id || matched.dzongkhag_pk_code,
+          );
+      }
+
+      // Spouse fields
+      if (newG.spouseNationality && nationalityOptions.length > 0) {
+        const matched = nationalityOptions.find(
+          (opt: any) =>
+            (opt.nationality || opt.name || "").toLowerCase() ===
+            String(newG.spouseNationality).toLowerCase(),
+        );
+        if (matched)
+          newG.spouseNationality = String(matched.nationality_pk_code || matched.id);
+      }
+      if (newG.spousePermDzongkhag && dzongkhagOptions.length > 0) {
+        const matched = dzongkhagOptions.find(
+          (opt: any) =>
+            (opt.dzongkhag_name || opt.dzongkhag || "").toLowerCase() ===
+            String(newG.spousePermDzongkhag).toLowerCase(),
+        );
+        if (matched)
+          newG.spousePermDzongkhag = String(
+            matched.id || matched.pk_dzongkhag_id || matched.dzongkhag_pk_code,
+          );
+      }
+
+      return newG;
+    });
+  };
+
+  const isNationalityBhutanese = (
+    nationalityCode: string | undefined | null,
+  ): boolean => {
+    if (!nationalityCode || !bhutanNationalityCode) return false;
+    return String(nationalityCode) === String(bhutanNationalityCode);
+  };
+  // ================== END HELPERS ==================
 
   const [bhutanNationalityCode, setBhutanNationalityCode] = useState<
     string | null
@@ -358,70 +581,6 @@ export function SecurityDetailBusiness({
   const eighteenYearsAgo = new Date();
   eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
   const maxDobDate = eighteenYearsAgo.toISOString().split("T")[0];
-
-  const getIsMarried = (guarantor: any) => {
-    const status = guarantor.maritalStatus;
-    if (!status) return false;
-
-    const statusStr = String(status).toLowerCase();
-    if (statusStr === "married") return true;
-    if (statusStr === "unmarried") return false;
-
-    const selectedOption = maritalStatusOptions.find((option) => {
-      const val = String(
-        option.marital_status_pk_code ||
-        option.id ||
-        option.value ||
-        option.code ||
-        "",
-      );
-      return val == status;
-    });
-
-    if (selectedOption) {
-      const label = (
-        selectedOption.marital_status ||
-        selectedOption.name ||
-        selectedOption.label ||
-        ""
-      ).toLowerCase();
-      return label.includes("married") && !label.includes("unmarried");
-    }
-
-    return false;
-  };
-
-  const getPepIsMarried = (pep: any) => {
-    const status = pep.maritalStatus;
-    if (!status) return false;
-
-    const statusStr = String(status).toLowerCase();
-    if (statusStr === "married") return true;
-    if (statusStr === "unmarried") return false;
-
-    const selectedOption = maritalStatusOptions.find((option) => {
-      const val = String(
-        option.marital_status_pk_code ||
-        option.id ||
-        option.value ||
-        option.code ||
-        "",
-      );
-      return val == status;
-    });
-
-    if (selectedOption) {
-      const label = (
-        selectedOption.marital_status ||
-        selectedOption.name ||
-        selectedOption.label ||
-        ""
-      ).toLowerCase();
-      return label.includes("married") && !label.includes("unmarried");
-    }
-
-    return false;
-  };
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -488,26 +647,116 @@ export function SecurityDetailBusiness({
     loadAllData();
   }, []);
 
-  // Sync with formData
+  // --- Sync with formData (prop) – but skip because session already loaded ---
   useEffect(() => {
+    if (sessionLoadedRef.current) return;
     if (formData && Object.keys(formData).length > 0) {
-      if (formData.securityDetails) {
+      if (formData.securityDetails && (Array.isArray(formData.securityDetails) ? formData.securityDetails.length > 0 : true)) {
         if (Array.isArray(formData.securityDetails)) {
-          setSecurities(formData.securityDetails);
+          setSecurities(formData.securityDetails.map((sec: any) => ({ ...createEmptySecurity(), ...sec })));
         } else if (typeof formData.securityDetails === "object") {
           setSecurities([
             { ...createEmptySecurity(), ...formData.securityDetails },
           ]);
         }
       }
+
       if (
         formData.securityGuarantors &&
-        Array.isArray(formData.securityGuarantors)
+        Array.isArray(formData.securityGuarantors) &&
+        formData.securityGuarantors.length > 0
       ) {
-        setGuarantors(formData.securityGuarantors);
+        const mergedGuarantors = formData.securityGuarantors.map((g: any) => {
+          const base = createEmptyGuarantor();
+          const merged = { ...base, ...g };
+          if (g.relatedPeps && Array.isArray(g.relatedPeps)) {
+            merged.relatedPeps = g.relatedPeps.map((pep: any) => ({ ...createEmptyRelatedPep(), ...pep }));
+          }
+          return merged;
+        });
+        setGuarantors(mergedGuarantors);
       }
     }
   }, [formData]);
+
+  // --- EFFECT: Re-convert labels when API options are loaded (handles legacy data) ---
+  useEffect(() => {
+    if (nationalityOptions.length > 0 || dzongkhagOptions.length > 0) {
+      setSecurities((prev) => convertLabelsToIds(prev));
+      setGuarantors((prev) => convertLabelsToIdsForGuarantors(prev));
+    }
+  }, [
+    nationalityOptions,
+    dzongkhagOptions,
+    identificationTypeOptions,
+    banksOptions,
+    maritalStatusOptions,
+    taxIdentifierTypeOptions,
+  ]);
+
+  const getIsMarried = (guarantor: any) => {
+    const status = guarantor.maritalStatus;
+    if (!status) return false;
+
+    const statusStr = String(status).toLowerCase();
+    if (statusStr === "married") return true;
+    if (statusStr === "unmarried") return false;
+
+    const selectedOption = maritalStatusOptions.find((option) => {
+      const val = String(
+        option.marital_status_pk_code ||
+        option.id ||
+        option.value ||
+        option.code ||
+        "",
+      );
+      return val == status;
+    });
+
+    if (selectedOption) {
+      const label = (
+        selectedOption.marital_status ||
+        selectedOption.name ||
+        selectedOption.label ||
+        ""
+      ).toLowerCase();
+      return label.includes("married") && !label.includes("unmarried");
+    }
+
+    return false;
+  };
+
+  const getPepIsMarried = (pep: any) => {
+    const status = pep.maritalStatus;
+    if (!status) return false;
+
+    const statusStr = String(status).toLowerCase();
+    if (statusStr === "married") return true;
+    if (statusStr === "unmarried") return false;
+
+    const selectedOption = maritalStatusOptions.find((option) => {
+      const val = String(
+        option.marital_status_pk_code ||
+        option.id ||
+        option.value ||
+        option.code ||
+        "",
+      );
+      return val == status;
+    });
+
+    if (selectedOption) {
+      const label = (
+        selectedOption.marital_status ||
+        selectedOption.name ||
+        selectedOption.label ||
+        ""
+      ).toLowerCase();
+      return label.includes("married") && !label.includes("unmarried");
+    }
+
+    return false;
+  };
 
   // --- EFFECT: Load Gewogs for EACH Security Row Independently ---
   useEffect(() => {
@@ -1674,7 +1923,6 @@ export function SecurityDetailBusiness({
         guarantor.permAddressProofId,
         guarantor.currAddressProofId,
         guarantor.spousePermAddressProofId,
-        // NEW: include spouse identification proof
         guarantor.spouseIdentificationProofId,
         ...(guarantor.relatedPeps?.map((p: any) => p.identificationProofId) || []),
         ...(guarantor.relatedPeps?.map((p: any) => p.permAddressProofId) || []),
@@ -1848,8 +2096,7 @@ export function SecurityDetailBusiness({
             errors.spousePermAddressProof = "Address proof is required";
         }
 
-        // NEW: Spouse identification proof validation (optional, but can be required if you want)
-        // If you want it required, uncomment the next line
+        // Spouse identification proof validation (optional – uncomment if required)
         // if (!guarantor.spouseIdentificationProof) errors.spouseIdentificationProof = "Spouse ID proof is required";
       }
 
@@ -2016,8 +2263,11 @@ export function SecurityDetailBusiness({
               errors[`${pepBase}.currCountry`] = "Required";
             const isPepBhutanCurr = countryOptions.some(
               (c) =>
-                String(c.country_pk_code || c.id) === pep.currCountry &&
-                (c.country || c.name || "").toLowerCase().includes("bhutan"),
+                String(c.country_pk_code || c.id) ===
+                pep.currCountry &&
+                (c.country || c.name || "")
+                  .toLowerCase()
+                  .includes("bhutan"),
             );
             if (isPepBhutanCurr) {
               if (isRequired(pep.currDzongkhag))
@@ -2415,7 +2665,6 @@ export function SecurityDetailBusiness({
         },
       );
     }
-
     return converted;
   };
 
@@ -2424,7 +2673,7 @@ export function SecurityDetailBusiness({
     if (!validateSecurities()) return;
 
     const hasThirdParty = securities.some(
-      (s) => s.ownershipType === "third-party",
+      (s) => s.ownershipType === "joint" || s.ownershipType === "other",
     );
     if (hasThirdParty && !validateAllGuarantors()) return;
 
@@ -2432,13 +2681,20 @@ export function SecurityDetailBusiness({
       securityDetails: securities,
       securityGuarantors: guarantors,
     };
-    const stringData = convertCodesToStrings(formDataToSave);
 
+    const stringData = convertCodesToStrings(formDataToSave);
     const existingData = sessionStorage.getItem("businessLoanApplicationData");
     const allData = existingData ? JSON.parse(existingData) : {};
     sessionStorage.setItem(
       "businessLoanApplicationData",
       JSON.stringify({ ...allData, ...stringData }),
+    );
+
+    const existingRaw = sessionStorage.getItem("businessLoanApplicationDataRaw");
+    const allRaw = existingRaw ? JSON.parse(existingRaw) : {};
+    sessionStorage.setItem(
+      "businessLoanApplicationDataRaw",
+      JSON.stringify({ ...allRaw, ...formDataToSave }),
     );
 
     onNext(formDataToSave);
@@ -2515,13 +2771,6 @@ export function SecurityDetailBusiness({
         </div>
       </div>
     );
-  };
-
-  const isNationalityBhutanese = (
-    nationalityCode: string | undefined,
-  ): boolean => {
-    if (!nationalityCode || !bhutanNationalityCode) return false;
-    return nationalityCode === bhutanNationalityCode;
   };
 
   const renderGuarantorForm = (guarantor: any, index: number) => {
@@ -7370,8 +7619,9 @@ export function SecurityDetailBusiness({
                     <SelectValue placeholder="[Select]" />
                   </SelectTrigger>
                   <SelectContent sideOffset={4}>
-                    <SelectItem value="self">Self Owned</SelectItem>
-                    <SelectItem value="third-party">Third Party</SelectItem>
+                    <SelectItem value="self">Sole Owner</SelectItem>
+                    <SelectItem value="joint">Joint Owners</SelectItem>
+                    <SelectItem value="other">Other Owners</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -7403,11 +7653,10 @@ export function SecurityDetailBusiness({
                       <SelectValue placeholder="[Select]" />
                     </SelectTrigger>
                     <SelectContent sideOffset={4}>
-                      <SelectItem value="car">Car</SelectItem>
-                      <SelectItem value="suv">SUV</SelectItem>
+                      <SelectItem value="Electric Vehicle">Electric Vehicle</SelectItem>
+                      <SelectItem value="Fuel Vehicle">Fuel Vehicle</SelectItem>
                       <SelectItem value="truck">Truck</SelectItem>
-                      <SelectItem value="bus">Bus</SelectItem>
-                      <SelectItem value="motorcycle">Motorcycle</SelectItem>
+                      <SelectItem value="Hybrid Vehicle">Hybrid Vehicle</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -7581,8 +7830,6 @@ export function SecurityDetailBusiness({
                     required
                   />
                 </div>
-
-
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="space-y-2.5">
@@ -7835,8 +8082,6 @@ export function SecurityDetailBusiness({
                       required
                     />
                   </div>
-
-
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="space-y-2.5">
@@ -7948,7 +8193,6 @@ export function SecurityDetailBusiness({
                       required
                     />
                   </div>
-
                 </div>
                 {renderSecurityProofUpload(security, secIndex)}
               </div>
@@ -7963,7 +8207,6 @@ export function SecurityDetailBusiness({
                 Equipment Details
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
                 <div className="space-y-2.5">
                   <Label
                     htmlFor="equipment-make"
@@ -8303,7 +8546,7 @@ export function SecurityDetailBusiness({
                     htmlFor="share-CertificateNo"
                     className="text-gray-800 font-semibold text-sm"
                   >
-                    Numbers of Share {" "}
+                    Numbers of Share{" "}
                     <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -8575,7 +8818,7 @@ export function SecurityDetailBusiness({
         </div>
       ))}
 
-      {securities.some((s) => s.ownershipType === "third-party") && (
+      {securities.some((s) => s.ownershipType === "joint" || s.ownershipType === "other") && (
         <>
           {guarantors.map((guarantor, index) =>
             renderGuarantorForm(guarantor, index),

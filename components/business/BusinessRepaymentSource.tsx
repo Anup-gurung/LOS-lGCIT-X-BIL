@@ -1,7 +1,9 @@
+
+
 "use client";
 
 import type React from "react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +33,7 @@ import {
   fetchPepCategory,
   fetchPepSubCategoryByCategory,
   fetchBanks,
-  fetchTaxIdentifierType, // <-- new import
+  fetchTaxIdentifierType,
 } from "@/services/api";
 
 // ================== IndexedDB Helpers ==================
@@ -74,8 +76,7 @@ const getFieldStyle = (hasError: boolean) => {
 };
 
 const fileUploadStyle = (hasError: boolean) =>
-  `h-12 w-full bg-white border rounded-lg flex items-center px-3 justify-between cursor-pointer hover:bg-gray-50 transition-colors text-sm ${hasError ? "border-red-500" : "border-gray-300"
-  }`;
+  `h-12 w-full bg-white border rounded-lg flex items-center px-3 justify-between cursor-pointer hover:bg-gray-50 transition-colors text-sm ${hasError ? "border-red-500" : "border-gray-300"}`;
 
 // ================== Restricted Input Component ==================
 type AllowedPattern = "numeric" | "alpha" | "alphanumeric" | "text";
@@ -139,6 +140,30 @@ const findPkCodeByLabel = (
   const strippedLabel = trimmedLabel.replace(/\s+/g, "");
   const inputWords = trimmedLabel.split(/\s+/).filter((w) => w.length > 0);
 
+  const getOptionPkCode = (opt: any): string => {
+    return String(
+      opt.bank_pk_code ||
+      opt.country_pk_code ||
+      opt.nationality_pk_code ||
+      opt.identity_type_pk_code ||
+      opt.marital_status_pk_code ||
+      opt.occupation_pk_code ||
+      opt.occ_pk_code ||
+      opt.lgal_constitution_pk_code ||
+      opt.dzongkhag_pk_code ||
+      opt.gewog_pk_code ||
+      opt.curr_gewog_pk_code ||
+      opt.pk_gewog_id ||
+      opt.pep_category_pk_code ||
+      opt.pep_sub_category_pk_code ||
+      opt.tax_identifier_type_pk_code ||
+      opt.pk_code ||
+      opt.id ||
+      opt.code ||
+      "",
+    );
+  };
+
   for (const option of options) {
     for (const field of labelFields) {
       const optionValue = String(option[field] || "");
@@ -148,52 +173,8 @@ const findPkCodeByLabel = (
         .split(/\s+/)
         .filter((w) => w.length > 0);
 
-      if (strippedOption === strippedLabel) {
-        return String(
-          option.bank_pk_code ||
-          option.country_pk_code ||
-          option.nationality_pk_code ||
-          option.identity_type_pk_code ||
-          option.marital_status_pk_code ||
-          option.occupation_pk_code ||
-          option.occ_pk_code ||
-          option.lgal_constitution_pk_code ||
-          option.dzongkhag_pk_code ||
-          option.gewog_pk_code ||
-          option.curr_gewog_pk_code ||
-          option.pk_gewog_id ||
-          option.pep_category_pk_code ||
-          option.pep_sub_category_pk_code ||
-          option.tax_identifier_type_pk_code ||
-          option.pk_code ||
-          option.id ||
-          option.code ||
-          "",
-        );
-      }
-
-      if (trimmedOption === trimmedLabel) {
-        return String(
-          option.bank_pk_code ||
-          option.country_pk_code ||
-          option.nationality_pk_code ||
-          option.identity_type_pk_code ||
-          option.marital_status_pk_code ||
-          option.occupation_pk_code ||
-          option.occ_pk_code ||
-          option.lgal_constitution_pk_code ||
-          option.dzongkhag_pk_code ||
-          option.gewog_pk_code ||
-          option.curr_gewog_pk_code ||
-          option.pk_gewog_id ||
-          option.pep_category_pk_code ||
-          option.pep_sub_category_pk_code ||
-          option.tax_identifier_type_pk_code ||
-          option.pk_code ||
-          option.id ||
-          option.code ||
-          "",
-        );
+      if (strippedOption === strippedLabel || trimmedOption === trimmedLabel) {
+        return getOptionPkCode(option);
       }
 
       if (inputWords.length > 0 && optionWords.length > 0) {
@@ -203,27 +184,7 @@ const findPkCodeByLabel = (
           ),
         );
         if (allWordsMatch) {
-          return String(
-            option.bank_pk_code ||
-            option.country_pk_code ||
-            option.nationality_pk_code ||
-            option.identity_type_pk_code ||
-            option.marital_status_pk_code ||
-            option.occupation_pk_code ||
-            option.occ_pk_code ||
-            option.lgal_constitution_pk_code ||
-            option.dzongkhag_pk_code ||
-            option.gewog_pk_code ||
-            option.curr_gewog_pk_code ||
-            option.pk_gewog_id ||
-            option.pep_category_pk_code ||
-            option.pep_sub_category_pk_code ||
-            option.tax_identifier_type_pk_code ||
-            option.pk_code ||
-            option.id ||
-            option.code ||
-            "",
-          );
+          return getOptionPkCode(option);
         }
       }
     }
@@ -239,27 +200,7 @@ const findPkCodeByLabel = (
           optionLabel.includes(trimmedLabel) ||
           trimmedLabel.includes(optionLabel)
         ) {
-          return String(
-            option.bank_pk_code ||
-            option.country_pk_code ||
-            option.nationality_pk_code ||
-            option.identity_type_pk_code ||
-            option.marital_status_pk_code ||
-            option.occupation_pk_code ||
-            option.occ_pk_code ||
-            option.lgal_constitution_pk_code ||
-            option.dzongkhag_pk_code ||
-            option.gewog_pk_code ||
-            option.curr_gewog_pk_code ||
-            option.pk_gewog_id ||
-            option.pep_category_pk_code ||
-            option.pep_sub_category_pk_code ||
-            option.tax_identifier_type_pk_code ||
-            option.pk_code ||
-            option.id ||
-            option.code ||
-            "",
-          );
+          return getOptionPkCode(option);
         }
       }
     }
@@ -506,10 +447,45 @@ export function BusinessRepaymentSourceForm({
       : [createEmptyGuarantor()],
   );
 
+  // Load from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const savedData = sessionStorage.getItem("businessLoanApplicationData");
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        const repaymentSource = parsed.businessRepaymentSourceDetail;
+        if (repaymentSource) {
+          // Restore business income
+          if (repaymentSource.businessIncome) {
+            setBusinessIncomeData(repaymentSource.businessIncome);
+          }
+          // Restore guarantor applicability
+          if (repaymentSource.isGuarantorApplicable !== undefined) {
+            setIsGuarantorApplicable(repaymentSource.isGuarantorApplicable);
+          }
+          // Restore guarantors (merge with empty template to ensure all fields exist)
+          if (repaymentSource.guarantors && repaymentSource.guarantors.length > 0) {
+            const loadedGuarantors = repaymentSource.guarantors.map((g: any) => ({
+              ...createEmptyGuarantor(),
+              ...g,
+              relatedPeps: g.relatedPeps
+                ? g.relatedPeps.map((p: any) => ({
+                  ...createEmptyRelatedPep(),
+                  ...p,
+                }))
+                : [],
+            }));
+            setGuarantors(loadedGuarantors);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load from sessionStorage", e);
+    }
+  }, []);
+
   const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
-  const [identificationTypeOptions, setIdentificationTypeOptions] = useState<
-    any[]
-  >([]);
+  const [identificationTypeOptions, setIdentificationTypeOptions] = useState<any[]>([]);
   const [countryOptions, setCountryOptions] = useState<any[]>([]);
   const [dzongkhagOptions, setDzongkhagOptions] = useState<any[]>([]);
   const [maritalStatusOptions, setMaritalStatusOptions] = useState<any[]>([]);
@@ -518,9 +494,7 @@ export function BusinessRepaymentSourceForm({
   const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
   const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
-  const [bhutanNationalityCode, setBhutanNationalityCode] = useState<
-    string | null
-  >(null);
+  const [bhutanNationalityCode, setBhutanNationalityCode] = useState<string | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
   const eighteenYearsAgo = new Date();
@@ -594,7 +568,6 @@ export function BusinessRepaymentSourceForm({
     return "";
   };
 
-  // Handle onBlur for specific field formatting issues (real-time feedback)
   const handleBlurField = (index: number, field: string, value: any) => {
     const formatError = validateField(field, value);
 
@@ -619,7 +592,6 @@ export function BusinessRepaymentSourceForm({
     });
   };
 
-  // ...[useEffect hooks for loading data - same as original code] ...
   useEffect(() => {
     const loadAllData = async () => {
       try {
@@ -690,7 +662,6 @@ export function BusinessRepaymentSourceForm({
     loadAllData();
   }, []);
 
-  // Filter tax identifier options to show only "Personal Income Tax"
   const personalIncomeTaxOptions = useMemo(() => {
     return taxIdentifierTypeOptions.filter(opt => {
       const label = (opt.tax_identifier_type || opt.name || opt.label || "").toLowerCase();
@@ -698,250 +669,432 @@ export function BusinessRepaymentSourceForm({
     });
   }, [taxIdentifierTypeOptions]);
 
-  // Gewog fetch for Guarantor's Permanent Address
+  // ========== Gewog fetchers Refactored to eliminate Race Conditions ==========
+
+  // Guarantor's Permanent Address Gewogs
   useEffect(() => {
-    const loadPermGewogs = async () => {
-      const updated = [...guarantors];
-      let needsUpdate = false;
+    if (!countryOptions.length) return;
+    guarantors.forEach((g, i) => {
+      if (g.permCountry && isBhutan(g.permCountry) && g.permDzongkhag) {
+        fetchGewogsByDzongkhag(g.permDzongkhag).then(opts => {
+          setGuarantors(prev => {
+            const updated = [...prev];
+            const currentG = { ...updated[i], permGewogOptions: opts };
+            if (currentG.permGewog) {
+              const isId = opts.some((o: any) => String(o.gewog_pk_code || o.id) === String(currentG.permGewog));
+              if (!isId) {
+                const converted = findPkCodeByLabel(currentG.permGewog, opts, ["gewog_name", "gewog", "name", "gewogName"]);
+                if (converted && converted !== currentG.permGewog) {
+                  currentG.permGewog = converted;
+                }
+              }
+            }
+            updated[i] = currentG;
+            return updated;
+          });
+        }).catch(console.error);
+      }
+    });
+  }, [guarantors.map((g) => `${g.permCountry}-${g.permDzongkhag}`).join(","), countryOptions.length]);
 
-      for (let i = 0; i < guarantors.length; i++) {
-        const g = guarantors[i];
-        if (g.permCountry && isBhutan(g.permCountry) && g.permDzongkhag) {
-          if (!g.permGewogOptions || g.permGewogOptions.length === 0) {
-            try {
-              const opts = await fetchGewogsByDzongkhag(g.permDzongkhag);
-              updated[i] = { ...updated[i], permGewogOptions: opts };
+  // Guarantor's Current Address Gewogs
+  useEffect(() => {
+    if (!countryOptions.length) return;
+    guarantors.forEach((g, i) => {
+      if (g.currCountry && isBhutan(g.currCountry) && g.currDzongkhag) {
+        fetchGewogsByDzongkhag(g.currDzongkhag).then(opts => {
+          setGuarantors(prev => {
+            const updated = [...prev];
+            const currentG = { ...updated[i], currGewogOptions: opts };
+            if (currentG.currGewog) {
+              const isId = opts.some((o: any) => String(o.gewog_pk_code || o.id) === String(currentG.currGewog));
+              if (!isId) {
+                const converted = findPkCodeByLabel(currentG.currGewog, opts, ["gewog_name", "gewog", "name", "gewogName"]);
+                if (converted && converted !== currentG.currGewog) {
+                  currentG.currGewog = converted;
+                }
+              }
+            }
+            updated[i] = currentG;
+            return updated;
+          });
+        }).catch(console.error);
+      }
+    });
+  }, [guarantors.map((g) => `${g.currCountry}-${g.currDzongkhag}`).join(","), countryOptions.length]);
 
-              if (g.permGewog) {
-                const isId = opts.some(
-                  (o: any) =>
-                    String(o.gewog_pk_code || o.id) === String(g.permGewog),
-                );
+  // Spouse Permanent Address Gewogs
+  useEffect(() => {
+    if (!countryOptions.length) return;
+    guarantors.forEach((g, i) => {
+      if (g.spousePermCountry && isBhutan(g.spousePermCountry) && g.spousePermDzongkhag) {
+        fetchGewogsByDzongkhag(g.spousePermDzongkhag).then(opts => {
+          setGuarantors(prev => {
+            const updated = [...prev];
+            const currentG = { ...updated[i], spousePermGewogOptions: opts };
+            if (currentG.spousePermGewog) {
+              const isId = opts.some((o: any) => String(o.gewog_pk_code || o.id) === String(currentG.spousePermGewog));
+              if (!isId) {
+                const converted = findPkCodeByLabel(currentG.spousePermGewog, opts, ["gewog_name", "gewog", "name", "gewogName"]);
+                if (converted && converted !== currentG.spousePermGewog) {
+                  currentG.spousePermGewog = converted;
+                }
+              }
+            }
+            updated[i] = currentG;
+            return updated;
+          });
+        }).catch(console.error);
+      }
+    });
+  }, [guarantors.map((g) => `${g.spousePermCountry}-${g.spousePermDzongkhag}`).join(","), countryOptions.length]);
 
-                if (!isId) {
-                  const converted = findPkCodeByLabel(g.permGewog, opts, [
-                    "gewog_name",
-                    "gewog",
-                    "name",
-                    "gewogName",
-                  ]);
-                  if (converted && converted !== g.permGewog) {
-                    updated[i].permGewog = converted;
+  // Related PEPs Address Gewogs
+  useEffect(() => {
+    if (!countryOptions.length) return;
+    guarantors.forEach((g, gIdx) => {
+      if (g.relatedPeps && g.relatedPeps.length > 0) {
+        g.relatedPeps.forEach((pep: any, pIdx: number) => {
+          if (pep.permCountry && isBhutan(pep.permCountry) && pep.permDzongkhag) {
+            fetchGewogsByDzongkhag(pep.permDzongkhag).then(opts => {
+              setGuarantors(prev => {
+                const updated = [...prev];
+                const newRelated = [...(updated[gIdx].relatedPeps || [])];
+                const currentPep = { ...newRelated[pIdx], permGewogOptions: opts };
+                if (currentPep.permGewog) {
+                  const isId = opts.some((o: any) => String(o.gewog_pk_code || o.id) === String(currentPep.permGewog));
+                  if (!isId) {
+                    const converted = findPkCodeByLabel(currentPep.permGewog, opts, ["gewog_name", "gewog", "name", "gewogName"]);
+                    if (converted && converted !== currentPep.permGewog) {
+                      currentPep.permGewog = converted;
+                    }
                   }
                 }
-              }
-              needsUpdate = true;
-            } catch (e) {
-              console.error(e);
-            }
+                newRelated[pIdx] = currentPep;
+                updated[gIdx] = { ...updated[gIdx], relatedPeps: newRelated };
+                return updated;
+              });
+            }).catch(console.error);
           }
-        }
-      }
-      if (needsUpdate) setGuarantors(updated);
-    };
-    loadPermGewogs();
-  }, [guarantors.map((g) => `${g.permCountry}-${g.permDzongkhag}`).join(",")]);
-
-  // Gewog fetch for Guarantor's Current Address
-  useEffect(() => {
-    const loadCurrGewogs = async () => {
-      const updated = [...guarantors];
-      let needsUpdate = false;
-
-      for (let i = 0; i < guarantors.length; i++) {
-        const g = guarantors[i];
-        if (g.currCountry && isBhutan(g.currCountry) && g.currDzongkhag) {
-          if (!g.currGewogOptions || g.currGewogOptions.length === 0) {
-            try {
-              const opts = await fetchGewogsByDzongkhag(g.currDzongkhag);
-              updated[i] = { ...updated[i], currGewogOptions: opts };
-
-              if (g.currGewog) {
-                const isId = opts.some(
-                  (o: any) =>
-                    String(o.gewog_pk_code || o.id) === String(g.currGewog),
-                );
-
-                if (!isId) {
-                  const converted = findPkCodeByLabel(g.currGewog, opts, [
-                    "gewog_name",
-                    "gewog",
-                    "name",
-                    "gewogName",
-                  ]);
-                  if (converted && converted !== g.currGewog) {
-                    updated[i].currGewog = converted;
+          if (pep.currCountry && isBhutan(pep.currCountry) && pep.currDzongkhag) {
+            fetchGewogsByDzongkhag(pep.currDzongkhag).then(opts => {
+              setGuarantors(prev => {
+                const updated = [...prev];
+                const newRelated = [...(updated[gIdx].relatedPeps || [])];
+                const currentPep = { ...newRelated[pIdx], currGewogOptions: opts };
+                if (currentPep.currGewog) {
+                  const isId = opts.some((o: any) => String(o.gewog_pk_code || o.id) === String(currentPep.currGewog));
+                  if (!isId) {
+                    const converted = findPkCodeByLabel(currentPep.currGewog, opts, ["gewog_name", "gewog", "name", "gewogName"]);
+                    if (converted && converted !== currentPep.currGewog) {
+                      currentPep.currGewog = converted;
+                    }
                   }
                 }
-              }
-              needsUpdate = true;
-            } catch (e) {
-              console.error(e);
-            }
+                newRelated[pIdx] = currentPep;
+                updated[gIdx] = { ...updated[gIdx], relatedPeps: newRelated };
+                return updated;
+              });
+            }).catch(console.error);
           }
-        }
+        });
       }
-      if (needsUpdate) setGuarantors(updated);
-    };
-    loadCurrGewogs();
-  }, [guarantors.map((g) => `${g.currCountry}-${g.currDzongkhag}`).join(",")]);
-
-  // Gewog fetch for Spouse Permanent Address (kept for guarantor's own spouse)
-  useEffect(() => {
-    const loadSpousePermGewogs = async () => {
-      const updated = [...guarantors];
-      let needsUpdate = false;
-
-      for (let i = 0; i < guarantors.length; i++) {
-        const g = guarantors[i];
-        if (
-          g.spousePermCountry &&
-          isBhutan(g.spousePermCountry) &&
-          g.spousePermDzongkhag
-        ) {
-          if (
-            !g.spousePermGewogOptions ||
-            g.spousePermGewogOptions.length === 0
-          ) {
-            try {
-              const opts = await fetchGewogsByDzongkhag(g.spousePermDzongkhag);
-              updated[i] = { ...updated[i], spousePermGewogOptions: opts };
-
-              if (g.spousePermGewog) {
-                const isId = opts.some(
-                  (o: any) =>
-                    String(o.gewog_pk_code || o.id) ===
-                    String(g.spousePermGewog),
-                );
-
-                if (!isId) {
-                  const converted = findPkCodeByLabel(g.spousePermGewog, opts, [
-                    "gewog_name",
-                    "gewog",
-                    "name",
-                    "gewogName",
-                  ]);
-                  if (converted && converted !== g.spousePermGewog) {
-                    updated[i].spousePermGewog = converted;
-                  }
-                }
-              }
-              needsUpdate = true;
-            } catch (e) {
-              console.error(e);
-            }
-          }
-        }
-      }
-      if (needsUpdate) setGuarantors(updated);
-    };
-    loadSpousePermGewogs();
-  }, [
-    guarantors
-      .map((g) => `${g.spousePermCountry}-${g.spousePermDzongkhag}`)
-      .join(","),
-  ]);
-
-  // --- Load Related PEPs Gewogs Dynamically ---
-  useEffect(() => {
-    const loadPepGewogs = async () => {
-      let needsUpdate = false;
-      const updatedGuarantors = [...guarantors];
-
-      for (let gIdx = 0; gIdx < updatedGuarantors.length; gIdx++) {
-        const guarantor = updatedGuarantors[gIdx];
-        if (guarantor.relatedPeps && guarantor.relatedPeps.length > 0) {
-          for (let pIdx = 0; pIdx < guarantor.relatedPeps.length; pIdx++) {
-            const pep = guarantor.relatedPeps[pIdx];
-
-            // Perm Gewog Loading
-            if (pep.permDzongkhag) {
-              try {
-                const options = await fetchGewogsByDzongkhag(pep.permDzongkhag);
-                if (
-                  JSON.stringify(pep.permGewogOptions) !==
-                  JSON.stringify(options)
-                ) {
-                  updatedGuarantors[gIdx].relatedPeps[pIdx].permGewogOptions =
-                    options;
-                  needsUpdate = true;
-                }
-              } catch (error) {
-                console.error(
-                  `Failed to load perm gewogs for related PEP ${pIdx}:`,
-                  error,
-                );
-              }
-            }
-
-            // Curr Gewog Loading
-            if (pep.currDzongkhag) {
-              try {
-                const options = await fetchGewogsByDzongkhag(pep.currDzongkhag);
-                if (
-                  JSON.stringify(pep.currGewogOptions) !==
-                  JSON.stringify(options)
-                ) {
-                  updatedGuarantors[gIdx].relatedPeps[pIdx].currGewogOptions =
-                    options;
-                  needsUpdate = true;
-                }
-              } catch (error) {
-                console.error(
-                  `Failed to load curr gewogs for related PEP ${pIdx}:`,
-                  error,
-                );
-              }
-            }
-          }
-        }
-      }
-
-      if (needsUpdate) {
-        setGuarantors(updatedGuarantors);
-      }
-    };
-
-    loadPepGewogs();
+    });
   }, [
     JSON.stringify(
       guarantors.map((g) =>
         g.relatedPeps?.map(
-          (p: any) =>
-            `${p.permDzongkhag}-${p.currDzongkhag}`,
+          (p: any) => `${p.permCountry}-${p.permDzongkhag}-${p.currCountry}-${p.currDzongkhag}`,
         ),
       ),
     ),
+    countryOptions.length,
   ]);
 
-  // PEP Subcategory fetch
+  // PEP Subcategory Fetcher
   useEffect(() => {
-    const loadPepSub = async () => {
-      const updated = [...guarantors];
-      let needsUpdate = false;
-
-      for (let i = 0; i < guarantors.length; i++) {
-        if (guarantors[i].isPep === "yes" && guarantors[i].pepCategory) {
-          if (
-            !updated[i].pepSubCategoryOptions ||
-            updated[i].pepSubCategoryOptions.length === 0
-          ) {
-            try {
-              const opts = await fetchPepSubCategoryByCategory(
-                guarantors[i].pepCategory,
-              );
+    guarantors.forEach((g, i) => {
+      if (g.isPep === "yes" && g.pepCategory) {
+        if (!g.pepSubCategoryOptions || g.pepSubCategoryOptions.length === 0) {
+          fetchPepSubCategoryByCategory(g.pepCategory).then(opts => {
+            setGuarantors(prev => {
+              const updated = [...prev];
               updated[i] = { ...updated[i], pepSubCategoryOptions: opts };
-              needsUpdate = true;
-            } catch (e) {
-              console.error(e);
-            }
-          }
+              return updated;
+            });
+          }).catch(console.error);
         }
       }
-      if (needsUpdate) setGuarantors(updated);
-    };
-    loadPepSub();
+    });
   }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
+
+
+  // ========== CONVERSION EFFECTS: label -> code for all dropdowns ==========
+
+  useEffect(() => {
+    if (identificationTypeOptions.length > 0) {
+      setGuarantors(prev =>
+        prev.map(g => {
+          const newG = { ...g };
+          if (newG.idType && !identificationTypeOptions.some(opt => String(opt.identity_type_pk_code || opt.id) === String(newG.idType))) {
+            const converted = findPkCodeByLabel(newG.idType, identificationTypeOptions, ["identity_type", "identification_type", "name"]);
+            if (converted && converted !== newG.idType) newG.idType = converted;
+          }
+          if (newG.spouseIdType && !identificationTypeOptions.some(opt => String(opt.identity_type_pk_code || opt.id) === String(newG.spouseIdType))) {
+            const converted = findPkCodeByLabel(newG.spouseIdType, identificationTypeOptions, ["identity_type", "identification_type", "name"]);
+            if (converted && converted !== newG.spouseIdType) newG.spouseIdType = converted;
+          }
+          if (newG.relatedPeps && newG.relatedPeps.length > 0) {
+            newG.relatedPeps = newG.relatedPeps.map((pep: any) => {
+              if (pep.identificationType && !identificationTypeOptions.some(opt => String(opt.identity_type_pk_code || opt.id) === String(pep.identificationType))) {
+                const converted = findPkCodeByLabel(pep.identificationType, identificationTypeOptions, ["identity_type", "identification_type", "name"]);
+                if (converted && converted !== pep.identificationType) return { ...pep, identificationType: converted };
+              }
+              return pep;
+            });
+          }
+          return newG;
+        })
+      );
+    }
+  }, [identificationTypeOptions]);
+
+
+  useEffect(() => {
+    if (nationalityOptions.length > 0) {
+      setGuarantors(prev =>
+        prev.map(g => {
+          const newG = { ...g };
+          if (newG.nationality && !nationalityOptions.some(opt => String(opt.nationality_pk_code || opt.id) === String(newG.nationality))) {
+            const converted = findPkCodeByLabel(newG.nationality, nationalityOptions, ["nationality", "name"]);
+            if (converted) newG.nationality = converted;
+          }
+          if (newG.spouseNationality && !nationalityOptions.some(opt => String(opt.nationality_pk_code || opt.id) === String(newG.spouseNationality))) {
+            const converted = findPkCodeByLabel(newG.spouseNationality, nationalityOptions, ["nationality", "name"]);
+            if (converted) newG.spouseNationality = converted;
+          }
+          if (newG.relatedPeps && newG.relatedPeps.length > 0) {
+            newG.relatedPeps = newG.relatedPeps.map((pep: any) => {
+              if (pep.nationality && !nationalityOptions.some(opt => String(opt.nationality_pk_code || opt.id) === String(pep.nationality))) {
+                const converted = findPkCodeByLabel(pep.nationality, nationalityOptions, ["nationality", "name"]);
+                if (converted) return { ...pep, nationality: converted };
+              }
+              return pep;
+            });
+          }
+          return newG;
+        })
+      );
+    }
+  }, [nationalityOptions]);
+
+
+  useEffect(() => {
+    if (maritalStatusOptions.length > 0) {
+      setGuarantors(prev =>
+        prev.map(g => {
+          if (g.maritalStatus && !maritalStatusOptions.some(opt => String(opt.marital_status_pk_code || opt.id) === String(g.maritalStatus))) {
+            const converted = findPkCodeByLabel(g.maritalStatus, maritalStatusOptions, ["marital_status", "name"]);
+            if (converted) return { ...g, maritalStatus: converted };
+          }
+          return g;
+        })
+      );
+    }
+  }, [maritalStatusOptions]);
+
+  useEffect(() => {
+    if (banksOptions.length > 0) {
+      setGuarantors(prev =>
+        prev.map(g => {
+          if (g.bankName && !banksOptions.some(opt => String(opt.bank_pk_code || opt.id) === String(g.bankName))) {
+            const converted = findPkCodeByLabel(g.bankName, banksOptions, ["bank_name", "name", "bank"]);
+            if (converted) return { ...g, bankName: converted };
+          }
+          return g;
+        })
+      );
+    }
+  }, [banksOptions]);
+
+  // Country Options conversion
+  useEffect(() => {
+    if (countryOptions.length > 0) {
+      setGuarantors(prev =>
+        prev.map(g => {
+          const newG = { ...g };
+          if (newG.permCountry && !countryOptions.some(opt => String(opt.country_pk_code || opt.id) === String(newG.permCountry))) {
+            const converted = findPkCodeByLabel(newG.permCountry, countryOptions, ["country_name", "country", "name"]);
+            if (converted) {
+              newG.permCountry = converted;
+            }
+          }
+          if (newG.currCountry && !countryOptions.some(opt => String(opt.country_pk_code || opt.id) === String(newG.currCountry))) {
+            const converted = findPkCodeByLabel(newG.currCountry, countryOptions, ["country_name", "country", "name"]);
+            if (converted) {
+              newG.currCountry = converted;
+            }
+          }
+          if (newG.spousePermCountry && !countryOptions.some(opt => String(opt.country_pk_code || opt.id) === String(newG.spousePermCountry))) {
+            const converted = findPkCodeByLabel(newG.spousePermCountry, countryOptions, ["country_name", "country", "name"]);
+            if (converted) {
+              newG.spousePermCountry = converted;
+            }
+          }
+          if (newG.relatedPeps && newG.relatedPeps.length > 0) {
+            newG.relatedPeps = newG.relatedPeps.map((pep: any) => {
+              const newPep = { ...pep };
+              if (pep.permCountry && !countryOptions.some(opt => String(opt.country_pk_code || opt.id) === String(pep.permCountry))) {
+                const converted = findPkCodeByLabel(pep.permCountry, countryOptions, ["country_name", "country", "name"]);
+                if (converted) {
+                  newPep.permCountry = converted;
+                }
+              }
+              if (pep.currCountry && !countryOptions.some(opt => String(opt.country_pk_code || opt.id) === String(pep.currCountry))) {
+                const converted = findPkCodeByLabel(pep.currCountry, countryOptions, ["country_name", "country", "name"]);
+                if (converted) {
+                  newPep.currCountry = converted;
+                }
+              }
+              return newPep;
+            });
+          }
+          return newG;
+        })
+      );
+    }
+  }, [countryOptions]);
+
+  // Dzongkhag Options conversion
+  useEffect(() => {
+    if (dzongkhagOptions.length > 0) {
+      setGuarantors(prev =>
+        prev.map(g => {
+          const newG = { ...g };
+          if (newG.permDzongkhag && !dzongkhagOptions.some(opt => String(opt.dzongkhag_pk_code || opt.id) === String(newG.permDzongkhag))) {
+            const converted = findPkCodeByLabel(newG.permDzongkhag, dzongkhagOptions, ["dzongkhag_name", "dzongkhag", "name"]);
+            if (converted) {
+              newG.permDzongkhag = converted;
+            }
+          }
+          if (newG.currDzongkhag && !dzongkhagOptions.some(opt => String(opt.dzongkhag_pk_code || opt.id) === String(newG.currDzongkhag))) {
+            const converted = findPkCodeByLabel(newG.currDzongkhag, dzongkhagOptions, ["dzongkhag_name", "dzongkhag", "name"]);
+            if (converted) {
+              newG.currDzongkhag = converted;
+            }
+          }
+          if (newG.spousePermDzongkhag && !dzongkhagOptions.some(opt => String(opt.dzongkhag_pk_code || opt.id) === String(newG.spousePermDzongkhag))) {
+            const converted = findPkCodeByLabel(newG.spousePermDzongkhag, dzongkhagOptions, ["dzongkhag_name", "dzongkhag", "name"]);
+            if (converted) {
+              newG.spousePermDzongkhag = converted;
+            }
+          }
+          if (newG.relatedPeps && newG.relatedPeps.length > 0) {
+            newG.relatedPeps = newG.relatedPeps.map((pep: any) => {
+              const newPep = { ...pep };
+              if (pep.permDzongkhag && !dzongkhagOptions.some(opt => String(opt.dzongkhag_pk_code || opt.id) === String(pep.permDzongkhag))) {
+                const converted = findPkCodeByLabel(pep.permDzongkhag, dzongkhagOptions, ["dzongkhag_name", "dzongkhag", "name"]);
+                if (converted) {
+                  newPep.permDzongkhag = converted;
+                }
+              }
+              if (pep.currDzongkhag && !dzongkhagOptions.some(opt => String(opt.dzongkhag_pk_code || opt.id) === String(pep.currDzongkhag))) {
+                const converted = findPkCodeByLabel(pep.currDzongkhag, dzongkhagOptions, ["dzongkhag_name", "dzongkhag", "name"]);
+                if (converted) {
+                  newPep.currDzongkhag = converted;
+                }
+              }
+              return newPep;
+            });
+          }
+          return newG;
+        })
+      );
+    }
+  }, [dzongkhagOptions]);
+
+
+  useEffect(() => {
+    if (occupationOptions.length > 0) {
+      setGuarantors(prev =>
+        prev.map(g => {
+          if (g.occupation && !occupationOptions.some(opt => String(opt.occ_pk_code || opt.id) === String(g.occupation))) {
+            const converted = findPkCodeByLabel(g.occupation, occupationOptions, ["occ_name", "occupation", "name"]);
+            if (converted) return { ...g, occupation: converted };
+          }
+          return g;
+        })
+      );
+    }
+  }, [occupationOptions]);
+
+  useEffect(() => {
+    if (organizationOptions.length > 0) {
+      setGuarantors(prev =>
+        prev.map(g => {
+          if (g.organizationName && !organizationOptions.some(opt => String(opt.lgal_constitution_pk_code || opt.id) === String(g.organizationName))) {
+            const converted = findPkCodeByLabel(g.organizationName, organizationOptions, ["lgal_constitution", "name"]);
+            if (converted) return { ...g, organizationName: converted };
+          }
+          return g;
+        })
+      );
+    }
+  }, [organizationOptions]);
+
+  useEffect(() => {
+    if (pepCategoryOptions.length > 0) {
+      setGuarantors(prev =>
+        prev.map(g => {
+          const newG = { ...g };
+          if (g.pepCategory && !pepCategoryOptions.some(opt => String(opt.pep_category_pk_code || opt.id) === String(g.pepCategory))) {
+            const converted = findPkCodeByLabel(g.pepCategory, pepCategoryOptions, ["pep_category", "name"]);
+            if (converted) newG.pepCategory = converted;
+          }
+          if (g.relatedPeps && g.relatedPeps.length) {
+            newG.relatedPeps = g.relatedPeps.map((pep: any, idx: number) => {
+              if (pep.category && !pepCategoryOptions.some(opt => String(opt.pep_category_pk_code || opt.id) === String(pep.category))) {
+                const converted = findPkCodeByLabel(pep.category, pepCategoryOptions, ["pep_category", "name"]);
+                if (converted && converted !== pep.category) return { ...pep, category: converted };
+              }
+              return pep;
+            });
+          }
+          return newG;
+        })
+      );
+    }
+  }, [pepCategoryOptions]);
+
+  useEffect(() => {
+    if (taxIdentifierTypeOptions.length > 0) {
+      setGuarantors(prev =>
+        prev.map(g => {
+          const newG = { ...g };
+          if (g.taxIdentifierType && !taxIdentifierTypeOptions.some(opt => String(opt.tax_identifier_type_pk_code || opt.id) === String(g.taxIdentifierType))) {
+            const converted = findPkCodeByLabel(g.taxIdentifierType, taxIdentifierTypeOptions, ["tax_identifier_type", "name"]);
+            if (converted) newG.taxIdentifierType = converted;
+          }
+          if (g.spouseTaxIdentifierType && !taxIdentifierTypeOptions.some(opt => String(opt.tax_identifier_type_pk_code || opt.id) === String(g.spouseTaxIdentifierType))) {
+            const converted = findPkCodeByLabel(g.spouseTaxIdentifierType, taxIdentifierTypeOptions, ["tax_identifier_type", "name"]);
+            if (converted) newG.spouseTaxIdentifierType = converted;
+          }
+          if (g.relatedPeps && g.relatedPeps.length) {
+            newG.relatedPeps = g.relatedPeps.map((pep: any) => {
+              if (pep.taxIdentifierType && !taxIdentifierTypeOptions.some(opt => String(opt.tax_identifier_type_pk_code || opt.id) === String(pep.taxIdentifierType))) {
+                const converted = findPkCodeByLabel(pep.taxIdentifierType, taxIdentifierTypeOptions, ["tax_identifier_type", "name"]);
+                if (converted) return { ...pep, taxIdentifierType: converted };
+              }
+              return pep;
+            });
+          }
+          return newG;
+        })
+      );
+    }
+  }, [taxIdentifierTypeOptions]);
+
+  // ========== END CONVERSION EFFECTS ==========
 
   const handleIdentityCheck = async (index: number) => {
     const guarantor = guarantors[index];
@@ -1113,7 +1266,7 @@ export function BusinessRepaymentSourceForm({
         spouseIdExpiryDate: "",
         spouseDateOfBirth: "",
         spouseTaxIdentifierType: "",
-        spouseTpnNumber: "",
+        spouseTpnNumber: fetched.spouseTpn || fetched.spouseTpnNumber || "",
         spouseHouseholdNumber: "",
         spouseContact: fetched.spouseContact || "",
         // Spouse address fields remain empty (not returned by lookup)
@@ -1345,240 +1498,6 @@ export function BusinessRepaymentSourceForm({
       });
     }
   };
-
-  // ...[useEffect hooks for mapping options - same as original code] ...
-  useEffect(() => {
-    if (nationalityOptions.length > 0) {
-      setGuarantors((prev) =>
-        prev.map((g) => {
-          if (
-            g.nationality &&
-            !nationalityOptions.some(
-              (opt) =>
-                String(opt.nationality_pk_code || opt.id) ===
-                String(g.nationality),
-            )
-          ) {
-            const converted = findPkCodeByLabel(
-              g.nationality,
-              nationalityOptions,
-              ["nationality", "name"],
-            );
-            return converted ? { ...g, nationality: converted } : g;
-          }
-          return g;
-        }),
-      );
-    }
-  }, [nationalityOptions]);
-
-  useEffect(() => {
-    if (maritalStatusOptions.length > 0) {
-      setGuarantors((prev) =>
-        prev.map((g) => {
-          if (
-            g.maritalStatus &&
-            !maritalStatusOptions.some(
-              (opt) =>
-                String(opt.marital_status_pk_code || opt.id) ===
-                String(g.maritalStatus),
-            )
-          ) {
-            const converted = findPkCodeByLabel(
-              g.maritalStatus,
-              maritalStatusOptions,
-              ["marital_status", "name"],
-            );
-            return converted ? { ...g, maritalStatus: converted } : g;
-          }
-          return g;
-        }),
-      );
-    }
-  }, [maritalStatusOptions]);
-
-  useEffect(() => {
-    if (banksOptions.length > 0) {
-      setGuarantors((prev) =>
-        prev.map((g) => {
-          if (
-            g.bankName &&
-            !banksOptions.some(
-              (opt) =>
-                String(opt.bank_pk_code || opt.id) === String(g.bankName),
-            )
-          ) {
-            const converted = findPkCodeByLabel(g.bankName, banksOptions, [
-              "bank_name",
-              "name",
-              "bank",
-            ]);
-            return converted ? { ...g, bankName: converted } : g;
-          }
-          return g;
-        }),
-      );
-    }
-  }, [banksOptions]);
-
-  useEffect(() => {
-    if (countryOptions.length > 0) {
-      setGuarantors((prev) =>
-        prev.map((g) => {
-          if (
-            g.permCountry &&
-            !countryOptions.some(
-              (opt) =>
-                String(opt.country_pk_code || opt.id) === String(g.permCountry),
-            )
-          ) {
-            const converted = findPkCodeByLabel(g.permCountry, countryOptions, [
-              "country_name",
-              "country",
-              "name",
-            ]);
-            if (converted) g.permCountry = converted;
-          }
-          if (
-            g.currCountry &&
-            !countryOptions.some(
-              (opt) =>
-                String(opt.country_pk_code || opt.id) === String(g.currCountry),
-            )
-          ) {
-            const converted = findPkCodeByLabel(g.currCountry, countryOptions, [
-              "country_name",
-              "country",
-              "name",
-            ]);
-            if (converted) g.currCountry = converted;
-          }
-          // Spouse country fields
-          if (
-            g.spousePermCountry &&
-            !countryOptions.some(
-              (opt) =>
-                String(opt.country_pk_code || opt.id) ===
-                String(g.spousePermCountry),
-            )
-          ) {
-            const converted = findPkCodeByLabel(
-              g.spousePermCountry,
-              countryOptions,
-              ["country_name", "country", "name"],
-            );
-            if (converted) g.spousePermCountry = converted;
-          }
-          return g;
-        }),
-      );
-    }
-  }, [countryOptions]);
-
-  useEffect(() => {
-    if (dzongkhagOptions.length > 0) {
-      setGuarantors((prev) =>
-        prev.map((g) => {
-          if (
-            g.permDzongkhag &&
-            !dzongkhagOptions.some(
-              (opt) =>
-                String(opt.dzongkhag_pk_code || opt.id) ===
-                String(g.permDzongkhag),
-            )
-          ) {
-            const converted = findPkCodeByLabel(
-              g.permDzongkhag,
-              dzongkhagOptions,
-              ["dzongkhag_name", "dzongkhag", "name"],
-            );
-            if (converted) g.permDzongkhag = converted;
-          }
-          if (
-            g.currDzongkhag &&
-            !dzongkhagOptions.some(
-              (opt) =>
-                String(opt.dzongkhag_pk_code || opt.id) ===
-                String(g.currDzongkhag),
-            )
-          ) {
-            const converted = findPkCodeByLabel(
-              g.currDzongkhag,
-              dzongkhagOptions,
-              ["dzongkhag_name", "dzongkhag", "name"],
-            );
-            if (converted) g.currDzongkhag = converted;
-          }
-          // Spouse dzongkhag fields
-          if (
-            g.spousePermDzongkhag &&
-            !dzongkhagOptions.some(
-              (opt) =>
-                String(opt.dzongkhag_pk_code || opt.id) ===
-                String(g.spousePermDzongkhag),
-            )
-          ) {
-            const converted = findPkCodeByLabel(
-              g.spousePermDzongkhag,
-              dzongkhagOptions,
-              ["dzongkhag_name", "dzongkhag", "name"],
-            );
-            if (converted) g.spousePermDzongkhag = converted;
-          }
-          return g;
-        }),
-      );
-    }
-  }, [dzongkhagOptions]);
-
-  useEffect(() => {
-    if (occupationOptions.length > 0) {
-      setGuarantors((prev) =>
-        prev.map((g) => {
-          if (
-            g.occupation &&
-            !occupationOptions.some(
-              (opt) =>
-                String(opt.occ_pk_code || opt.id) === String(g.occupation),
-            )
-          ) {
-            const converted = findPkCodeByLabel(
-              g.occupation,
-              occupationOptions,
-              ["occ_name", "occupation", "name"],
-            );
-            return converted ? { ...g, occupation: converted } : g;
-          }
-          return g;
-        }),
-      );
-    }
-  }, [occupationOptions]);
-
-  useEffect(() => {
-    if (organizationOptions.length > 0) {
-      setGuarantors((prev) =>
-        prev.map((g) => {
-          if (
-            g.organizationName &&
-            !organizationOptions.some(
-              (opt) =>
-                String(opt.lgal_constitution_pk_code || opt.id) ===
-                String(g.organizationName),
-            )
-          ) {
-            const converted = findPkCodeByLabel(
-              g.organizationName,
-              organizationOptions,
-              ["lgal_constitution", "name"],
-            );
-            return converted ? { ...g, organizationName: converted } : g;
-          }
-          return g;
-        }),
-      );
-    }
-  }, [organizationOptions]);
 
   // File upload handlers with IndexedDB
   const handleBusinessIncomeFileChange = async (
@@ -1861,10 +1780,17 @@ export function BusinessRepaymentSourceForm({
             permHouse: "",
             permCity: "",
             permPostal: "",
+            permGewogOptions: [],
           }
           : {}),
         ...(field === "currCountry"
-          ? { currDzongkhag: "", currGewog: "", currCity: "", currPostal: "" }
+          ? {
+            currDzongkhag: "",
+            currGewog: "",
+            currCity: "",
+            currPostal: "",
+            currGewogOptions: [],
+          }
           : {}),
         ...(field === "serviceNature" && value !== "contract"
           ? { contractEndDate: "" }
@@ -1881,6 +1807,7 @@ export function BusinessRepaymentSourceForm({
             spousePermHouse: "",
             spousePermCity: "",
             spousePermPostal: "",
+            spousePermGewogOptions: [],
           }
           : {}),
         // Clear spouse personal fields when spouseNationality changes
@@ -2619,7 +2546,6 @@ export function BusinessRepaymentSourceForm({
     }, 100);
   };
 
-  // Helper to get label from code using options
   const getLabel = (
     code: string,
     options: any[],
@@ -2634,25 +2560,31 @@ export function BusinessRepaymentSourceForm({
           opt.nationality_pk_code ||
           opt.identity_type_pk_code ||
           opt.marital_status_pk_code ||
+          opt.occupation_pk_code ||
           opt.occ_pk_code ||
           opt.lgal_constitution_pk_code ||
           opt.dzongkhag_pk_code ||
           opt.gewog_pk_code ||
+          opt.curr_gewog_pk_code ||
+          opt.pk_gewog_id ||
           opt.pep_category_pk_code ||
           opt.pep_sub_category_pk_code ||
-          opt.id,
+          opt.tax_identifier_type_pk_code ||
+          opt.pk_code ||
+          opt.id ||
+          opt.code ||
+          "",
         ) === String(code),
     );
     if (option) {
-      return option[labelField] || option.name || "";
+      return option[labelField] || option.name || option.label || "";
     }
-    return "";
+    return code;
   };
 
   const handleNext = () => {
     let isValid = true;
 
-    // 1. Validate Business Income
     const newBusinessErrors: Record<string, string> = {};
     if (!businessIncomeData.amount) {
       newBusinessErrors.amount = "Amount is required";
@@ -2664,17 +2596,13 @@ export function BusinessRepaymentSourceForm({
     }
     setBusinessErrors(newBusinessErrors);
 
-    // 2. Validate Guarantors (if applicable)
     if (isGuarantorApplicable === "Yes") {
       if (guarantors.length === 0) {
         alert("Please add at least one guarantor");
         return;
       }
 
-      // Use the pure function to get the latest validation state
       const { allValid, updatedGuarantors } = calculateGuarantorValidation();
-
-      // Update state regardless of validity to show errors
       setGuarantors(updatedGuarantors);
 
       if (!allValid) {
@@ -2688,12 +2616,10 @@ export function BusinessRepaymentSourceForm({
       return;
     }
 
-    // --- Prepare data for session storage: replace codes with labels ---
     const repaymentSourceData = {
-      businessIncome: businessIncomeData, // already contains fileId and fileName
+      businessIncome: businessIncomeData,
       isGuarantorApplicable,
       guarantors: guarantors.map((g) => {
-        // Extract temporary options and metadata (they won't be stored)
         const {
           permGewogOptions,
           currGewogOptions,
@@ -2707,127 +2633,23 @@ export function BusinessRepaymentSourceForm({
           ...cleanGuarantor
         } = g;
 
-        // Replace codes with labels in the original fields
-        if (cleanGuarantor.idType) {
-          cleanGuarantor.idType = getLabel(cleanGuarantor.idType, identificationTypeOptions, "identity_type");
-        }
-        if (cleanGuarantor.nationality) {
-          cleanGuarantor.nationality = getLabel(cleanGuarantor.nationality, nationalityOptions, "nationality");
-        }
-        if (cleanGuarantor.maritalStatus) {
-          cleanGuarantor.maritalStatus = getLabel(cleanGuarantor.maritalStatus, maritalStatusOptions, "marital_status");
-        }
-        if (cleanGuarantor.bankName) {
-          cleanGuarantor.bankName = getLabel(cleanGuarantor.bankName, banksOptions, "bank_name");
-        }
-        if (cleanGuarantor.permCountry) {
-          cleanGuarantor.permCountry = getLabel(cleanGuarantor.permCountry, countryOptions, "country");
-        }
-        if (cleanGuarantor.permDzongkhag) {
-          cleanGuarantor.permDzongkhag = getLabel(cleanGuarantor.permDzongkhag, dzongkhagOptions, "dzongkhag");
-        }
-        if (cleanGuarantor.permGewog) {
-          cleanGuarantor.permGewog = getLabel(cleanGuarantor.permGewog, permGewogOptions, "gewog");
-        }
-        if (cleanGuarantor.currCountry) {
-          cleanGuarantor.currCountry = getLabel(cleanGuarantor.currCountry, countryOptions, "country");
-        }
-        if (cleanGuarantor.currDzongkhag) {
-          cleanGuarantor.currDzongkhag = getLabel(cleanGuarantor.currDzongkhag, dzongkhagOptions, "dzongkhag");
-        }
-        if (cleanGuarantor.currGewog) {
-          cleanGuarantor.currGewog = getLabel(cleanGuarantor.currGewog, currGewogOptions, "gewog");
-        }
-
-        // Spouse fields
-        if (cleanGuarantor.spouseIdType) {
-          cleanGuarantor.spouseIdType = getLabel(cleanGuarantor.spouseIdType, identificationTypeOptions, "identity_type");
-        }
-        if (cleanGuarantor.spouseNationality) {
-          cleanGuarantor.spouseNationality = getLabel(cleanGuarantor.spouseNationality, nationalityOptions, "nationality");
-        }
-        if (cleanGuarantor.spousePermCountry) {
-          cleanGuarantor.spousePermCountry = getLabel(cleanGuarantor.spousePermCountry, countryOptions, "country");
-        }
-        if (cleanGuarantor.spousePermDzongkhag) {
-          cleanGuarantor.spousePermDzongkhag = getLabel(cleanGuarantor.spousePermDzongkhag, dzongkhagOptions, "dzongkhag");
-        }
-        if (cleanGuarantor.spousePermGewog) {
-          cleanGuarantor.spousePermGewog = getLabel(cleanGuarantor.spousePermGewog, spousePermGewogOptions, "gewog");
-        }
-
-        // PEP fields
-        if (cleanGuarantor.pepCategory) {
-          cleanGuarantor.pepCategory = getLabel(cleanGuarantor.pepCategory, pepCategoryOptions, "pep_category");
-        }
-        if (cleanGuarantor.pepSubCategory) {
-          cleanGuarantor.pepSubCategory = getLabel(cleanGuarantor.pepSubCategory, pepSubCategoryOptions, "pep_sub_category");
-        }
-        if (cleanGuarantor.occupation) {
-          cleanGuarantor.occupation = getLabel(cleanGuarantor.occupation, occupationOptions, "occ_name");
-        }
-        if (cleanGuarantor.organizationName) {
-          cleanGuarantor.organizationName = getLabel(cleanGuarantor.organizationName, organizationOptions, "lgal_constitution");
-        }
-        if (cleanGuarantor.taxIdentifierType) {
-          cleanGuarantor.taxIdentifierType = getLabel(cleanGuarantor.taxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type");
-        }
-        if (cleanGuarantor.spouseTaxIdentifierType) {
-          cleanGuarantor.spouseTaxIdentifierType = getLabel(cleanGuarantor.spouseTaxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type");
-        }
-
-        // Related PEPs
-        if (cleanGuarantor.relatedPeps && cleanGuarantor.relatedPeps.length > 0) {
-          cleanGuarantor.relatedPeps = cleanGuarantor.relatedPeps.map((pep: any, idx: number) => {
-            const pepCopy = { ...pep };
-            if (pepCopy.category) {
-              pepCopy.category = getLabel(pepCopy.category, pepCategoryOptions, "pep_category");
+        if (cleanGuarantor.relatedPeps) {
+          cleanGuarantor.relatedPeps = cleanGuarantor.relatedPeps.map(
+            (pep: any) => {
+              const {
+                permGewogOptions: _pgo,
+                currGewogOptions: _cgo,
+                ...cleanPep
+              } = pep;
+              return cleanPep;
             }
-            if (pepCopy.subCategory) {
-              pepCopy.subCategory = getLabel(pepCopy.subCategory, relatedPepOptionsMap?.[idx] || [], "pep_sub_category");
-            }
-            if (pepCopy.identificationType) {
-              pepCopy.identificationType = getLabel(pepCopy.identificationType, identificationTypeOptions, "identity_type");
-            }
-            if (pepCopy.nationality) {
-              pepCopy.nationality = getLabel(pepCopy.nationality, nationalityOptions, "nationality");
-            }
-            if (pepCopy.maritalStatus) {
-              pepCopy.maritalStatus = getLabel(pepCopy.maritalStatus, maritalStatusOptions, "marital_status");
-            }
-            if (pepCopy.taxIdentifierType) {
-              pepCopy.taxIdentifierType = getLabel(pepCopy.taxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type");
-            }
-            if (pepCopy.permCountry) {
-              pepCopy.permCountry = getLabel(pepCopy.permCountry, countryOptions, "country");
-            }
-            if (pepCopy.permDzongkhag) {
-              pepCopy.permDzongkhag = getLabel(pepCopy.permDzongkhag, dzongkhagOptions, "dzongkhag");
-            }
-            if (pepCopy.permGewog) {
-              pepCopy.permGewog = getLabel(pepCopy.permGewog, pepCopy.permGewogOptions || [], "gewog");
-            }
-            if (pepCopy.currCountry) {
-              pepCopy.currCountry = getLabel(pepCopy.currCountry, countryOptions, "country");
-            }
-            if (pepCopy.currDzongkhag) {
-              pepCopy.currDzongkhag = getLabel(pepCopy.currDzongkhag, dzongkhagOptions, "dzongkhag");
-            }
-            if (pepCopy.currGewog) {
-              pepCopy.currGewog = getLabel(pepCopy.currGewog, pepCopy.currGewogOptions || [], "gewog");
-            }
-            // Remove temporary options arrays
-            delete pepCopy.permGewogOptions;
-            delete pepCopy.currGewogOptions;
-            return pepCopy;
-          });
+          );
         }
 
         return cleanGuarantor;
       }),
     };
 
-    // Merge with existing session data under "businessRepaymentSourceDetail"
     const existingData = sessionStorage.getItem("businessLoanApplicationData");
     const allData = existingData ? JSON.parse(existingData) : {};
     const updatedData = {
@@ -2837,7 +2659,7 @@ export function BusinessRepaymentSourceForm({
 
     sessionStorage.setItem(
       "businessLoanApplicationData",
-      JSON.stringify(updatedData),
+      JSON.stringify(updatedData)
     );
 
     onNext(repaymentSourceData);
@@ -3289,7 +3111,6 @@ export function BusinessRepaymentSourceForm({
                         )}
                       </div>
 
-                      {/* NEW: Identification Proof Upload (Guarantor) */}
                       <div>
                         <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                           Identification Proof
@@ -3384,9 +3205,9 @@ export function BusinessRepaymentSourceForm({
                           </SelectTrigger>
                           <SelectContent>
                             {personalIncomeTaxOptions.length > 0 ? (
-                              personalIncomeTaxOptions.map((option, idx) => {
+                              personalIncomeTaxOptions.map((option) => {
                                 const value = String(
-                                  option.tax_identifier_type_pk_code || option.id || option.code || idx
+                                  option.tax_identifier_type_pk_code || option.id || option.code || option.tax_identifier_type || option.name
                                 );
                                 const label = option.tax_identifier_type || option.name || option.label || "Unknown";
                                 return (
@@ -3396,6 +3217,7 @@ export function BusinessRepaymentSourceForm({
                                 );
                               })
                             ) : (
+
                               <SelectItem value="loading" disabled>
                                 Loading...
                               </SelectItem>
@@ -6734,8 +6556,7 @@ export function BusinessRepaymentSourceForm({
                                 </Label>
                               </div>
                             ),
-                          )}
-                        </RadioGroup>
+                          )}</RadioGroup>
                       </div>
                       {errors.employmentStatus && (
                         <p className="text-xs text-red-500 mt-1">
@@ -7426,6 +7247,30 @@ export function BusinessRepaymentSourceForm({
 
                           <div>
                             <Label className="text-gray-800 font-semibold text-sm mb-2 block">
+                              TPN No.
+                            </Label>
+                            <RestrictedInput
+                              allowed="numeric"
+                              maxLength={11}
+                              value={guarantor.spouseTpnNumber || ""}
+                              onChange={(e) =>
+                                updateGuarantorField(index, "spouseTpnNumber", e.target.value)
+                              }
+                              onBlur={(e) =>
+                                handleBlurField(index, "spouseTpnNumber", e.target.value)
+                              }
+                              className={getFieldStyle(!!errors.spouseTpnNumber)}
+                              placeholder="Enter TPN"
+                            />
+                            {errors.spouseTpnNumber && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.spouseTpnNumber}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <Label className="text-gray-800 font-semibold text-sm mb-2 block">
                               Tax Identifier Type
                             </Label>
                             <Select
@@ -7447,9 +7292,9 @@ export function BusinessRepaymentSourceForm({
                               </SelectTrigger>
                               <SelectContent>
                                 {personalIncomeTaxOptions.length > 0 ? (
-                                  personalIncomeTaxOptions.map((option, idx) => {
+                                  personalIncomeTaxOptions.map((option) => {
                                     const value = String(
-                                      option.tax_identifier_type_pk_code || option.id || option.code || idx
+                                      option.tax_identifier_type_pk_code || option.id || option.code || option.tax_identifier_type || option.name
                                     );
                                     const label = option.tax_identifier_type || option.name || option.label || "Unknown";
                                     return (
@@ -7459,6 +7304,7 @@ export function BusinessRepaymentSourceForm({
                                     );
                                   })
                                 ) : (
+
                                   <SelectItem value="loading" disabled>
                                     Loading...
                                   </SelectItem>
@@ -7716,8 +7562,7 @@ export function BusinessRepaymentSourceForm({
                                   )
                                 }
                                 onBlur={(e) =>
-                                  handleBlurField(
-                                    index,
+                                  handleBlurField(index,
                                     "spousePermGewog",
                                     e.target.value,
                                   )

@@ -44,19 +44,19 @@ export async function fetchWithRetry(
 ): Promise<Response> {
   try {
     const response = await fetch(url, options)
-    
+
     // If rate limited (429), retry with exponential backoff
     if (response.status === 429 && retries > 0) {
       const retryAfter = response.headers.get('Retry-After')
-      const delayMs = retryAfter 
-        ? parseInt(retryAfter) * 1000 
+      const delayMs = retryAfter
+        ? parseInt(retryAfter) * 1000
         : API_CONFIG.RETRY_DELAY * (API_CONFIG.MAX_RETRIES - retries + 1)
-      
+
       console.warn(`Rate limited. Retrying after ${delayMs}ms... (${retries} retries left)`)
       await delay(delayMs)
       return fetchWithRetry(url, options, retries - 1)
     }
-    
+
     return response
   } catch (error) {
     if (retries > 0) {

@@ -19,7 +19,7 @@ async function fetchCDMSData(endpoint: string, cacheKey: string) {
     )
 
     if (!response.ok) {
-      if (response.status === 429) {
+      if (response.status === 1429) {
         throw new Error('Rate limit exceeded. Please wait and try again.')
       }
       throw new Error(`HTTP error! status: ${response.status}`)

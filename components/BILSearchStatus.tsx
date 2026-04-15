@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 import { startNdiFlow } from "@/lib/startNdiFlow";
+import { mapNdiDataToCoBorrower } from "@/lib/mapNdiData";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
 
@@ -100,12 +101,15 @@ export default function DocumentPopup({
 
         console.log("NDI DATA RECEIVED:", data);
 
-        const userData = data.attributes;
+        const rawData = data.attributes;
+
+        const mappedData = mapNdiDataToCoBorrower(rawData);
+        // const userData = data.attributes;
 
         // ✅ Store NDI user data
         sessionStorage.setItem(
           "ndiCoBorrowerUserData",
-          JSON.stringify(userData)
+          JSON.stringify(mappedData)
         );
 
         // Optional: store full response
@@ -221,16 +225,30 @@ export default function DocumentPopup({
             </div>
 
             {/* Actions */}
-            <Button
-              onClick={handleNewUserNDI}
-              disabled={loading}
-              variant="outline"
-              className="w-full h-12 border-2 border-[#003DA5] text-[#003DA5] hover:bg-[#003DA5] hover:text-white font-semibold rounded-xl gap-2 flex items-center justify-center"
-            >
-              {loading ? "Generating QR..." : "Continue with NDI"}
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              <QrCode className="h-4 w-4" />
-            </Button>
+          <Button
+            onClick={handleNewUserNDI}
+            disabled={loading}
+            variant="outline"
+            className="w-full h-12 border-2 border-[#092215] text-[#092215] hover:bg-[#0f3926] hover:text-white font-semibold rounded-xl flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Waiting
+              </>
+            ) : (
+              <>
+                <Image
+                  src="/ButtonNDILogo.svg"   // 👈 put your NDI logo in public folder
+                  alt="NDI Logo"
+                  width={28}
+                  height={28}
+                  className="object-contain"
+                />
+                Receive Credentials
+              </>
+            )}
+          </Button>
 
             <Button
               onClick={handleNotAction}

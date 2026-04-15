@@ -28,10 +28,10 @@ import {
 // Import for lookup functionality
 import { mapCustomerDataToForm } from "@/lib/mapCustomerData";
 import DocumentPopup from "@/components/BILSearchStatus";
-// NEW: Import the DocumentPopupOnly component for "Others" business types
 import DocumentPopupOnly from "@/components/BILSearchStatusOnly";
+import BILBusinessSearch from "@/components/BILBusinessSearch";
 
-// ================== IndexedDB File Storage (external) ==================
+// ================== IndexedDB File Storage ==================
 import { storeFile, deleteFile } from "@/lib/indexDB";
 
 import {
@@ -185,8 +185,10 @@ const findPkCodeByLabel = (
     const inputWords = trimmedLabel.split(/\s+/).filter((w) => w.length > 0);
 
     // Handle case where options are an array of strings (not objects)
-    if (options.length > 0 && typeof options[0] === 'string') {
-        const found = options.find(opt => String(opt).trim().toLowerCase() === trimmedLabel);
+    if (options.length > 0 && typeof options[0] === "string") {
+        const found = options.find(
+            (opt) => String(opt).trim().toLowerCase() === trimmedLabel,
+        );
         return found ? String(found) : label;
     }
 
@@ -195,9 +197,7 @@ const findPkCodeByLabel = (
             const optionValue = String(option[field] || "");
             const trimmedOption = optionValue.trim().toLowerCase();
             const strippedOption = trimmedOption.replace(/\s+/g, "");
-            const optionWords = trimmedOption
-                .split(/\s+/)
-                .filter((w) => w.length > 0);
+            const optionWords = trimmedOption.split(/\s+/).filter((w) => w.length > 0);
 
             // 1. Exact stripped match (handles inconsistent spacing)
             if (strippedOption === strippedLabel) {
@@ -328,7 +328,7 @@ const findLabelById = (
     if (!id) return "";
 
     // Handle case where options are an array of strings
-    if (options.length > 0 && typeof options[0] === 'string') {
+    if (options.length > 0 && typeof options[0] === "string") {
         return options.includes(String(id)) ? String(id) : id;
     }
 
@@ -352,7 +352,7 @@ const findLabelById = (
                 opt.industry_classification_pk_code ||
                 opt.industry_pk_code ||
                 opt.inds_class_pk_code ||
-                opt.tax_identifier_type_pk_code
+                opt.tax_identifier_type_pk_code,
             ) === String(id),
     );
     if (!option) return id; // fallback to the ID itself
@@ -424,8 +424,8 @@ const ComprehensiveOwnerDetails = ({
     countryOptions,
     dzongkhagOptions,
     identificationTypeOptions,
-    maritalStatusOptions, // new prop
-    taxIdentifierTypeOptions,  // <-- NEW prop
+    maritalStatusOptions,
+    taxIdentifierTypeOptions,
     title = "Personal Information",
     isPartner = false,
     onRemove,
@@ -434,13 +434,12 @@ const ComprehensiveOwnerDetails = ({
     onClearError,
     onSetError,
     onValidateField,
-    // New conditional rendering props
     hidePepDeclaration = false,
     hideEmployment = false,
     hideBank = false,
     hideFamilyTree = false,
-    hideSpouse = false, // added to hide spouse section (e.g., for related PEPs)
-    businessType, // to know if shareholder >25% validation applies
+    hideSpouse = false,
+    businessType,
 }: {
     data: any;
     onUpdate: (newData: any) => void;
@@ -448,7 +447,7 @@ const ComprehensiveOwnerDetails = ({
     dzongkhagOptions: any[];
     identificationTypeOptions: any[];
     maritalStatusOptions: any[];
-    taxIdentifierTypeOptions?: any[];   // <-- NEW prop
+    taxIdentifierTypeOptions?: any[];
     title?: string;
     isPartner?: boolean;
     onRemove?: () => void;
@@ -461,8 +460,8 @@ const ComprehensiveOwnerDetails = ({
     hideEmployment?: boolean;
     hideBank?: boolean;
     hideFamilyTree?: boolean;
-    hideSpouse?: boolean; // added
-    businessType?: string; // added
+    hideSpouse?: boolean;
+    businessType?: string;
 }) => {
     // Local Options State (remaining ones)
     const [banksOptions, setBanksOptions] = useState<any[]>([]);
@@ -520,7 +519,8 @@ const ComprehensiveOwnerDetails = ({
         if (result.identificationType) {
             result.identificationType = findLabelById(
                 result.identificationType,
-                identificationTypeOptions, ["identification_type", "identity_type", "name"],
+                identificationTypeOptions,
+                ["identification_type", "identity_type", "name"],
             );
         }
 
@@ -542,7 +542,7 @@ const ComprehensiveOwnerDetails = ({
             );
         }
 
-        // Tax Identifier Type   <-- NEW
+        // Tax Identifier Type
         if (result.taxIdentifierType && taxIdentifierTypeOptions?.length) {
             result.taxIdentifierType = findLabelById(
                 result.taxIdentifierType,
@@ -571,7 +571,8 @@ const ComprehensiveOwnerDetails = ({
         if (result.permDzongkhag) {
             result.permDzongkhag = findLabelById(
                 result.permDzongkhag,
-                dzongkhagOptions, ["dzongkhag_name", "dzongkhag"],
+                dzongkhagOptions,
+                ["dzongkhag_name", "dzongkhag"],
             );
         }
 
@@ -620,7 +621,8 @@ const ComprehensiveOwnerDetails = ({
         if (result.pepCategory) {
             result.pepCategory = findLabelById(
                 result.pepCategory,
-                pepCategoryOptions, ["pep_category", "name"],
+                pepCategoryOptions,
+                ["pep_category", "name"],
             );
         }
 
@@ -670,7 +672,7 @@ const ComprehensiveOwnerDetails = ({
                 ["nationality", "name"],
             );
         }
-        if (result.spouseTaxIdentifierType && taxIdentifierTypeOptions?.length) {   // <-- NEW
+        if (result.spouseTaxIdentifierType && taxIdentifierTypeOptions?.length) {
             result.spouseTaxIdentifierType = findLabelById(
                 result.spouseTaxIdentifierType,
                 taxIdentifierTypeOptions,
@@ -802,23 +804,21 @@ const ComprehensiveOwnerDetails = ({
     const handleLookupProceed = () => {
         if (lookupStatus === "found" && fetchedCustomerData) {
             // --- 1. PRE-CALCULATE IDs FROM LABELS ---
-            // This is crucial because the API returns labels (e.g., "Bhutan") but Select components expect IDs.
-            // We do this immediately using the props/state available so the user sees filled values instantly.
-
-            // Map Country IDs
             const mappedPermCountry = findPkCodeByLabel(
                 fetchedCustomerData.permCountry,
-                countryOptions, ["country_name", "country", "name", "label"],
+                countryOptions,
+                ["country_name", "country", "name", "label"],
             );
             const mappedCurrCountry = findPkCodeByLabel(
                 fetchedCustomerData.currCountry,
-                countryOptions, ["country_name", "country", "name", "label"],
+                countryOptions,
+                ["country_name", "country", "name", "label"],
             );
 
-            // Map Dzongkhag IDs (if available in props)
             const mappedPermDzongkhag = findPkCodeByLabel(
                 fetchedCustomerData.permDzongkhag,
-                dzongkhagOptions, ["dzongkhag_name", "dzongkhag", "name", "label"],
+                dzongkhagOptions,
+                ["dzongkhag_name", "dzongkhag", "name", "label"],
             );
             const mappedCurrDzongkhag = findPkCodeByLabel(
                 fetchedCustomerData.currDzongkhag,
@@ -826,7 +826,6 @@ const ComprehensiveOwnerDetails = ({
                 ["dzongkhag_name", "dzongkhag", "name", "label"],
             );
 
-            // Map Nationality ID (using internal options state if loaded, otherwise reliance on Effect)
             let mappedNationality = fetchedCustomerData.nationality;
             if (nationalityOptions.length > 0) {
                 mappedNationality = findPkCodeByLabel(
@@ -836,14 +835,12 @@ const ComprehensiveOwnerDetails = ({
                 );
             }
 
-            // Map Marital Status ID
             const mappedMaritalStatus = findPkCodeByLabel(
                 fetchedCustomerData.maritalStatus,
                 maritalStatusOptions,
                 ["marital_status", "name", "label"],
             );
 
-            // Map Tax Identifier Type   <-- NEW
             let mappedTaxIdentifierType = fetchedCustomerData.taxIdentifierType;
             if (taxIdentifierTypeOptions?.length) {
                 mappedTaxIdentifierType = findPkCodeByLabel(
@@ -871,8 +868,6 @@ const ComprehensiveOwnerDetails = ({
             }
 
             // --- 3. MAP EMPLOYER TYPE ---
-            // Form expects: "government", "private", "corporate"
-            // API might return: "Non-Bank Financial Institutions", "Government", etc.
             let mappedEmployerType = "";
             const rawOrgType = (
                 fetchedCustomerData.organizationType || ""
@@ -891,7 +886,6 @@ const ComprehensiveOwnerDetails = ({
             } else if (rawOrgType.includes("private")) {
                 mappedEmployerType = "private";
             } else if (inferredEmploymentStatus === "employed") {
-                // Default to private if employed but type unknown
                 mappedEmployerType = "private";
             }
 
@@ -905,7 +899,8 @@ const ComprehensiveOwnerDetails = ({
                 currCountry: mappedCurrCountry || fetchedCustomerData.currCountry,
                 currDzongkhag: mappedCurrDzongkhag || fetchedCustomerData.currDzongkhag,
                 maritalStatus: mappedMaritalStatus || fetchedCustomerData.maritalStatus,
-                taxIdentifierType: mappedTaxIdentifierType || fetchedCustomerData.taxIdentifierType,   // <-- NEW
+                taxIdentifierType:
+                    mappedTaxIdentifierType || fetchedCustomerData.taxIdentifierType,
 
                 // Map Dates
                 identificationIssueDate: formatDateForInput(
@@ -922,8 +917,6 @@ const ComprehensiveOwnerDetails = ({
                 employerType: mappedEmployerType,
 
                 // Fields directly from API that might need string conversion
-                // IMPORTANT: We pass the raw string for Gewogs initially.
-                // The useEffect will map these to IDs once the dependent options load.
                 permGewog: fetchedCustomerData.permGewog
                     ? String(fetchedCustomerData.permGewog)
                     : "",
@@ -933,14 +926,10 @@ const ComprehensiveOwnerDetails = ({
                 occupation: fetchedCustomerData.occupation
                     ? String(fetchedCustomerData.occupation)
                     : "",
-                // Pass organization name directly as it is a text field now
                 organizationName: fetchedCustomerData.organizationName
                     ? String(fetchedCustomerData.organizationName)
                     : "",
-                grade: fetchedCustomerData.grade
-                    ? String(fetchedCustomerData.grade)
-                    : "",
-                // Map alternate contact number to the form's expected field
+                grade: fetchedCustomerData.grade ? String(fetchedCustomerData.grade) : "",
                 currAlternateContact: fetchedCustomerData.alternateContactNo || "",
                 householdNumber: fetchedCustomerData.householdNumber || "",
             };
@@ -955,7 +944,6 @@ const ComprehensiveOwnerDetails = ({
 
             onUpdate(newData);
             if (personId) {
-                // Also store in session (converted to labels)
                 const storableData = convertPersonToStorable(newData);
                 sessionStorage.setItem(
                     `verifiedPersonData_${personId}`,
@@ -996,8 +984,7 @@ const ComprehensiveOwnerDetails = ({
         if (nationalityOptions.length > 0 && data.nationality) {
             const isValid = nationalityOptions.some(
                 (opt) =>
-                    String(opt.id || opt.nationality_pk_code) ===
-                    String(data.nationality),
+                    String(opt.id || opt.nationality_pk_code) === String(data.nationality),
             );
             if (!isValid) {
                 const pkCode = findPkCodeByLabel(data.nationality, nationalityOptions, [
@@ -1053,7 +1040,7 @@ const ComprehensiveOwnerDetails = ({
         }
     }, [maritalStatusOptions, data.maritalStatus]);
 
-    // Convert taxIdentifierType label to pk_code   <-- NEW
+    // Convert taxIdentifierType label to pk_code
     useEffect(() => {
         if (taxIdentifierTypeOptions?.length && data.taxIdentifierType) {
             const isValid = taxIdentifierTypeOptions.some(
@@ -1153,8 +1140,7 @@ const ComprehensiveOwnerDetails = ({
         ) {
             const isValid = dzongkhagOptions.some(
                 (opt) =>
-                    String(opt.dzongkhag_pk_code || opt.id) ===
-                    String(data.permDzongkhag),
+                    String(opt.dzongkhag_pk_code || opt.id) === String(data.permDzongkhag),
             );
             if (!isValid) {
                 const pkCode = findPkCodeByLabel(data.permDzongkhag, dzongkhagOptions, [
@@ -1177,8 +1163,7 @@ const ComprehensiveOwnerDetails = ({
         ) {
             const isValid = dzongkhagOptions.some(
                 (opt) =>
-                    String(opt.dzongkhag_pk_code || opt.id) ===
-                    String(data.currDzongkhag),
+                    String(opt.dzongkhag_pk_code || opt.id) === String(data.currDzongkhag),
             );
             if (!isValid) {
                 const pkCode = findPkCodeByLabel(data.currDzongkhag, dzongkhagOptions, [
@@ -1192,17 +1177,120 @@ const ComprehensiveOwnerDetails = ({
         }
     }, [dzongkhagOptions, data.currDzongkhag, data.currCountry]);
 
+    // --- Spouse conversion hooks ---
+    // Convert spouseIdentificationType label to pk_code
+    useEffect(() => {
+        if (identificationTypeOptions.length > 0 && data.spouseIdentificationType) {
+            const isValid = identificationTypeOptions.some(
+                (opt) =>
+                    String(opt.id || opt.identification_type_id || opt.identity_type_pk_code) ===
+                    String(data.spouseIdentificationType),
+            );
+            if (!isValid) {
+                const pkCode = findPkCodeByLabel(
+                    data.spouseIdentificationType,
+                    identificationTypeOptions,
+                    ["identification_type", "identity_type", "name"],
+                );
+                if (pkCode && pkCode !== data.spouseIdentificationType) {
+                    updateField("spouseIdentificationType", pkCode);
+                }
+            }
+        }
+    }, [identificationTypeOptions, data.spouseIdentificationType]);
+
+    // Convert spouseNationality label to pk_code
+    useEffect(() => {
+        if (nationalityOptions.length > 0 && data.spouseNationality) {
+            const isValid = nationalityOptions.some(
+                (opt) =>
+                    String(opt.id || opt.nationality_pk_code) === String(data.spouseNationality),
+            );
+            if (!isValid) {
+                const pkCode = findPkCodeByLabel(
+                    data.spouseNationality,
+                    nationalityOptions,
+                    ["nationality", "name"],
+                );
+                if (pkCode && pkCode !== data.spouseNationality) {
+                    updateField("spouseNationality", pkCode);
+                }
+            }
+        }
+    }, [nationalityOptions, data.spouseNationality]);
+
+    // Convert spousePermCountry label to pk_code
+    useEffect(() => {
+        if (countryOptions.length > 0 && data.spousePermCountry) {
+            const isValid = countryOptions.some(
+                (opt) =>
+                    String(opt.country_pk_code || opt.id) === String(data.spousePermCountry),
+            );
+            if (!isValid) {
+                const pkCode = findPkCodeByLabel(data.spousePermCountry, countryOptions, [
+                    "country_name",
+                    "country",
+                ]);
+                if (pkCode && pkCode !== data.spousePermCountry) {
+                    updateField("spousePermCountry", pkCode);
+                }
+            }
+        }
+    }, [countryOptions, data.spousePermCountry]);
+
+    // Convert spousePermDzongkhag label to pk_code (only if Bhutan)
+    useEffect(() => {
+        if (
+            isBhutan(data.spousePermCountry) &&
+            dzongkhagOptions.length > 0 &&
+            data.spousePermDzongkhag
+        ) {
+            const isValid = dzongkhagOptions.some(
+                (opt) =>
+                    String(opt.dzongkhag_pk_code || opt.id) ===
+                    String(data.spousePermDzongkhag),
+            );
+            if (!isValid) {
+                const pkCode = findPkCodeByLabel(
+                    data.spousePermDzongkhag,
+                    dzongkhagOptions,
+                    ["dzongkhag_name", "dzongkhag"],
+                );
+                if (pkCode && pkCode !== data.spousePermDzongkhag) {
+                    updateField("spousePermDzongkhag", pkCode);
+                }
+            }
+        }
+    }, [dzongkhagOptions, data.spousePermDzongkhag, data.spousePermCountry]);
+
+    // Convert spouseTaxIdentifierType label to pk_code
+    useEffect(() => {
+        if (taxIdentifierTypeOptions?.length && data.spouseTaxIdentifierType) {
+            const isValid = taxIdentifierTypeOptions.some(
+                (opt) =>
+                    String(opt.tax_identifier_type_pk_code || opt.id) ===
+                    String(data.spouseTaxIdentifierType),
+            );
+            if (!isValid) {
+                const pkCode = findPkCodeByLabel(
+                    data.spouseTaxIdentifierType,
+                    taxIdentifierTypeOptions,
+                    ["tax_identifier_type", "name", "label"],
+                );
+                if (pkCode && pkCode !== data.spouseTaxIdentifierType) {
+                    updateField("spouseTaxIdentifierType", pkCode);
+                }
+            }
+        }
+    }, [taxIdentifierTypeOptions, data.spouseTaxIdentifierType]);
+
     // --- Logic: Address Gewogs ---
 
     // 1. Fetch Options when Dzongkhag changes
     useEffect(() => {
-        // Only fetch if data.permDzongkhag is present
         if (data.permDzongkhag) {
-            // Check if it's an ID (numeric) or a label
-            const isId = /^\d+$/.test(data.permDzongkhag);
-
-            // If it's a label, try to resolve it to an ID first
             let dzongkhagId = data.permDzongkhag;
+            const isId = /^\d+$/.test(dzongkhagId);
             if (!isId && dzongkhagOptions.length > 0) {
                 const resolved = findPkCodeByLabel(
                     data.permDzongkhag,
@@ -1211,7 +1299,6 @@ const ComprehensiveOwnerDetails = ({
                 );
                 if (resolved) dzongkhagId = resolved;
             }
-
             fetchGewogsByDzongkhag(dzongkhagId)
                 .then((res) => setPermGewogOptions(res?.data?.data || res || []))
                 .catch(() => setPermGewogOptions([]));
@@ -1222,11 +1309,8 @@ const ComprehensiveOwnerDetails = ({
 
     useEffect(() => {
         if (data.currDzongkhag) {
-            // Check if it's an ID (numeric) or a label
-            const isId = /^\d+$/.test(data.currDzongkhag);
-
-            // If it's a label, try to resolve it to an ID first
             let dzongkhagId = data.currDzongkhag;
+            const isId = /^\d+$/.test(dzongkhagId);
             if (!isId && dzongkhagOptions.length > 0) {
                 const resolved = findPkCodeByLabel(
                     data.currDzongkhag,
@@ -1235,7 +1319,6 @@ const ComprehensiveOwnerDetails = ({
                 );
                 if (resolved) dzongkhagId = resolved;
             }
-
             fetchGewogsByDzongkhag(dzongkhagId)
                 .then((res) => setCurrGewogOptions(res?.data?.data || res || []))
                 .catch(() => setCurrGewogOptions([]));
@@ -1248,7 +1331,6 @@ const ComprehensiveOwnerDetails = ({
     // Permanent Gewog conversion
     useEffect(() => {
         if (permGewogOptions.length > 0 && data.permGewog) {
-            // Check if the current value is already a valid ID in the options
             const isId = permGewogOptions.some(
                 (opt) =>
                     String(
@@ -1260,7 +1342,6 @@ const ComprehensiveOwnerDetails = ({
             );
 
             if (!isId) {
-                // If not an ID, try to match by label
                 const matchedId = findPkCodeByLabel(data.permGewog, permGewogOptions, [
                     "gewog_name",
                     "gewog",
@@ -1277,7 +1358,6 @@ const ComprehensiveOwnerDetails = ({
     // Current Gewog conversion
     useEffect(() => {
         if (currGewogOptions.length > 0 && data.currGewog) {
-            // Check if the current value is already a valid ID in the options
             const isId = currGewogOptions.some(
                 (opt) =>
                     String(
@@ -1289,7 +1369,6 @@ const ComprehensiveOwnerDetails = ({
             );
 
             if (!isId) {
-                // If not an ID, try to match by label
                 const matchedId = findPkCodeByLabel(data.currGewog, currGewogOptions, [
                     "gewog_name",
                     "gewog",
@@ -1345,10 +1424,18 @@ const ComprehensiveOwnerDetails = ({
         updateField("relatedPeps", newPeps);
     };
 
+    // ** FIX: Improved isMarried function to also recognize the label "married" directly **
     const isMarried = () => {
-        return isMarriedStatusFromOptions(data.maritalStatus, maritalStatusOptions);
+        const status = data.maritalStatus;
+        if (!status) return false;
+        // If status is a string like "Married" (label) directly, treat as married
+        const lowerStatus = status.toString().toLowerCase();
+        if (lowerStatus === "married") return true;
+        // Otherwise, use the options to check
+        return isMarriedStatusFromOptions(status, maritalStatusOptions);
     };
 
+    // --- Corrected handleFileChange to batch updates ---
     const handleFileChange = async (fieldName: string, file: File | null) => {
         if (file) {
             const allowedTypes = [
@@ -1357,32 +1444,33 @@ const ComprehensiveOwnerDetails = ({
                 "image/jpg",
                 "image/png",
             ];
-            const maxSize = 5 * 1024 * 1024; // 5MB
 
             if (!allowedTypes.includes(file.type)) {
                 alert("Only PDF, JPG, JPEG, and PNG files are allowed");
                 return;
             }
-            if (file.size > maxSize) {
-                alert("File size must be less than 5MB");
-                return;
-            }
 
             try {
                 const fileId = await storeFile(file);
-                if (fieldName === "passportPhoto") {
-                    updateField("passportPhoto", fileId);
-                    updateField("passportPhotoName", file.name);
-                } else if (fieldName === "identityProof") {
-                    // NEW: identity proof upload
-                    updateField("identityProof", fileId);
-                    updateField("identityProofName", file.name);
-                } else {
-                    updateField(fieldName, fileId);
-                    updateField(`${fieldName}Name`, file.name);
+
+                // Batch the update into a single object to avoid stale closure state overwrites
+                const newData = {
+                    ...data,
+                    [fieldName]: fileId,
+                    [`${fieldName}Name`]: file.name,
+                };
+
+                onUpdate(newData);
+
+                if (personId) {
+                    const storableData = convertPersonToStorable(newData);
+                    sessionStorage.setItem(
+                        `verifiedPersonData_${personId}`,
+                        JSON.stringify(storableData),
+                    );
                 }
 
-                // 🔥 Explicitly clear error for this field
+                // Explicitly clear error for this field
                 if (onClearError) {
                     onClearError(getErrorKey(fieldName));
                 }
@@ -1404,42 +1492,6 @@ const ComprehensiveOwnerDetails = ({
                 onSetError(getErrorKey(field), errorMsg);
             } else {
                 onClearError(getErrorKey(field));
-            }
-        }
-    };
-
-    const handleSpouseFileChange = async (fieldName: string, file: File | null) => {
-        if (file) {
-            const allowedTypes = [
-                "application/pdf",
-                "image/jpeg",
-                "image/jpg",
-                "image/png",
-            ];
-            const maxSize = 5 * 1024 * 1024; // 5MB
-
-            if (!allowedTypes.includes(file.type)) {
-                alert("Only PDF, JPG, JPEG, and PNG files are allowed");
-                return;
-            }
-            if (file.size > maxSize) {
-                alert("File size must be less than 5MB");
-                return;
-            }
-
-            try {
-                const fileId = await storeFile(file);
-                onUpdate({
-                    ...data,
-                    [fieldName]: fileId,
-                    [`${fieldName}Name`]: file.name,
-                });
-                if (onClearError) {
-                    onClearError(getErrorKey(fieldName));
-                }
-            } catch (error) {
-                console.error("Failed to store file", error);
-                alert("File upload failed. Please try again.");
             }
         }
     };
@@ -1479,7 +1531,8 @@ const ComprehensiveOwnerDetails = ({
             if (!isId) {
                 const matchedId = findPkCodeByLabel(
                     data.spousePermGewog,
-                    spousePermGewogOptions, ["gewog_name", "gewog", "name", "label"],
+                    spousePermGewogOptions,
+                    ["gewog_name", "gewog", "name", "label"],
                 );
                 if (matchedId && matchedId !== data.spousePermGewog) {
                     updateField("spousePermGewog", matchedId);
@@ -1488,7 +1541,7 @@ const ComprehensiveOwnerDetails = ({
         }
     }, [spousePermGewogOptions, data.spousePermGewog]);
 
-    // Convert spouse taxIdentifierType label to pk_code   <-- NEW
+    // Convert spouse taxIdentifierType label to pk_code (already present, but ensure it runs)
     useEffect(() => {
         if (taxIdentifierTypeOptions?.length && data.spouseTaxIdentifierType) {
             const isValid = taxIdentifierTypeOptions.some(
@@ -1509,6 +1562,7 @@ const ComprehensiveOwnerDetails = ({
         }
     }, [taxIdentifierTypeOptions, data.spouseTaxIdentifierType]);
 
+    // (Rest of the component remains the same: render, etc.)
     return (
         <div className="border border-gray-200 rounded-lg p-6 bg-gray-50/50 mb-6 relative">
             <div className="flex justify-between items-center mb-6">
@@ -1611,9 +1665,7 @@ const ComprehensiveOwnerDetails = ({
                                 maxLength={11}
                                 className={getFieldStyle(!!fieldError("identificationNo"))}
                                 value={data.identificationNo}
-                                onChange={(e) =>
-                                    updateField("identificationNo", e.target.value)
-                                }
+                                onChange={(e) => updateField("identificationNo", e.target.value)}
                                 onBlur={handleIdentityCheck}
                             />
                             {fieldError("identificationNo") && (
@@ -1629,9 +1681,7 @@ const ComprehensiveOwnerDetails = ({
                                 value={data.salutation ? data.salutation.toLowerCase() : ""}
                                 onValueChange={(v) => updateField("salutation", v)}
                             >
-                                <SelectTrigger
-                                    className={getFieldStyle(!!fieldError("salutation"))}
-                                >
+                                <SelectTrigger className={getFieldStyle(!!fieldError("salutation"))}>
                                     <SelectValue placeholder="Select" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1669,9 +1719,7 @@ const ComprehensiveOwnerDetails = ({
                                 value={data.nationality ? String(data.nationality) : ""}
                                 onValueChange={(v) => updateField("nationality", v)}
                             >
-                                <SelectTrigger
-                                    className={getFieldStyle(!!fieldError("nationality"))}
-                                >
+                                <SelectTrigger className={getFieldStyle(!!fieldError("nationality"))}>
                                     <SelectValue placeholder="Select" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1698,9 +1746,7 @@ const ComprehensiveOwnerDetails = ({
                                 value={data.gender ? data.gender.toLowerCase() : ""}
                                 onValueChange={(v) => updateField("gender", v)}
                             >
-                                <SelectTrigger
-                                    className={getFieldStyle(!!fieldError("gender"))}
-                                >
+                                <SelectTrigger className={getFieldStyle(!!fieldError("gender"))}>
                                     <SelectValue placeholder="Select" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1710,9 +1756,7 @@ const ComprehensiveOwnerDetails = ({
                                 </SelectContent>
                             </Select>
                             {fieldError("gender") && (
-                                <p className="text-xs text-red-500 mt-1">
-                                    {fieldError("gender")}
-                                </p>
+                                <p className="text-xs text-red-500 mt-1">{fieldError("gender")}</p>
                             )}
                         </div>
 
@@ -1720,9 +1764,7 @@ const ComprehensiveOwnerDetails = ({
                             <Label>Identification Issue Date *</Label>
                             <Input
                                 type="date"
-                                className={getFieldStyle(
-                                    !!fieldError("identificationIssueDate"),
-                                )}
+                                className={getFieldStyle(!!fieldError("identificationIssueDate"))}
                                 value={formatDateForInput(data.identificationIssueDate)}
                                 onChange={(e) =>
                                     updateField("identificationIssueDate", e.target.value)
@@ -1739,9 +1781,7 @@ const ComprehensiveOwnerDetails = ({
                             <Label>Identification Expiry Date *</Label>
                             <Input
                                 type="date"
-                                className={getFieldStyle(
-                                    !!fieldError("identificationExpiryDate"),
-                                )}
+                                className={getFieldStyle(!!fieldError("identificationExpiryDate"))}
                                 value={formatDateForInput(data.identificationExpiryDate)}
                                 onChange={(e) =>
                                     updateField("identificationExpiryDate", e.target.value)
@@ -1782,12 +1822,15 @@ const ComprehensiveOwnerDetails = ({
                                 </SelectTrigger>
                                 <SelectContent>
                                     {taxIdentifierTypeOptions?.length ? (
-                                        // In ownership details, show ONLY Personal Income Tax (PIT)
                                         taxIdentifierTypeOptions
                                             .filter((opt: any) => {
-                                                const label = (opt.tax_identifier_type || opt.name || "").toLowerCase();
+                                                const label = (
+                                                    opt.tax_identifier_type || opt.name || ""
+                                                ).toLowerCase();
                                                 // Include if label contains "personal income tax" or is exactly "pit"
-                                                return label.includes("personal income tax") || label === "pit";
+                                                return (
+                                                    label.includes("personal income tax") || label === "pit"
+                                                );
                                             })
                                             .map((opt: any, i) => (
                                                 <SelectItem
@@ -1798,7 +1841,9 @@ const ComprehensiveOwnerDetails = ({
                                                 </SelectItem>
                                             ))
                                     ) : (
-                                        <SelectItem value="loading" disabled>Loading...</SelectItem>
+                                        <SelectItem value="loading" disabled>
+                                            Loading...
+                                        </SelectItem>
                                     )}
                                 </SelectContent>
                             </Select>
@@ -1830,9 +1875,7 @@ const ComprehensiveOwnerDetails = ({
                                     allowed="alphanumeric"
                                     className={getFieldStyle(!!fieldError("householdNumber"))}
                                     value={data.householdNumber}
-                                    onChange={(e) =>
-                                        updateField("householdNumber", e.target.value)
-                                    }
+                                    onChange={(e) => updateField("householdNumber", e.target.value)}
                                 />
                                 {fieldError("householdNumber") && (
                                     <p className="text-xs text-red-500 mt-1">
@@ -1850,9 +1893,7 @@ const ComprehensiveOwnerDetails = ({
                                     className={getFieldStyle(!!fieldError("shareholdingPercent"))}
                                     value={data.shareholdingPercent}
                                     placeholder="e.g. 25"
-                                    onChange={(e) =>
-                                        updateField("shareholdingPercent", e.target.value)
-                                    }
+                                    onChange={(e) => updateField("shareholdingPercent", e.target.value)}
                                     min={0}
                                     max={100}
                                 />
@@ -1905,17 +1946,15 @@ const ComprehensiveOwnerDetails = ({
                                     className="hidden"
                                     accept=".pdf,.jpg,.jpeg,.png"
                                     onChange={(e) =>
-                                        handleFileChange(
-                                            "identityProof",
-                                            e.target.files?.[0] || null,
-                                        )
+                                        handleFileChange("identityProof", e.target.files?.[0] || null)
                                     }
                                 />
                                 <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className={`w-28 ${fieldError("identityProof") ? "border-red-500" : "bg-transparent"}`}
+                                    className={`w-28 ${fieldError("identityProof") ? "border-red-500" : "bg-transparent"
+                                        }`}
                                     onClick={() =>
                                         document
                                             .getElementById(`identity-proof-${data.id || "owner"}`)
@@ -1954,10 +1993,7 @@ const ComprehensiveOwnerDetails = ({
                                         className="hidden"
                                         accept=".pdf,.jpg,.jpeg,.png"
                                         onChange={(e) =>
-                                            handleFileChange(
-                                                "familyTree",
-                                                e.target.files?.[0] || null,
-                                            )
+                                            handleFileChange("familyTree", e.target.files?.[0] || null)
                                         }
                                     />
                                     <Button
@@ -1999,9 +2035,7 @@ const ComprehensiveOwnerDetails = ({
                                     value={data.bankName ? String(data.bankName) : ""}
                                     onValueChange={(v) => updateField("bankName", v)}
                                 >
-                                    <SelectTrigger
-                                        className={getFieldStyle(!!fieldError("bankName"))}
-                                    >
+                                    <SelectTrigger className={getFieldStyle(!!fieldError("bankName"))}>
                                         <SelectValue placeholder="Select" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -2058,17 +2092,15 @@ const ComprehensiveOwnerDetails = ({
                                         className="hidden"
                                         accept=".jpg,.jpeg,.png"
                                         onChange={(e) =>
-                                            handleFileChange(
-                                                "passportPhoto",
-                                                e.target.files?.[0] || null,
-                                            )
+                                            handleFileChange("passportPhoto", e.target.files?.[0] || null)
                                         }
                                     />
                                     <Button
                                         type="button"
                                         variant="outline"
                                         size="sm"
-                                        className={`w-28 ${fieldError("passportPhoto") ? "border-red-500" : "bg-transparent"}`}
+                                        className={`w-28 ${fieldError("passportPhoto") ? "border-red-500" : "bg-transparent"
+                                            }`}
                                         onClick={() =>
                                             document
                                                 .getElementById(`passport-${data.id || "owner"}`)
@@ -2103,9 +2135,7 @@ const ComprehensiveOwnerDetails = ({
                                     value={data.permCountry ? String(data.permCountry) : ""}
                                     onValueChange={(v) => updateField("permCountry", v)}
                                 >
-                                    <SelectTrigger
-                                        className={getFieldStyle(!!fieldError("permCountry"))}
-                                    >
+                                    <SelectTrigger className={getFieldStyle(!!fieldError("permCountry"))}>
                                         <SelectValue placeholder="Select" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -2175,7 +2205,9 @@ const ComprehensiveOwnerDetails = ({
                                                             o.curr_gewog_pk_code,
                                                         ) === String(data.permGewog),
                                                 )
-                                                    ? (data.permGewog ? String(data.permGewog) : "")
+                                                    ? data.permGewog
+                                                        ? String(data.permGewog)
+                                                        : ""
                                                     : ""
                                             }
                                             onValueChange={(v) => updateField("permGewog", v)}
@@ -2213,9 +2245,7 @@ const ComprehensiveOwnerDetails = ({
                                             allowed="alphanumeric"
                                             className={getFieldStyle(!!fieldError("permVillage"))}
                                             value={data.permVillage}
-                                            onChange={(e) =>
-                                                updateField("permVillage", e.target.value)
-                                            }
+                                            onChange={(e) => updateField("permVillage", e.target.value)}
                                         />
                                         {fieldError("permVillage") && (
                                             <p className="text-xs text-red-500 mt-1">
@@ -2260,9 +2290,7 @@ const ComprehensiveOwnerDetails = ({
                                             allowed="alpha"
                                             className={getFieldStyle(!!fieldError("permDzongkhag"))}
                                             value={data.permDzongkhag}
-                                            onChange={(e) =>
-                                                updateField("permDzongkhag", e.target.value)
-                                            }
+                                            onChange={(e) => updateField("permDzongkhag", e.target.value)}
                                         />
                                         {fieldError("permDzongkhag") && (
                                             <p className="text-xs text-red-500 mt-1">
@@ -2290,9 +2318,7 @@ const ComprehensiveOwnerDetails = ({
                                             allowed="alphanumeric"
                                             className={getFieldStyle(!!fieldError("permVillage"))}
                                             value={data.permVillage}
-                                            onChange={(e) =>
-                                                updateField("permVillage", e.target.value)
-                                            }
+                                            onChange={(e) => updateField("permVillage", e.target.value)}
                                         />
                                         {fieldError("permVillage") && (
                                             <p className="text-xs text-red-500 mt-1">
@@ -2321,7 +2347,10 @@ const ComprehensiveOwnerDetails = ({
                                                 type="button"
                                                 variant="outline"
                                                 size="sm"
-                                                className={`w-28 ${fieldError("permAddressProof") ? "border-red-500" : "bg-transparent"}`}
+                                                className={`w-28 ${fieldError("permAddressProof")
+                                                    ? "border-red-500"
+                                                    : "bg-transparent"
+                                                    }`}
                                                 onClick={() =>
                                                     document
                                                         .getElementById(`perm-proof-${data.id || "owner"}`)
@@ -2361,9 +2390,7 @@ const ComprehensiveOwnerDetails = ({
                                     value={data.currCountry ? String(data.currCountry) : ""}
                                     onValueChange={(v) => updateField("currCountry", v)}
                                 >
-                                    <SelectTrigger
-                                        className={getFieldStyle(!!fieldError("currCountry"))}
-                                    >
+                                    <SelectTrigger className={getFieldStyle(!!fieldError("currCountry"))}>
                                         <SelectValue placeholder="Select" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -2433,7 +2460,9 @@ const ComprehensiveOwnerDetails = ({
                                                             o.curr_gewog_pk_code,
                                                         ) === String(data.currGewog),
                                                 )
-                                                    ? (data.currGewog ? String(data.currGewog) : "")
+                                                    ? data.currGewog
+                                                        ? String(data.currGewog)
+                                                        : ""
                                                     : ""
                                             }
                                             onValueChange={(v) => updateField("currGewog", v)}
@@ -2471,9 +2500,7 @@ const ComprehensiveOwnerDetails = ({
                                             allowed="alphanumeric"
                                             className={getFieldStyle(!!fieldError("currVillage"))}
                                             value={data.currVillage}
-                                            onChange={(e) =>
-                                                updateField("currVillage", e.target.value)
-                                            }
+                                            onChange={(e) => updateField("currVillage", e.target.value)}
                                         />
                                         {fieldError("currVillage") && (
                                             <p className="text-xs text-red-500 mt-1">
@@ -2504,9 +2531,7 @@ const ComprehensiveOwnerDetails = ({
                                             allowed="alpha"
                                             className={getFieldStyle(!!fieldError("currDzongkhag"))}
                                             value={data.currDzongkhag}
-                                            onChange={(e) =>
-                                                updateField("currDzongkhag", e.target.value)
-                                            }
+                                            onChange={(e) => updateField("currDzongkhag", e.target.value)}
                                         />
                                         {fieldError("currDzongkhag") && (
                                             <p className="text-xs text-red-500 mt-1">
@@ -2534,9 +2559,7 @@ const ComprehensiveOwnerDetails = ({
                                             allowed="alphanumeric"
                                             className={getFieldStyle(!!fieldError("currVillage"))}
                                             value={data.currVillage}
-                                            onChange={(e) =>
-                                                updateField("currVillage", e.target.value)
-                                            }
+                                            onChange={(e) => updateField("currVillage", e.target.value)}
                                         />
                                         {fieldError("currVillage") && (
                                             <p className="text-xs text-red-500 mt-1">
@@ -2565,7 +2588,10 @@ const ComprehensiveOwnerDetails = ({
                                                 type="button"
                                                 variant="outline"
                                                 size="sm"
-                                                className={`w-28 ${fieldError("currAddressProof") ? "border-red-500" : "bg-transparent"}`}
+                                                className={`w-28 ${fieldError("currAddressProof")
+                                                    ? "border-red-500"
+                                                    : "bg-transparent"
+                                                    }`}
                                                 onClick={() =>
                                                     document
                                                         .getElementById(`curr-proof-${data.id || "owner"}`)
@@ -2627,13 +2653,9 @@ const ComprehensiveOwnerDetails = ({
                                 <RestrictedInput
                                     allowed="numeric"
                                     maxLength={8}
-                                    className={getFieldStyle(
-                                        !!fieldError("currAlternateContact"),
-                                    )}
+                                    className={getFieldStyle(!!fieldError("currAlternateContact"))}
                                     value={data.currAlternateContact}
-                                    onChange={(e) =>
-                                        updateField("currAlternateContact", e.target.value)
-                                    }
+                                    onChange={(e) => updateField("currAlternateContact", e.target.value)}
                                 />
                                 {fieldError("currAlternateContact") && (
                                     <p className="text-xs text-red-500 mt-1">
@@ -2699,8 +2721,7 @@ const ComprehensiveOwnerDetails = ({
                                                         pepCategory: value,
                                                         pepSubCategory: "",
                                                     });
-                                                    if (onClearError)
-                                                        onClearError(getErrorKey("pepCategory"));
+                                                    if (onClearError) onClearError(getErrorKey("pepCategory"));
                                                 }}
                                             >
                                                 <SelectTrigger
@@ -2749,15 +2770,12 @@ const ComprehensiveOwnerDetails = ({
                                                 value={data.pepSubCategory ? String(data.pepSubCategory) : ""}
                                                 onValueChange={(value) => {
                                                     onUpdate({ ...data, pepSubCategory: value });
-                                                    if (onClearError)
-                                                        onClearError(getErrorKey("pepSubCategory"));
+                                                    if (onClearError) onClearError(getErrorKey("pepSubCategory"));
                                                 }}
                                                 disabled={!data.pepCategory}
                                             >
                                                 <SelectTrigger
-                                                    className={getFieldStyle(
-                                                        !!fieldError("pepSubCategory"),
-                                                    )}
+                                                    className={getFieldStyle(!!fieldError("pepSubCategory"))}
                                                 >
                                                     <SelectValue placeholder="[Select]" />
                                                 </SelectTrigger>
@@ -2772,9 +2790,7 @@ const ComprehensiveOwnerDetails = ({
                                                                 option.pep_sub_category_pk_code || option.id,
                                                             );
                                                             const label =
-                                                                option.pep_sub_category ||
-                                                                option.name ||
-                                                                "Unknown";
+                                                                option.pep_sub_category || option.name || "Unknown";
                                                             return (
                                                                 <SelectItem key={key} value={value}>
                                                                     {label}
@@ -2783,9 +2799,7 @@ const ComprehensiveOwnerDetails = ({
                                                         })
                                                     ) : (
                                                         <SelectItem value="loading" disabled>
-                                                            {data.pepCategory
-                                                                ? "Loading..."
-                                                                : "Select Category first"}
+                                                            {data.pepCategory ? "Loading..." : "Select Category first"}
                                                         </SelectItem>
                                                     )}
                                                 </SelectContent>
@@ -2817,8 +2831,7 @@ const ComprehensiveOwnerDetails = ({
                                                     relatedPeps:
                                                         value === "yes" ? [createEmptyRelatedPep()] : [],
                                                 });
-                                                if (onClearError)
-                                                    onClearError(getErrorKey("pepRelated"));
+                                                if (onClearError) onClearError(getErrorKey("pepRelated"));
                                             }}
                                         >
                                             <SelectTrigger
@@ -2884,7 +2897,9 @@ const ComprehensiveOwnerDetails = ({
                                                             updateRelatedPep(index, "relationship", value);
                                                             if (onClearError)
                                                                 onClearError(
-                                                                    `${getErrorKey(`relatedPeps.${index}.relationship`)}`,
+                                                                    `${getErrorKey(
+                                                                        `relatedPeps.${index}.relationship`,
+                                                                    )}`,
                                                                 );
                                                         }}
                                                     >
@@ -2928,7 +2943,9 @@ const ComprehensiveOwnerDetails = ({
                                                             handleRelatedPepCategoryChange(index, value);
                                                             if (onClearError)
                                                                 onClearError(
-                                                                    `${getErrorKey(`relatedPeps.${index}.category`)}`,
+                                                                    `${getErrorKey(
+                                                                        `relatedPeps.${index}.category`,
+                                                                    )}`,
                                                                 );
                                                         }}
                                                     >
@@ -2952,9 +2969,7 @@ const ComprehensiveOwnerDetails = ({
                                                                         option.pep_category_pk_code || option.id,
                                                                     );
                                                                     const label =
-                                                                        option.pep_category ||
-                                                                        option.name ||
-                                                                        "Unknown";
+                                                                        option.pep_category || option.name || "Unknown";
                                                                     return (
                                                                         <SelectItem key={key} value={val}>
                                                                             {label}
@@ -2992,7 +3007,9 @@ const ComprehensiveOwnerDetails = ({
                                                             updateRelatedPep(index, "subCategory", v);
                                                             if (onClearError)
                                                                 onClearError(
-                                                                    `${getErrorKey(`relatedPeps.${index}.subCategory`)}`,
+                                                                    `${getErrorKey(
+                                                                        `relatedPeps.${index}.subCategory`,
+                                                                    )}`,
                                                                 );
                                                         }}
                                                         disabled={!pep.category}
@@ -3008,27 +3025,22 @@ const ComprehensiveOwnerDetails = ({
                                                         </SelectTrigger>
                                                         <SelectContent sideOffset={4}>
                                                             {relatedPepOptionsMap[index]?.length > 0 ? (
-                                                                relatedPepOptionsMap[index].map(
-                                                                    (option, idx) => {
-                                                                        const key =
-                                                                            option.pep_sub_category_pk_code ||
-                                                                            option.id ||
-                                                                            `pep-rel-sub-${idx}`;
-                                                                        const val = String(
-                                                                            option.pep_sub_category_pk_code ||
-                                                                            option.id,
-                                                                        );
-                                                                        const label =
-                                                                            option.pep_sub_category ||
-                                                                            option.name ||
-                                                                            "Unknown";
-                                                                        return (
-                                                                            <SelectItem key={key} value={val}>
-                                                                                {label}
-                                                                            </SelectItem>
-                                                                        );
-                                                                    },
-                                                                )
+                                                                relatedPepOptionsMap[index].map((option, idx) => {
+                                                                    const key =
+                                                                        option.pep_sub_category_pk_code ||
+                                                                        option.id ||
+                                                                        `pep-rel-sub-${idx}`;
+                                                                    const val = String(
+                                                                        option.pep_sub_category_pk_code || option.id,
+                                                                    );
+                                                                    const label =
+                                                                        option.pep_sub_category || option.name || "Unknown";
+                                                                    return (
+                                                                        <SelectItem key={key} value={val}>
+                                                                            {label}
+                                                                        </SelectItem>
+                                                                    );
+                                                                })
                                                             ) : (
                                                                 <SelectItem value="loading" disabled>
                                                                     {pep.category
@@ -3064,7 +3076,7 @@ const ComprehensiveOwnerDetails = ({
                                                 dzongkhagOptions={dzongkhagOptions}
                                                 identificationTypeOptions={identificationTypeOptions}
                                                 maritalStatusOptions={maritalStatusOptions}
-                                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                                 title={`Related PEP ${index + 1} - Personal Information`}
                                                 errors={errors}
                                                 basePath={`${basePath}.relatedPeps.${index}`}
@@ -3110,8 +3122,7 @@ const ComprehensiveOwnerDetails = ({
                                         value={data.employmentStatus}
                                         onValueChange={(v) => {
                                             onUpdate({ ...data, employmentStatus: v });
-                                            if (onClearError)
-                                                onClearError(getErrorKey("employmentStatus"));
+                                            if (onClearError) onClearError(getErrorKey("employmentStatus"));
                                         }}
                                         className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8"
                                     >
@@ -3176,9 +3187,7 @@ const ComprehensiveOwnerDetails = ({
                                                 placeholder="Enter ID"
                                                 className={getFieldStyle(!!fieldError("employeeId"))}
                                                 value={data.employeeId || ""}
-                                                onChange={(e) =>
-                                                    updateField("employeeId", e.target.value)
-                                                }
+                                                onChange={(e) => updateField("employeeId", e.target.value)}
                                             />
                                             {fieldError("employeeId") && (
                                                 <p className="text-xs text-red-500 mt-1">
@@ -3235,9 +3244,7 @@ const ComprehensiveOwnerDetails = ({
                                                 onValueChange={(v) => updateField("employerType", v)}
                                             >
                                                 <SelectTrigger
-                                                    className={getFieldStyle(
-                                                        !!fieldError("employerType"),
-                                                    )}
+                                                    className={getFieldStyle(!!fieldError("employerType"))}
                                                 >
                                                     <SelectValue placeholder="[Select]" />
                                                 </SelectTrigger>
@@ -3318,20 +3325,14 @@ const ComprehensiveOwnerDetails = ({
 
                                         <div className="space-y-2.5">
                                             <Label className="text-gray-800 font-semibold text-sm">
-                                                Organization Name{" "}
-                                                <span className="text-red-500">*</span>
+                                                Organization Name <span className="text-red-500">*</span>
                                             </Label>
-                                            {/* Changed to RestrictedInput as data is coming as a string name, not an ID */}
                                             <RestrictedInput
                                                 allowed="alphanumeric"
                                                 placeholder="Enter Organization Name"
-                                                className={getFieldStyle(
-                                                    !!fieldError("organizationName"),
-                                                )}
+                                                className={getFieldStyle(!!fieldError("organizationName"))}
                                                 value={data.organizationName || ""}
-                                                onChange={(e) =>
-                                                    updateField("organizationName", e.target.value)
-                                                }
+                                                onChange={(e) => updateField("organizationName", e.target.value)}
                                             />
                                             {fieldError("organizationName") && (
                                                 <p className="text-xs text-red-500 mt-1">
@@ -3342,17 +3343,14 @@ const ComprehensiveOwnerDetails = ({
 
                                         <div className="space-y-2.5">
                                             <Label className="text-gray-800 font-semibold text-sm">
-                                                Organization Location{" "}
-                                                <span className="text-red-500">*</span>
+                                                Organization Location <span className="text-red-500">*</span>
                                             </Label>
                                             <RestrictedInput
                                                 allowed="alphanumeric"
                                                 placeholder="Enter Location"
                                                 className={getFieldStyle(!!fieldError("orgLocation"))}
                                                 value={data.orgLocation || ""}
-                                                onChange={(e) =>
-                                                    updateField("orgLocation", e.target.value)
-                                                }
+                                                onChange={(e) => updateField("orgLocation", e.target.value)}
                                             />
                                             {fieldError("orgLocation") && (
                                                 <p className="text-xs text-red-500 mt-1">
@@ -3363,17 +3361,14 @@ const ComprehensiveOwnerDetails = ({
 
                                         <div className="space-y-2.5">
                                             <Label className="text-gray-800 font-semibold text-sm">
-                                                Service Joining Date{" "}
-                                                <span className="text-red-500">*</span>
+                                                Service Joining Date <span className="text-red-500">*</span>
                                             </Label>
                                             <Input
                                                 type="date"
                                                 max={today}
                                                 className={getFieldStyle(!!fieldError("joiningDate"))}
                                                 value={formatDateForInput(data.joiningDate)}
-                                                onChange={(e) =>
-                                                    updateField("joiningDate", e.target.value)
-                                                }
+                                                onChange={(e) => updateField("joiningDate", e.target.value)}
                                             />
                                             {fieldError("joiningDate") && (
                                                 <p className="text-xs text-red-500 mt-1">
@@ -3386,17 +3381,14 @@ const ComprehensiveOwnerDetails = ({
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2.5">
                                             <Label className="text-gray-800 font-semibold text-sm">
-                                                Nature of Service{" "}
-                                                <span className="text-red-500">*</span>
+                                                Nature of Service <span className="text-red-500">*</span>
                                             </Label>
                                             <Select
                                                 value={data.serviceNature}
                                                 onValueChange={(v) => updateField("serviceNature", v)}
                                             >
                                                 <SelectTrigger
-                                                    className={getFieldStyle(
-                                                        !!fieldError("serviceNature"),
-                                                    )}
+                                                    className={getFieldStyle(!!fieldError("serviceNature"))}
                                                 >
                                                     <SelectValue placeholder="[Select]" />
                                                 </SelectTrigger>
@@ -3423,9 +3415,7 @@ const ComprehensiveOwnerDetails = ({
                                                 placeholder="Enter Annual Salary"
                                                 className={getFieldStyle(!!fieldError("annualSalary"))}
                                                 value={data.annualSalary || ""}
-                                                onChange={(e) =>
-                                                    updateField("annualSalary", e.target.value)
-                                                }
+                                                onChange={(e) => updateField("annualSalary", e.target.value)}
                                             />
                                             {fieldError("annualSalary") && (
                                                 <p className="text-xs text-red-500 mt-1">
@@ -3439,15 +3429,12 @@ const ComprehensiveOwnerDetails = ({
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2.5">
                                                 <Label className="text-gray-800 font-semibold text-sm">
-                                                    Contract End Date{" "}
-                                                    <span className="text-red-500">*</span>
+                                                    Contract End Date <span className="text-red-500">*</span>
                                                 </Label>
                                                 <Input
                                                     type="date"
                                                     min={today}
-                                                    className={getFieldStyle(
-                                                        !!fieldError("contractEndDate"),
-                                                    )}
+                                                    className={getFieldStyle(!!fieldError("contractEndDate"))}
                                                     value={formatDateForInput(data.contractEndDate)}
                                                     onChange={(e) =>
                                                         updateField("contractEndDate", e.target.value)
@@ -3475,15 +3462,17 @@ const ComprehensiveOwnerDetails = ({
                                 <div className="space-y-2">
                                     <Label>Spouse Identification Type *</Label>
                                     <Select
-                                        value={data.spouseIdentificationType ? String(data.spouseIdentificationType) : ""}
+                                        value={
+                                            data.spouseIdentificationType
+                                                ? String(data.spouseIdentificationType)
+                                                : ""
+                                        }
                                         onValueChange={(v) =>
                                             handleSpouseChange("spouseIdentificationType", v)
                                         }
                                     >
                                         <SelectTrigger
-                                            className={getFieldStyle(
-                                                !!fieldError("spouseIdentificationType"),
-                                            )}
+                                            className={getFieldStyle(!!fieldError("spouseIdentificationType"))}
                                         >
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
@@ -3525,15 +3514,10 @@ const ComprehensiveOwnerDetails = ({
                                     <RestrictedInput
                                         allowed="numeric"
                                         maxLength={11}
-                                        className={getFieldStyle(
-                                            !!fieldError("spouseIdentificationNo"),
-                                        )}
+                                        className={getFieldStyle(!!fieldError("spouseIdentificationNo"))}
                                         value={data.spouseIdentificationNo}
                                         onChange={(e) =>
-                                            handleSpouseChange(
-                                                "spouseIdentificationNo",
-                                                e.target.value,
-                                            )
+                                            handleSpouseChange("spouseIdentificationNo", e.target.value)
                                         }
                                     />
                                     {fieldError("spouseIdentificationNo") && (
@@ -3546,18 +3530,12 @@ const ComprehensiveOwnerDetails = ({
                                     <Label>Spouse Salutation *</Label>
                                     <Select
                                         value={
-                                            data.spouseSalutation
-                                                ? data.spouseSalutation.toLowerCase()
-                                                : ""
+                                            data.spouseSalutation ? data.spouseSalutation.toLowerCase() : ""
                                         }
-                                        onValueChange={(v) =>
-                                            handleSpouseChange("spouseSalutation", v)
-                                        }
+                                        onValueChange={(v) => handleSpouseChange("spouseSalutation", v)}
                                     >
                                         <SelectTrigger
-                                            className={getFieldStyle(
-                                                !!fieldError("spouseSalutation"),
-                                            )}
+                                            className={getFieldStyle(!!fieldError("spouseSalutation"))}
                                         >
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
@@ -3580,9 +3558,7 @@ const ComprehensiveOwnerDetails = ({
                                         allowed="alpha"
                                         className={getFieldStyle(!!fieldError("spouseName"))}
                                         value={data.spouseName}
-                                        onChange={(e) =>
-                                            handleSpouseChange("spouseName", e.target.value)
-                                        }
+                                        onChange={(e) => handleSpouseChange("spouseName", e.target.value)}
                                     />
                                     {fieldError("spouseName") && (
                                         <p className="text-xs text-red-500 mt-1">
@@ -3594,14 +3570,10 @@ const ComprehensiveOwnerDetails = ({
                                     <Label>Spouse Nationality *</Label>
                                     <Select
                                         value={data.spouseNationality ? String(data.spouseNationality) : ""}
-                                        onValueChange={(v) =>
-                                            handleSpouseChange("spouseNationality", v)
-                                        }
+                                        onValueChange={(v) => handleSpouseChange("spouseNationality", v)}
                                     >
                                         <SelectTrigger
-                                            className={getFieldStyle(
-                                                !!fieldError("spouseNationality"),
-                                            )}
+                                            className={getFieldStyle(!!fieldError("spouseNationality"))}
                                         >
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
@@ -3625,9 +3597,7 @@ const ComprehensiveOwnerDetails = ({
                                 <div className="space-y-2">
                                     <Label>Spouse Gender *</Label>
                                     <Select
-                                        value={
-                                            data.spouseGender ? data.spouseGender.toLowerCase() : ""
-                                        }
+                                        value={data.spouseGender ? data.spouseGender.toLowerCase() : ""}
                                         onValueChange={(v) => handleSpouseChange("spouseGender", v)}
                                     >
                                         <SelectTrigger
@@ -3654,14 +3624,9 @@ const ComprehensiveOwnerDetails = ({
                                         className={getFieldStyle(
                                             !!fieldError("spouseIdentificationIssueDate"),
                                         )}
-                                        value={formatDateForInput(
-                                            data.spouseIdentificationIssueDate,
-                                        )}
+                                        value={formatDateForInput(data.spouseIdentificationIssueDate)}
                                         onChange={(e) =>
-                                            handleSpouseChange(
-                                                "spouseIdentificationIssueDate",
-                                                e.target.value,
-                                            )
+                                            handleSpouseChange("spouseIdentificationIssueDate", e.target.value)
                                         }
                                     />
                                     {fieldError("spouseIdentificationIssueDate") && (
@@ -3677,14 +3642,9 @@ const ComprehensiveOwnerDetails = ({
                                         className={getFieldStyle(
                                             !!fieldError("spouseIdentificationExpiryDate"),
                                         )}
-                                        value={formatDateForInput(
-                                            data.spouseIdentificationExpiryDate,
-                                        )}
+                                        value={formatDateForInput(data.spouseIdentificationExpiryDate)}
                                         onChange={(e) =>
-                                            handleSpouseChange(
-                                                "spouseIdentificationExpiryDate",
-                                                e.target.value,
-                                            )
+                                            handleSpouseChange("spouseIdentificationExpiryDate", e.target.value)
                                         }
                                     />
                                     {fieldError("spouseIdentificationExpiryDate") && (
@@ -3696,15 +3656,17 @@ const ComprehensiveOwnerDetails = ({
                                 <div className="space-y-2">
                                     <Label>Spouse Tax Identifier Type</Label>
                                     <Select
-                                        value={data.spouseTaxIdentifierType ? String(data.spouseTaxIdentifierType) : ""}
+                                        value={
+                                            data.spouseTaxIdentifierType
+                                                ? String(data.spouseTaxIdentifierType)
+                                                : ""
+                                        }
                                         onValueChange={(v) =>
                                             handleSpouseChange("spouseTaxIdentifierType", v)
                                         }
                                     >
                                         <SelectTrigger
-                                            className={getFieldStyle(
-                                                !!fieldError("spouseTaxIdentifierType"),
-                                            )}
+                                            className={getFieldStyle(!!fieldError("spouseTaxIdentifierType"))}
                                         >
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
@@ -3713,8 +3675,12 @@ const ComprehensiveOwnerDetails = ({
                                                 // In spouse section, show ONLY Personal Income Tax (PIT)
                                                 taxIdentifierTypeOptions
                                                     .filter((opt: any) => {
-                                                        const label = (opt.tax_identifier_type || opt.name || "").toLowerCase();
-                                                        return label.includes("personal income tax") || label === "pit";
+                                                        const label = (
+                                                            opt.tax_identifier_type || opt.name || ""
+                                                        ).toLowerCase();
+                                                        return (
+                                                            label.includes("personal income tax") || label === "pit"
+                                                        );
                                                     })
                                                     .map((opt: any, i) => (
                                                         <SelectItem
@@ -3725,7 +3691,9 @@ const ComprehensiveOwnerDetails = ({
                                                         </SelectItem>
                                                     ))
                                             ) : (
-                                                <SelectItem value="loading" disabled>Loading...</SelectItem>
+                                                <SelectItem value="loading" disabled>
+                                                    Loading...
+                                                </SelectItem>
                                             )}
                                         </SelectContent>
                                     </Select>
@@ -3742,9 +3710,7 @@ const ComprehensiveOwnerDetails = ({
                                         maxLength={11}
                                         className={getFieldStyle(!!fieldError("spouseTpn"))}
                                         value={data.spouseTpn}
-                                        onChange={(e) =>
-                                            handleSpouseChange("spouseTpn", e.target.value)
-                                        }
+                                        onChange={(e) => handleSpouseChange("spouseTpn", e.target.value)}
                                     />
                                     {fieldError("spouseTpn") && (
                                         <p className="text-xs text-red-500 mt-1">
@@ -3775,15 +3741,10 @@ const ComprehensiveOwnerDetails = ({
                                         <Label>Spouse Household Number *</Label>
                                         <RestrictedInput
                                             allowed="alphanumeric"
-                                            className={getFieldStyle(
-                                                !!fieldError("spouseHouseholdNumber"),
-                                            )}
+                                            className={getFieldStyle(!!fieldError("spouseHouseholdNumber"))}
                                             value={data.spouseHouseholdNumber}
                                             onChange={(e) =>
-                                                handleSpouseChange(
-                                                    "spouseHouseholdNumber",
-                                                    e.target.value,
-                                                )
+                                                handleSpouseChange("spouseHouseholdNumber", e.target.value)
                                             }
                                         />
                                         {fieldError("spouseHouseholdNumber") && (
@@ -3793,51 +3754,51 @@ const ComprehensiveOwnerDetails = ({
                                         )}
                                     </div>
                                 )}
-                                <div className="grid md:grid-cols-2 gap-6">
-                                    <div className="space-y-2.5">
-                                        <Label>Upload Spouse Identity Proof *</Label>
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="file"
-                                                id={`spouse-identity-proof-${data.id || "owner"}`}
-                                                className="hidden"
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                onChange={(e) =>
-                                                    handleSpouseFileChange(
-                                                        "spouseIdentityProof",
-                                                        e.target.files?.[0] || null,
+
+                                {/* Upload Spouse Identity Proof matched with UI Layout */}
+                                <div className="space-y-2.5">
+                                    <Label>Upload Spouse Identity Proof *</Label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="file"
+                                            id={`spouse-identity-proof-${data.id || "owner"}`}
+                                            className="hidden"
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            onChange={(e) =>
+                                                handleFileChange("spouseIdentityProof", e.target.files?.[0] || null)
+                                            }
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className={`w-28 ${fieldError("spouseIdentityProof")
+                                                ? "border-red-500"
+                                                : "bg-transparent"
+                                                }`}
+                                            onClick={() =>
+                                                document
+                                                    .getElementById(
+                                                        `spouse-identity-proof-${data.id || "owner"}`,
                                                     )
-                                                }
-                                            />
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                className={`w-28 ${fieldError("spouseIdentityProof") ? "border-red-500" : "bg-transparent"}`}
-                                                onClick={() =>
-                                                    document
-                                                        .getElementById(
-                                                            `spouse-identity-proof-${data.id || "owner"}`,
-                                                        )
-                                                        ?.click()
-                                                }
-                                            >
-                                                Choose File
-                                            </Button>
-                                            <span className="text-sm text-muted-foreground truncate max-w-[200px]">
-                                                {data.spouseIdentityProofName || "No file chosen"}
-                                            </span>
-                                        </div>
-                                        {fieldError("spouseIdentityProof") && (
-                                            <p className="text-xs text-red-500 mt-1">
-                                                {fieldError("spouseIdentityProof")}
-                                            </p>
-                                        )}
-                                        <p className="text-xs text-gray-500">
-                                            Please upload a valid identification proof document (CID,
-                                            Passport, etc.). Allowed: PDF, JPG, PNG (Max 5MB)
-                                        </p>
+                                                    ?.click()
+                                            }
+                                        >
+                                            Choose File
+                                        </Button>
+                                        <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                            {data.spouseIdentityProofName || "No file chosen"}
+                                        </span>
                                     </div>
+                                    {fieldError("spouseIdentityProof") && (
+                                        <p className="text-xs text-red-500 mt-1">
+                                            {fieldError("spouseIdentityProof")}
+                                        </p>
+                                    )}
+                                    <p className="text-xs text-gray-500">
+                                        Please upload a valid identification proof document (CID,
+                                        Passport, etc.). Allowed: PDF, JPG, PNG (Max 5MB)
+                                    </p>
                                 </div>
                             </div>
 
@@ -3851,14 +3812,10 @@ const ComprehensiveOwnerDetails = ({
                                         <Label>Spouse Country *</Label>
                                         <Select
                                             value={data.spousePermCountry ? String(data.spousePermCountry) : ""}
-                                            onValueChange={(v) =>
-                                                handleSpouseChange("spousePermCountry", v)
-                                            }
+                                            onValueChange={(v) => handleSpouseChange("spousePermCountry", v)}
                                         >
                                             <SelectTrigger
-                                                className={getFieldStyle(
-                                                    !!fieldError("spousePermCountry"),
-                                                )}
+                                                className={getFieldStyle(!!fieldError("spousePermCountry"))}
                                             >
                                                 <SelectValue placeholder="Select" />
                                             </SelectTrigger>
@@ -3887,15 +3844,17 @@ const ComprehensiveOwnerDetails = ({
                                             <div className="space-y-2">
                                                 <Label>Spouse Dzongkhag *</Label>
                                                 <Select
-                                                    value={data.spousePermDzongkhag ? String(data.spousePermDzongkhag) : ""}
+                                                    value={
+                                                        data.spousePermDzongkhag
+                                                            ? String(data.spousePermDzongkhag)
+                                                            : ""
+                                                    }
                                                     onValueChange={(v) =>
                                                         handleSpouseChange("spousePermDzongkhag", v)
                                                     }
                                                 >
                                                     <SelectTrigger
-                                                        className={getFieldStyle(
-                                                            !!fieldError("spousePermDzongkhag"),
-                                                        )}
+                                                        className={getFieldStyle(!!fieldError("spousePermDzongkhag"))}
                                                     >
                                                         <SelectValue placeholder="Select" />
                                                     </SelectTrigger>
@@ -3933,17 +3892,15 @@ const ComprehensiveOwnerDetails = ({
                                                                     o.curr_gewog_pk_code,
                                                                 ) === String(data.spousePermGewog),
                                                         )
-                                                            ? (data.spousePermGewog ? String(data.spousePermGewog) : "")
+                                                            ? data.spousePermGewog
+                                                                ? String(data.spousePermGewog)
+                                                                : ""
                                                             : ""
                                                     }
-                                                    onValueChange={(v) =>
-                                                        handleSpouseChange("spousePermGewog", v)
-                                                    }
+                                                    onValueChange={(v) => handleSpouseChange("spousePermGewog", v)}
                                                 >
                                                     <SelectTrigger
-                                                        className={getFieldStyle(
-                                                            !!fieldError("spousePermGewog"),
-                                                        )}
+                                                        className={getFieldStyle(!!fieldError("spousePermGewog"))}
                                                     >
                                                         <SelectValue
                                                             placeholder={data.spousePermGewog || "Select"}
@@ -3975,15 +3932,10 @@ const ComprehensiveOwnerDetails = ({
                                                 <Label>Spouse Village/Street *</Label>
                                                 <RestrictedInput
                                                     allowed="alphanumeric"
-                                                    className={getFieldStyle(
-                                                        !!fieldError("spousePermVillage"),
-                                                    )}
+                                                    className={getFieldStyle(!!fieldError("spousePermVillage"))}
                                                     value={data.spousePermVillage}
                                                     onChange={(e) =>
-                                                        handleSpouseChange(
-                                                            "spousePermVillage",
-                                                            e.target.value,
-                                                        )
+                                                        handleSpouseChange("spousePermVillage", e.target.value)
                                                     }
                                                 />
                                                 {fieldError("spousePermVillage") && (
@@ -3996,15 +3948,10 @@ const ComprehensiveOwnerDetails = ({
                                                 <Label>Spouse Thram No. *</Label>
                                                 <RestrictedInput
                                                     allowed="alphanumeric"
-                                                    className={getFieldStyle(
-                                                        !!fieldError("spousePermThram"),
-                                                    )}
+                                                    className={getFieldStyle(!!fieldError("spousePermThram"))}
                                                     value={data.spousePermThram}
                                                     onChange={(e) =>
-                                                        handleSpouseChange(
-                                                            "spousePermThram",
-                                                            e.target.value,
-                                                        )
+                                                        handleSpouseChange("spousePermThram", e.target.value)
                                                     }
                                                 />
                                                 {fieldError("spousePermThram") && (
@@ -4017,15 +3964,10 @@ const ComprehensiveOwnerDetails = ({
                                                 <Label>Spouse House No. *</Label>
                                                 <RestrictedInput
                                                     allowed="alphanumeric"
-                                                    className={getFieldStyle(
-                                                        !!fieldError("spousePermHouse"),
-                                                    )}
+                                                    className={getFieldStyle(!!fieldError("spousePermHouse"))}
                                                     value={data.spousePermHouse}
                                                     onChange={(e) =>
-                                                        handleSpouseChange(
-                                                            "spousePermHouse",
-                                                            e.target.value,
-                                                        )
+                                                        handleSpouseChange("spousePermHouse", e.target.value)
                                                     }
                                                 />
                                                 {fieldError("spousePermHouse") && (
@@ -4041,15 +3983,10 @@ const ComprehensiveOwnerDetails = ({
                                                 <Label>Spouse State *</Label>
                                                 <RestrictedInput
                                                     allowed="alpha"
-                                                    className={getFieldStyle(
-                                                        !!fieldError("spousePermDzongkhag"),
-                                                    )}
+                                                    className={getFieldStyle(!!fieldError("spousePermDzongkhag"))}
                                                     value={data.spousePermDzongkhag}
                                                     onChange={(e) =>
-                                                        handleSpouseChange(
-                                                            "spousePermDzongkhag",
-                                                            e.target.value,
-                                                        )
+                                                        handleSpouseChange("spousePermDzongkhag", e.target.value)
                                                     }
                                                 />
                                                 {fieldError("spousePermDzongkhag") && (
@@ -4062,15 +3999,10 @@ const ComprehensiveOwnerDetails = ({
                                                 <Label>Spouse Province *</Label>
                                                 <RestrictedInput
                                                     allowed="alpha"
-                                                    className={getFieldStyle(
-                                                        !!fieldError("spousePermGewog"),
-                                                    )}
+                                                    className={getFieldStyle(!!fieldError("spousePermGewog"))}
                                                     value={data.spousePermGewog}
                                                     onChange={(e) =>
-                                                        handleSpouseChange(
-                                                            "spousePermGewog",
-                                                            e.target.value,
-                                                        )
+                                                        handleSpouseChange("spousePermGewog", e.target.value)
                                                     }
                                                 />
                                                 {fieldError("spousePermGewog") && (
@@ -4083,15 +4015,10 @@ const ComprehensiveOwnerDetails = ({
                                                 <Label>Spouse Street Name *</Label>
                                                 <RestrictedInput
                                                     allowed="alphanumeric"
-                                                    className={getFieldStyle(
-                                                        !!fieldError("spousePermVillage"),
-                                                    )}
+                                                    className={getFieldStyle(!!fieldError("spousePermVillage"))}
                                                     value={data.spousePermVillage}
                                                     onChange={(e) =>
-                                                        handleSpouseChange(
-                                                            "spousePermVillage",
-                                                            e.target.value,
-                                                        )
+                                                        handleSpouseChange("spousePermVillage", e.target.value)
                                                     }
                                                 />
                                                 {fieldError("spousePermVillage") && (
@@ -4110,7 +4037,7 @@ const ComprehensiveOwnerDetails = ({
                                                         accept=".pdf,.jpg,.jpeg,.png"
                                                         onChange={(e) => {
                                                             if (e.target.files?.[0]) {
-                                                                handleSpouseChange(
+                                                                handleFileChange(
                                                                     "spousePermAddressProof",
                                                                     e.target.files[0],
                                                                 );
@@ -4121,7 +4048,10 @@ const ComprehensiveOwnerDetails = ({
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        className={`w-28 ${fieldError("spousePermAddressProof") ? "border-red-500" : "bg-transparent"}`}
+                                                        className={`w-28 ${fieldError("spousePermAddressProof")
+                                                            ? "border-red-500"
+                                                            : "bg-transparent"
+                                                            }`}
                                                         onClick={() =>
                                                             document
                                                                 .getElementById(
@@ -4133,8 +4063,7 @@ const ComprehensiveOwnerDetails = ({
                                                         Choose File
                                                     </Button>
                                                     <span className="text-sm text-muted-foreground truncate max-w-[200px]">
-                                                        {data.spousePermAddressProofName ||
-                                                            "No file chosen"}
+                                                        {data.spousePermAddressProofName || "No file chosen"}
                                                     </span>
                                                 </div>
                                                 {fieldError("spousePermAddressProof") && (
@@ -4152,7 +4081,7 @@ const ComprehensiveOwnerDetails = ({
                                 </div>
                             </div>
 
-                            {/* Spouse Contact Address (Email, Contact, Alternate) */}
+                            {/* Spouse Contact Information (Email, Contact, Alternate) */}
                             <div className="mt-6 pt-4 border-t">
                                 <h6 className="font-semibold text-[#003DA5] mb-4">
                                     Spouse Contact Information
@@ -4164,9 +4093,7 @@ const ComprehensiveOwnerDetails = ({
                                             type="email"
                                             className={getFieldStyle(!!fieldError("spouseEmail"))}
                                             value={data.spouseEmail}
-                                            onChange={(e) =>
-                                                handleSpouseChange("spouseEmail", e.target.value)
-                                            }
+                                            onChange={(e) => handleSpouseChange("spouseEmail", e.target.value)}
                                         />
                                         {fieldError("spouseEmail") && (
                                             <p className="text-xs text-red-500 mt-1">
@@ -4196,15 +4123,10 @@ const ComprehensiveOwnerDetails = ({
                                         <RestrictedInput
                                             allowed="numeric"
                                             maxLength={8}
-                                            className={getFieldStyle(
-                                                !!fieldError("spouseAlternateContact"),
-                                            )}
+                                            className={getFieldStyle(!!fieldError("spouseAlternateContact"))}
                                             value={data.spouseAlternateContact}
                                             onChange={(e) =>
-                                                handleSpouseChange(
-                                                    "spouseAlternateContact",
-                                                    e.target.value,
-                                                )
+                                                handleSpouseChange("spouseAlternateContact", e.target.value)
                                             }
                                         />
                                         {fieldError("spouseAlternateContact") && (
@@ -4215,7 +4137,6 @@ const ComprehensiveOwnerDetails = ({
                                     </div>
                                 </div>
                             </div>
-
                         </div>
                     )}
                 </div>
@@ -4243,10 +4164,410 @@ function sanitizeForStorage(obj: any): any {
     return result;
 }
 
+// --- Helper to convert stored labels to IDs using loaded options ---
+const convertFormDataToIds = (
+    formData: any,
+    options: {
+        countryOptions: any[];
+        dzongkhagOptions: any[];
+        identificationTypeOptions: any[];
+        maritalStatusOptions: any[];
+        nationalityOptions: any[];
+        occupationOptions: any[];
+        pepCategoryOptions: any[];
+        industryOptions: any[];
+        taxIdentifierTypeOptions: any[];
+        banksOptions: any[];
+    },
+): any => {
+    if (!formData) return formData;
+    const result = { ...formData };
+
+    // Helper to convert a single person object
+    const convertPerson = (person: any): any => {
+        if (!person) return person;
+        const p = { ...person };
+
+        // Convert identificationType
+        if (p.identificationType && options.identificationTypeOptions.length) {
+            const isId = options.identificationTypeOptions.some(
+                (opt) =>
+                    String(opt.id || opt.identification_type_id || opt.identity_type_pk_code) ===
+                    String(p.identificationType),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.identificationType,
+                    options.identificationTypeOptions,
+                    ["identification_type", "identity_type", "name"],
+                );
+                if (id) p.identificationType = id;
+            }
+        }
+
+        // Convert nationality
+        if (p.nationality && options.nationalityOptions.length) {
+            const isId = options.nationalityOptions.some(
+                (opt) => String(opt.id || opt.nationality_pk_code) === String(p.nationality),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.nationality,
+                    options.nationalityOptions,
+                    ["nationality", "name"],
+                );
+                if (id) p.nationality = id;
+            }
+        }
+
+        // Convert maritalStatus
+        if (p.maritalStatus && options.maritalStatusOptions.length) {
+            const isId = options.maritalStatusOptions.some(
+                (opt) => String(opt.id || opt.marital_status_pk_code) === String(p.maritalStatus),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.maritalStatus,
+                    options.maritalStatusOptions,
+                    ["marital_status", "name"],
+                );
+                if (id) p.maritalStatus = id;
+            }
+        }
+
+        // Convert taxIdentifierType (owner)
+        if (p.taxIdentifierType && options.taxIdentifierTypeOptions.length) {
+            const isId = options.taxIdentifierTypeOptions.some(
+                (opt) =>
+                    String(opt.tax_identifier_type_pk_code || opt.id) ===
+                    String(p.taxIdentifierType),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.taxIdentifierType,
+                    options.taxIdentifierTypeOptions,
+                    ["tax_identifier_type", "name", "label"],
+                );
+                if (id) p.taxIdentifierType = id;
+            }
+        }
+
+        // Convert bankName
+        if (p.bankName && options.banksOptions.length) {
+            const isId = options.banksOptions.some(
+                (opt) => String(opt.bank_pk_code || opt.id) === String(p.bankName),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.bankName,
+                    options.banksOptions,
+                    ["bank_name", "name", "label", "bank"],
+                );
+                if (id) p.bankName = id;
+            }
+        }
+
+        // Convert permCountry
+        if (p.permCountry && options.countryOptions.length) {
+            const isId = options.countryOptions.some(
+                (opt) => String(opt.country_pk_code || opt.id) === String(p.permCountry),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.permCountry,
+                    options.countryOptions,
+                    ["country_name", "country"],
+                );
+                if (id) p.permCountry = id;
+            }
+        }
+
+        // Convert permDzongkhag
+        if (p.permDzongkhag && options.dzongkhagOptions.length) {
+            const isId = options.dzongkhagOptions.some(
+                (opt) => String(opt.dzongkhag_pk_code || opt.id) === String(p.permDzongkhag),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.permDzongkhag,
+                    options.dzongkhagOptions,
+                    ["dzongkhag_name", "dzongkhag"],
+                );
+                if (id) p.permDzongkhag = id;
+            }
+        }
+
+        // Convert currCountry
+        if (p.currCountry && options.countryOptions.length) {
+            const isId = options.countryOptions.some(
+                (opt) => String(opt.country_pk_code || opt.id) === String(p.currCountry),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.currCountry,
+                    options.countryOptions,
+                    ["country_name", "country"],
+                );
+                if (id) p.currCountry = id;
+            }
+        }
+
+        // Convert currDzongkhag
+        if (p.currDzongkhag && options.dzongkhagOptions.length) {
+            const isId = options.dzongkhagOptions.some(
+                (opt) => String(opt.dzongkhag_pk_code || opt.id) === String(p.currDzongkhag),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.currDzongkhag,
+                    options.dzongkhagOptions,
+                    ["dzongkhag_name", "dzongkhag"],
+                );
+                if (id) p.currDzongkhag = id;
+            }
+        }
+
+        // Convert occupation
+        if (p.occupation && options.occupationOptions.length) {
+            const isId = options.occupationOptions.some(
+                (opt) =>
+                    String(opt.occ_pk_code || opt.occupation_pk_code || opt.id) ===
+                    String(p.occupation),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.occupation,
+                    options.occupationOptions,
+                    ["occ_name", "occupation", "name"],
+                );
+                if (id) p.occupation = id;
+            }
+        }
+
+        // Convert pepCategory
+        if (p.pepCategory && options.pepCategoryOptions.length) {
+            const isId = options.pepCategoryOptions.some(
+                (opt) => String(opt.pep_category_pk_code || opt.id) === String(p.pepCategory),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.pepCategory,
+                    options.pepCategoryOptions,
+                    ["pep_category", "name"],
+                );
+                if (id) p.pepCategory = id;
+            }
+        }
+
+        // Convert spouseIdentificationType
+        if (p.spouseIdentificationType && options.identificationTypeOptions.length) {
+            const isId = options.identificationTypeOptions.some(
+                (opt) =>
+                    String(opt.id || opt.identification_type_id || opt.identity_type_pk_code) ===
+                    String(p.spouseIdentificationType),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.spouseIdentificationType,
+                    options.identificationTypeOptions,
+                    ["identification_type", "identity_type", "name"],
+                );
+                if (id) p.spouseIdentificationType = id;
+            }
+        }
+
+        // Convert spouseNationality
+        if (p.spouseNationality && options.nationalityOptions.length) {
+            const isId = options.nationalityOptions.some(
+                (opt) => String(opt.id || opt.nationality_pk_code) === String(p.spouseNationality),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.spouseNationality,
+                    options.nationalityOptions,
+                    ["nationality", "name"],
+                );
+                if (id) p.spouseNationality = id;
+            }
+        }
+
+        // Convert spouseTaxIdentifierType
+        if (p.spouseTaxIdentifierType && options.taxIdentifierTypeOptions.length) {
+            const isId = options.taxIdentifierTypeOptions.some(
+                (opt) =>
+                    String(opt.tax_identifier_type_pk_code || opt.id) ===
+                    String(p.spouseTaxIdentifierType),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.spouseTaxIdentifierType,
+                    options.taxIdentifierTypeOptions,
+                    ["tax_identifier_type", "name", "label"],
+                );
+                if (id) p.spouseTaxIdentifierType = id;
+            }
+        }
+
+        // Convert spousePermCountry
+        if (p.spousePermCountry && options.countryOptions.length) {
+            const isId = options.countryOptions.some(
+                (opt) => String(opt.country_pk_code || opt.id) === String(p.spousePermCountry),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.spousePermCountry,
+                    options.countryOptions,
+                    ["country_name", "country"],
+                );
+                if (id) p.spousePermCountry = id;
+            }
+        }
+
+        // Convert spousePermDzongkhag
+        if (p.spousePermDzongkhag && options.dzongkhagOptions.length) {
+            const isId = options.dzongkhagOptions.some(
+                (opt) =>
+                    String(opt.dzongkhag_pk_code || opt.id) === String(p.spousePermDzongkhag),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    p.spousePermDzongkhag,
+                    options.dzongkhagOptions,
+                    ["dzongkhag_name", "dzongkhag"],
+                );
+                if (id) p.spousePermDzongkhag = id;
+            }
+        }
+
+        // Convert spousePermGewog (added)
+        if (p.spousePermGewog && options.dzongkhagOptions.length) {
+            // Note: Gewog options depend on dzongkhag, but we can try to find it by label
+            // This may need to be handled in the component, but we can attempt a generic conversion
+            // For now, we'll skip because gewog options aren't globally available here.
+        }
+
+        // Convert relatedPeps
+        if (p.relatedPeps && Array.isArray(p.relatedPeps)) {
+            p.relatedPeps = p.relatedPeps.map((pep: any) => convertPerson(pep));
+        }
+
+        return p;
+    };
+
+    // Convert business details
+    if (result.businessDetail) {
+        const biz = result.businessDetail;
+        // Convert industryClassification
+        if (biz.industryClassification && options.industryOptions.length) {
+            const isId = options.industryOptions.some(
+                (opt) =>
+                    String(
+                        opt.id ||
+                        opt.industry_classification_pk_code ||
+                        opt.industry_pk_code ||
+                        opt.inds_class_pk_code,
+                    ) === String(biz.industryClassification),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    biz.industryClassification,
+                    options.industryOptions,
+                    [
+                        "industry_classification",
+                        "industry_type",
+                        "industry_name",
+                        "name",
+                        "label",
+                        "industry",
+                        "inds_class_name",
+                    ],
+                );
+                if (id) biz.industryClassification = id;
+            }
+        }
+
+        // Convert taxIdentifierType (business)
+        if (biz.taxIdentifierType && options.taxIdentifierTypeOptions.length) {
+            const isId = options.taxIdentifierTypeOptions.some(
+                (opt) =>
+                    String(opt.tax_identifier_type_pk_code || opt.id) ===
+                    String(biz.taxIdentifierType),
+            );
+            if (!isId) {
+                const id = findPkCodeByLabel(
+                    biz.taxIdentifierType,
+                    options.taxIdentifierTypeOptions,
+                    ["tax_identifier_type", "name", "label"],
+                );
+                if (id) biz.taxIdentifierType = id;
+            }
+        }
+
+        // Convert business address
+        if (biz.businessAddress) {
+            const addr = biz.businessAddress;
+            // Convert country
+            if (addr.country && options.countryOptions.length) {
+                const isId = options.countryOptions.some(
+                    (opt) => String(opt.country_pk_code || opt.id) === String(addr.country),
+                );
+                if (!isId) {
+                    const id = findPkCodeByLabel(
+                        addr.country,
+                        options.countryOptions,
+                        ["country_name", "country"],
+                    );
+                    if (id) addr.country = id;
+                }
+            }
+
+            // Convert dzongkhag
+            if (addr.dzongkhag && options.dzongkhagOptions.length) {
+                const isId = options.dzongkhagOptions.some(
+                    (opt) => String(opt.dzongkhag_pk_code || opt.id) === String(addr.dzongkhag),
+                );
+                if (!isId) {
+                    const id = findPkCodeByLabel(
+                        addr.dzongkhag,
+                        options.dzongkhagOptions,
+                        ["dzongkhag_name", "dzongkhag"],
+                    );
+                    if (id) addr.dzongkhag = id;
+                }
+            }
+
+            // Note: gewog conversion is left to child components
+        }
+    }
+
+    // Convert all ownership sections
+    const sections = [
+        "ownerData",
+        "partners",
+        "ceo",
+        "boardMembers",
+        "shareholders",
+        "trustees",
+        "president",
+        "headOfAgency",
+        "headOfNGO",
+    ];
+    for (const section of sections) {
+        if (result[section]) {
+            if (Array.isArray(result[section])) {
+                result[section] = result[section].map((item: any) => convertPerson(item));
+            } else {
+                result[section] = convertPerson(result[section]);
+            }
+        }
+    }
+
+    return result;
+};
+
 // --- Main Form Component ---
 export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
     // --- State Initialization ---
-    // Helper to check for new structure (inside businessDetail) or fallback to old structure
     const getInitialVal = (key: string, defaultVal: any = "") => {
         return formData?.businessDetail?.[key] ?? formData?.[key] ?? defaultVal;
     };
@@ -4437,7 +4758,6 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
     const [occupationOptions, setOccupationOptions] = useState<any[]>([]);
     const [pepCategoryOptions, setPepCategoryOptions] = useState<any[]>([]);
     const [industryOptions, setIndustryOptions] = useState<any[]>([]);
-    // NEW: tax identifier type options
     const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -4453,9 +4773,9 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                 // Update businessData from parsed.businessDetail (excluding businessAddress)
                 if (parsed.businessDetail) {
                     const { businessAddress: addr, ...restBusiness } = parsed.businessDetail;
-                    setBusinessData(prev => ({ ...prev, ...restBusiness }));
+                    setBusinessData((prev) => ({ ...prev, ...restBusiness }));
                     if (addr) {
-                        setBusinessAddress(prev => ({ ...prev, ...addr }));
+                        setBusinessAddress((prev) => ({ ...prev, ...addr }));
                     }
                 }
                 // Update attachments
@@ -4528,12 +4848,14 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                 break;
             case "dateOfBirth":
             case "spouseDateOfBirth":
-                if (!isLegalAge(value))
-                    return "Applicant must be at least 18 years old";
+                if (!isLegalAge(value)) return "Applicant must be at least 18 years old";
                 break;
         }
         return "";
     };
+
+    // Options loaded flag
+    const [optionsLoaded, setOptionsLoaded] = useState(false);
 
     useEffect(() => {
         const loadAllData = async () => {
@@ -4548,7 +4870,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                     occ,
                     pepCat,
                     industry,
-                    taxIdentifierType,   // <-- NEW
+                    taxIdentifierType,
                 ] = await Promise.all([
                     fetchCountry().catch(() => []),
                     fetchDzongkhag().catch(() => []),
@@ -4559,7 +4881,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                     fetchOccupations().catch(() => []),
                     fetchPepCategory().catch(() => []),
                     fetchIndustryClassification().catch(() => []),
-                    fetchTaxIdentifierType().catch(() => []),   // <-- NEW
+                    fetchTaxIdentifierType().catch(() => []),
                 ]);
                 setCountryOptions(country?.data?.data || country || []);
                 setDzongkhagOptions(dzongkhag?.data?.data || dzongkhag || []);
@@ -4572,13 +4894,67 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                 setOccupationOptions(occ?.data?.data || occ || []);
                 setPepCategoryOptions(pepCat?.data?.data || pepCat || []);
                 setIndustryOptions(industry?.data?.data || industry || []);
-                setTaxIdentifierTypeOptions(taxIdentifierType?.data?.data || taxIdentifierType || []);   // <-- NEW
+                setTaxIdentifierTypeOptions(taxIdentifierType?.data?.data || taxIdentifierType || []);
+
+                setOptionsLoaded(true);
             } catch (error) {
                 console.error("Error loading form data:", error);
             }
         };
         loadAllData();
     }, []);
+
+    // Convert stored data to IDs when options are loaded
+    useEffect(() => {
+        if (optionsLoaded) {
+            const currentData = {
+                businessDetail: {
+                    ...businessData,
+                    businessAddress,
+                },
+                attachments,
+                ownerData,
+                partners,
+                ceo,
+                boardMembers,
+                shareholders,
+                trustees,
+                president,
+                headOfAgency,
+                headOfNGO,
+            };
+
+            const converted = convertFormDataToIds(currentData, {
+                countryOptions,
+                dzongkhagOptions,
+                identificationTypeOptions,
+                maritalStatusOptions,
+                nationalityOptions,
+                occupationOptions,
+                pepCategoryOptions,
+                industryOptions,
+                taxIdentifierTypeOptions,
+                banksOptions,
+            });
+
+            if (converted.businessDetail) {
+                setBusinessData(converted.businessDetail);
+                if (converted.businessDetail.businessAddress) {
+                    setBusinessAddress(converted.businessDetail.businessAddress);
+                }
+            }
+            if (converted.attachments) setAttachments(converted.attachments);
+            if (converted.ownerData) setOwnerData(converted.ownerData);
+            if (converted.partners) setPartners(converted.partners);
+            if (converted.ceo) setCeo(converted.ceo);
+            if (converted.boardMembers) setBoardMembers(converted.boardMembers);
+            if (converted.shareholders) setShareholders(converted.shareholders);
+            if (converted.trustees) setTrustees(converted.trustees);
+            if (converted.president) setPresident(converted.president);
+            if (converted.headOfAgency) setHeadOfAgency(converted.headOfAgency);
+            if (converted.headOfNGO) setHeadOfNGO(converted.headOfNGO);
+        }
+    }, [optionsLoaded]);
 
     const isBusinessBhutan = useMemo(() => {
         if (!businessAddress.country || countryOptions.length === 0) return false;
@@ -4604,7 +4980,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
 
     // --- Direct update for conversion effects (no resets) ---
     const updateBusinessAddressField = (field: string, value: any) => {
-        setBusinessAddress(prev => ({ ...prev, [field]: value }));
+        setBusinessAddress((prev) => ({ ...prev, [field]: value }));
     };
 
     // Translate Business Address Gewog label to ID dynamically
@@ -4642,24 +5018,23 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                         opt.id ||
                         opt.industry_classification_pk_code ||
                         opt.industry_pk_code ||
-                        opt.inds_class_pk_code ||
-                        opt.code ||
-                        opt.value
-                    ) === String(businessData.industryClassification)
+                        opt.inds_class_pk_code,
+                    ) === String(businessData.industryClassification),
             );
 
             if (!isId) {
                 const matchedId = findPkCodeByLabel(
                     businessData.industryClassification,
-                    industryOptions, [
-                    "industry_classification",
-                    "industry_type",
-                    "industry_name",
-                    "name",
-                    "label",
-                    "industry",
-                    "inds_class_name"
-                ]
+                    industryOptions,
+                    [
+                        "industry_classification",
+                        "industry_type",
+                        "industry_name",
+                        "name",
+                        "label",
+                        "industry",
+                        "inds_class_name",
+                    ],
                 );
                 if (matchedId && matchedId !== businessData.industryClassification) {
                     handleBusinessDataChange("industryClassification", matchedId);
@@ -4668,20 +5043,20 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
         }
     }, [industryOptions, businessData.industryClassification]);
 
-    // Translate Business Tax Identifier Type label to ID dynamically   <-- NEW
+    // Translate Business Tax Identifier Type label to ID dynamically
     useEffect(() => {
         if (taxIdentifierTypeOptions.length > 0 && businessData.taxIdentifierType) {
             const isId = taxIdentifierTypeOptions.some(
                 (opt) =>
                     String(opt.tax_identifier_type_pk_code || opt.id) ===
-                    String(businessData.taxIdentifierType)
+                    String(businessData.taxIdentifierType),
             );
 
             if (!isId) {
                 const matchedId = findPkCodeByLabel(
                     businessData.taxIdentifierType,
                     taxIdentifierTypeOptions,
-                    ["tax_identifier_type", "name", "label"]
+                    ["tax_identifier_type", "name", "label"],
                 );
                 if (matchedId && matchedId !== businessData.taxIdentifierType) {
                     handleBusinessDataChange("taxIdentifierType", matchedId);
@@ -4695,11 +5070,12 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
         if (countryOptions.length > 0 && businessAddress.country) {
             const isValid = countryOptions.some(
                 (opt) =>
-                    String(opt.country_pk_code || opt.id) === String(businessAddress.country)
+                    String(opt.country_pk_code || opt.id) === String(businessAddress.country),
             );
             if (!isValid) {
                 const pkCode = findPkCodeByLabel(businessAddress.country, countryOptions, [
-                    "country_name", "country"
+                    "country_name",
+                    "country",
                 ]);
                 if (pkCode && pkCode !== businessAddress.country) {
                     updateBusinessAddressField("country", pkCode);
@@ -4713,11 +5089,12 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
         if (isBusinessBhutan && dzongkhagOptions.length > 0 && businessAddress.dzongkhag) {
             const isValid = dzongkhagOptions.some(
                 (opt) =>
-                    String(opt.dzongkhag_pk_code || opt.id) === String(businessAddress.dzongkhag)
+                    String(opt.dzongkhag_pk_code || opt.id) === String(businessAddress.dzongkhag),
             );
             if (!isValid) {
                 const pkCode = findPkCodeByLabel(businessAddress.dzongkhag, dzongkhagOptions, [
-                    "dzongkhag_name", "dzongkhag"
+                    "dzongkhag_name",
+                    "dzongkhag",
                 ]);
                 if (pkCode && pkCode !== businessAddress.dzongkhag) {
                     updateBusinessAddressField("dzongkhag", pkCode);
@@ -4772,7 +5149,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
 
         try {
             const payload = {
-                type: "C", // C for Corporate/Business
+                type: "B",
                 identification_type_pk_code: idType,
                 identity_no: idNo,
             };
@@ -4806,43 +5183,47 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
             const mappedCountry = findPkCodeByLabel(
                 fetchedBusinessCustomerData.permCountry ||
                 fetchedBusinessCustomerData.country,
-                countryOptions, ["country_name", "country", "name", "label"],
+                countryOptions,
+                ["country_name", "country", "name", "label"],
             );
 
             // Map Dzongkhag IDs
             const mappedDzongkhag = findPkCodeByLabel(
                 fetchedBusinessCustomerData.permDzongkhag ||
                 fetchedBusinessCustomerData.dzongkhag,
-                dzongkhagOptions, ["dzongkhag_name", "dzongkhag", "name", "label"],
+                dzongkhagOptions,
+                ["dzongkhag_name", "dzongkhag", "name", "label"],
             );
 
             // Map Bank
             const mappedBank = findPkCodeByLabel(
                 fetchedBusinessCustomerData.bankName ||
                 fetchedBusinessCustomerData.nameOfBank,
-                banksOptions, ["bank_name", "name", "label", "bank"],
+                banksOptions,
+                ["bank_name", "name", "label", "bank"],
             );
 
             // Map Industry
             const mappedIndustry = findPkCodeByLabel(
                 fetchedBusinessCustomerData.industryClassification ||
                 fetchedBusinessCustomerData.industry,
-                industryOptions, [
-                "industry_classification",
-                "industry_type",
-                "industry_name",
-                "name",
-                "label",
-                "industry",
-                "inds_class_name"
-            ]
+                industryOptions,
+                [
+                    "industry_classification",
+                    "industry_type",
+                    "industry_name",
+                    "name",
+                    "label",
+                    "industry",
+                    "inds_class_name",
+                ],
             );
 
-            // Map Tax Identifier Type   <-- NEW
+            // Map Tax Identifier Type
             const mappedTaxIdentifierType = findPkCodeByLabel(
                 fetchedBusinessCustomerData.taxIdentifierType,
                 taxIdentifierTypeOptions,
-                ["tax_identifier_type", "name", "label"]
+                ["tax_identifier_type", "name", "label"],
             );
 
             setBusinessData((prev: any) => ({
@@ -5004,7 +5385,8 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                 } else {
                     setAttachments((prev) => ({
                         ...prev,
-                        [field]: fileId, [`${field}Name`]: file.name,
+                        [field]: fileId,
+                        [`${field}Name`]: file.name,
                     }));
                     clearError(`attachments.${field}`);
                 }
@@ -5593,11 +5975,11 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                     "name",
                 ]);
             }
-            if (p.taxIdentifierType && taxIdentifierTypeOptions.length) {   // <-- NEW
+            if (p.taxIdentifierType && taxIdentifierTypeOptions.length) {
                 p.taxIdentifierType = findLabelById(
                     p.taxIdentifierType,
                     taxIdentifierTypeOptions,
-                    ["tax_identifier_type", "name", "label"]
+                    ["tax_identifier_type", "name", "label"],
                 );
             }
             if (p.bankName) {
@@ -5657,11 +6039,11 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                     ["nationality", "name"],
                 );
             }
-            if (p.spouseTaxIdentifierType && taxIdentifierTypeOptions.length) {   // <-- NEW
+            if (p.spouseTaxIdentifierType && taxIdentifierTypeOptions.length) {
                 p.spouseTaxIdentifierType = findLabelById(
                     p.spouseTaxIdentifierType,
                     taxIdentifierTypeOptions,
-                    ["tax_identifier_type", "name", "label"]
+                    ["tax_identifier_type", "name", "label"],
                 );
             }
             if (p.spousePermCountry) {
@@ -5688,13 +6070,9 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
             result.partners = result.partners.map((p: any) => convertPerson(p));
         if (result.ceo) result.ceo = convertPerson(result.ceo);
         if (result.boardMembers)
-            result.boardMembers = result.boardMembers.map((p: any) =>
-                convertPerson(p),
-            );
+            result.boardMembers = result.boardMembers.map((p: any) => convertPerson(p));
         if (result.shareholders)
-            result.shareholders = result.shareholders.map((p: any) =>
-                convertPerson(p),
-            );
+            result.shareholders = result.shareholders.map((p: any) => convertPerson(p));
         if (result.trustees)
             result.trustees = result.trustees.map((p: any) => convertPerson(p));
         if (result.president) result.president = convertPerson(result.president);
@@ -5713,7 +6091,8 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
         if (result.businessDetail?.businessAddress?.dzongkhag) {
             result.businessDetail.businessAddress.dzongkhag = findLabelById(
                 result.businessDetail.businessAddress.dzongkhag,
-                dzongkhagOptions, ["dzongkhag_name", "dzongkhag"],
+                dzongkhagOptions,
+                ["dzongkhag_name", "dzongkhag"],
             );
         }
         if (result.businessDetail?.businessAddress?.gewog) {
@@ -5728,24 +6107,25 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
         if (result.businessDetail?.industryClassification && industryOptions.length > 0) {
             result.businessDetail.industryClassification = findLabelById(
                 result.businessDetail.industryClassification,
-                industryOptions, [
-                "industry_classification",
-                "industry_type",
-                "industry_name",
-                "name",
-                "label",
-                "industry",
-                "inds_class_name"
-            ]
+                industryOptions,
+                [
+                    "industry_classification",
+                    "industry_type",
+                    "industry_name",
+                    "name",
+                    "label",
+                    "industry",
+                    "inds_class_name",
+                ],
             );
         }
 
-        // Convert Business Tax Identifier Type   <-- NEW
+        // Convert Business Tax Identifier Type
         if (result.businessDetail?.taxIdentifierType && taxIdentifierTypeOptions.length > 0) {
             result.businessDetail.taxIdentifierType = findLabelById(
                 result.businessDetail.taxIdentifierType,
                 taxIdentifierTypeOptions,
-                ["tax_identifier_type", "name", "label"]
+                ["tax_identifier_type", "name", "label"],
             );
         }
 
@@ -5765,9 +6145,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
         const allData = existingSession ? JSON.parse(existingSession) : {};
 
         // 1. CLEANUP: Define keys to remove from top-level to prevent duplication/stale data.
-        // This removes business fields, address fields, AND any previously stored ownership keys.
         const keysToRemove = [
-            // Business Identifiers & Financials
             "businessName",
             "establishmentDate",
             "industryClassification",
@@ -5784,7 +6162,6 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
             "nameOfBank",
             "grossAnnualIncome",
             "businessType",
-            // Address Keys (in case they were top-level)
             "businessAddress",
             "country",
             "dzongkhag",
@@ -5794,7 +6171,6 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
             "contactNumber",
             "alternateContactNumber",
             "email",
-            // Ownership Keys (We remove ALL potential keys first, then add back only the relevant one)
             "ownerData",
             "partners",
             "ceo",
@@ -5821,7 +6197,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
         // 3. BASE UPDATE: Add consolidated business details and attachments
         const updatedData: any = {
             ...allData,
-            businessDetail, // Contains all business info + address
+            businessDetail,
             attachments,
         };
 
@@ -5856,7 +6232,6 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                 updatedData.headOfNGO = headOfNGO;
                 break;
             default:
-                // No additional ownership data added
                 break;
         }
 
@@ -5872,11 +6247,8 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
         );
 
         // Pass the combined data to parent for immediate UI updates/steps
-        // (Note: We pass the structure the form uses internally, which is distinct components)
         const dataToPass = {
-            ...sanitizedData, // pass the new structure
-            // Also spread individual components if parent expects flat structure for some reason,
-            // but ideally parent should now look at 'businessDetail'
+            ...sanitizedData,
         };
         onNext(dataToPass);
     };
@@ -5890,7 +6262,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                 </h2>
 
                 {showBusinessLookupPopup && (
-                    <DocumentPopup
+                    <BILBusinessSearch
                         open={showBusinessLookupPopup}
                         onOpenChange={setShowBusinessLookupPopup}
                         searchStatus={businessLookupStatus}
@@ -5980,9 +6352,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 Establishment Date <span className="text-red-500">*</span>
                             </Label>
                             <Input
-                                className={getFieldStyle(
-                                    !!errors["business.establishmentDate"],
-                                )}
+                                className={getFieldStyle(!!errors["business.establishmentDate"])}
                                 type="date"
                                 value={formatDateForInput(businessData.establishmentDate)}
                                 onChange={(e) =>
@@ -6002,17 +6372,24 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 Industry Classification <span className="text-red-500">*</span>
                             </Label>
                             <Select
-                                value={businessData.industryClassification ? String(businessData.industryClassification) : ""}
-                                onValueChange={(v) => handleBusinessDataChange("industryClassification", v)}
+                                value={
+                                    businessData.industryClassification
+                                        ? String(businessData.industryClassification)
+                                        : ""
+                                }
+                                onValueChange={(v) =>
+                                    handleBusinessDataChange("industryClassification", v)
+                                }
                             >
-                                <SelectTrigger className={getFieldStyle(!!errors["business.industryClassification"])}>
+                                <SelectTrigger
+                                    className={getFieldStyle(!!errors["business.industryClassification"])}
+                                >
                                     <SelectValue placeholder="Select Industry" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {industryOptions.length > 0 ? (
                                         industryOptions.map((opt: any, index: number) => {
-                                            // Handle string options
-                                            if (typeof opt === 'string') {
+                                            if (typeof opt === "string") {
                                                 return (
                                                     <SelectItem key={opt} value={opt}>
                                                         {opt}
@@ -6020,7 +6397,6 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                                 );
                                             }
 
-                                            // Determine value (ID)
                                             const value = String(
                                                 opt.inds_class_pk_code ||
                                                 opt.industry_classification_pk_code ||
@@ -6028,10 +6404,9 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                                 opt.id ||
                                                 opt.code ||
                                                 opt.value ||
-                                                index
+                                                index,
                                             );
 
-                                            // Determine label
                                             const label =
                                                 opt.inds_class_name ||
                                                 opt.industry_classification ||
@@ -6051,7 +6426,9 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                             );
                                         })
                                     ) : (
-                                        <SelectItem value="loading" disabled>Loading...</SelectItem>
+                                        <SelectItem value="loading" disabled>
+                                            Loading...
+                                        </SelectItem>
                                     )}
                                 </SelectContent>
                             </Select>
@@ -6067,15 +6444,17 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 Identification Type <span className="text-red-500">*</span>
                             </Label>
                             <Select
-                                value={businessData.identificationType ? String(businessData.identificationType) : ""}
+                                value={
+                                    businessData.identificationType
+                                        ? String(businessData.identificationType)
+                                        : ""
+                                }
                                 onValueChange={(v) =>
                                     handleBusinessDataChange("identificationType", v)
                                 }
                             >
                                 <SelectTrigger
-                                    className={getFieldStyle(
-                                        !!errors["business.identificationType"],
-                                    )}
+                                    className={getFieldStyle(!!errors["business.identificationType"])}
                                 >
                                     <SelectValue placeholder="Select" />
                                 </SelectTrigger>
@@ -6119,15 +6498,10 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                             </Label>
                             <RestrictedInput
                                 allowed="alphanumeric"
-                                className={getFieldStyle(
-                                    !!errors["business.identificationNumber"],
-                                )}
+                                className={getFieldStyle(!!errors["business.identificationNumber"])}
                                 value={businessData.identificationNumber}
                                 onChange={(e) =>
-                                    handleBusinessDataChange(
-                                        "identificationNumber",
-                                        e.target.value,
-                                    )
+                                    handleBusinessDataChange("identificationNumber", e.target.value)
                                 }
                                 onBlur={handleBusinessIdentityCheck}
                             />
@@ -6144,16 +6518,11 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 <span className="text-red-500">*</span>
                             </Label>
                             <Input
-                                className={getFieldStyle(
-                                    !!errors["business.identificationIssueDate"],
-                                )}
+                                className={getFieldStyle(!!errors["business.identificationIssueDate"])}
                                 type="date"
                                 value={formatDateForInput(businessData.identificationIssueDate)}
                                 onChange={(e) =>
-                                    handleBusinessDataChange(
-                                        "identificationIssueDate",
-                                        e.target.value,
-                                    )
+                                    handleBusinessDataChange("identificationIssueDate", e.target.value)
                                 }
                             />
                             {errors["business.identificationIssueDate"] && (
@@ -6169,18 +6538,11 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 <span className="text-red-500">*</span>
                             </Label>
                             <Input
-                                className={getFieldStyle(
-                                    !!errors["business.identificationExpiryDate"],
-                                )}
+                                className={getFieldStyle(!!errors["business.identificationExpiryDate"])}
                                 type="date"
-                                value={formatDateForInput(
-                                    businessData.identificationExpiryDate,
-                                )}
+                                value={formatDateForInput(businessData.identificationExpiryDate)}
                                 onChange={(e) =>
-                                    handleBusinessDataChange(
-                                        "identificationExpiryDate",
-                                        e.target.value,
-                                    )
+                                    handleBusinessDataChange("identificationExpiryDate", e.target.value)
                                 }
                             />
                             {errors["business.identificationExpiryDate"] && (
@@ -6209,10 +6571,11 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className={`w-28 ${errors["business.identificationProofFile"] ? "border-red-500" : "bg-transparent"}`}
-                                    onClick={() =>
-                                        document.getElementById("biz-id-proof")?.click()
-                                    }
+                                    className={`w-28 ${errors["business.identificationProofFile"]
+                                        ? "border-red-500"
+                                        : "bg-transparent"
+                                        }`}
+                                    onClick={() => document.getElementById("biz-id-proof")?.click()}
                                 >
                                     Choose File{" "}
                                 </Button>
@@ -6236,27 +6599,29 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 Tax Identifier Type <span className="text-red-500">*</span>
                             </Label>
                             <Select
-                                value={businessData.taxIdentifierType ? String(businessData.taxIdentifierType) : ""}
+                                value={
+                                    businessData.taxIdentifierType
+                                        ? String(businessData.taxIdentifierType)
+                                        : ""
+                                }
                                 onValueChange={(v) =>
                                     handleBusinessDataChange("taxIdentifierType", v)
                                 }
                             >
                                 <SelectTrigger
-                                    className={getFieldStyle(
-                                        !!errors["business.taxIdentifierType"],
-                                    )}
+                                    className={getFieldStyle(!!errors["business.taxIdentifierType"])}
                                 >
                                     <SelectValue placeholder="Select" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {taxIdentifierTypeOptions.length ? (
-                                        // In business section, filter out "Personal Income Tax" (PIT)
                                         taxIdentifierTypeOptions
                                             .filter((opt: any) => {
-                                                const label = (opt.tax_identifier_type || opt.name || "").toLowerCase();
+                                                const label = (
+                                                    opt.tax_identifier_type || opt.name || ""
+                                                ).toLowerCase();
                                                 return !(
-                                                    label.includes("personal income tax") ||
-                                                    label === "pit"
+                                                    label.includes("personal income tax") || label === "pit"
                                                 );
                                             })
                                             .map((opt: any, i) => (
@@ -6268,7 +6633,9 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                                 </SelectItem>
                                             ))
                                     ) : (
-                                        <SelectItem value="loading" disabled>Loading...</SelectItem>
+                                        <SelectItem value="loading" disabled>
+                                            Loading...
+                                        </SelectItem>
                                     )}
                                 </SelectContent>
                             </Select>
@@ -6286,15 +6653,10 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                             <RestrictedInput
                                 allowed="numeric"
                                 maxLength={11}
-                                className={getFieldStyle(
-                                    !!errors["business.taxIdentifierNumber"],
-                                )}
+                                className={getFieldStyle(!!errors["business.taxIdentifierNumber"])}
                                 value={businessData.taxIdentifierNumber}
                                 onChange={(e) =>
-                                    handleBusinessDataChange(
-                                        "taxIdentifierNumber",
-                                        e.target.value,
-                                    )
+                                    handleBusinessDataChange("taxIdentifierNumber", e.target.value)
                                 }
                             />
                             {errors["business.taxIdentifierNumber"] && (
@@ -6356,15 +6718,10 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                             </Label>
                             <RestrictedInput
                                 allowed="alphanumeric"
-                                className={getFieldStyle(
-                                    !!errors["business.bankCurrentAccountNumber"],
-                                )}
+                                className={getFieldStyle(!!errors["business.bankCurrentAccountNumber"])}
                                 value={businessData.bankCurrentAccountNumber}
                                 onChange={(e) =>
-                                    handleBusinessDataChange(
-                                        "bankCurrentAccountNumber",
-                                        e.target.value,
-                                    )
+                                    handleBusinessDataChange("bankCurrentAccountNumber", e.target.value)
                                 }
                             />
                             {errors["business.bankCurrentAccountNumber"] && (
@@ -6379,9 +6736,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 Gross Annual Income <span className="text-red-500">*</span>
                             </Label>
                             <Input
-                                className={getFieldStyle(
-                                    !!errors["business.grossAnnualIncome"],
-                                )}
+                                className={getFieldStyle(!!errors["business.grossAnnualIncome"])}
                                 type="number"
                                 value={businessData.grossAnnualIncome}
                                 onChange={(e) =>
@@ -6412,9 +6767,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 value={businessAddress.country ? String(businessAddress.country) : ""}
                                 onValueChange={(v) => handleBusinessAddressChange("country", v)}
                             >
-                                <SelectTrigger
-                                    className={getFieldStyle(!!errors["business.country"])}
-                                >
+                                <SelectTrigger className={getFieldStyle(!!errors["business.country"])}>
                                     <SelectValue placeholder="Select" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -6444,10 +6797,10 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                             </Label>
                             {isBusinessBhutan ? (
                                 <Select
-                                    value={businessAddress.dzongkhag ? String(businessAddress.dzongkhag) : ""}
-                                    onValueChange={(v) =>
-                                        handleBusinessAddressChange("dzongkhag", v)
+                                    value={
+                                        businessAddress.dzongkhag ? String(businessAddress.dzongkhag) : ""
                                     }
+                                    onValueChange={(v) => handleBusinessAddressChange("dzongkhag", v)}
                                     disabled={!businessAddress.country}
                                 >
                                     <SelectTrigger
@@ -6568,10 +6921,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 className={getFieldStyle(!!errors["business.specificLocation"])}
                                 value={businessAddress.specificLocation}
                                 onChange={(e) =>
-                                    handleBusinessAddressChange(
-                                        "specificLocation",
-                                        e.target.value,
-                                    )
+                                    handleBusinessAddressChange("specificLocation", e.target.value)
                                 }
                             />
                             {errors["business.specificLocation"] && (
@@ -6606,15 +6956,10 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                             <RestrictedInput
                                 allowed="numeric"
                                 maxLength={8}
-                                className={getFieldStyle(
-                                    !!errors["business.alternateContactNumber"],
-                                )}
+                                className={getFieldStyle(!!errors["business.alternateContactNumber"])}
                                 value={businessAddress.alternateContactNumber}
                                 onChange={(e) =>
-                                    handleBusinessAddressChange(
-                                        "alternateContactNumber",
-                                        e.target.value,
-                                    )
+                                    handleBusinessAddressChange("alternateContactNumber", e.target.value)
                                 }
                             />
                             {errors["business.alternateContactNumber"] && (
@@ -6666,7 +7011,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 dzongkhagOptions={dzongkhagOptions}
                                 identificationTypeOptions={identificationTypeOptions}
                                 maritalStatusOptions={maritalStatusOptions}
-                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                 title="Owner Personal Information"
                                 errors={errors}
                                 basePath="owner"
@@ -6705,7 +7050,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                     dzongkhagOptions={dzongkhagOptions}
                                     identificationTypeOptions={identificationTypeOptions}
                                     maritalStatusOptions={maritalStatusOptions}
-                                    taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                    taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                     errors={errors}
                                     basePath={`partners.${index}`}
                                     onClearError={clearError}
@@ -6742,15 +7087,13 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                         data={sh}
                                         isPartner={true}
                                         title={`Shareholder ${idx + 1} Information`}
-                                        onUpdate={(newData) =>
-                                            handleUpdateShareholder(idx, newData)
-                                        }
+                                        onUpdate={(newData) => handleUpdateShareholder(idx, newData)}
                                         onRemove={() => handleRemoveShareholder(idx)}
                                         countryOptions={countryOptions}
                                         dzongkhagOptions={dzongkhagOptions}
                                         identificationTypeOptions={identificationTypeOptions}
                                         maritalStatusOptions={maritalStatusOptions}
-                                        taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                        taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                         errors={errors}
                                         basePath={`shareholders.${idx}`}
                                         onClearError={clearError}
@@ -6775,7 +7118,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                     dzongkhagOptions={dzongkhagOptions}
                                     identificationTypeOptions={identificationTypeOptions}
                                     maritalStatusOptions={maritalStatusOptions}
-                                    taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                    taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                     errors={errors}
                                     basePath="ceo"
                                     onClearError={clearError}
@@ -6805,15 +7148,13 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                         data={bm}
                                         isPartner={true}
                                         title={`Director ${idx + 1} Information`}
-                                        onUpdate={(newData) =>
-                                            handleUpdateBoardMember(idx, newData)
-                                        }
+                                        onUpdate={(newData) => handleUpdateBoardMember(idx, newData)}
                                         onRemove={() => handleRemoveBoardMember(idx)}
                                         countryOptions={countryOptions}
                                         dzongkhagOptions={dzongkhagOptions}
                                         identificationTypeOptions={identificationTypeOptions}
                                         maritalStatusOptions={maritalStatusOptions}
-                                        taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                        taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                         errors={errors}
                                         basePath={`boardMembers.${idx}`}
                                         onClearError={clearError}
@@ -6853,15 +7194,13 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                         data={sh}
                                         isPartner={true}
                                         title={`Shareholder ${idx + 1} Information`}
-                                        onUpdate={(newData) =>
-                                            handleUpdateShareholder(idx, newData)
-                                        }
+                                        onUpdate={(newData) => handleUpdateShareholder(idx, newData)}
                                         onRemove={() => handleRemoveShareholder(idx)}
                                         countryOptions={countryOptions}
                                         dzongkhagOptions={dzongkhagOptions}
                                         identificationTypeOptions={identificationTypeOptions}
                                         maritalStatusOptions={maritalStatusOptions}
-                                        taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                        taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                         errors={errors}
                                         basePath={`shareholders.${idx}`}
                                         onClearError={clearError}
@@ -6886,7 +7225,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                     dzongkhagOptions={dzongkhagOptions}
                                     identificationTypeOptions={identificationTypeOptions}
                                     maritalStatusOptions={maritalStatusOptions}
-                                    taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                    taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                     errors={errors}
                                     basePath="ceo"
                                     onClearError={clearError}
@@ -6916,15 +7255,13 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                         data={bm}
                                         isPartner={true}
                                         title={`Director ${idx + 1} Information`}
-                                        onUpdate={(newData) =>
-                                            handleUpdateBoardMember(idx, newData)
-                                        }
+                                        onUpdate={(newData) => handleUpdateBoardMember(idx, newData)}
                                         onRemove={() => handleRemoveBoardMember(idx)}
                                         countryOptions={countryOptions}
                                         dzongkhagOptions={dzongkhagOptions}
                                         identificationTypeOptions={identificationTypeOptions}
                                         maritalStatusOptions={maritalStatusOptions}
-                                        taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                        taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                         errors={errors}
                                         basePath={`boardMembers.${idx}`}
                                         onClearError={clearError}
@@ -6964,7 +7301,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                     dzongkhagOptions={dzongkhagOptions}
                                     identificationTypeOptions={identificationTypeOptions}
                                     maritalStatusOptions={maritalStatusOptions}
-                                    taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                    taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                     errors={errors}
                                     basePath={`trustees.${index}`}
                                     onClearError={clearError}
@@ -6991,7 +7328,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 dzongkhagOptions={dzongkhagOptions}
                                 identificationTypeOptions={identificationTypeOptions}
                                 maritalStatusOptions={maritalStatusOptions}
-                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                 errors={errors}
                                 basePath="president"
                                 onClearError={clearError}
@@ -7017,7 +7354,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 dzongkhagOptions={dzongkhagOptions}
                                 identificationTypeOptions={identificationTypeOptions}
                                 maritalStatusOptions={maritalStatusOptions}
-                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                 errors={errors}
                                 basePath="headOfAgency"
                                 onClearError={clearError}
@@ -7043,7 +7380,7 @@ export function BusinessDetailsForm({ onNext, onBack, formData }: any) {
                                 dzongkhagOptions={dzongkhagOptions}
                                 identificationTypeOptions={identificationTypeOptions}
                                 maritalStatusOptions={maritalStatusOptions}
-                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}   // <-- NEW
+                                taxIdentifierTypeOptions={taxIdentifierTypeOptions}
                                 errors={errors}
                                 basePath="headOfNGO"
                                 onClearError={clearError}

@@ -52,6 +52,160 @@ const formatDateForInput = (dateString: string | null | undefined) => {
   }
 };
 
+// ================== Module-level helpers for PK resolution ==================
+const getOptionPkCode = (opt: any): string => {
+  if (!opt) return "";
+  return String(
+    opt.bank_pk_code ||
+    opt.country_pk_code ||
+    opt.nationality_pk_code ||
+    opt.identity_type_pk_code ||
+    opt.marital_status_pk_code ||
+    opt.occupation_pk_code ||
+    opt.occ_pk_code ||
+    opt.lgal_constitution_pk_code ||
+    opt.legal_const_pk_code ||
+    opt.dzongkhag_pk_code ||
+    opt.pk_dzongkhag_id ||
+    opt.dzongkhag_pk_id ||
+    opt.gewog_pk_code ||
+    opt.curr_gewog_pk_code ||
+    opt.pk_gewog_id ||
+    opt.gewog_pk_id ||
+    opt.pep_category_pk_code ||
+    opt.pep_sub_category_pk_code ||
+    opt.tax_identifier_type_pk_code ||
+    opt.pk_code ||
+    opt.id ||
+    opt.code ||
+    "",
+  );
+};
+
+const getOptionLabel = (opt: any): string => {
+  if (!opt) return "";
+  return String(
+    opt.gewog ||
+    opt.gewog_name ||
+    opt.gewogName ||
+    opt.dzongkhag ||
+    opt.dzongkhag_name ||
+    opt.dzongkhagName ||
+    opt.country ||
+    opt.country_name ||
+    opt.countryName ||
+    opt.nationality ||
+    opt.identity_type ||
+    opt.identification_type ||
+    opt.marital_status ||
+    opt.occ_name ||
+    opt.occupation ||
+    opt.lgal_constitution ||
+    opt.legal_const_name ||
+    opt.bank_name ||
+    opt.bank ||
+    opt.bankName ||
+    opt.pep_category ||
+    opt.pep_sub_category ||
+    opt.tax_identifier_type ||
+    opt.name ||
+    opt.label ||
+    "Unknown"
+  );
+};
+
+const findPkCodeByLabelStatic = (
+  label: string,
+  options: any[],
+  labelFields?: string[],
+): string => {
+  if (!label || !options || !Array.isArray(options)) return label;
+  const trimmedLabel = String(label).trim().toLowerCase();
+  const strippedLabel = trimmedLabel.replace(/\s+/g, "");
+  const inputWords = trimmedLabel.split(/\s+/).filter((w) => w.length > 0);
+
+  const getCode = (opt: any) =>
+    String(
+      opt.bank_pk_code ||
+      opt.country_pk_code ||
+      opt.nationality_pk_code ||
+      opt.identity_type_pk_code ||
+      opt.marital_status_pk_code ||
+      opt.occ_pk_code ||
+      opt.occupation_pk_code ||
+      opt.dzongkhag_pk_code ||
+      opt.gewog_pk_code ||
+      opt.pep_category_pk_code ||
+      opt.pep_sub_category_pk_code ||
+      opt.lgal_constitution_pk_code ||
+      opt.legal_const_pk_code ||
+      opt.tax_identifier_type_pk_code ||
+      opt.pk_code ||
+      opt.id ||
+      opt.code ||
+      ""
+    );
+
+  const getLabelFallback = (opt: any) =>
+    String(
+      opt.gewog || opt.dzongkhag || opt.country || opt.nationality ||
+      opt.identity_type || opt.identification_type || opt.marital_status ||
+      opt.occ_name || opt.occupation || opt.lgal_constitution || opt.legal_const_name ||
+      opt.bank_name || opt.bank || opt.name || opt.label || "Unknown"
+    );
+
+  // 0. Exact match on code
+  for (const option of options) {
+    const code = getCode(option);
+    if (code && String(code).toLowerCase() === trimmedLabel) return code;
+  }
+
+  const checkMatch = (optVal: string) => {
+    if (!optVal) return false;
+    const t = String(optVal).trim().toLowerCase();
+    const s = t.replace(/\s+/g, "");
+    if (s === strippedLabel || t === trimmedLabel) return true;
+    const optWords = t.split(/\s+/).filter((w) => w.length > 0);
+    if (inputWords.length > 0 && optWords.length > 0) {
+      return inputWords.every((w) =>
+        optWords.some(
+          (ow) =>
+            ow === w ||
+            ow.includes(w) ||
+            (w.startsWith("identi") && ow.startsWith("identi"))
+        )
+      );
+    }
+    return false;
+  };
+
+  // 0.5. Exact label match pass
+  for (const option of options) {
+    const fields = labelFields ? labelFields.map((f) => option[f]).filter(Boolean) : [];
+    fields.push(getLabelFallback(option));
+    if (fields.some((v) => String(v).trim().toLowerCase() === trimmedLabel)) return getCode(option);
+  }
+
+  // 1. Fuzzy match
+  for (const option of options) {
+    const fields = labelFields ? labelFields.map((f) => option[f]).filter(Boolean) : [];
+    fields.push(getLabelFallback(option));
+    if (fields.some((v) => checkMatch(String(v)))) return getCode(option);
+  }
+
+  // 2. Partial Match Fallback
+  if (trimmedLabel.length >= 4) {
+    for (const option of options) {
+      const lbl = getLabelFallback(option).toLowerCase();
+      // Handle married/unmarried specifically
+      if (trimmedLabel === "unmarried" && lbl === "unmarried") return getCode(option);
+      if (trimmedLabel === "married" && lbl === "married") return getCode(option);
+      if (lbl.includes(trimmedLabel)) return getCode(option);
+    }
+  }
+  return label;
+};
+
 // Helper to filter out Trade License and Company Registration from identification types
 const getFilteredIdentificationOptions = (options: any[]) => {
   return options.filter((opt) => {
@@ -246,35 +400,65 @@ export function RepaymentSourceForm({
   formData,
 }: RepaymentSourceFormProps) {
   // --- STATE ---
-  const [incomeData, setIncomeData] = useState(
-    formData?.incomeDetails || {
-      repaymentGuarantor: "no",
+  const [incomeData, setIncomeData] = useState(() => {
+    // Priority: formData.repaymentSource, then legacy formData.incomeDetails, then default
+    const source = formData?.repaymentSource || formData?.incomeDetails || {};
+    return {
+      repaymentGuarantor: source.repaymentGuarantor || "no",
       // Monthly salary categories
-      enableMonthlySalaryCivil: false,
-      enableMonthlySalaryCorporate: false,
-      enableMonthlySalaryPrivate: false,
-      monthlySalaryCivil: "",
-      monthlySalaryCorporate: "",
-      monthlySalaryPrivate: "",
+      enableMonthlySalaryCivil: source.enableMonthlySalaryCivil ?? false,
+      enableMonthlySalaryCorporate: source.enableMonthlySalaryCorporate ?? false,
+      enableMonthlySalaryPrivate: source.enableMonthlySalaryPrivate ?? false,
+      monthlySalaryCivil: source.monthlySalaryCivil || "",
+      monthlySalaryCorporate: source.monthlySalaryCorporate || "",
+      monthlySalaryPrivate: source.monthlySalaryPrivate || "",
       // Other income types
-      enableRentalIncome: false,
-      enableBusinessIncome: false,
-      enableVehicleHiring: false,
-      enableDividendIncome: false,
-      enableAgricultureIncome: false,
-      enableTruckTaxiIncome: false,
-      rentalIncome: "",
-      businessIncome: "",
-      vehicleHiringIncome: "",
-      dividendIncome: "",
-      agricultureIncome: "",
-      truckTaxiIncome: "",
-      repaymentProof: null as File | null,
-    },
-  );
+      enableRentalIncome: source.enableRentalIncome ?? false,
+      enableBusinessIncome: source.enableBusinessIncome ?? false,
+      enableVehicleHiring: source.enableVehicleHiring ?? false,
+      enableDividendIncome: source.enableDividendIncome ?? false,
+      enableAgricultureIncome: source.enableAgricultureIncome ?? false,
+      enableTruckTaxiIncome: source.enableTruckTaxiIncome ?? false,
+      rentalIncome: source.rentalIncome || "",
+      businessIncome: source.businessIncome || "",
+      vehicleHiringIncome: source.vehicleHiringIncome || "",
+      dividendIncome: source.dividendIncome || "",
+      agricultureIncome: source.agricultureIncome || "",
+      truckTaxiIncome: source.truckTaxiIncome || "",
+      repaymentProof: source.repaymentProof || null,
+    };
+  });
 
   // Guarantors Array (Independent Objects)
-  const [guarantors, setGuarantors] = useState<any[]>([createEmptyGuarantor()]);
+  const [guarantors, setGuarantors] = useState<any[]>(() => {
+    return formData?.repaymentSource?.guarantors || [createEmptyGuarantor()];
+  });
+
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    // Only load verified data if we don't have form data from previous session/step navigation
+    const hasData = formData?.repaymentSource || formData?.incomeDetails;
+    if (!hasData) {
+      const stored = sessionStorage.getItem("verifiedRepaymentData");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed && Object.keys(parsed).length > 0) {
+            setIncomeData((prev: any) => ({ ...prev, repaymentGuarantor: "yes" }));
+            setGuarantors((prev) => {
+              let updated = [...prev];
+              updated[0] = { ...updated[0], ...parsed };
+              return updated;
+            });
+          }
+        } catch (e) {
+          console.error("Error parsing verifiedRepaymentData", e);
+        }
+      }
+    }
+  }, [formData]);
 
   // Dropdown Options (Shared)
   const [nationalityOptions, setNationalityOptions] = useState<any[]>([]);
@@ -290,6 +474,94 @@ export function RepaymentSourceForm({
   const [organizationOptions, setOrganizationOptions] = useState<any[]>([]);
   // NEW: tax identifier type options
   const [taxIdentifierTypeOptions, setTaxIdentifierTypeOptions] = useState<any[]>([]);
+
+  // --- CONVERSION: Consistently map labels to PK codes across all Guarantors ---
+  useEffect(() => {
+    if (
+      !nationalityOptions.length && !identificationTypeOptions.length && !countryOptions.length &&
+      !taxIdentifierTypeOptions.length && !dzongkhagOptions.length && !maritalStatusOptions.length &&
+      !occupationOptions.length && !banksOptions.length && !pepCategoryOptions.length
+    ) return;
+
+    setGuarantors((prev) => {
+      let hasChanges = false;
+      const mapped = prev.map((g) => {
+        let updated = { ...g };
+
+        const fieldsToResolve = [
+          { field: 'nationality', opts: nationalityOptions, keys: ["nationality", "name", "label"] },
+          { field: 'idType', opts: identificationTypeOptions, keys: ["identity_type", "identification_type", "name", "label"] },
+          { field: 'maritalStatus', opts: maritalStatusOptions, keys: ["marital_status", "name", "label"] },
+          { field: 'permCountry', opts: countryOptions, keys: ["country", "name", "label"] },
+          { field: 'permDzongkhag', opts: dzongkhagOptions, keys: ["dzongkhag", "name", "label"] },
+          { field: 'currCountry', opts: countryOptions, keys: ["country", "name", "label"] },
+          { field: 'currDzongkhag', opts: dzongkhagOptions, keys: ["dzongkhag", "name", "label"] },
+          { field: 'bankName', opts: banksOptions, keys: ["bank_name", "name", "label", "bank"] },
+          { field: 'taxIdentifierType', opts: taxIdentifierTypeOptions, keys: ["tax_identifier_type", "name", "label"] },
+          { field: 'occupation', opts: occupationOptions, keys: ["occ_name", "occupation", "name", "label"] },
+          { field: 'orgLocation', opts: dzongkhagOptions, keys: ["dzongkhag", "name", "label"] },
+          { field: 'pepCategory', opts: pepCategoryOptions, keys: ["pep_category", "name", "label"] },
+          { field: 'spouseIdentificationType', opts: identificationTypeOptions, keys: ["identity_type", "identification_type", "name", "label"] },
+          { field: 'spouseNationality', opts: nationalityOptions, keys: ["nationality", "name", "label"] },
+          { field: 'spouseTaxIdentifierType', opts: taxIdentifierTypeOptions, keys: ["tax_identifier_type", "name", "label"] },
+        ];
+
+        fieldsToResolve.forEach(({ field, opts, keys }) => {
+          if (updated[field] && opts.length > 0) {
+            const pk = findPkCodeByLabelStatic(updated[field], opts, keys);
+            if (pk && pk !== updated[field]) {
+              updated[field] = pk;
+              hasChanges = true;
+            }
+          }
+        });
+
+        // Resolve Related PEP fields if they exist
+        if (updated.relatedPeps?.length > 0) {
+          const resolvedPeps = updated.relatedPeps.map((pep: any) => {
+            let p = { ...pep };
+            const pepFields = [
+              { field: 'nationality', opts: nationalityOptions, keys: ["nationality", "name", "label"] },
+              { field: 'identificationType', opts: identificationTypeOptions, keys: ["identity_type", "identification_type", "name", "label"] },
+              { field: 'maritalStatus', opts: maritalStatusOptions, keys: ["marital_status", "name", "label"] },
+              { field: 'category', opts: pepCategoryOptions, keys: ["pep_category", "name", "label"] },
+              { field: 'taxIdentifierType', opts: taxIdentifierTypeOptions, keys: ["tax_identifier_type", "name", "label"] },
+              { field: 'permCountry', opts: countryOptions, keys: ["country", "name", "label"] },
+              { field: 'permDzongkhag', opts: dzongkhagOptions, keys: ["dzongkhag", "name", "label"] },
+              { field: 'currCountry', opts: countryOptions, keys: ["country", "name", "label"] },
+              { field: 'currDzongkhag', opts: dzongkhagOptions, keys: ["dzongkhag", "name", "label"] },
+            ];
+            pepFields.forEach(({ field, opts, keys }) => {
+              if (p[field] && opts.length > 0) {
+                const pk = findPkCodeByLabelStatic(p[field], opts, keys);
+                if (pk && pk !== p[field]) {
+                  p[field] = pk;
+                  hasChanges = true;
+                }
+              }
+            });
+            return p;
+          });
+          if (hasChanges) updated.relatedPeps = resolvedPeps;
+        }
+
+        return updated;
+      });
+
+      return hasChanges ? mapped : prev;
+    });
+  }, [
+    nationalityOptions.length,
+    identificationTypeOptions.length,
+    countryOptions.length,
+    dzongkhagOptions.length,
+    maritalStatusOptions.length,
+    occupationOptions.length,
+    banksOptions.length,
+    taxIdentifierTypeOptions.length,
+    pepCategoryOptions.length,
+    guarantors.length
+  ]);
 
   // Constants
   const today = new Date().toISOString().split("T")[0];
@@ -525,172 +797,240 @@ export function RepaymentSourceForm({
           Array.isArray(savedGuarantors) &&
           savedGuarantors.length > 0
         ) {
-          setGuarantors(savedGuarantors);
+          setGuarantors((prev) => {
+            const updated = [...savedGuarantors];
+            if (prev[0] && prev[0].isVerified && (!updated[0] || !updated[0].isVerified)) {
+              updated[0] = { ...updated[0], ...prev[0] };
+            }
+            return updated;
+          });
         }
       } else if (formData.incomeDetails) {
         setIncomeData((prev: any) => ({ ...prev, ...formData.incomeDetails }));
         if (formData.guarantors && Array.isArray(formData.guarantors)) {
-          setGuarantors(formData.guarantors);
+          setGuarantors((prev) => {
+            const updated = [...formData.guarantors];
+            if (prev[0] && prev[0].isVerified && (!updated[0] || !updated[0].isVerified)) {
+              updated[0] = { ...updated[0], ...prev[0] };
+            }
+            return updated;
+          });
         }
       }
     }
   }, [formData]);
 
-  // --- DYNAMIC GEWOG LOADING (Per Guarantor) ---
-  useEffect(() => {
-    const loadPermGewogs = async () => {
-      const updated = [...guarantors];
-      let needsUpdate = false;
-      for (let i = 0; i < guarantors.length; i++) {
-        const g = guarantors[i];
-        if (g.permDzongkhag) {
-          try {
-            const opts = await fetchGewogsByDzongkhag(g.permDzongkhag);
-            updated[i] = { ...updated[i], permGewogOptions: opts };
-            needsUpdate = true;
-          } catch (e) {
-            updated[i] = { ...updated[i], permGewogOptions: [] };
-            needsUpdate = true;
-          }
-        }
+  // --- DYNAMIC GEWOG LOADING (Per Guarantor) via robust loadAndResolveGewogs ---
+  const loadAndResolveGewogs = async (
+    dzongkhag: string,
+    currentValue: string,
+  ) => {
+    if (!dzongkhag) return null;
+    try {
+      let dzongkhagCode = dzongkhag;
+      const isNumeric = /^\d+$/.test(String(dzongkhag).trim());
+      if (!isNumeric && dzongkhagOptions.length > 0) {
+        const resolved = findPkCodeByLabelStatic(dzongkhag, dzongkhagOptions, ["dzongkhag", "dzongkhag_name", "dzongkhagName", "name", "label"]);
+        if (resolved) dzongkhagCode = resolved;
       }
-      if (needsUpdate) setGuarantors(updated);
-    };
-    loadPermGewogs();
-  }, [guarantors.map((g) => g.permDzongkhag).join(",")]);
-
-  useEffect(() => {
-    const loadCurrGewogs = async () => {
-      const updated = [...guarantors];
-      let needsUpdate = false;
-      for (let i = 0; i < guarantors.length; i++) {
-        const g = guarantors[i];
-        if (g.currDzongkhag) {
-          try {
-            const opts = await fetchGewogsByDzongkhag(g.currDzongkhag);
-            updated[i] = { ...updated[i], currGewogOptions: opts };
-            needsUpdate = true;
-          } catch (e) {
-            updated[i] = { ...updated[i], currGewogOptions: [] };
-            needsUpdate = true;
-          }
-        }
+      const options = await fetchGewogsByDzongkhag(dzongkhagCode);
+      let resolvedValue = currentValue;
+      if (resolvedValue && options.length > 0) {
+        const pkCode = findPkCodeByLabelStatic(resolvedValue, options, ["gewog", "gewog_name", "gewogName", "name", "label"]);
+        if (pkCode && pkCode !== resolvedValue) resolvedValue = pkCode;
       }
-      if (needsUpdate) setGuarantors(updated);
-    };
-    loadCurrGewogs();
-  }, [guarantors.map((g) => g.currDzongkhag).join(",")]);
-
-  useEffect(() => {
-    const loadSpousePermGewogs = async () => {
-      const updated = [...guarantors];
-      let needsUpdate = false;
-      for (let i = 0; i < guarantors.length; i++) {
-        const g = guarantors[i];
-        if (g.spousePermDzongkhag) {
-          try {
-            const opts = await fetchGewogsByDzongkhag(g.spousePermDzongkhag);
-            updated[i] = { ...updated[i], spousePermGewogOptions: opts };
-            needsUpdate = true;
-          } catch (e) {
-            updated[i] = { ...updated[i], spousePermGewogOptions: [] };
-            needsUpdate = true;
-          }
-        }
-      }
-      if (needsUpdate) setGuarantors(updated);
-    };
-    loadSpousePermGewogs();
-  }, [guarantors.map((g) => g.spousePermDzongkhag).join(",")]);
-
-  // --- PEP SUBCATEGORY LOADING ---
-  useEffect(() => {
-    const loadPepSub = async () => {
-      const updated = [...guarantors];
-      let needsUpdate = false;
-      for (let i = 0; i < guarantors.length; i++) {
-        if (guarantors[i].isPep === "yes" && guarantors[i].pepCategory) {
-          try {
-            const opts = await fetchPepSubCategoryByCategory(
-              guarantors[i].pepCategory,
-            );
-            updated[i] = { ...updated[i], pepSubCategoryOptions: opts || [] };
-            needsUpdate = true;
-          } catch (e) {
-            updated[i] = { ...updated[i], pepSubCategoryOptions: [] };
-            needsUpdate = true;
-          }
-        } else {
-          updated[i] = { ...updated[i], pepSubCategoryOptions: [] };
-          needsUpdate = true;
-        }
-      }
-      if (needsUpdate) setGuarantors(updated);
-    };
-    loadPepSub();
-  }, [guarantors.map((g) => `${g.isPep}-${g.pepCategory}`).join(",")]);
-
-  // --- CONVERSION: Tax Identifier Type for Guarantor (when options load) --- <-- NEW
-  useEffect(() => {
-    if (taxIdentifierTypeOptions.length) {
-      setGuarantors((prev) =>
-        prev.map((g) => {
-          if (g.taxIdentifierType) {
-            const isValid = taxIdentifierTypeOptions.some(
-              (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(g.taxIdentifierType)
-            );
-            if (!isValid) {
-              const pkCode = findPkCodeByLabel(
-                g.taxIdentifierType,
-                taxIdentifierTypeOptions,
-                ["tax_identifier_type", "name", "label"]
-              );
-              if (pkCode && pkCode !== g.taxIdentifierType) {
-                return { ...g, taxIdentifierType: pkCode };
-              }
-            }
-          }
-          if (g.spouseTaxIdentifierType) {
-            const isValid = taxIdentifierTypeOptions.some(
-              (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(g.spouseTaxIdentifierType)
-            );
-            if (!isValid) {
-              const pkCode = findPkCodeByLabel(
-                g.spouseTaxIdentifierType,
-                taxIdentifierTypeOptions,
-                ["tax_identifier_type", "name", "label"]
-              );
-              if (pkCode && pkCode !== g.spouseTaxIdentifierType) {
-                return { ...g, spouseTaxIdentifierType: pkCode };
-              }
-            }
-          }
-          if (g.relatedPeps) {
-            const updatedPeps = g.relatedPeps.map((pep: any) => {
-              if (pep.taxIdentifierType) {
-                const isValid = taxIdentifierTypeOptions.some(
-                  (opt) => String(opt.tax_identifier_type_pk_code || opt.id) === String(pep.taxIdentifierType)
-                );
-                if (!isValid) {
-                  const pkCode = findPkCodeByLabel(
-                    pep.taxIdentifierType,
-                    taxIdentifierTypeOptions,
-                    ["tax_identifier_type", "name", "label"]
-                  );
-                  if (pkCode && pkCode !== pep.taxIdentifierType) {
-                    return { ...pep, taxIdentifierType: pkCode };
-                  }
-                }
-              }
-              return pep;
-            });
-            return { ...g, relatedPeps: updatedPeps };
-          }
-          return g;
-        })
-      );
+      return { options, resolvedValue };
+    } catch {
+      return { options: [], resolvedValue: currentValue };
     }
-  }, [taxIdentifierTypeOptions]);
+  };
+
+  useEffect(() => {
+    const run = async () => {
+      const jobs = guarantors.map(async (g, i) => {
+        if (g.permDzongkhag) {
+          const res = await loadAndResolveGewogs(g.permDzongkhag, g.permGewog);
+          return { i, dzongkhag: g.permDzongkhag, ...(res || { options: [], resolvedValue: g.permGewog }) };
+        }
+        return { i, dzongkhag: null, options: [], resolvedValue: g.permGewog };
+      });
+      const results = await Promise.all(jobs);
+      setGuarantors((prev) => {
+        if (prev.length !== results.length) return prev;
+        let changed = false;
+        const updated = [...prev];
+        for (const res of results) {
+          const g = updated[res.i];
+          if (!g) continue;
+          if (res.dzongkhag) {
+            const optChanged = !g.permGewogOptions || g.permGewogOptions.length !== (res.options?.length || 0);
+            const valChanged = res.resolvedValue !== g.permGewog;
+            if (optChanged || valChanged) {
+              updated[res.i] = { ...g, permGewogOptions: res.options || [], permGewog: res.resolvedValue || g.permGewog };
+              changed = true;
+            }
+          }
+        }
+        return changed ? updated : prev;
+      });
+    };
+    run();
+  }, [guarantors.map((g) => `${g.permDzongkhag}-${g.permGewog}`).join(","), dzongkhagOptions.length]);
+
+  useEffect(() => {
+    const run = async () => {
+      const jobs = guarantors.map(async (g, i) => {
+        if (g.currDzongkhag) {
+          const res = await loadAndResolveGewogs(g.currDzongkhag, g.currGewog);
+          return { i, dzongkhag: g.currDzongkhag, ...(res || { options: [], resolvedValue: g.currGewog }) };
+        }
+        return { i, dzongkhag: null, options: [], resolvedValue: g.currGewog };
+      });
+      const results = await Promise.all(jobs);
+      setGuarantors((prev) => {
+        if (prev.length !== results.length) return prev;
+        let changed = false;
+        const updated = [...prev];
+        for (const res of results) {
+          const g = updated[res.i];
+          if (!g) continue;
+          if (res.dzongkhag) {
+            const optChanged = !g.currGewogOptions || g.currGewogOptions.length !== (res.options?.length || 0);
+            const valChanged = res.resolvedValue !== g.currGewog;
+            if (optChanged || valChanged) {
+              updated[res.i] = { ...g, currGewogOptions: res.options || [], currGewog: res.resolvedValue || g.currGewog };
+              changed = true;
+            }
+          }
+        }
+        return changed ? updated : prev;
+      });
+    };
+    run();
+  }, [guarantors.map((g) => `${g.currDzongkhag}-${g.currGewog}`).join(","), dzongkhagOptions.length]);
+
+  useEffect(() => {
+    const run = async () => {
+      const jobs = guarantors.map(async (g, i) => {
+        if (g.spousePermDzongkhag) {
+          const res = await loadAndResolveGewogs(g.spousePermDzongkhag, g.spousePermGewog);
+          return { i, dzongkhag: g.spousePermDzongkhag, ...(res || { options: [], resolvedValue: g.spousePermGewog }) };
+        }
+        return { i, dzongkhag: null, options: [], resolvedValue: g.spousePermGewog };
+      });
+      const results = await Promise.all(jobs);
+      setGuarantors((prev) => {
+        if (prev.length !== results.length) return prev;
+        let changed = false;
+        const updated = [...prev];
+        for (const res of results) {
+          const g = updated[res.i];
+          if (!g) continue;
+          if (res.dzongkhag) {
+            const optChanged = !g.spousePermGewogOptions || g.spousePermGewogOptions.length !== (res.options?.length || 0);
+            const valChanged = res.resolvedValue !== g.spousePermGewog;
+            if (optChanged || valChanged) {
+              updated[res.i] = { ...g, spousePermGewogOptions: res.options || [], spousePermGewog: res.resolvedValue || g.spousePermGewog };
+              changed = true;
+            }
+          }
+        }
+        return changed ? updated : prev;
+      });
+    };
+    run();
+  }, [guarantors.map((g) => `${g.spousePermDzongkhag}-${g.spousePermGewog}`).join(","), dzongkhagOptions.length]);
+
+  // --- ENHANCED METADATA REHYDRATION (Per Guarantor & Related PEPs) ---
+  useEffect(() => {
+    const rehydrateMetadata = async () => {
+      let changed = false;
+      const updatedGuarantors = await Promise.all(guarantors.map(async (g, gIdx) => {
+        let updatedG = { ...g };
+        let gChanged = false;
+
+        // 1. Resolve Pep Subcategories for Guarantor
+        if (updatedG.isPep === "yes" && updatedG.pepCategory) {
+          try {
+            const options = await fetchPepSubCategoryByCategory(updatedG.pepCategory);
+            if (!updatedG.pepSubCategoryOptions || updatedG.pepSubCategoryOptions.length !== (options?.length || 0)) {
+              updatedG.pepSubCategoryOptions = options || [];
+              gChanged = true;
+            }
+            // If subcategory is label, resolve it
+            if (updatedG.pepSubCategory && options?.length > 0) {
+              const pk = findPkCodeByLabelStatic(updatedG.pepSubCategory, options, ["pep_sub_category", "name", "label"]);
+              if (pk && pk !== updatedG.pepSubCategory) {
+                updatedG.pepSubCategory = pk;
+                gChanged = true;
+              }
+            }
+          } catch (e) {}
+        }
+
+        // 2. Resolve metadata for Related PEPs (Subcategories and Gewogs)
+        if (updatedG.relatedPeps && Array.isArray(updatedG.relatedPeps)) {
+          const updatedPeps = await Promise.all(updatedG.relatedPeps.map(async (pep, pIdx) => {
+            let p = { ...pep };
+            let pChanged = false;
+
+            // Fetch Subcategories for PEP relative
+            if (p.category) {
+              try {
+                const opts = await fetchPepSubCategoryByCategory(p.category);
+                if (!updatedG.relatedPepOptionsMap[pIdx] || updatedG.relatedPepOptionsMap[pIdx].length !== (opts?.length || 0)) {
+                  updatedG.relatedPepOptionsMap = { ...updatedG.relatedPepOptionsMap, [pIdx]: opts || [] };
+                  gChanged = true;
+                }
+                if (p.subCategory && opts?.length > 0) {
+                  const pk = findPkCodeByLabelStatic(p.subCategory, opts, ["pep_sub_category", "name", "label"]);
+                  if (pk && pk !== p.subCategory) { p.subCategory = pk; pChanged = true; }
+                }
+              } catch (e) {}
+            }
+
+            // Fetch Gewogs for PEP relative
+            const dzConfigs = [
+              { dz: p.permDzongkhag, mapKey: 'relatedPepPermGewogMap', field: 'permGewog' },
+              { dz: p.currDzongkhag, mapKey: 'relatedPepCurrGewogMap', field: 'currGewog' },
+              { dz: p.spousePermDzongkhag, mapKey: 'relatedPepSpouseGewogMap', field: 'spousePermGewog' }
+            ] as const;
+
+            for (const { dz, mapKey, field } of dzConfigs) {
+              if (dz) {
+                try {
+                  const opts = await fetchGewogsByDzongkhag(dz);
+                  const currentOpts = updatedG[mapKey as keyof typeof updatedG] as Record<number, any[]>;
+                  if (!currentOpts[pIdx] || currentOpts[pIdx].length !== (opts?.length || 0)) {
+                    (updatedG[mapKey as keyof typeof updatedG] as Record<number, any[]>) = { ...currentOpts, [pIdx]: opts || [] };
+                    gChanged = true;
+                  }
+                  if (p[field as keyof typeof p] && opts?.length > 0) {
+                    const pk = findPkCodeByLabelStatic(p[field as keyof typeof p] as string, opts, ["gewog", "name", "label"]);
+                    if (pk && pk !== p[field as keyof typeof p]) { (p[field as keyof typeof p] as any) = pk; pChanged = true; }
+                  }
+                } catch (e) {}
+              }
+            }
+            return pChanged ? p : pep;
+          }));
+          if (updatedPeps.some((p, i) => p !== updatedG.relatedPeps[i])) {
+            updatedG.relatedPeps = updatedPeps;
+            gChanged = true;
+          }
+        }
+
+        if (gChanged) changed = true;
+        return gChanged ? updatedG : g;
+      }));
+
+      if (changed) setGuarantors(updatedGuarantors);
+    };
+
+    rehydrateMetadata();
+  }, [guarantors.length]); // Focus on initialization and manual additionstions]);
+
+
 
   // --- HANDLERS ---
 
@@ -700,7 +1040,8 @@ export function RepaymentSourceForm({
 
   const handleRepaymentProofChange = (file: File | null) => {
     if (file) {
-      setIncomeData((prev: any) => ({ ...prev, repaymentProof: file }));
+      // Store the filename string (not the File object) so it survives JSON serialization in session
+      setIncomeData((prev: any) => ({ ...prev, repaymentProof: file.name }));
     }
   };
 
@@ -805,44 +1146,175 @@ export function RepaymentSourceForm({
   };
 
   const handleLookupProceed = (index: number) => {
-    const g = guarantors[index];
-    if (g.lookupStatus === "found" && g.fetchedCustomerData) {
-      const d = g.fetchedCustomerData;
-      const mapped = {
-        guarantorName: d.name || "",
-        salutation: d.salutation || "",
-        nationality: d.nationality ? String(d.nationality) : "",
+    const guarantor = guarantors[index];
+    if (guarantor.lookupStatus === "found" && guarantor.fetchedCustomerData) {
+      const d = guarantor.fetchedCustomerData;
+
+      // ---- Resolve all dropdown label → PK codes ----
+      const resolvedNationality = findPkCodeByLabelStatic(d.nationality, nationalityOptions, ["nationality", "name", "label"]) || d.nationality || "";
+      const resolvedMaritalStatus = findPkCodeByLabelStatic(d.maritalStatus, maritalStatusOptions, ["marital_status", "name", "label"]) || d.maritalStatus || "";
+      const resolvedBankName = findPkCodeByLabelStatic(d.bankName, banksOptions, ["bank_name", "name", "label", "bank"]) || d.bankName || "";
+      const resolvedOccupation = findPkCodeByLabelStatic(d.occupation, occupationOptions, ["occ_name", "occupation", "name", "label"]) || d.occupation || "";
+      const resolvedOrganization = findPkCodeByLabelStatic(d.organizationName || d.employerName, organizationOptions, ["lgal_constitution", "legal_const_name", "name", "label"]) || d.organizationName || d.employerName || "";
+      const resolvedPermCountry = findPkCodeByLabelStatic(d.permCountry || d.permanentCountry, countryOptions, ["country", "country_name", "name", "label"]) || d.permCountry || "";
+      const resolvedPermDzongkhag = findPkCodeByLabelStatic(d.permDzongkhag || d.permanentDzongkhag, dzongkhagOptions, ["dzongkhag", "dzongkhag_name", "name", "label"]) || d.permDzongkhag || "";
+      const resolvedCurrCountry = findPkCodeByLabelStatic(d.currCountry || d.currentCountry, countryOptions, ["country", "country_name", "name", "label"]) || d.currCountry || "";
+      const resolvedCurrDzongkhag = findPkCodeByLabelStatic(d.currDzongkhag || d.currentDzongkhag, dzongkhagOptions, ["dzongkhag", "dzongkhag_name", "name", "label"]) || d.currDzongkhag || "";
+      const mappedTaxIdentifier = findPkCodeByLabelStatic(d.taxIdentifierType, taxIdentifierTypeOptions, ["tax_identifier_type", "name", "label"]) || d.taxIdentifierType || "";
+      const resolvedPepCategory = findPkCodeByLabelStatic(d.pepCategory, pepCategoryOptions, ["pep_category", "name", "label"]) || d.pepCategory || "";
+      const resolvedIdType = findPkCodeByLabelStatic(d.idType || d.identificationType, identificationTypeOptions, ["identity_type", "identification_type", "name", "label"]) || d.idType || d.identificationType || "";
+
+      // Spouse
+      const resolvedSpouseNationality = findPkCodeByLabelStatic(d.spouseNationality, nationalityOptions, ["nationality", "name", "label"]) || d.spouseNationality || "";
+      const resolvedSpousePermCountry = findPkCodeByLabelStatic(d.spousePermCountry, countryOptions, ["country", "country_name", "name", "label"]) || d.spousePermCountry || "";
+      const resolvedSpousePermDzongkhag = findPkCodeByLabelStatic(d.spousePermDzongkhag, dzongkhagOptions, ["dzongkhag", "dzongkhag_name", "name", "label"]) || d.spousePermDzongkhag || "";
+      const resolvedSpouseTaxIdentifierType = findPkCodeByLabelStatic(d.spouseTaxIdentifierType, taxIdentifierTypeOptions, ["tax_identifier_type", "name", "label"]) || d.spouseTaxIdentifierType || "";
+
+      // Employment Status Derivation
+      let derivedEmploymentStatus = d.employmentStatus ? String(d.employmentStatus).toLowerCase() : "";
+      if (derivedEmploymentStatus === "self employed") derivedEmploymentStatus = "self-employed";
+      if (!derivedEmploymentStatus && (resolvedOccupation || d.employerType || d.organizationName || d.employeeId)) {
+        derivedEmploymentStatus = "employed";
+      }
+
+      // Employer Type
+      let resolvedEmployerType = "";
+      const rawEmployer = String(d.employerType || d.organizationType || "").toLowerCase();
+      if (rawEmployer.includes("gov") || rawEmployer.includes("civil") || rawEmployer.includes("public") || rawEmployer.includes("armed") || rawEmployer.includes("ministry") || rawEmployer.includes("rgob") || rawEmployer.includes("authority") || rawEmployer.includes("council") || rawEmployer.includes("police") || rawEmployer.includes("royal")) {
+        resolvedEmployerType = "government";
+      } else if (rawEmployer.includes("priv") || rawEmployer.includes("pvt") || rawEmployer.includes("enterprise") || rawEmployer.includes("business") || rawEmployer.includes("shop")) {
+        resolvedEmployerType = "private";
+      } else if (rawEmployer.includes("corp") || rawEmployer.includes("institution") || rawEmployer.includes("bank") || rawEmployer.includes("limited") || rawEmployer.includes("ltd") || rawEmployer.includes("dhi") || rawEmployer.includes("board") || rawEmployer.includes("agency") || rawEmployer.includes("ngo")) {
+        resolvedEmployerType = "corporate";
+      }
+
+      // Designation
+      let resolvedDesignation = String(d.designation || "").toLowerCase();
+      if (resolvedDesignation.includes("manag") || resolvedDesignation.includes("dir") || resolvedDesignation.includes("head") || resolvedDesignation.includes("chief")) resolvedDesignation = "manager";
+      else if (resolvedDesignation.includes("officer") || resolvedDesignation.includes("clerk") || resolvedDesignation.includes("exec") || resolvedDesignation.includes("analyst")) resolvedDesignation = "officer";
+      else if (resolvedDesignation.includes("assist") || resolvedDesignation.includes("helper") || resolvedDesignation.includes("support")) resolvedDesignation = "assistant";
+      else resolvedDesignation = "";
+
+      // Service Nature
+      let resolvedServiceNature = String(d.serviceNature || d.natureOfService || "").toLowerCase();
+      if (resolvedServiceNature.includes("perm") || resolvedServiceNature.includes("regula")) resolvedServiceNature = "permanent";
+      else if (resolvedServiceNature.includes("contract")) resolvedServiceNature = "contract";
+      else if (resolvedServiceNature.includes("temp") || resolvedServiceNature.includes("casual")) resolvedServiceNature = "temporary";
+      else resolvedServiceNature = "";
+
+      // Grade
+      let resolvedGrade = String(d.grade || "").toLowerCase();
+      if (resolvedGrade.includes("p1")) resolvedGrade = "p1";
+      else if (resolvedGrade.includes("p2")) resolvedGrade = "p2";
+      else if (resolvedGrade.includes("p3")) resolvedGrade = "p3";
+      else {
+        const gMatch = resolvedGrade.match(/\d+/);
+        if (gMatch) { const n = parseInt(gMatch[0]); resolvedGrade = (n >= 1 && n <= 11) ? String(n) : ""; }
+        else resolvedGrade = "";
+      }
+
+      // PEP
+      const rawPepRelated = String(d.pepRelated || d.relatedToAnyPep || "").toLowerCase();
+      const resolvedRelatedToPep = rawPepRelated === "yes" ? "yes" : rawPepRelated === "no" ? "no" : "";
+
+      const formattedData = {
+        nationality: resolvedNationality,
+        idType: resolvedIdType,
+        idNumber: d.idNumber || d.identificationNo || "",
         idIssueDate: formatDateForInput(d.identificationIssueDate),
         idExpiryDate: formatDateForInput(d.identificationExpiryDate),
         dateOfBirth: formatDateForInput(d.dateOfBirth),
         tpnNo: d.tpn || "",
+        taxIdentifierType: mappedTaxIdentifier,
         householdNumber: d.householdNumber || "",
-        maritalStatus: d.maritalStatus ? String(d.maritalStatus) : "",
-        gender: d.gender ? String(d.gender) : "",
-        email: d.email || "",
-        contact: d.contact || "",
-        occupation: d.occupation ? String(d.occupation) : "",
-        taxIdentifierType: d.taxIdentifierType ? String(d.taxIdentifierType) : "",
-        permCountry: d.permCountry ? String(d.permCountry) : "",
-        permDzongkhag: d.permDzongkhag ? String(d.permDzongkhag) : "",
-        permGewog: d.permGewog ? String(d.permGewog) : "",
-        permVillage: d.permVillage || "",
-        currCountry: d.currCountry ? String(d.currCountry) : "",
-        currDzongkhag: d.currDzongkhag ? String(d.currDzongkhag) : "",
-        currGewog: d.currGewog ? String(d.currGewog) : "",
-        currVillage: d.currVillage || "",
+        maritalStatus: resolvedMaritalStatus,
+        gender: d.gender ? String(d.gender).toLowerCase() : "",
+        email: d.email || d.currEmail || "",
+        contact: d.contact || d.currContact || "",
+        currAlternateContact: d.alternatePhone || d.currAlternateContact || "",
+        bankName: resolvedBankName,
+        bankAccountNumber: d.bankAccount || d.bankAccountNo || "",
+        idProof: d.identityProofName || d.idProofDocument || "",
+        passportPhoto: d.passportPhotoName || d.passportPhoto || "",
+        familyTree: d.familyTreeName || d.familyTree || "",
+
+        // Permanent Address
+        permCountry: resolvedPermCountry,
+        permDzongkhag: resolvedPermDzongkhag,
+        permGewog: d.permGewog || d.permanentGewog || "",
+        permVillage: d.permVillage || d.permanentStreet || "",
+        permThram: d.permThram || d.thramNo || "",
+        permHouse: d.permHouse || d.houseNo || "",
+
+        // Current Address
+        currCountry: resolvedCurrCountry,
+        currDzongkhag: resolvedCurrDzongkhag,
+        currGewog: d.currGewog || d.currentGewog || "",
+        currVillage: d.currVillage || d.currentStreet || "",
+        currHouse: d.currHouse || d.currFlat || d.currentBuildingNo || "",
+
+        // Employment
+        employmentStatus: derivedEmploymentStatus,
+        employeeId: d.employeeId || "",
+        occupation: resolvedOccupation,
+        employerType: resolvedEmployerType,
+        designation: resolvedDesignation,
+        grade: resolvedGrade,
+        organizationName: resolvedOrganization,
+        orgLocation: d.orgLocation || d.organizationLocation || "",
+        joiningDate: formatDateForInput(d.joiningDate || d.appointmentDate),
+        serviceNature: resolvedServiceNature,
+        annualSalary: d.annualSalary || d.annualIncome || "",
+        contractEndDate: formatDateForInput(d.contractEndDate),
+
+        // PEP
+        isPep: d.pepPerson || (String(d.pepDeclaration || "").toLowerCase() === "yes" ? "yes" : "no"),
+        pepCategory: resolvedPepCategory,
+        pepSubCategory: d.pepSubCategory || "",
+        relatedToPep: resolvedRelatedToPep,
+
+        // Spouse
+        spouseNationality: resolvedSpouseNationality,
+        spouseTaxIdentifierType: resolvedSpouseTaxIdentifierType,
+        spousePermCountry: resolvedSpousePermCountry,
+        spousePermDzongkhag: resolvedSpousePermDzongkhag,
+        spousePermGewog: d.spousePermGewog || "",
+        spousePermVillage: d.spousePermVillage || "",
+        spousePermThram: d.spousePermThram || "",
+        spousePermHouse: d.spousePermHouse || "",
+        spouseIdentificationType: d.spouseIdentificationType || "",
+        spouseIdentificationNo: d.spouseIdentificationNo || "",
+        spouseSalutation: d.spouseSalutation ? String(d.spouseSalutation).toLowerCase().replace(/\./g, "") : "",
+        spouseName: d.spouseName || "",
+        spouseGender: d.spouseGender ? String(d.spouseGender).toLowerCase() : "",
+        spouseIdentificationIssueDate: formatDateForInput(d.spouseIdentificationIssueDate),
+        spouseIdentificationExpiryDate: formatDateForInput(d.spouseIdentificationExpiryDate),
+        spouseTpn: d.spouseTpn || "",
+        spouseDateOfBirth: formatDateForInput(d.spouseDateOfBirth),
+        spouseHouseholdNumber: d.spouseHouseholdNumber || "",
+        spouseEmail: d.spouseEmail || "",
+        spouseContact: d.spouseContact || "",
+        spouseAlternateContact: d.spouseAlternateContact || "",
       };
 
       setGuarantors((prev) => {
-        const up = [...prev];
-        up[index] = { ...up[index], ...mapped, showLookupPopup: false };
-        return up;
+        const updated = [...prev];
+        updated[index] = {
+          ...prev[index],
+          ...formattedData,
+          guarantorName: d.name || d.applicantName || prev[index].guarantorName,
+          salutation: d.salutation || prev[index].salutation,
+          idType: prev[index].idType,
+          idNumber: prev[index].idNumber,
+          showLookupPopup: false,
+        };
+        return updated;
       });
     } else {
       setGuarantors((prev) => {
-        const up = [...prev];
-        up[index].showLookupPopup = false;
-        return up;
+        const updated = [...prev];
+        updated[index] = { ...updated[index], showLookupPopup: false };
+        return updated;
       });
     }
   };
@@ -1022,20 +1494,62 @@ export function RepaymentSourceForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const getLabel = (value: string, options: any[], labelField: string, codeField: string) => {
+      if (!value) return value;
+      const opt = options.find((o: any) => String(o[codeField] || o.id) === String(value));
+      return opt ? (opt[labelField] || opt.name || opt.label || opt.bankName || opt.bank || opt.dzongkhag || opt.gewog || opt.country || value) : value;
+    };
+
+    const resolvedGuarantors = (incomeData.repaymentGuarantor === "yes" ? guarantors : []).map((g: any) => {
+      const resolved = { ...g };
+      resolved.idType = getLabel(g.idType, identificationTypeOptions, "identity_type", "identity_type_pk_code");
+      resolved.nationality = getLabel(g.nationality, nationalityOptions, "nationality", "nationality_pk_code");
+      resolved.maritalStatus = getLabel(g.maritalStatus, maritalStatusOptions, "marital_status", "marital_status_pk_code");
+      resolved.bankName = getLabel(g.bankName, banksOptions, "bank_name", "bank_pk_code");
+      resolved.taxIdentifierType = getLabel(g.taxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type", "tax_identifier_type_pk_code");
+      resolved.permCountry = getLabel(g.permCountry, countryOptions, "country", "country_pk_code");
+      resolved.currCountry = getLabel(g.currCountry, countryOptions, "country", "country_pk_code");
+      resolved.permDzongkhag = getLabel(g.permDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+      resolved.currDzongkhag = getLabel(g.currDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+      resolved.permGewog = getLabel(g.permGewog, g.permGewogOptions || [], "gewog", "gewog_pk_code");
+      resolved.currGewog = getLabel(g.currGewog, g.currGewogOptions || [], "gewog", "gewog_pk_code");
+      resolved.occupation = getLabel(g.occupation, occupationOptions, "occ_name", "occ_pk_code");
+      resolved.organizationName = getLabel(g.organizationName, organizationOptions, "lgal_constitution", "lgal_constitution_pk_code");
+
+      // Spouse Resolution
+      resolved.spouseIdentificationType = getLabel(g.spouseIdentificationType, identificationTypeOptions, "identity_type", "identity_type_pk_code");
+      resolved.spouseNationality = getLabel(g.spouseNationality, nationalityOptions, "nationality", "nationality_pk_code");
+      resolved.spouseTaxIdentifierType = getLabel(g.spouseTaxIdentifierType, taxIdentifierTypeOptions, "tax_identifier_type", "tax_identifier_type_pk_code");
+      resolved.spousePermCountry = getLabel(g.spousePermCountry, countryOptions, "country", "country_pk_code");
+      resolved.spousePermDzongkhag = getLabel(g.spousePermDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code");
+      resolved.spousePermGewog = getLabel(g.spousePermGewog, g.spousePermGewogOptions || [], "gewog", "gewog_pk_code");
+      resolved.pepCategory = getLabel(g.pepCategory, pepCategoryOptions, "pep_category", "pep_category_pk_code");
+      resolved.pepSubCategory = getLabel(g.pepSubCategory, g.pepSubCategoryOptions || [], "pep_sub_category", "pep_sub_category_pk_code");
+
+      if (Array.isArray(g.relatedPeps)) {
+        resolved.relatedPeps = g.relatedPeps.map((pep: any, i: number) => ({
+          ...pep,
+          identificationType: getLabel(pep.identificationType, identificationTypeOptions, "identity_type", "identity_type_pk_code"),
+          nationality: getLabel(pep.nationality, nationalityOptions, "nationality", "nationality_pk_code"),
+          permCountry: getLabel(pep.permCountry, countryOptions, "country", "country_pk_code"),
+          permDzongkhag: getLabel(pep.permDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code"),
+          permGewog: getLabel(pep.permGewog, g.relatedPepPermGewogMap?.[i] || [], "gewog", "gewog_pk_code"),
+          currCountry: getLabel(pep.currCountry, countryOptions, "country", "country_pk_code"),
+          currDzongkhag: getLabel(pep.currDzongkhag, dzongkhagOptions, "dzongkhag", "dzongkhag_pk_code"),
+          currGewog: getLabel(pep.currGewog, g.relatedPepCurrGewogMap?.[i] || [], "gewog", "gewog_pk_code"),
+          category: getLabel(pep.category, pepCategoryOptions, "pep_category", "pep_category_pk_code"),
+          subCategory: getLabel(pep.subCategory, g.relatedPepOptionsMap?.[i] || [], "pep_sub_category", "pep_sub_category_pk_code"),
+        }));
+      }
+      return resolved;
+    });
+
     const repaymentData = {
       repaymentSource: {
         ...incomeData,
-        guarantors: incomeData.repaymentGuarantor === "yes" ? guarantors : [],
+        guarantors: resolvedGuarantors,
       },
     };
-
-    // Retrieve existing data from sessionStorage
-    const existingData = sessionStorage.getItem("loanApplicationData");
-    const allData = existingData ? JSON.parse(existingData) : {};
-
-    // Merge and save to sessionStorage
-    const updatedData = { ...allData, ...repaymentData };
-    sessionStorage.setItem("loanApplicationData", JSON.stringify(updatedData));
 
     onNext(repaymentData);
   };
@@ -1364,7 +1878,9 @@ export function RepaymentSourceForm({
               </Button>
               <span className="text-sm text-muted-foreground truncate max-w-[200px]">
                 {incomeData.repaymentProof
-                  ? incomeData.repaymentProof.name
+                  ? (typeof incomeData.repaymentProof === "string"
+                      ? incomeData.repaymentProof
+                      : (incomeData.repaymentProof as File).name)
                   : "No file chosen"}
               </span>
             </div>
@@ -2444,7 +2960,240 @@ export function RepaymentSourceForm({
                 )}
               </div>
 
-              {/* D. PEP DECLARATION */}
+              {/* D. EMPLOYMENT DETAILS */}
+              <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
+                <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
+                  Employment Details (Guarantor {index + 1})
+                </h2>
+
+                {/* Employment Status Radio */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">
+                    Employment Status <span className="text-red-500">*</span>
+                  </Label>
+                  <RadioGroup
+                    value={guarantor.employmentStatus || ""}
+                    onValueChange={(val) => updateGuarantorField(index, "employmentStatus", val)}
+                    className="flex flex-wrap gap-6"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="employed" id={`emp-employed-${index}`} />
+                      <Label htmlFor={`emp-employed-${index}`}>Employed</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="self-employed" id={`emp-self-${index}`} />
+                      <Label htmlFor={`emp-self-${index}`}>Self Employed</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="unemployed" id={`emp-un-${index}`} />
+                      <Label htmlFor={`emp-un-${index}`}>Unemployed</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Employment Fields - shown when employed */}
+                {(guarantor.employmentStatus === "employed" || guarantor.employmentStatus === "self-employed") && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Employee ID
+                        </Label>
+                        <Input
+                          placeholder="Enter Employee ID"
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          value={guarantor.employeeId || ""}
+                          onChange={(e) => updateGuarantorField(index, "employeeId", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Occupation <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.occupation}
+                          onValueChange={(val) => updateGuarantorField(index, "occupation", val)}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {occupationOptions.length > 0 ? (
+                              occupationOptions.map((option, optionIndex) => {
+                                const key = option.occ_pk_code || option.occupation_pk_code || option.id || `occ-${optionIndex}`;
+                                const value = String(option.occ_pk_code || option.occupation_pk_code || option.id || optionIndex);
+                                const label = option.occ_name || option.occupation || option.name || "Unknown";
+                                return <SelectItem key={key} value={value}>{label}</SelectItem>;
+                              })
+                            ) : (
+                              <SelectItem value="loading" disabled>Loading...</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Type of Employer <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.employerType}
+                          onValueChange={(val) => updateGuarantorField(index, "employerType", val)}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            <SelectItem value="government">Government</SelectItem>
+                            <SelectItem value="private">Private</SelectItem>
+                            <SelectItem value="corporate">Corporate</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Designation <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.designation}
+                          onValueChange={(val) => updateGuarantorField(index, "designation", val)}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            <SelectItem value="manager">Manager</SelectItem>
+                            <SelectItem value="officer">Officer</SelectItem>
+                            <SelectItem value="assistant">Assistant</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Grade <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.grade}
+                          onValueChange={(val) => updateGuarantorField(index, "grade", val)}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((n) => (
+                              <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                            ))}
+                            <SelectItem value="p1">P1</SelectItem>
+                            <SelectItem value="p2">P2</SelectItem>
+                            <SelectItem value="p3">P3</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Organization Name <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.organizationName}
+                          onValueChange={(val) => updateGuarantorField(index, "organizationName", val)}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            {guarantor.organizationName && !organizationOptions.find((o: any) => String(o.lgal_constitution_pk_code || o.legal_const_pk_code || o.id) === guarantor.organizationName) && (
+                              <SelectItem value={guarantor.organizationName}>{guarantor.organizationName}</SelectItem>
+                            )}
+                            {organizationOptions.length > 0 ? (
+                              organizationOptions.map((option: any, optionIndex: number) => {
+                                const key = option.lgal_constitution_pk_code || option.legal_const_pk_code || option.id || `org-${optionIndex}`;
+                                const value = String(option.lgal_constitution_pk_code || option.legal_const_pk_code || option.id || optionIndex);
+                                const label = option.lgal_constitution || option.legal_const_name || option.name || "Unknown";
+                                return <SelectItem key={key} value={value}>{label}</SelectItem>;
+                              })
+                            ) : (
+                              <SelectItem value="loading" disabled>Loading...</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">Organization Location</Label>
+                        <Input
+                          placeholder="Enter Location"
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          value={guarantor.orgLocation || ""}
+                          onChange={(e) => updateGuarantorField(index, "orgLocation", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">Service Joining Date</Label>
+                        <Input
+                          type="date"
+                          max={today}
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          value={guarantor.joiningDate || ""}
+                          onChange={(e) => updateGuarantorField(index, "joiningDate", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Nature of Service <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={guarantor.serviceNature}
+                          onValueChange={(val) => updateGuarantorField(index, "serviceNature", val)}
+                        >
+                          <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
+                            <SelectValue placeholder="[Select]" />
+                          </SelectTrigger>
+                          <SelectContent sideOffset={4}>
+                            <SelectItem value="permanent">Permanent</SelectItem>
+                            <SelectItem value="contract">Contract</SelectItem>
+                            <SelectItem value="temporary">Temporary</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">
+                          Gross Annual Salary Income <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          type="number"
+                          placeholder="Enter Annual Salary"
+                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                          value={guarantor.annualSalary || ""}
+                          onChange={(e) => updateGuarantorField(index, "annualSalary", e.target.value)}
+                        />
+                      </div>
+                      {guarantor.serviceNature === "contract" && (
+                        <div className="space-y-3">
+                          <Label className="text-sm font-semibold">
+                            Contract End Date <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            type="date"
+                            min={today}
+                            className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
+                            value={guarantor.contractEndDate || ""}
+                            onChange={(e) => updateGuarantorField(index, "contractEndDate", e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* E. PEP DECLARATION */}
               <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">
                   PEP Declaration (Guarantor {index + 1})
@@ -3737,400 +4486,7 @@ export function RepaymentSourceForm({
                   </div>
                 )}
               </div>
-
-              {/* Employment Status */}
-              <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm mt-6">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
-                  Employment Status
-                </h2>
-
-                <div className="space-y-4">
-                  <Label className="text-gray-800 font-semibold text-xs sm:text-sm">
-                    Employment Status <span className="text-red-500">*</span>
-                  </Label>
-                  <RadioGroup
-                    value={guarantor.employmentStatus}
-                    onValueChange={(value) =>
-                      updateGuarantorField(index, "employmentStatus", value)
-                    }
-                    className="flex flex-col sm:flex-row gap-3 sm:gap-6 md:gap-8"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="employed"
-                        id={`employed-${index}`}
-                      />
-                      <Label
-                        htmlFor={`employed-${index}`}
-                        className="font-normal cursor-pointer text-sm"
-                      >
-                        Employed
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="unemployed"
-                        id={`unemployed-${index}`}
-                      />
-                      <Label
-                        htmlFor={`unemployed-${index}`}
-                        className="font-normal cursor-pointer text-sm"
-                      >
-                        Unemployed
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem
-                        value="self-employed"
-                        id={`self-employed-${index}`}
-                      />
-                      <Label
-                        htmlFor={`self-employed-${index}`}
-                        className="font-normal cursor-pointer text-sm"
-                      >
-                        Self-employed
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-              </div>
-
-              {/* Employment Details */}
-              {guarantor.employmentStatus === "employed" && (
-                <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 shadow-sm mt-6">
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-2 sm:pb-3 md:pb-4">
-                    Employment Details
-                  </h2>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`employeeId-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Employee ID <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id={`employeeId-${index}`}
-                        placeholder="Enter ID"
-                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        value={guarantor.employeeId || ""}
-                        onChange={(e) =>
-                          updateGuarantorField(
-                            index,
-                            "employeeId",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`occupation-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Occupation <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={guarantor.occupation}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "occupation", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent sideOffset={4}>
-                          {occupationOptions.length > 0 ? (
-                            occupationOptions.map((option, optionIndex) => {
-                              const key =
-                                option.occ_pk_code ||
-                                option.occupation_pk_code ||
-                                option.id ||
-                                `occupation-${optionIndex}`;
-                              const value = String(
-                                option.occ_pk_code ||
-                                option.occupation_pk_code ||
-                                option.id ||
-                                optionIndex,
-                              );
-                              const label =
-                                option.occ_name ||
-                                option.occupation ||
-                                option.name ||
-                                "Unknown";
-
-                              return (
-                                <SelectItem key={key} value={label}>
-                                  {label}
-                                </SelectItem>
-                              );
-                            })
-                          ) : (
-                            <SelectItem value="loading" disabled>
-                              Loading...
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`employerType-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Type of Employer <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={guarantor.employerType}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "employerType", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent sideOffset={4}>
-                          <SelectItem value="government">Government</SelectItem>
-                          <SelectItem value="private">Private</SelectItem>
-                          <SelectItem value="corporate">Corporate</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`designation-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Designation <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={guarantor.designation}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "designation", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent sideOffset={4}>
-                          <SelectItem value="manager">Manager</SelectItem>
-                          <SelectItem value="officer">Officer</SelectItem>
-                          <SelectItem value="assistant">Assistant</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`grade-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Grade <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={guarantor.grade}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "grade", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent sideOffset={4}>
-                          <SelectItem value="p1">P1</SelectItem>
-                          <SelectItem value="p2">P2</SelectItem>
-                          <SelectItem value="p3">P3</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`organizationName-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Organization Name{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={guarantor.organizationName}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "organizationName", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent sideOffset={4}>
-                          {organizationOptions.length > 0 ? (
-                            organizationOptions.map((option, optionIndex) => {
-                              const key =
-                                option.lgal_constitution_pk_code ||
-                                option.legal_const_pk_code ||
-                                option.id ||
-                                `org-${optionIndex}`;
-                              const value = String(
-                                option.lgal_constitution_pk_code ||
-                                option.legal_const_pk_code ||
-                                option.id ||
-                                optionIndex,
-                              );
-                              const label =
-                                option.lgal_constitution ||
-                                option.legal_const_name ||
-                                option.name ||
-                                "Unknown";
-
-                              return (
-                                <SelectItem key={key} value={value}>
-                                  {label}
-                                </SelectItem>
-                              );
-                            })
-                          ) : (
-                            <SelectItem value="loading" disabled>
-                              Loading...
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`orgLocation-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Organization Location{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id={`orgLocation-${index}`}
-                        placeholder="Enter Full Name"
-                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        value={guarantor.orgLocation || ""}
-                        onChange={(e) =>
-                          updateGuarantorField(
-                            index,
-                            "orgLocation",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`joiningDate-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Service Joining Date{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        type="date"
-                        id={`joiningDate-${index}`}
-                        max={today}
-                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        value={guarantor.joiningDate || ""}
-                        onChange={(e) =>
-                          updateGuarantorField(
-                            index,
-                            "joiningDate",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`serviceNature-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Nature of Service{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={guarantor.serviceNature}
-                        onValueChange={(value) =>
-                          updateGuarantorField(index, "serviceNature", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 w-full border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]">
-                          <SelectValue placeholder="[Select]" />
-                        </SelectTrigger>
-                        <SelectContent sideOffset={4}>
-                          <SelectItem value="permanent">Permanent</SelectItem>
-                          <SelectItem value="contract">Contract</SelectItem>
-                          <SelectItem value="temporary">Temporary</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <Label
-                        htmlFor={`annualSalary-${index}`}
-                        className="text-gray-800 font-semibold text-sm"
-                      >
-                        Gross Annual Salary Income{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        type="number"
-                        id={`annualSalary-${index}`}
-                        placeholder="Enter Annual Salary"
-                        className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                        value={guarantor.annualSalary || ""}
-                        onChange={(e) =>
-                          updateGuarantorField(
-                            index,
-                            "annualSalary",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* Contract End Date - Only visible when Nature of Service is Contract */}
-                  {guarantor.serviceNature === "contract" && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2.5">
-                        <Label
-                          htmlFor={`contractEndDate-${index}`}
-                          className="text-gray-800 font-semibold text-sm"
-                        >
-                          Contract End Date{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          type="date"
-                          id={`contractEndDate-${index}`}
-                          min={today}
-                          className="h-12 border-gray-300 focus:border-[#FF9800] focus:ring-[#FF9800]"
-                          value={guarantor.contractEndDate || ""}
-                          onChange={(e) =>
-                            updateGuarantorField(
-                              index,
-                              "contractEndDate",
-                              e.target.value,
-                            )
-                          }
-                          required
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Spouse Details Section - moved here */}
+              {/* Spouse Details Section */}
               {isMarried && (
                 <div className="bg-white border border-gray-200 rounded-xl p-8 space-y-8 shadow-sm mt-6">
                   <h2 className="text-2xl font-bold text-[#003DA5] border-b border-gray-200 pb-4">

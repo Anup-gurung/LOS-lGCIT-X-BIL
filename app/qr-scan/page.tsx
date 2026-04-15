@@ -31,7 +31,7 @@ export default function QRScanPage() {
 
   const redirectPath = redirectPathParam
     ? decodeURIComponent(redirectPathParam)
-    : "/loan-application?step=1"  
+    : "/loan-application?step=1"
   const [loading, setLoading] = useState(true)
 
   // For QR expiry handling, we can set a timeout (e.g., 2 minutes) to reset the state and allow re-generation of QR code if needed.
@@ -43,8 +43,8 @@ export default function QRScanPage() {
   const [role, setRole] = useState<string>("")
   const [refId, setRefId] = useState<string>("")
 
-  
-    useEffect(() => {
+
+  useEffect(() => {
     if (!qrUrl) return
 
     const timer = setTimeout(() => {
@@ -86,10 +86,10 @@ const handleRegenerateQR = async () => {
     setMappedFormData(null)
     setIsSuccess(false)
 
-    // IMPORTANT
-    setStatus("pending")
+      // IMPORTANT
+      setStatus("pending")
 
-    const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL
+      const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL
 
     // Authenticate
     const authRes = await fetch(`${BACKEND}/api/ndi/auth`, {
@@ -100,80 +100,117 @@ const handleRegenerateQR = async () => {
       throw new Error("NDI authentication failed")
     }
 
-    const authData = await authRes.json()
+    // const authData = await authRes.json()
 
-    // Request proof
-    const proofRes = await fetch(`${BACKEND}/api/ndi-verifier/proof-request`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${authData.access_token}`,
-      },
-    })
+//     // Request proof
+//     const proofRes = await fetch(`${BACKEND}/api/ndi-verifier/proof-request`, {
+//       method: "POST",
+//       headers: {
+//         Authorization: `Bearer ${authData.access_token}`,
+//       },
+//     })
 
-    if (!proofRes.ok) {
-      throw new Error("Proof request failed")
-    }
+//     if (!proofRes.ok) {
+//       throw new Error("Proof request failed")
+//     }
 
-    const proofData = await proofRes.json()
+//     const proofData = await proofRes.json()
 
-    const { proofRequestURL, threadId, deepLinkURL } = proofData.data
-console.log("Regenerated proof data:", proofData)
+//     const { proofRequestURL, threadId, deepLinkURL } = proofData.data
+// console.log("Regenerated proof data:", proofData)
 
-console.log("threadId ", threadId)
-    // Update state (same as first flow)
-    setQrUrl(proofRequestURL)
-    setThreadId(threadId)
+// console.log("threadId ", threadId)
+//     // Update state (same as first flow)
+//     setQrUrl(proofRequestURL)
+//     setThreadId(threadId)
 
-    // Store session (same as startNdiFlow)
-    sessionStorage.setItem(
-      "ndiProof",
-      JSON.stringify({
-        proofRequestURL,
-        threadId,
-        deepLinkURL,
-        role,
-        refId,
+//     // Store session (same as startNdiFlow)
+//     sessionStorage.setItem(
+//       "ndiProof",
+//       JSON.stringify({
+//         proofRequestURL,
+//         threadId,
+//         deepLinkURL,
+//         role,
+//         refId,
+//       })
+
+//       if (!authRes.ok) {
+//         throw new Error("NDI authentication failed")
+//       }
+
+      const authData = await authRes.json()
+
+      // Request proof
+      const proofRes = await fetch(`${BACKEND}/api/ndi-verifier/proof-request`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authData.access_token}`,
+        },
       })
-    )
 
-  } catch (err) {
-    console.error("Regenerate failed:", err)
+      if (!proofRes.ok) {
+        throw new Error("Proof request failed")
+      }
+
+      const proofData = await proofRes.json()
+
+      const { proofRequestURL, threadId, deepLinkURL } = proofData.data
+
+      // Update state (same as first flow)
+      setQrUrl(proofRequestURL)
+      setThreadId(threadId)
+
+      // Store session (same as startNdiFlow)
+      sessionStorage.setItem(
+        "ndiProof",
+        JSON.stringify({
+          proofRequestURL,
+          threadId,
+          deepLinkURL,
+          role,
+          refId,
+        })
+      )
+
+    } catch (err) {
+      console.error("Regenerate failed:", err)
+    }
   }
-}
 
   useEffect(() => {
-  // Notify previous page that QR is ready
-  if (typeof window !== "undefined") {
-    // window.dispatchEvent(new Event("qr-ready"))
-  }
-}, [])
-useEffect(() => {
-  const stored = sessionStorage.getItem("ndiProof")
+    // Notify previous page that QR is ready
+    if (typeof window !== "undefined") {
+      // window.dispatchEvent(new Event("qr-ready"))
+    }
+  }, [])
+  useEffect(() => {
+    const stored = sessionStorage.getItem("ndiProof")
 
-  if (stored) {
-    const parsed = JSON.parse(stored)
+    if (stored) {
+      const parsed = JSON.parse(stored)
 
-    setQrUrl(parsed.proofRequestURL)
-    setThreadId(parsed.threadId)
+      setQrUrl(parsed.proofRequestURL)
+      setThreadId(parsed.threadId)
 
-    setRole(parsed.role)
-    setRefId(parsed.refId)
+      setRole(parsed.role)
+      setRefId(parsed.refId)
 
-    setLoading(false)
-  }
-}, [])
+      setLoading(false)
+    }
+  }, [])
 
-useEffect(() => {
-  const handleQrReady = () => {
-    setLoading(false)
-  }
+  useEffect(() => {
+    const handleQrReady = () => {
+      setLoading(false)
+    }
 
-  // window.addEventListener("qr-ready", handleQrReady)
+    // window.addEventListener("qr-ready", handleQrReady)
 
-  return () => {
-    window.removeEventListener("qr-ready", handleQrReady)
-  }
-}, [])
+    return () => {
+      window.removeEventListener("qr-ready", handleQrReady)
+    }
+  }, [])
   // Load stored proof request (only QR info)
   useEffect(() => {
     const stored = sessionStorage.getItem("ndiProof")
@@ -210,55 +247,55 @@ console.log("Polling proof result:", { res, data })
 
           let mapped;
           console.log("Redirect URl", redirectPath)
-        if (redirectPath.includes("step=3")) {
-          // Co-borrower
-          mapped = mapNdiDataToSecurityGuarantor(ndiAttributes);
+          if (redirectPath.includes("step=3")) {
+            // Co-borrower
+            mapped = mapNdiDataToSecurityGuarantor(ndiAttributes);
 
-          sessionStorage.setItem(
-            "verifiedSecurityData",
-            JSON.stringify(mapped)
-          );
+            sessionStorage.setItem(
+              "verifiedSecurityData",
+              JSON.stringify(mapped)
+            );
 
-          console.log("✅ Stored Security data:", mapped);
+            console.log("✅ Stored Security data:", mapped);
 
-        } 
-                if (redirectPath.includes("step=4")) {
-          // Co-borrower
-          mapped = mapNdiDataToRepaymentGuarantor(ndiAttributes);
+          }
+          if (redirectPath.includes("step=4")) {
+            // Co-borrower
+            mapped = mapNdiDataToRepaymentGuarantor(ndiAttributes);
 
-          sessionStorage.setItem(
-            "verifiedRepaymentData",
-            JSON.stringify(mapped)
-          );
+            sessionStorage.setItem(
+              "verifiedRepaymentData",
+              JSON.stringify(mapped)
+            );
 
-          console.log("✅ Stored Repayment Guarantor data:", mapped);
+            console.log("✅ Stored Repayment Guarantor data:", mapped);
 
-        } 
-                if (redirectPath.includes("step=2")) {
-          // Co-borrower
-          mapped = mapNdiDataToCoBorrower(ndiAttributes);
-          console.log("co-borrwoer",mapped)
+          }
+          if (redirectPath.includes("step=2")) {
+            // Co-borrower
+            mapped = mapNdiDataToCoBorrower(ndiAttributes);
+            console.log("co-borrwoer", mapped)
 
-          sessionStorage.setItem(
-            "verifiedCoborrowerData",
-            JSON.stringify(mapped)
-          );
+            sessionStorage.setItem(
+              "verifiedCoborrowerData",
+              JSON.stringify(mapped)
+            );
 
-          console.log("✅ Stored CoBorrower data:", mapped);
+            console.log("✅ Stored CoBorrower data:", mapped);
 
-        } 
-        else {
-          // Applicant (default step=1)
-          console.log("mapping applicant details")
-          mapped = mapNdiDataToPersonalDetail(ndiAttributes);
+          }
+          else {
+            // Applicant (default step=1)
+            console.log("mapping applicant details")
+            mapped = mapNdiDataToPersonalDetail(ndiAttributes);
 
-          sessionStorage.setItem(
-            "verifiedCustomerData",
-            JSON.stringify(mapped)
-          );
+            sessionStorage.setItem(
+              "verifiedCustomerData",
+              JSON.stringify(mapped)
+            );
 
-          console.log("✅ Stored Applicant data:", mapped);
-        }
+            console.log("✅ Stored Applicant data:", mapped);
+          }
           setMappedFormData(mapped)
           console.log("Mapped form data:", mapped)
 
@@ -277,20 +314,20 @@ console.log("Polling proof result:", { res, data })
             })
             console.log("data to save", data)
             console.log("Saved to IndexedDB:", { role, refId })
-                      // loading the stored NDI data from IndexedDB to session for retrieval in the next page
-          try {
+            // loading the stored NDI data from IndexedDB to session for retrieval in the next page
+            try {
               const latestNDIData = await getNDIDataByRef(dynamicRefId)
               console.log('refId for retrieval:', dynamicRefId)
               console.log("LatestNDI data fetched", latestNDIData)
 
               if (latestNDIData) {
                 console.log("✅ Loaded from IndexedDB:", latestNDIData)
-                
+
                 const ndiAttributes = latestNDIData.attributes || latestNDIData
 
-                  console.log("✅ Extracted attributes:", ndiAttributes)
+                console.log("✅ Extracted attributes:", ndiAttributes)
 
-                  const mapped = mapNdiDataToPersonalDetail(ndiAttributes)
+                const mapped = mapNdiDataToPersonalDetail(ndiAttributes)
 
                 // 🔥 STORE INTO SESSION (THIS IS WHAT YOUR FORM USES)
                 sessionStorage.setItem(
@@ -303,7 +340,7 @@ console.log("Polling proof result:", { res, data })
                 console.warn("⚠️ No data found in IndexedDB for refId:", dynamicRefId)
               }
             } catch (err) {
-              console.log("refId and role used to fetch:", dynamicRefId,role )
+              console.log("refId and role used to fetch:", dynamicRefId, role)
               console.error("❌ Failed to load from IndexedDB:", err)
             }
 
@@ -327,7 +364,7 @@ console.log("Polling proof result:", { res, data })
 
           // const storeData = await storeRes.json()
           // console.log("Stored in backend:", storeData)
-          
+
           // Fetch from Supabase to populate form
           // const cid = ndiAttributes["ID Number"]
           // const supabaseRes = await fetch(`${BACKEND_URL}/api/ndi/fetch?cid=${cid}`)
@@ -342,23 +379,23 @@ console.log("Polling proof result:", { res, data })
           // setMappedFormData(mapped)
           // console.log("Mapped form data:", mapped)
 
-            // ✅ Persist for next page
-        //   sessionStorage.setItem(
-        //     "ndi_mapped_personal_details",
-        //     JSON.stringify(mapped)
-        //   )
-        // } else {
-        //   console.error("No NDI data returned from backend:", supabaseData)
-        // }
-          
+          // ✅ Persist for next page
+          //   sessionStorage.setItem(
+          //     "ndi_mapped_personal_details",
+          //     JSON.stringify(mapped)
+          //   )
+          // } else {
+          //   console.error("No NDI data returned from backend:", supabaseData)
+          // }
 
-        setStatus('completed')
-        setIsSuccess(true)
-        clearInterval(interval)
 
-        setTimeout(() => {
-          router.push(redirectPath || "/loan-application?step=1")
-        }, 2000)
+          setStatus('completed')
+          setIsSuccess(true)
+          clearInterval(interval)
+
+          setTimeout(() => {
+            router.push(redirectPath || "/loan-application?step=1")
+          }, 2000)
         } else {
           console.error("Unexpected proof result:", data)
         }
@@ -398,45 +435,45 @@ console.log("Polling proof result:", { res, data })
           >
             <CardContent className="p-10 space-y-6">
 
-      {isSuccess ? (
-        // ✅ Success screen after scan
-        <div className="flex flex-col items-center justify-center py-10 space-y-6">
-          <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center animate-bounce">
-            <svg
-              className="w-10 h-10 text-green-600"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-green-700">
-            Identity Verified Successfully
-          </h2>
-          <p className="text-gray-600">
-            Redirecting to application form...
-          </p>
-        </div>
-      ) : expired ? (
-        // ⛔ Expired QR
-      <div className="flex flex-col items-center py-10 space-y-6">
-        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-6 text-center">
-          <p className="text-lg font-semibold text-yellow-700">
-            QR Code Expired
-          </p>
-          <p className="text-sm text-gray-600 mt-2">
-            The generated QR has expired for security reasons.
-          </p>
-        </div>
+              {isSuccess ? (
+                // ✅ Success screen after scan
+                <div className="flex flex-col items-center justify-center py-10 space-y-6">
+                  <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center animate-bounce">
+                    <svg
+                      className="w-10 h-10 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-green-700">
+                    Identity Verified Successfully
+                  </h2>
+                  <p className="text-gray-600">
+                    Redirecting to application form...
+                  </p>
+                </div>
+              ) : expired ? (
+                // ⛔ Expired QR
+                <div className="flex flex-col items-center py-10 space-y-6">
+                  <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-6 text-center">
+                    <p className="text-lg font-semibold text-yellow-700">
+                      QR Code Expired
+                    </p>
+                    <p className="text-sm text-gray-600 mt-2">
+                      The generated QR has expired for security reasons.
+                    </p>
+                  </div>
 
-        <button
-          onClick={handleRegenerateQR}
-          className="flex items-center justify-center w-14 h-14 rounded-full bg-[#003DA5] text-white hover:bg-blue-800 transition transform hover:rotate-180 duration-500"
-        >
-          <RefreshCw size={24} />
-        </button>
+                  <button
+                    onClick={handleRegenerateQR}
+                    className="flex items-center justify-center w-14 h-14 rounded-full bg-[#003DA5] text-white hover:bg-blue-800 transition transform hover:rotate-180 duration-500"
+                  >
+                    <RefreshCw size={24} />
+                  </button>
 
         <p className="text-sm text-gray-500">
           Tap to generate a new QR

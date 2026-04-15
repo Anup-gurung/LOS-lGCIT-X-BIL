@@ -328,7 +328,7 @@ function mapLabelToCode(label: string, type: string): string {
   // Identification Type mappings - preserve exact API values
   if (type === 'identificationType') {
     // Only normalize common abbreviations, otherwise keep original
-    if (labelLower === 'cid') return 'Citizenship Identity card';
+    if (labelLower === 'cid') return 'Citizenship Identification';
     // For everything else, return the original value as-is
     return cleaned;
   }
@@ -655,19 +655,20 @@ export function isFieldVerified(fieldName: string, mappedData: MappedFormData): 
 export function getVerifiedCustomerDataFromSession(): MappedFormData | null {
   try {
     console.log('🔍 getVerifiedCustomerDataFromSession: Checking sessionStorage...');
-    const verifiedData = sessionStorage.getItem('verifiedCustomerData');
+    
+    // Check for both the standard key and the potentially misspelled key from some sources
+    let verifiedData = sessionStorage.getItem('verifiedCustomerData');
+    if (!verifiedData) {
+      verifiedData = sessionStorage.getItem('verifiedCustomeData');
+      if (verifiedData) console.log('⚠️ getVerifiedCustomerDataFromSession: Data found under misspelled key "verifiedCustomeData"');
+    }
 
     if (verifiedData) {
       const parsedData = JSON.parse(verifiedData);
       console.log('✅ getVerifiedCustomerDataFromSession: Data found!');
-      console.log('   Data keys:', Object.keys(parsedData));
-      console.log('   Applicant Name:', parsedData.applicantName);
-      console.log('   Email:', parsedData.currEmail || parsedData.email);
-      console.log('   Phone:', parsedData.currContact || parsedData.phone);
       return parsedData;
     } else {
-      console.log('❌ getVerifiedCustomerDataFromSession: No data in sessionStorage');
-      console.log('   Available keys:', Object.keys(sessionStorage));
+      console.log('❌ getVerifiedCustomerDataFromSession: No data found in keys "verifiedCustomerData" or "verifiedCustomeData"');
     }
   } catch (error) {
     console.error('❌ Error retrieving verified customer data from session:', error);
@@ -715,10 +716,13 @@ export interface CoBorrowerFormData {
   currContact?: string;
   currEmail?: string;
 
-  // Address
+  // Permanent Address
   permCountry?: string;
   permDzongkhag?: string;
   permGewog?: string;
+  permVillage?: string;
+  permThram?: string;
+  permHouse?: string;
 
   // Current/Resident Address
   currentCountry?: string;
@@ -741,6 +745,12 @@ export interface CoBorrowerFormData {
   organizationName?: string;
   designation?: string;
   annualSalary?: string;
+  employeeId?: string;
+  serviceNature?: string;
+  joiningDate?: string;
+  grade?: string;
+  orgLocation?: string;
+  contractEndDate?: string;
 
   // PEP
   pepPerson?: string;
@@ -765,6 +775,9 @@ export function mapCoBorrowerData(
   }
 
   const { personal, address, contact, employment, pep } = customerData as any;
+
+  const permDzongkhagObj = address?.Bhutanese_Permanent_address?.pty_adr_permanent_dzongkhag;
+  const permGewogObj = address?.Bhutanese_Permanent_address?.pty_adr_permanent_gewog;
 
   const permAddress =
     address?.Bhutanese_Permanent_address ||
@@ -828,13 +841,21 @@ export function mapCoBorrowerData(
     currEmail: extractField(contact, 'pty_ctc_email_id'),
 
     // =========================
-    // ADDRESS
+    // PERMANENT ADDRESS
     // =========================
-   currCountry: mapLabelToCode(getStringValue(resident?.pty_adr_resident_country, 'value'), 'country'),
-    currDzongkhag: getStringValue(resident?.pty_adr_resident_dzongkhag, 'value'), // label from 'value'
-    // currDzongkhag: getStringValue(resident?.pty_adr_resident_dzongkhag, 'value'),
-    currentCountry: getStringValue(resident?.pty_adr_resident_dzongkhag, 'value'),
-    currGewog: getStringValue(resident?.pty_adr_resident_gewog, 'value'),
+    permCountry: mapLabelToCode(getStringValue(permAddress?.pty_adr_permanent_country, 'value'), 'country'),
+    permDzongkhag: getStringValue(permDzongkhagObj, 'íd') || getStringValue(permDzongkhagObj, 'value') || '',
+    permGewog: getStringValue(permGewogObj, 'íd') || getStringValue(permGewogObj, 'value') || '',
+    permVillage: extractField(permAddress, 'pty_adr_permanent_street'),
+    permThram: extractField(permAddress, 'pty_adr_thram_no'),
+    permHouse: extractField(permAddress, 'pty_adr_house_no'),
+
+    // =========================
+    // CURRENT/RESIDENT ADDRESS
+    // =========================
+    currCountry: mapLabelToCode(getStringValue(resident?.pty_adr_resident_country, 'value'), 'country'),
+    currDzongkhag: getStringValue(resident?.pty_adr_resident_dzongkhag, 'value') || getStringValue(resident?.pty_adr_resident_dzongkhag, 'íd') || '',
+    currGewog: getStringValue(resident?.pty_adr_resident_gewog, 'íd') || getStringValue(resident?.pty_adr_resident_gewog, 'value') || '',
     currentStreet: extractField(resident, 'pty_adr_resident_street'),
     currStreet: extractField(resident, 'pty_adr_resident_street'),
     currVillage: extractField(resident, 'pty_adr_resident_street'),
@@ -854,7 +875,7 @@ export function mapCoBorrowerData(
     ),
 
     employerType: normalizeEmployerType(
-      getStringValue(employment?.pty_empl_employer_type, 'value')
+      getStringValue(employment?.pty_empl_employer_type || employment?.pty_empl_type, 'value')
     ),
 
     organizationName: extractField(
@@ -870,6 +891,13 @@ export function mapCoBorrowerData(
       employment,
       'pty_empl_annual_income'
     ),
+
+    employeeId: extractField(employment, 'pty_empl_employee_id'),
+    serviceNature: normalizeServiceNature(extractField(employment, 'pty_empl_nature_of_service')),
+    joiningDate: formatDate(extractField(employment, 'pty_empl_appointment_date')),
+    grade: normalizeGrade(extractField(employment, 'pty_empl_grade')),
+    orgLocation: extractField(employment, 'pty_empl_organization_loc'),
+    contractEndDate: formatDate(extractField(employment, 'pty_empl_contract_end_date')),
 
     // =========================
     // PEP

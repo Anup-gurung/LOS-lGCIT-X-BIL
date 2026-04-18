@@ -1647,6 +1647,119 @@ export function SecurityDetailsForm({
         return updated;
       });
     } else {
+      // NDI (not-registered) path: check if NDI QR scan data was stored in session
+      const ndiRaw = sessionStorage.getItem("ndiCoBorrowerUserData");
+      if (ndiRaw) {
+        try {
+          const ndiData = JSON.parse(ndiRaw);
+          if (ndiData && Object.keys(ndiData).length > 0) {
+            // The popup always stores data with co-borrower field names.
+            // Remap to guarantor field naming convention before resolving.
+            const remapped: any = {
+              // Name & salutation
+              guarantorName: ndiData.name || ndiData.guarantorName || "",
+              salutation: ndiData.salutation
+                ? String(ndiData.salutation).toLowerCase().replace(/\./g, "")
+                : "",
+              // Identification — NDI is the authoritative source; only fall back to
+              // whatever the user had typed if NDI didn't provide the field.
+              idType: ndiData.identificationType || ndiData.idType || "",
+              idNumber: ndiData.identificationNo || ndiData.idNumber || "",
+              // Demographics
+              gender: ndiData.gender ? String(ndiData.gender).toLowerCase() : "",
+              dateOfBirth: formatDateForInput(ndiData.dateOfBirth),
+              // Contact
+              contact: ndiData.currContact || ndiData.contact || "",
+              email: ndiData.currEmail || ndiData.email || "",
+              // Address — labels will be resolved via findPkCodeByLabel below
+              permCountry: ndiData.permCountry || "",
+              permDzongkhag: ndiData.permDzongkhag || "",
+              permGewog: ndiData.permGewog || "",
+              permVillage: ndiData.permVillage || "",
+              permThram: ndiData.permThram || "",
+              permHouse: ndiData.permHouse || "",
+              currCountry: ndiData.currCountry || ndiData.permCountry || "",
+              currDzongkhag: ndiData.currDzongkhag || ndiData.permDzongkhag || "",
+              currGewog: ndiData.currGewog || ndiData.permGewog || "",
+              currVillage: ndiData.currVillage || "",
+              // Other optional fields
+              nationality: ndiData.nationality || "",
+              maritalStatus: ndiData.maritalStatus || "",
+              tpnNo: ndiData.tpn || "",
+            };
+
+            // Resolve label strings → PK codes for all dropdown fields
+            if (remapped.nationality) {
+              remapped.nationality = findPkCodeByLabel(
+                remapped.nationality, nationalityOptions,
+                ["nationality", "name", "label"]
+              ) || remapped.nationality;
+            }
+            if (remapped.maritalStatus) {
+              remapped.maritalStatus = findPkCodeByLabel(
+                remapped.maritalStatus, maritalStatusOptions,
+                ["marital_status", "name", "label"]
+              ) || remapped.maritalStatus;
+            }
+            if (remapped.idType) {
+              remapped.idType = findPkCodeByLabel(
+                remapped.idType, identificationTypeOptions,
+                ["identity_type", "identification_type", "name", "label"]
+              ) || remapped.idType;
+            }
+            if (remapped.permCountry) {
+              remapped.permCountry = findPkCodeByLabel(
+                remapped.permCountry, countryOptions,
+                ["country", "country_name", "countryName", "name", "label"]
+              ) || remapped.permCountry;
+            }
+            if (remapped.permDzongkhag) {
+              remapped.permDzongkhag = findPkCodeByLabel(
+                remapped.permDzongkhag, dzongkhagOptions,
+                ["dzongkhag", "dzongkhag_name", "dzongkhagName", "name", "label"]
+              ) || remapped.permDzongkhag;
+            }
+            if (remapped.currCountry) {
+              remapped.currCountry = findPkCodeByLabel(
+                remapped.currCountry, countryOptions,
+                ["country", "country_name", "countryName", "name", "label"]
+              ) || remapped.currCountry;
+            }
+            if (remapped.currDzongkhag) {
+              remapped.currDzongkhag = findPkCodeByLabel(
+                remapped.currDzongkhag, dzongkhagOptions,
+                ["dzongkhag", "dzongkhag_name", "dzongkhagName", "name", "label"]
+              ) || remapped.currDzongkhag;
+            }
+
+            // If NDI didn't supply idType/idNumber, fall back to what the user typed
+            if (!remapped.idType && guarantor.idType) {
+              remapped.idType = guarantor.idType;
+            }
+            if (!remapped.idNumber && guarantor.idNumber) {
+              remapped.idNumber = guarantor.idNumber;
+            }
+
+            // Clear the session key so it isn't accidentally re-applied
+            sessionStorage.removeItem("ndiCoBorrowerUserData");
+
+            setGuarantors((prev) => {
+              const updated = [...prev];
+              updated[index] = {
+                ...updated[index],
+                ...remapped,
+                showLookupPopup: false,
+              };
+              return updated;
+            });
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to parse ndiCoBorrowerUserData from session (security)", e);
+        }
+      }
+
+      // No NDI data — just close the popup
       setGuarantors((prev) => {
         const updated = [...prev];
         updated[index] = {

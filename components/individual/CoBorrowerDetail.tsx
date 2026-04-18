@@ -1513,7 +1513,7 @@ export function CoBorrowerDetailsForm({
   const handleLookupProceed = (index: number) => {
     const coBorrower = coBorrowers[index];
     if (coBorrower.lookupStatus === "found" && coBorrower.fetchedCustomerData) {
-      // Map the fetched data to co-borrower structure using the loaded options
+      // BIL-registered path: map the fetched BIL data into the form
       const mapped = mapFetchedToCoBorrower(coBorrower.fetchedCustomerData, {
         identificationTypeOptions,
         nationalityOptions,
@@ -1541,6 +1541,56 @@ export function CoBorrowerDetailsForm({
         return updated;
       });
     } else {
+      // NDI (not-registered) path: check if NDI QR scan data was stored in session
+      const ndiRaw = sessionStorage.getItem("ndiCoBorrowerUserData");
+      if (ndiRaw) {
+        try {
+          const ndiData = JSON.parse(ndiRaw);
+          if (ndiData && Object.keys(ndiData).length > 0) {
+            // Route the NDI data through the same mapping pipeline as BIL data
+            // so all label strings are resolved to PK codes for dropdowns
+            const mapped = mapFetchedToCoBorrower(ndiData, {
+              identificationTypeOptions,
+              nationalityOptions,
+              maritalStatusOptions,
+              countryOptions,
+              dzongkhagOptions,
+              banksOptions,
+              occupationOptions,
+              organizationOptions,
+              pepCategoryOptions,
+              taxIdentifierTypeOptions,
+            });
+
+            // NDI is the authoritative source for the verified CID.
+            // Only fall back to the user-typed value if NDI didn't supply the field.
+            if (!mapped.identificationNo && coBorrower.identificationNo) {
+              mapped.identificationNo = coBorrower.identificationNo;
+            }
+            if (!mapped.identificationType && coBorrower.identificationType) {
+              mapped.identificationType = coBorrower.identificationType;
+            }
+
+            // Clear the session key so it isn't accidentally re-applied
+            sessionStorage.removeItem("ndiCoBorrowerUserData");
+
+            setCoBorrowers((prev) => {
+              const updated = [...prev];
+              updated[index] = {
+                ...updated[index],
+                ...mapped,
+                showLookupPopup: false,
+              };
+              return updated;
+            });
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to parse ndiCoBorrowerUserData from session", e);
+        }
+      }
+
+      // No NDI data — just close the popup
       setCoBorrowers((prev) => {
         const updated = [...prev];
         updated[index] = {

@@ -1488,6 +1488,83 @@ export function BusinessRepaymentSourceForm({
         return updated;
       });
     } else {
+      // NDI (not-registered) path: check if NDI QR scan data was stored in session
+      const ndiRaw = sessionStorage.getItem("ndiCoBorrowerUserData");
+      if (ndiRaw) {
+        try {
+          const ndiData = JSON.parse(ndiRaw);
+          if (ndiData && Object.keys(ndiData).length > 0) {
+            // The popup always stores data with co-borrower field names.
+            // Remap to guarantor field naming convention before resolving.
+            const remapped: any = {
+              // Name & salutation
+              guarantorName: ndiData.name || ndiData.guarantorName || "",
+              salutation: ndiData.salutation
+                ? String(ndiData.salutation).toLowerCase().replace(/\./g, "")
+                : "",
+              // Identification — NDI is authoritative; only fall back to user-typed if NDI didn't supply
+              idType: ndiData.identificationType || ndiData.idType || "",
+              idNumber: ndiData.identificationNo || ndiData.idNumber || "",
+              // Demographics
+              gender: ndiData.gender ? String(ndiData.gender).toLowerCase() : "",
+              dateOfBirth: formatDateForInput(ndiData.dateOfBirth),
+              // Contact
+              contact: ndiData.currContact || ndiData.contact || "",
+              email: ndiData.currEmail || ndiData.email || "",
+              // Address (label strings — resolved below)
+              permCountry: ndiData.permCountry || "",
+              permDzongkhag: ndiData.permDzongkhag || "",
+              permGewog: ndiData.permGewog || "",
+              permVillage: ndiData.permVillage || "",
+              permThram: ndiData.permThram || "",
+              permHouse: ndiData.permHouse || "",
+              currCountry: ndiData.currCountry || ndiData.permCountry || "",
+              currDzongkhag: ndiData.currDzongkhag || ndiData.permDzongkhag || "",
+              currGewog: ndiData.currGewog || ndiData.permGewog || "",
+              currVillage: ndiData.currVillage || "",
+              // Other optional fields
+              nationality: ndiData.nationality || "",
+              maritalStatus: ndiData.maritalStatus || "",
+              tpnNo: ndiData.tpn || "",
+            };
+
+            // Resolve label strings → PK codes for all dropdown fields
+            const resolveField = (value: string, opts: any[], keys: string[]) =>
+              value ? (findPkCodeByLabel(value, opts, keys) || value) : value;
+
+            remapped.nationality    = resolveField(remapped.nationality,    nationalityOptions,         ["nationality", "name", "label"]);
+            remapped.maritalStatus  = resolveField(remapped.maritalStatus,  maritalStatusOptions,       ["marital_status", "name", "label"]);
+            remapped.idType         = resolveField(remapped.idType,         identificationTypeOptions,  ["identity_type", "identification_type", "name", "label"]);
+            remapped.permCountry    = resolveField(remapped.permCountry,    countryOptions,             ["country", "country_name", "name", "label"]);
+            remapped.permDzongkhag  = resolveField(remapped.permDzongkhag,  dzongkhagOptions,           ["dzongkhag", "dzongkhag_name", "name", "label"]);
+            remapped.currCountry    = resolveField(remapped.currCountry,    countryOptions,             ["country", "country_name", "name", "label"]);
+            remapped.currDzongkhag  = resolveField(remapped.currDzongkhag,  dzongkhagOptions,           ["dzongkhag", "dzongkhag_name", "name", "label"]);
+
+            // Fall back to user-typed values only if NDI didn't supply the field
+            const guarantor = guarantors[index];
+            if (!remapped.idType   && guarantor.idType)   remapped.idType   = guarantor.idType;
+            if (!remapped.idNumber && guarantor.idNumber) remapped.idNumber = guarantor.idNumber;
+
+            // Clear the session key so it isn't accidentally re-applied
+            sessionStorage.removeItem("ndiCoBorrowerUserData");
+
+            setGuarantors((prev) => {
+              const updated = [...prev];
+              updated[index] = {
+                ...updated[index],
+                ...remapped,
+                showLookupPopup: false,
+              };
+              return updated;
+            });
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to parse ndiCoBorrowerUserData from session (business repayment)", e);
+        }
+      }
+
+      // No NDI data — just close the popup
       setGuarantors((prev) => {
         const updated = [...prev];
         updated[index] = {

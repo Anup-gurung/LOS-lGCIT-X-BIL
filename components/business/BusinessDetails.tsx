@@ -802,66 +802,97 @@ const ComprehensiveOwnerDetails = ({
     };
 
     const handleLookupProceed = () => {
-        if (lookupStatus === "found" && fetchedCustomerData) {
+        // Check for NDI QR data (Sole/Partnership path) first,
+        // otherwise fallback to BIL DB lookup fetchedCustomerData
+        const ndiRaw = sessionStorage.getItem("ndiCoBorrowerUserData");
+        const ndiData = ndiRaw ? JSON.parse(ndiRaw) : null;
+
+        // If NDI QR data exists, transform it to match form field names
+        let sourceData = fetchedCustomerData;
+        if (ndiData) {
+            // NDI uses "name", form uses "applicantName"
+            sourceData = {
+                ...ndiData,
+                applicantName: ndiData.name || ndiData.applicantName || "",
+                // Copy currCountry from permCountry if not set
+                currCountry: ndiData.currCountry || ndiData.permCountry || "Bhutan",
+                currDzongkhag: ndiData.currDzongkhag || ndiData.permDzongkhag || "",
+                currGewog: ndiData.currGewog || ndiData.permGewog || "",
+                currVillage: ndiData.currVillage || ndiData.permVillage || "",
+            };
+        }
+
+        if ((lookupStatus === "found" || ndiData) && sourceData) {
             // --- 1. PRE-CALCULATE IDs FROM LABELS ---
             const mappedPermCountry = findPkCodeByLabel(
-                fetchedCustomerData.permCountry,
+                sourceData.permCountry,
                 countryOptions,
                 ["country_name", "country", "name", "label"],
             );
             const mappedCurrCountry = findPkCodeByLabel(
-                fetchedCustomerData.currCountry,
+                sourceData.currCountry,
                 countryOptions,
                 ["country_name", "country", "name", "label"],
             );
 
             const mappedPermDzongkhag = findPkCodeByLabel(
-                fetchedCustomerData.permDzongkhag,
+                sourceData.permDzongkhag,
                 dzongkhagOptions,
                 ["dzongkhag_name", "dzongkhag", "name", "label"],
             );
             const mappedCurrDzongkhag = findPkCodeByLabel(
-                fetchedCustomerData.currDzongkhag,
+                sourceData.currDzongkhag,
                 dzongkhagOptions,
                 ["dzongkhag_name", "dzongkhag", "name", "label"],
             );
 
-            let mappedNationality = fetchedCustomerData.nationality;
+            let mappedNationality = sourceData.nationality;
             if (nationalityOptions.length > 0) {
                 mappedNationality = findPkCodeByLabel(
-                    fetchedCustomerData.nationality,
+                    sourceData.nationality,
                     nationalityOptions,
                     ["nationality", "name"],
                 );
             }
 
             const mappedMaritalStatus = findPkCodeByLabel(
-                fetchedCustomerData.maritalStatus,
+                sourceData.maritalStatus,
                 maritalStatusOptions,
                 ["marital_status", "name", "label"],
             );
 
-            let mappedTaxIdentifierType = fetchedCustomerData.taxIdentifierType;
+            let mappedTaxIdentifierType = sourceData.taxIdentifierType;
             if (taxIdentifierTypeOptions?.length) {
                 mappedTaxIdentifierType = findPkCodeByLabel(
-                    fetchedCustomerData.taxIdentifierType,
+                    sourceData.taxIdentifierType,
                     taxIdentifierTypeOptions,
                     ["tax_identifier_type", "name", "label"],
                 );
             }
 
+            // Map identificationType label to PK code (NDI sends label; form needs PK)
+            let mappedIdentificationType = sourceData.identificationType;
+            if (identificationTypeOptions?.length && sourceData.identificationType) {
+                const resolved = findPkCodeByLabel(
+                    sourceData.identificationType,
+                    identificationTypeOptions,
+                    ["identification_type", "identity_type", "name"],
+                );
+                if (resolved) mappedIdentificationType = resolved;
+            }
+
             // --- 2. DETERMINE EMPLOYMENT STATUS ---
             let inferredEmploymentStatus = "unemployed";
             const hasOccupation =
-                fetchedCustomerData.occupation &&
-                fetchedCustomerData.occupation.toLowerCase() !== "na";
+                sourceData.occupation &&
+                sourceData.occupation.toLowerCase() !== "na";
             const hasEmployeeId =
-                fetchedCustomerData.employeeId &&
-                fetchedCustomerData.employeeId.toLowerCase() !== "na";
+                sourceData.employeeId &&
+                sourceData.employeeId.toLowerCase() !== "na";
             const hasEmployer =
-                fetchedCustomerData.employerName &&
-                fetchedCustomerData.employerName.toLowerCase() !== "na";
-            const hasAnnualSalary = parseFloat(fetchedCustomerData.annualSalary) > 0;
+                sourceData.employerName &&
+                sourceData.employerName.toLowerCase() !== "na";
+            const hasAnnualSalary = parseFloat(sourceData.annualSalary) > 0;
 
             if (hasOccupation || hasEmployeeId || hasEmployer || hasAnnualSalary) {
                 inferredEmploymentStatus = "employed";
@@ -870,7 +901,7 @@ const ComprehensiveOwnerDetails = ({
             // --- 3. MAP EMPLOYER TYPE ---
             let mappedEmployerType = "";
             const rawOrgType = (
-                fetchedCustomerData.organizationType || ""
+                sourceData.organizationType || ""
             ).toLowerCase();
             if (
                 rawOrgType.includes("government") ||
@@ -891,56 +922,63 @@ const ComprehensiveOwnerDetails = ({
 
             // Prepare sanitized data (ensure dates are in YYYY-MM-DD)
             const sanitized = {
-                ...fetchedCustomerData,
+                ...sourceData,
                 // Map Keys
                 nationality: mappedNationality,
-                permCountry: mappedPermCountry || fetchedCustomerData.permCountry,
-                permDzongkhag: mappedPermDzongkhag || fetchedCustomerData.permDzongkhag,
-                currCountry: mappedCurrCountry || fetchedCustomerData.currCountry,
-                currDzongkhag: mappedCurrDzongkhag || fetchedCustomerData.currDzongkhag,
-                maritalStatus: mappedMaritalStatus || fetchedCustomerData.maritalStatus,
+                permCountry: mappedPermCountry || sourceData.permCountry,
+                permDzongkhag: mappedPermDzongkhag || sourceData.permDzongkhag,
+                currCountry: mappedCurrCountry || sourceData.currCountry,
+                currDzongkhag: mappedCurrDzongkhag || sourceData.currDzongkhag,
+                maritalStatus: mappedMaritalStatus || sourceData.maritalStatus,
                 taxIdentifierType:
-                    mappedTaxIdentifierType || fetchedCustomerData.taxIdentifierType,
+                    mappedTaxIdentifierType || sourceData.taxIdentifierType,
 
                 // Map Dates
                 identificationIssueDate: formatDateForInput(
-                    fetchedCustomerData.identificationIssueDate,
+                    sourceData.identificationIssueDate,
                 ),
                 identificationExpiryDate: formatDateForInput(
-                    fetchedCustomerData.identificationExpiryDate,
+                    sourceData.identificationExpiryDate,
                 ),
-                dateOfBirth: formatDateForInput(fetchedCustomerData.dateOfBirth),
-                joiningDate: formatDateForInput(fetchedCustomerData.joiningDate),
+                dateOfBirth: formatDateForInput(sourceData.dateOfBirth),
+                joiningDate: formatDateForInput(sourceData.joiningDate),
 
                 // Employment Data Logic
                 employmentStatus: inferredEmploymentStatus,
                 employerType: mappedEmployerType,
 
                 // Fields directly from API that might need string conversion
-                permGewog: fetchedCustomerData.permGewog
-                    ? String(fetchedCustomerData.permGewog)
+                permGewog: sourceData.permGewog
+                    ? String(sourceData.permGewog)
                     : "",
-                currGewog: fetchedCustomerData.currGewog
-                    ? String(fetchedCustomerData.currGewog)
+                currGewog: sourceData.currGewog
+                    ? String(sourceData.currGewog)
                     : "",
-                occupation: fetchedCustomerData.occupation
-                    ? String(fetchedCustomerData.occupation)
+                occupation: sourceData.occupation
+                    ? String(sourceData.occupation)
                     : "",
-                organizationName: fetchedCustomerData.organizationName
-                    ? String(fetchedCustomerData.organizationName)
+                organizationName: sourceData.organizationName
+                    ? String(sourceData.organizationName)
                     : "",
-                grade: fetchedCustomerData.grade ? String(fetchedCustomerData.grade) : "",
-                currAlternateContact: fetchedCustomerData.alternateContactNo || "",
-                householdNumber: fetchedCustomerData.householdNumber || "",
+                grade: sourceData.grade ? String(sourceData.grade) : "",
+                currAlternateContact: sourceData.alternateContactNo || "",
+                householdNumber: sourceData.householdNumber || "",
             };
 
             const newData = {
                 ...data,
                 ...sanitized,
-                identificationType: data.identificationType,
-                identificationNo: data.identificationNo,
+                // For BIL DB lookup path: preserve the typed ID type/number since they triggered the lookup
+                // For NDI QR scan path: use the data from NDI (user may not have typed ID number yet)
+                identificationType: ndiData
+                    ? (mappedIdentificationType || data.identificationType)
+                    : data.identificationType,
+                identificationNo: ndiData
+                    ? (sourceData.identificationNo || data.identificationNo)
+                    : data.identificationNo,
             };
             console.log("Applying lookup data to person:", newData);
+
 
             onUpdate(newData);
             if (personId) {
@@ -950,9 +988,12 @@ const ComprehensiveOwnerDetails = ({
                     JSON.stringify(storableData),
                 );
             }
+            // Clear NDI data after application to prevent stale data on next scan
+            sessionStorage.removeItem("ndiCoBorrowerUserData");
         }
         setShowLookupPopup(false);
     };
+
 
     // --- Initial Data Loading (remaining options) ---
     useEffect(() => {

@@ -25,14 +25,14 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      
+
       try {
         // Send email with OTP
         await sendOTPEmail(to, String(otp));
-        
+
         // Also store in cache for verification
         storeOtp(to, String(otp));
-        
+
         // Clear console display of OTP
         console.log('\n'.repeat(2));
         console.log('╔═══════════════════════════════════════╗');
@@ -43,9 +43,9 @@ export async function POST(request: NextRequest) {
         console.log('║  Valid: 5 minutes                     ║');
         console.log('╚═══════════════════════════════════════╝');
         console.log('\n');
-        
-        return NextResponse.json({ 
-          success: true, 
+
+        return NextResponse.json({
+          success: true,
           message: 'OTP sent to email successfully',
           otp: otp
         });
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     // For phone, call the SMS API
 
     // SMS API configuration
-    const smsApiUrl = 'http://119.2.100.178/api/send-sms';
+    const smsApiUrl = 'https://eservices-uat.bil.bt/api/send-sms';
     const smsApiToken = 'rEwOrW10rgTC75dqY5zfQO0SGgJUcPQU8Ue6x7XuXftaE0V5DgVE8NVe4BFq';
 
     console.log(`Attempting to send SMS OTP to ${to}`);
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         }),
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
 
       if (!smsResponse.ok) {
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
           console.log('✓ OTP extracted from: result.message');
         }
       }
-      
+
       // If SMS API didn't return OTP, generate one for testing
       if (!sentOtp) {
         console.log('⚠️  SMS API did not return OTP - generating fallback OTP for testing');
@@ -146,10 +146,10 @@ export async function POST(request: NextRequest) {
       if (sentOtp) {
         // Ensure OTP is 6 digits by padding with leading zeros if needed
         const formattedOtp = String(sentOtp).padStart(6, '0');
-        
+
         // Store the OTP that was actually sent by the SMS API
         storeOtp(to, formattedOtp);
-        
+
         // Clear console display of OTP
         console.log('\n'.repeat(2));
         console.log('╔═══════════════════════════════════════╗');
@@ -160,23 +160,23 @@ export async function POST(request: NextRequest) {
         console.log('║  Valid: 2 minutes                     ║');
         console.log('╚═══════════════════════════════════════╝');
         console.log('\n');
-        
+
         sentOtp = formattedOtp; // Return formatted OTP
       } else {
         console.warn('⚠️ SMS API did not return OTP in response');
         console.log('Full Response:', JSON.stringify(result, null, 2));
       }
 
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'OTP sent successfully',
         otp: sentOtp, // Return the OTP for testing/display purposes
-        data: result 
+        data: result
       });
 
     } catch (fetchError: any) {
       clearTimeout(timeoutId);
-      
+
       if (fetchError.name === 'AbortError') {
         console.error('SMS API request timed out');
         return NextResponse.json(
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
           { status: 504 }
         );
       }
-      
+
       console.error('SMS API fetch error:', fetchError);
       return NextResponse.json(
         { error: 'Could not connect to SMS service', details: fetchError.message },
